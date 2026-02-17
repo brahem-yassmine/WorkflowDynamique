@@ -1,0 +1,28 @@
+// back/src/models/master/Plan.js
+const mongoose = require('mongoose');
+
+const planSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  code: { type: String, required: true, unique: true },
+  price: { type: Number, required: true },
+  currency: { type: String, default: 'D' },
+  interval: { type: String, default: 'month' },
+  features: {
+    maxStaff: { type: Number, default: 5 },
+    maxLocations: { type: Number, default: 5 },
+    analysis: { type: String, default: 'Fixed' },
+    reports: { type: Boolean, default: false },
+    aiSupport: { type: Boolean, default: false },
+    customSupport: { type: Boolean, default: false }
+  },
+  description: { type: String },
+  isActive: { type: Boolean, default: true }
+}, {
+  timestamps: true,
+  collection: 'plans'
+});
+
+// ✅ EXPORT sous forme de fonction qui prend la connexion
+module.exports = (connection) => {
+  return connection.model('Plan', planSchema);
+};

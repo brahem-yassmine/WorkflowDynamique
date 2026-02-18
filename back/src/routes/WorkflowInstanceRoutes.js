@@ -6,8 +6,8 @@ const {
   createInstance,
   getInstances,
   getInstanceById,
-  approveStep,
-  rejectStep,
+  approveNode,
+  rejectNode,
   cancelInstance,
   addAttachment,
   getInstanceStats
@@ -26,8 +26,8 @@ router.get('/stats', getInstanceStats);              // GET /api/workflow-instan
 router.get('/:instanceId', getInstanceById);         // GET /api/workflow-instances/:id
 
 // Actions sur les instances
-router.post('/:instanceId/approve', approveStep);    // POST /api/workflow-instances/:id/approve
-router.post('/:instanceId/reject', rejectStep);      // POST /api/workflow-instances/:id/reject
+router.post('/:instanceId/approve', approveNode);    // POST /api/workflow-instances/:id/approve
+router.post('/:instanceId/reject', rejectNode);      // POST /api/workflow-instances/:id/reject
 router.post('/:instanceId/cancel', cancelInstance);  // POST /api/workflow-instances/:id/cancel
 router.post('/:instanceId/attachments', addAttachment); // POST /api/workflow-instances/:id/attachments
 

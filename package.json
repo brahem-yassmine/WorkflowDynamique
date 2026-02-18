@@ -1,0 +1,27 @@
+{
+  "name": "workflow-dynamique",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev-back": "nodemon back/server.js",
+    "dev-front": "cd front && npm run dev",
+    "dev": "concurrently \"npm run dev-back\" \"npm run dev-front\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/brahem-yassmine/WorkflowDynamique.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/brahem-yassmine/WorkflowDynamique/issues"
+  },
+  "homepage": "https://github.com/brahem-yassmine/WorkflowDynamique#readme",
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "nodemon": "^3.1.11"
+  }
+}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, FormEvent, ChangeEvent, useEffect } from 'react';
+import { useState, FormEvent, ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from "next/link";
 import axios, { AxiosError } from 'axios';
@@ -55,18 +55,8 @@ export default function SigninPage() {
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const router = useRouter();
 
-  // ✅ Vérifier si déjà connecté
-  useEffect(() => {
-    const token = localStorage.getItem('auth_token');
-    if (token) {
-      const user = localStorage.getItem('user');
-      if (user) {
-        const userData = JSON.parse(user);
-        const redirectPath = getRedirectPath(userData);
-        router.push(redirectPath);
-      }
-    }
-  }, []);
+  // ✅ SUPPRIMÉ : useEffect qui vérifiait automatiquement le token
+  // Maintenant, l'utilisateur doit cliquer sur le bouton de connexion
 
   // ✅ Fonction de redirection améliorée
   const getRedirectPath = (userData: UserData, requiresPlanSelection?: boolean): string => {
@@ -136,8 +126,6 @@ export default function SigninPage() {
           },
           requiresPlanSelection
         });
-
-       
 
         // ✅ Sauvegarder TOUTES les données
         localStorage.setItem('auth_token', token);

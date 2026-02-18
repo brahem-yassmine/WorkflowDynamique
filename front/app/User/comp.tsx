@@ -132,5 +132,5 @@ const UserComp = () => {
     </div>
   )
 }
-
+// ce ficher doit etre dans le main 
 export default UserComp

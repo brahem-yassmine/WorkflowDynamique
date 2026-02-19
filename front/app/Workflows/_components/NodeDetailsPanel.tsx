@@ -1,3 +1,5 @@
+"use client"
+
 import React, { useEffect, useState } from 'react';
 import { Node } from '@xyflow/react';
 import { X } from 'lucide-react';

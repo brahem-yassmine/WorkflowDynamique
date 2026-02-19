@@ -4,6 +4,9 @@ import { useState, FormEvent, ChangeEvent, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import axios, { AxiosError } from "axios";
+import {
+  ChartNetwork
+} from "lucide-react";
 
 interface SignupFormData {
   companyName: string;
@@ -181,7 +184,7 @@ export default function SignupPage() {
       }
     } catch (err) {
       const error = err as AxiosError<ApiErrorResponse>;
-      console.error("❌ Erreur inscription:", error.response?.data || error.message);
+      console.error(" Erreur inscription:", error.response?.data || error.message);
       
       if (error.response?.data?.message) {
         setError(error.response.data.message);
@@ -204,7 +207,25 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
+    <div>
+      <nav className="w-full flex items-center justify-between px-8 py-6 mx-auto text-base  bg-white/95 backdrop-blur-sm z-50 border-b border-gray-100">
+        <div
+          className="flex items-center gap-3 text-2xl font-bold font-sans cursor-pointer"
+        >
+          <ChartNetwork size={40} />
+          <span>Axia Workflow</span>
+        </div>
+        <div className="hidden md:flex items-center gap-10 font-medium text-black text-xl">
+          <Link href={"/"}>
+          <button className="hover:text-indigo-600 hover:scale-105 transition-all duration-200 hover:font-bold cursor-pointer">Home</button>
+          </Link>
+          
+        </div>
+      </nav>
+
+
+      <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
+
       <div className="max-w-6xl w-full">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* SIGNUP FORM */}
@@ -286,8 +307,8 @@ export default function SignupPage() {
                         key={plan._id}
                         className={`block p-4 border-2 rounded-lg cursor-pointer transition-all ${
                           formData.planId === plan._id
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 hover:border-blue-300'
+                            ? 'border-indigo-700 bg-blue-50'
+                            : 'border-gray-200 hover:border-indigo-500'
                         }`}
                       >
                         <input
@@ -349,7 +370,7 @@ export default function SignupPage() {
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
                   >
-                    {showPassword ? "👁️" : "👁️‍🗨️"}
+                   
                   </button>
                 </div>
               </div>
@@ -375,34 +396,17 @@ export default function SignupPage() {
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
                   >
-                    {showConfirmPassword ? "👁️" : "👁️‍🗨️"}
+                    {/* {showConfirmPassword ? "👁️" : "👁️‍🗨️"} */}
                   </button>
                 </div>
               </div>
-
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="terms"
-                  name="agreeTerms"
-                  checked={formData.agreeTerms}
-                  onChange={handleChange}
-                  className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                  required
-                  disabled={loading}
-                />
-                <label htmlFor="terms" className="ml-2 text-sm text-gray-700">
-                  I agree to the <Link href="/terms" className="text-blue-600 hover:underline">Terms</Link> & <Link href="/privacy" className="text-blue-600 hover:underline">Privacy</Link>
-                </label>
-              </div>
-
               <button
                 type="submit"
                 disabled={loading || loadingPlans}
                 className={`w-full text-white font-semibold py-3 px-4 rounded-lg transition-colors ${
                   loading || loadingPlans
-                    ? "bg-blue-400 cursor-not-allowed"
-                    : "bg-blue-600 hover:bg-blue-700"
+                     ? 'bg-indigo-500 cursor-not-allowed'
+                    : 'bg-indigo-700 hover:bg-blue-700'
                 }`}
               >
                 {loading ? (
@@ -425,7 +429,7 @@ export default function SignupPage() {
                 Already have an account?{" "}
                 <Link
                   href="/signin"
-                  className="text-blue-600 font-medium hover:text-blue-800"
+                  className="text-indigo-700 font-medium hover:text-blue-800"
                 >
                   Log in
                 </Link>
@@ -434,7 +438,7 @@ export default function SignupPage() {
           </div>
 
           {/* RIGHT SIDE - PLANS PREVIEW */}
-          <div className="bg-linear-to-br from-indigo-600 to-blue-600 rounded-2xl shadow-xl p-8 text-white">
+          <div className="bg-indigo-700  rounded-2xl shadow-xl p-8 text-white">
             <div className="mb-8">
               <h1 className="text-3xl font-bold mb-4">
                 Choose the perfect plan for you
@@ -484,5 +488,7 @@ export default function SignupPage() {
         </div>
       </div>
     </div>
+    </div>
+    
   );
 }

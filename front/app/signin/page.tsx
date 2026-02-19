@@ -10,6 +10,10 @@ interface LoginFormData {
   password: string;
 }
 
+import {
+  ChartNetwork
+} from "lucide-react";
+
 interface ApiErrorResponse {
   message?: string;
   success?: boolean;
@@ -218,7 +222,22 @@ export default function SigninPage() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
+    <div >
+      <nav className="w-full flex items-center justify-between px-8 py-6 mx-auto text-base  bg-white/95 backdrop-blur-sm z-50 border-b border-gray-100">
+        <div
+          className="flex items-center gap-3 text-2xl font-bold font-sans cursor-pointer"
+        >
+          <ChartNetwork size={40} />
+          <span>Axia Workflow</span>
+        </div>
+        <div className="hidden md:flex items-center gap-10 font-medium text-black text-xl">
+          <Link href={"/"}>
+          <button className="hover:text-indigo-600 hover:scale-105 transition-all duration-200 hover:font-bold cursor-pointer">Home</button>
+          </Link>
+          
+        </div>
+      </nav>
+       <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
       <div className="max-w-6xl w-full">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* LOGIN FORM */}
@@ -322,14 +341,7 @@ export default function SigninPage() {
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="remember"
-                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                  />
-                  <label htmlFor="remember" className="ml-2 text-sm text-gray-700">
-                    Remember me
-                  </label>
+                  
                 </div>
                 <Link
                   href="/forgot-password"
@@ -344,8 +356,8 @@ export default function SigninPage() {
                 disabled={loading}
                 className={`w-full text-white font-semibold py-3 px-4 rounded-lg transition-colors ${
                   loading
-                    ? 'bg-blue-400 cursor-not-allowed'
-                    : 'bg-blue-600 hover:bg-blue-700'
+                    ? 'bg-indigo-500 cursor-not-allowed'
+                    : 'bg-indigo-700 hover:bg-blue-700'
                 }`}
               >
                 {loading ? (
@@ -367,42 +379,19 @@ export default function SigninPage() {
                 Don't have an account?{' '}
                 <Link
                   href="/signup"
-                  className="text-blue-600 font-medium hover:text-blue-800"
+                  className="text-indigo-700 font-medium hover:text-blue-800"
                 >
                   Sign up
                 </Link>
               </p>
             </div>
 
-            {/* Test Account Info - AMÉLIORÉ */}
-            <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-800 font-medium mb-3">
-                💡 Test Accounts:
-              </p>
-              <div className="space-y-2">
-                <button
-                  onClick={() => fillTestAccount('admin')}
-                  className="w-full text-left p-2 bg-white rounded border border-blue-200 hover:border-blue-400 transition-colors"
-                >
-                  <p className="text-xs font-medium text-gray-700">👤 Admin Demo:</p>
-                  <p className="text-xs text-gray-600">contact@startup.com / startup123</p>
-                </button>
-                <button
-                  onClick={() => fillTestAccount('super_admin')}
-                  className="w-full text-left p-2 bg-white rounded border border-blue-200 hover:border-blue-400 transition-colors"
-                >
-                  <p className="text-xs font-medium text-gray-700">👑 Super Admin Demo:</p>
-                  <p className="text-xs text-gray-600">axia@gmail.com / AxiaSolutions</p>
-                </button>
-              </div>
-              <p className="text-xs text-gray-500 mt-2">
-                ⚡ Click on an account to auto-fill
-              </p>
-            </div>
+            
+           
           </div>
 
           {/* RIGHT SIDE - Features */}
-          <div className="bg-linear-to-br from-indigo-600 to-blue-600 rounded-2xl shadow-xl p-8 text-white">
+          <div className="bg-indigo-700 rounded-2xl shadow-xl p-8 text-white">
             <div className="mb-8">
               <h2 className="text-3xl font-bold mb-4">Manage Your Workflow</h2>
               <p className="text-blue-100">Optimize your processes with our intelligent platform</p>
@@ -460,5 +449,8 @@ export default function SigninPage() {
         </div>
       </div>
     </div>
+    </div>
+
+   
   );
 }

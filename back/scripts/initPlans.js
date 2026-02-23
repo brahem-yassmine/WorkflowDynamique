@@ -3,7 +3,7 @@ require('dotenv').config();
 const mongoose = require('mongoose');
 const Plan = require('../src/models/Plan');
 
-// ✅ Plans par défaut avec les BONS noms
+//  Plans par défaut avec les BONS noms
 const defaultPlans = [
   {
     name: 'free_trial',
@@ -97,17 +97,17 @@ const defaultPlans = [
 
 async function seedPlans() {
   try {
-    // ✅ Connexion à MongoDB
+    //  Connexion à MongoDB
     const MONGO_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/workflow_dynamique';
     await mongoose.connect(MONGO_URI);
-    console.log('✅ Connecté à MongoDB');
+    console.log(' Connecté à MongoDB');
 
-    // ✅ SUPPRIMER TOUS les plans existants
-    console.log('\n🗑️ Suppression des anciens plans...');
+    // SUPPRIMER TOUS les plans existants
+    console.log('\n Suppression des anciens plans...');
     await Plan.deleteMany({});
-    console.log('✅ Anciens plans supprimés');
+    console.log(' Anciens plans supprimés');
 
-    // ✅ CRÉER les nouveaux plans
+    // CRÉER les nouveaux plans
     console.log('\n Création des nouveaux plans...');
     for (const planData of defaultPlans) {
       const plan = new Plan(planData);
@@ -115,12 +115,12 @@ async function seedPlans() {
       console.log(` Plan créé: ${plan.displayName} (${plan.name}) - ${plan.monthlyPrice === 0 ? 'Gratuit' : plan.monthlyPrice + '€'}`);
     }
 
-    // ✅ VÉRIFIER le résultat
+    // VÉRIFIER le résultat
     const finalPlans = await Plan.find({}).sort({ displayOrder: 1 });
     console.log('\n Plans finaux dans la base:');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     finalPlans.forEach(plan => {
-      console.log(`\n ${plan.displayName} ${plan.isPopular ? '⭐' : ''}`);
+      console.log(`\n ${plan.displayName} ${plan.isPopular ? '' : ''}`);
       console.log(`   ID: ${plan._id}`);
       console.log(`   Name: ${plan.name}`);
       console.log(`   Prix: ${plan.monthlyPrice === 0 ? 'Gratuit' : plan.monthlyPrice + 'D'}`);
@@ -128,13 +128,13 @@ async function seedPlans() {
     });
 
     console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log(`✅ ${finalPlans.length} plans actifs`);
+    console.log(` ${finalPlans.length} plans actifs`);
 
   } catch (error) {
     console.error(' Erreur:', error);
   } finally {
     await mongoose.disconnect();
-    console.log('\n👋 Déconnecté de MongoDB');
+    console.log('\n Déconnecté de MongoDB');
   }
 }
 

@@ -2,17 +2,17 @@
 const mongoose = require('mongoose');
 
 const workflowInstanceSchema = new mongoose.Schema({
-  // ✅ On garde la référence au workflow (dans la même base)
+  //  On garde la référence au workflow (dans la même base)
   workflowId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Workflow',
     required: true
   },
 
-  // ❌ À SUPPRIMER - tenantId (inutile dans la base du tenant)
+  //  À SUPPRIMER - tenantId (inutile dans la base du tenant)
   // tenantId: { ... },
 
-  // ✅ On garde la référence à l'utilisateur (dans la même base)
+  //  On garde la référence à l'utilisateur (dans la même base)
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -37,7 +37,7 @@ const workflowInstanceSchema = new mongoose.Schema({
     default: 'pending'
   },
 
-  // ✅ GRAPH EXECUTION STATE
+  // GRAPH EXECUTION STATE
 
   // Noeuds actuellement actifs (là où le processus est en attente)
   currentNodes: [{
@@ -127,7 +127,7 @@ workflowInstanceSchema.methods.getNodeStatus = function (nodeId) {
   return this.currentNodes.find(n => n.nodeId === nodeId);
 };
 
-// ✅ On garde les index mais on enlève tenantId
+// On garde les index mais on enlève tenantId
 workflowInstanceSchema.index({ workflowId: 1 });
 workflowInstanceSchema.index({ createdBy: 1 });
 workflowInstanceSchema.index({ status: 1 });
@@ -152,5 +152,5 @@ workflowInstanceSchema.methods.isCompleted = function () {
   return this.status === 'completed' || this.status === 'approved' || this.status === 'rejected';
 };
 
-// ✅ Factory pattern
+// Factory pattern
 module.exports = (connection) => connection.model('WorkflowInstance', workflowInstanceSchema);

@@ -14,16 +14,35 @@ interface NodeDetailsPanelProps {
     onUpdate: (id: string, data: any) => void;
 }
 
+import { apiService } from '@/services/role.service';
+
 const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate }: NodeDetailsPanelProps) => {
     const [label, setLabel] = useState('');
     const [description, setDescription] = useState('');
     const [responsibleDomain, setResponsibleDomain] = useState('');
+    const [taskType, setTaskType] = useState('checklist');
+    const [condition, setCondition] = useState('');
+    const [domains, setDomains] = useState<any[]>([]);
+
+    useEffect(() => {
+        const fetchDomains = async () => {
+            try {
+                const res = await apiService.getDomains();
+                if (res.success) setDomains(res.data);
+            } catch (err) {
+                console.error('Error fetching domains:', err);
+            }
+        };
+        fetchDomains();
+    }, []);
 
     useEffect(() => {
         if (selectedNode) {
             setLabel(selectedNode.data.label as string || '');
             setDescription(selectedNode.data.description as string || '');
             setResponsibleDomain(selectedNode.data.responsibleDomain as string || '');
+            setTaskType(selectedNode.data.taskType as string || 'checklist');
+            setCondition(selectedNode.data.condition as string || '');
         }
     }, [selectedNode]);
 
@@ -33,7 +52,9 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate }: NodeDetailsPanelP
                 ...selectedNode.data,
                 label,
                 description,
-                responsibleDomain
+                responsibleDomain,
+                taskType,
+                condition
             });
         }
     };
@@ -49,7 +70,7 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate }: NodeDetailsPanelP
                 </Button>
             </div>
 
-            <div className="space-y-4 flex-grow">
+            <div className="space-y-4 flex-grow overflow-y-auto pr-2">
                 <div>
                     <Label htmlFor="node-label">Nom de l'étape</Label>
                     <Input
@@ -61,34 +82,65 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate }: NodeDetailsPanelP
                     />
                 </div>
 
-                <div>
-                    <Label htmlFor="node-desc">Description</Label>
-                    <Textarea
-                        id="node-desc"
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        placeholder="Instructions pour cette étape..."
-                        className="mt-1 resize-none"
-                        rows={4}
-                    />
-                </div>
+                {selectedNode.type !== 'condition' && (
+                    <div>
+                        <Label htmlFor="node-desc">Description</Label>
+                        <Textarea
+                            id="node-desc"
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            placeholder="Instructions pour cette étape..."
+                            className="mt-1 resize-none"
+                            rows={4}
+                        />
+                    </div>
+                )}
 
                 {selectedNode.type === 'action' && (
+                    <>
+                        <div>
+                            <Label htmlFor="node-type">Type de tâche</Label>
+                            <select
+                                id="node-type"
+                                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors mt-1 outline-none focus:ring-1 focus:ring-ring"
+                                value={taskType}
+                                onChange={(e) => setTaskType(e.target.value)}
+                            >
+                                <option value="checklist">Checklist</option>
+                                <option value="formulaire">Formulaire</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <Label htmlFor="node-domain">Département Responsable</Label>
+                            <select
+                                id="node-domain"
+                                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors mt-1 outline-none focus:ring-1 focus:ring-ring"
+                                value={responsibleDomain}
+                                onChange={(e) => setResponsibleDomain(e.target.value)}
+                            >
+                                <option value="">Sélectionner...</option>
+                                {domains.map(d => (
+                                    <option key={d._id} value={d.name}>{d.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </>
+                )}
+
+                {selectedNode.type === 'condition' && (
                     <div>
-                        <Label htmlFor="node-domain">Département Responsable</Label>
-                        <select
-                            id="node-domain"
-                            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 mt-1"
-                            value={responsibleDomain}
-                            onChange={(e) => setResponsibleDomain(e.target.value)}
-                        >
-                            <option value="">Sélectionner...</option>
-                            <option value="RH">RH</option>
-                            <option value="Finance">Finance</option>
-                            <option value="IT">IT</option>
-                            <option value="Vente">Vente</option>
-                            <option value="Direction">Direction</option>
-                        </select>
+                        <Label htmlFor="node-condition">Règle de condition</Label>
+                        <Input
+                            id="node-condition"
+                            value={condition}
+                            onChange={(e) => setCondition(e.target.value)}
+                            placeholder="Ex: Montant > 1000"
+                            className="mt-1"
+                        />
+                        <p className="text-[10px] text-gray-500 mt-1">
+                            Définit la logique pour les sorties "Oui" (gauche) et "Non" (droite).
+                        </p>
                     </div>
                 )}
             </div>

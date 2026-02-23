@@ -1,136 +1,89 @@
-"use client"
+'use client';
 
-import Link from 'next/link'
-import React from 'react'
-import { GoWorkflow } from "react-icons/go";
-import { IoNotifications } from "react-icons/io5";
-import { FcWorkflow } from "react-icons/fc";
-import { FcInvite } from "react-icons/fc";
-import { IoMdHelpCircleOutline } from "react-icons/io";
-import { FaMagic } from "react-icons/fa";
-import { IoMdContact } from "react-icons/io";
-import { FiChevronRight } from "react-icons/fi";
-import { LogOut } from 'lucide-react';
-import { useRouter } from 'next/navigation'; // ✅ CORRECT: using next/navigation for App Router
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import {
+  Plus,
+  Bell,
+  GitBranch,
+  Users,
+  User,
+  HelpCircle,
+  Zap,
+  LogOut
+} from 'lucide-react';
 
-const UserComp = () => {
-  const router = useRouter(); // Using the App Router hook
-  
-  const menuItems = [
-    {
-      icon: <GoWorkflow className="text-blue-500" size={22} />,
-      label: "Create Workflow",
-      href: "/User/create_workflows",
-    },
-    {
-      icon: <IoNotifications className="text-yellow-500" size={22} />,
-      label: "Notifications",
-      href: "/User/Notifications",
-    },
-    {
-      icon: <FcWorkflow size={22} />,
-      label: "Workflows",
-      href: "/Workflows",
-    },
-    {
-      icon: <FcInvite size={22} />,
-      label: "Invite Team",
-      href: "/User/InviteTeam",
-    },
-    {
-      icon: <IoMdHelpCircleOutline className="text-green-500" size={22} />,
-      label: "Help & First Steps",
-      href: "/User/Help&FirstSteps",
-    },
-    {
-      icon: <FaMagic className="text-purple-500" size={22} />,
-      label: "AI Generate",
-      href: "/User/AIGenerate",
-    }
-  ];
-  
-  // ✅ LOGOUT FUNCTION - Now using App Router's router.refresh()
+function UserSidebar() {
+  const router = useRouter();
+
   const handleLogout = () => {
     try {
-      // Remove all authentication data
       localStorage.removeItem('auth_token');
       localStorage.removeItem('user');
       localStorage.removeItem('tenant');
-
-      // Optional: clear everything
-      // localStorage.clear();
-
-      // Redirect to login page
       router.push('/signin');
-      router.refresh(); // ✅ Now this works with next/navigation!
-
+      router.refresh();
     } catch (error) {
       console.error("Logout error:", error);
     }
   };
 
-  // Add 'use client' directive at the top of the file
-  // Since this component uses hooks and browser APIs
-
   return (
-    <div className="p-4 h-full flex flex-col">
-      {/* Logo/Header Section */}
-      <div className="mb-8 px-3">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 bg-linear-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-            <GoWorkflow className="text-white" size={24} />
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold text-gray-800">Workflow Pro</h1>
-            <p className="text-sm text-gray-500">Dashboard</p>
-          </div>
-        </div>
-        <div className="mt-4 p-3 bg-linear-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
-          <p className="text-sm font-medium text-gray-700">Welcome back!</p>
-          <p className="text-xs text-gray-500">Manage your workflows efficiently</p>
-        </div>
+    <aside className="w-64 bg-indigo-700 text-white flex flex-col h-full shadow-2xl">
+      <div className="p-6">
+        <h1 className="text-2xl font-extrabold text-white tracking-tight">Axia Solutions</h1>
+        <p className="text-indigo-200 text-xs mt-1 font-bold uppercase tracking-widest opacity-80">User Workspace</p>
       </div>
 
-      {/* Navigation Menu */}
-      <nav className="flex-1">
-        <ul className="space-y-1">
-          {menuItems.map((item, index) => (
-            <li key={index}>
-              <Link 
-                href={item.href}
-                className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 transition-all duration-200 group hover:shadow-sm border border-transparent hover:border-gray-200"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-white rounded-lg border border-gray-100 group-hover:border-blue-100">
-                    {item.icon}
-                  </div>
-                  <span className="font-medium text-gray-700 group-hover:text-blue-600">
-                    {item.label}
-                  </span>
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
+      <nav className="flex-1 mt-6 overflow-y-auto px-4">
+        <div className="space-y-1">
+          <Link href="/User" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-xl transition-all group">
+            <User className="h-5 w-5 group-hover:scale-110 transition-transform" />
+            <span className="text-sm font-bold">My Profile</span>
+          </Link>
+
+          <Link href="/User/create_workflows" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-xl transition-all group">
+            <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform duration-300" />
+            <span className="text-sm font-bold">New Workflow</span>
+          </Link>
+
+          {/* <Link href="/User/Notifications" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-xl transition-all group">
+            <Bell className="h-5 w-5 group-hover:scale-110 transition-transform" />
+            <span className="text-sm font-bold">Notifications</span>
+          </Link> */}
+
+          <Link href="/Workflows" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-xl transition-all group">
+            <GitBranch className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
+            <span className="text-sm font-bold">My Workflows</span>
+          </Link>
+
+
+
+          <Link href="/User/AIGenerate" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-xl transition-all group">
+            <Zap className="h-5 w-5 text-amber-400 group-hover:animate-pulse" />
+            <span className="text-sm font-bold">AI Autopilot</span>
+          </Link>
+
+          <div className="my-4 border-t border-indigo-600/50"></div>
+
+          <Link href="/User/Help&FirstSteps" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-xl transition-all group">
+            <HelpCircle className="h-5 w-5" />
+            <span className="text-sm font-bold">Help Center</span>
+          </Link>
+        </div>
       </nav>
 
-      {/* Logout Button */}
-      <div className="p-4 border-t border-slate-200">
+      <div className="p-4 border-t border-indigo-600">
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-500/10 w-full rounded-lg transition-colors group"
+          className="flex items-center gap-3 px-4 py-3 text-rose-200 hover:bg-rose-500/20 hover:text-rose-100 rounded-xl w-full transition-all group"
         >
-          <LogOut 
-            size={20} 
-            className="group-hover:translate-x-1 transition-transform" 
-          />
-          <span className="font-medium text-sm">
-            Logout
-          </span>
+          <LogOut className="h-5 w-5 group-hover:-translate-x-1 transition-transform" />
+          <span className="text-sm font-bold">Terminate Session</span>
         </button>
       </div>
-    </div>
-  )
+    </aside>
+  );
 }
-// ce ficher doit etre dans le main 
-export default UserComp
+
+export default UserSidebar;

@@ -15,9 +15,9 @@ router.use(requireRole('super_admin'));
 // GET /api/admin/tenants - Liste tous les tenants
 router.get('/tenants', async (req, res) => {
   try {
-    console.log('📋 Récupération de tous les tenants...');
+    console.log(' Récupération de tous les tenants...');
     
-    // ✅ Utiliser la connexion master depuis app.locals
+    //  Utiliser la connexion master depuis app.locals
     const masterDb = req.app.locals.masterDb;
     if (!masterDb) {
       return res.status(500).json({ 
@@ -26,14 +26,14 @@ router.get('/tenants', async (req, res) => {
       });
     }
     
-    // ✅ Récupérer le modèle Tenant depuis la connexion
+    //  Récupérer le modèle Tenant depuis la connexion
     const Tenant = masterDb.model('Tenant');
     
     const tenants = await Tenant.find()
       .populate('selectedPlan')
       .sort({ createdAt: -1 });
     
-    console.log(`✅ ${tenants.length} tenants trouvés`);
+    console.log(` ${tenants.length} tenants trouvés`);
     
     // Ajouter des informations supplémentaires
     const enrichedTenants = await Promise.all(tenants.map(async (tenant) => {
@@ -54,7 +54,7 @@ router.get('/tenants', async (req, res) => {
           await tenantConn.close();
         }
       } catch (error) {
-        console.log(`⚠️ Impossible de compter users pour ${tenant.name}`);
+        console.log(` Impossible de compter users pour ${tenant.name}`);
       }
       
       return {
@@ -72,7 +72,7 @@ router.get('/tenants', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Erreur GET /tenants:', error);
+    console.error(' Erreur GET /tenants:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -111,7 +111,7 @@ router.get('/tenants/:id', async (req, res) => {
         await tenantConn.close();
       }
     } catch (error) {
-      console.log(`⚠️ Impossible de compter users`);
+      console.log(` Impossible de compter users`);
     }
     
     res.json({
@@ -125,7 +125,7 @@ router.get('/tenants/:id', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Erreur GET /tenants/:id:', error);
+    console.error(' Erreur GET /tenants/:id:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -166,7 +166,7 @@ router.put('/tenants/:id', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Erreur PUT /tenants/:id:', error);
+    console.error(' Erreur PUT /tenants/:id:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -208,7 +208,7 @@ router.patch('/tenants/:id/status', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Erreur PATCH /tenants/:id/status:', error);
+    console.error(' Erreur PATCH /tenants/:id/status:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -241,7 +241,7 @@ router.delete('/tenants/:id', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Erreur DELETE /tenants/:id:', error);
+    console.error(' Erreur DELETE /tenants/:id:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -284,7 +284,7 @@ router.get('/tenants/:id/users/count', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Erreur GET /users/count:', error);
+    console.error(' Erreur GET /users/count:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -299,7 +299,7 @@ router.get('/tenants/:id/users/count', async (req, res) => {
 // ✅ ROUTE STATISTIQUES - Version JavaScript pur (sans TypeScript)
 router.get('/stats', async (req, res) => {
   try {
-    console.log('📊 Récupération des statistiques globales...');
+    console.log(' Récupération des statistiques globales...');
     
     const masterDb = req.app.locals.masterDb;
     if (!masterDb) {
@@ -347,7 +347,7 @@ router.get('/stats', async (req, res) => {
           await tenantConn.close();
         }
       } catch (err) {
-        console.log(`⚠️ Impossible de compter pour ${tenant.name}:`, err.message);
+        console.log(` Impossible de compter pour ${tenant.name}:`, err.message);
       }
     }
     
@@ -399,7 +399,7 @@ router.get('/stats', async (req, res) => {
       }
     };
     
-    console.log('✅ Statistiques calculées avec succès');
+    console.log(' Statistiques calculées avec succès');
     
     res.json({
       success: true,
@@ -407,7 +407,7 @@ router.get('/stats', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Erreur GET /stats:', error);
+    console.error(' Erreur GET /stats:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -430,7 +430,7 @@ router.get('/plans', async (req, res) => {
       });
     }
     
-    // ✅ Récupérer le modèle Plan depuis la connexion
+    // Récupérer le modèle Plan depuis la connexion
     const Plan = masterDb.model('Plan');
     
     const plans = await Plan.find().sort({ price: 1 });
@@ -439,7 +439,7 @@ router.get('/plans', async (req, res) => {
       data: plans
     });
   } catch (error) {
-    console.error('❌ Erreur GET /plans:', error);
+    console.error(' Erreur GET /plans:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -461,7 +461,7 @@ router.post('/plans', async (req, res) => {
       data: plan
     });
   } catch (error) {
-    console.error('❌ Erreur POST /plans:', error);
+    console.error(' Erreur POST /plans:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -493,7 +493,7 @@ router.put('/plans/:id', async (req, res) => {
       data: plan
     });
   } catch (error) {
-    console.error('❌ Erreur PUT /plans/:id:', error);
+    console.error(' Erreur PUT /plans/:id:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -521,7 +521,7 @@ router.delete('/plans/:id', async (req, res) => {
       message: 'Plan supprimé avec succès'
     });
   } catch (error) {
-    console.error('❌ Erreur DELETE /plans/:id:', error);
+    console.error(' Erreur DELETE /plans/:id:', error);
     res.status(500).json({
       success: false,
       message: error.message

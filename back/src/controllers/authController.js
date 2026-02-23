@@ -26,11 +26,11 @@ const getMasterConnection = async () => {
 // ====================================
 const getSuperAdminModel = async () => {
   const conn = await getMasterConnection();
-  
+
   if (conn.models['SuperAdmin']) {
     return conn.models['SuperAdmin'];
   }
-  
+
   const superAdminSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true, lowercase: true },
     password: { type: String, required: true },
@@ -49,11 +49,11 @@ const getSuperAdminModel = async () => {
 // ====================================
 const getTenantModel = async () => {
   const conn = await getMasterConnection();
-  
+
   if (conn.models['Tenant']) {
     return conn.models['Tenant'];
   }
-  
+
   const tenantSchema = new mongoose.Schema({
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
@@ -75,11 +75,11 @@ const getTenantModel = async () => {
 // ====================================
 const getPlanModel = async () => {
   const conn = await getMasterConnection();
-  
+
   if (conn.models['Plan']) {
     return conn.models['Plan'];
   }
-  
+
   const planSchema = new mongoose.Schema({
     name: String,
     code: String,
@@ -99,7 +99,7 @@ const getPlanModel = async () => {
 const createTenantDatabase = async (tenantId, dbName, plan, adminEmail, hashedPassword) => {
   try {
     console.log(` Création de la base: ${dbName}`);
-    
+
     const dbUri = `mongodb://localhost:27017/${dbName}`;
     const tenantConn = mongoose.createConnection(dbUri, {
       useNewUrlParser: true,
@@ -118,7 +118,7 @@ const createTenantDatabase = async (tenantId, dbName, plan, adminEmail, hashedPa
       password: { type: String, required: true },
       firstName: String,
       lastName: String,
-      role: { type: String, default: 'admin' },
+      role: { type: String, default: 'user' },
       isActive: { type: Boolean, default: true },
       hasSelectedPlan: { type: Boolean, default: true },
       tenantId: String
@@ -178,12 +178,12 @@ const createTenantDatabase = async (tenantId, dbName, plan, adminEmail, hashedPa
 };
 
 // ====================================
-// LOGIN (pour super_admin ET admin)
+// LOGIN (pour super_admin ET admin) - MODIFIÉ
 // ====================================
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    
+
     console.log('🔑 Tentative de login:', email);
 
     if (!email || !password) {
@@ -197,15 +197,51 @@ const login = async (req, res) => {
     const SuperAdmin = await getSuperAdminModel();
     let user = await SuperAdmin.findOne({ email: email.toLowerCase() });
     let role = 'super_admin';
+    let tenantId = null; // 👈 AJOUTÉ
 
-    // ✅ 2. Si pas trouvé, chercher dans tenants
+    // ✅ 2. Si pas trouvé, chercher dans tenants (Propriétaires/Admins d'entreprise)
     if (!user) {
-      const Tenant = await getTenantModel();
-      user = await Tenant.findOne({ email: email.toLowerCase() });
-      role = 'admin';
+      const TenantModel = await getTenantModel();
+      user = await TenantModel.findOne({ email: email.toLowerCase() });
+      if (user) {
+        role = 'admin';
+        tenantId = user._id.toString();
+      }
+    }
+
+    // ✅ 3. Si toujours pas trouvé, chercher dans les bases de données de TOUS les tenants (Utilisateurs/Agents)
+    if (!user) {
+      console.log('🔍 Recherche de l\'utilisateur dans les bases tenants...');
+      const TenantModel = await getTenantModel();
+      const allTenants = await TenantModel.find({ status: 'active' });
+
+      for (const t of allTenants) {
+        try {
+          // Créer une connexion temporaire (ou réutiliser si possible)
+          const conn = mongoose.createConnection(t.databaseUri);
+
+          // Importer le modèle User via la factory
+          const TenantUser = require('../models/tenant/User')(conn);
+          const foundUser = await TenantUser.findOne({ email: email.toLowerCase() });
+
+          if (foundUser) {
+            console.log(`✅ Utilisateur trouvé dans le tenant database: ${t.name}`);
+            user = foundUser;
+            role = foundUser.role || 'user';
+            tenantId = t._id.toString();
+            console.log(`📊 Rôle détecté en DB tenant: "${role}"`);
+            await conn.close();
+            break;
+          }
+          await conn.close();
+        } catch (connErr) {
+          console.error(`❌ Erreur recherche dans tenant ${t.name}:`, connErr.message);
+        }
+      }
     }
 
     if (!user) {
+      console.warn('⚠️ Aucun utilisateur trouvé pour cet email:', email);
       return res.status(401).json({
         success: false,
         message: 'Email ou mot de passe incorrect'
@@ -215,26 +251,30 @@ const login = async (req, res) => {
     // Vérifier mot de passe
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
+      console.warn('⚠️ Mot de passe invalide pour:', email);
       return res.status(401).json({
         success: false,
         message: 'Email ou mot de passe incorrect'
       });
     }
 
-    // Générer token
+    console.log(`🔑 Login validé pour ${email}. Rôle final: ${role}`);
+
+    // Générer token AVEC tenantId
     const token = jwt.sign(
-      { 
-        id: user._id, 
-        email: user.email, 
+      {
+        id: user._id,
+        email: user.email,
         role: role,
-        tenantId: role === 'admin' ? user._id : null
+        tenantId: tenantId // 👈 AJOUTÉ: maintenant dans le token
       },
       process.env.JWT_SECRET || 'votre_secret_jwt',
       { expiresIn: '30d' }
     );
 
-    console.log(`✅ Login réussi: ${email} (${role})`);
+    console.log(`✅ Login réussi: ${email} (${role})`, tenantId ? `tenantId: ${tenantId}` : '');
 
+    // ✅ RÉPONSE MODIFIÉE pour inclure tenantId
     res.json({
       success: true,
       data: {
@@ -243,9 +283,11 @@ const login = async (req, res) => {
           _id: user._id,
           email: user.email,
           role: role,
-          name: user.name || user.firstName || 'Admin',
-          hasSelectedPlan: role === 'admin' ? true : true
-        }
+          name: user.name || user.firstName || (role === 'admin' ? user.name : 'Admin'),
+          hasSelectedPlan: role === 'admin' ? true : true,
+          tenantId: tenantId // 👈 AJOUTÉ: pour que le front puisse le récupérer
+        },
+        tenantId: tenantId // 👈 AJOUTÉ: directement dans data pour être sûr
       }
     });
 
@@ -259,12 +301,12 @@ const login = async (req, res) => {
 };
 
 // ====================================
-// INSCRIPTION D'UN NOUVEAU TENANT (ENTREPRISE)
+// INSCRIPTION D'UN NOUVEAU TENANT (ENTREPRISE) - MODIFIÉ
 // ====================================
 const registerTenant = async (req, res) => {
   try {
     const { companyName, adminEmail, password, planId } = req.body;
-    
+
     console.log('📝 Inscription tenant:', { companyName, adminEmail, planId });
 
     // ✅ Validation
@@ -315,7 +357,7 @@ const registerTenant = async (req, res) => {
       .trim()
       .toLowerCase()
       .replace(/[^a-z0-9]/g, '_');
-    
+
     const dbName = `tenant_${safeCompanyName}_${timestamp}`;
     const dbUri = `mongodb://localhost:27017/${dbName}`;
 
@@ -341,10 +383,10 @@ const registerTenant = async (req, res) => {
     // ✅ 2. Créer la base de données du tenant
     try {
       await createTenantDatabase(
-        tenant._id, 
-        dbName, 
-        plan, 
-        adminEmail, 
+        tenant._id,
+        dbName,
+        plan,
+        adminEmail,
         hashedPassword
       );
     } catch (dbError) {
@@ -353,13 +395,13 @@ const registerTenant = async (req, res) => {
       throw new Error(`Échec création base: ${dbError.message}`);
     }
 
-    // ✅ Générer token pour connexion automatique
+    // ✅ Générer token pour connexion automatique AVEC tenantId
     const token = jwt.sign(
       {
         id: tenant._id,
         email: tenant.email,
         role: 'admin',
-        tenantId: tenant._id
+        tenantId: tenant._id.toString() // 👈 AJOUTÉ
       },
       process.env.JWT_SECRET || 'votre_secret_jwt',
       { expiresIn: '30d' }
@@ -367,6 +409,7 @@ const registerTenant = async (req, res) => {
 
     console.log('🎉 Inscription réussie pour:', companyName);
 
+    // ✅ RÉPONSE MODIFIÉE pour inclure tenantId
     res.status(201).json({
       success: true,
       message: 'Entreprise créée avec succès',
@@ -377,13 +420,15 @@ const registerTenant = async (req, res) => {
           email: tenant.email,
           role: 'admin',
           name: companyName,
-          hasSelectedPlan: true
+          hasSelectedPlan: true,
+          tenantId: tenant._id.toString() // 👈 AJOUTÉ
         },
         tenant: {
           _id: tenant._id,
           name: tenant.name,
           databaseName: tenant.databaseName
-        }
+        },
+        tenantId: tenant._id.toString() // 👈 AJOUTÉ directement
       }
     });
 
@@ -402,7 +447,7 @@ const registerTenant = async (req, res) => {
 const registerSuperAdmin = async (req, res) => {
   try {
     const { email, password, firstName, lastName } = req.body;
-    
+
     const SuperAdmin = await getSuperAdminModel();
 
     const existingUser = await SuperAdmin.findOne({ email: email.toLowerCase() });

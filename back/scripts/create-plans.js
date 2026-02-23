@@ -7,7 +7,7 @@ async function createPlans() {
     // Connexion à la base MASTER
     const MASTER_DB_URI = process.env.MASTER_DB_URI || 'mongodb://localhost:27017/workflow_master';
     
-    console.log('📦 Connexion à MongoDB...');
+    console.log(' Connexion à MongoDB...');
     const conn = await mongoose.createConnection(MASTER_DB_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true
@@ -36,7 +36,7 @@ async function createPlans() {
 
     // Supprimer les anciens plans (optionnel)
     await Plan.deleteMany({});
-    console.log('🗑️ Anciens plans supprimés');
+    console.log(' Anciens plans supprimés');
 
     // Créer les nouveaux plans basés sur l'image
     const plans = [
@@ -94,14 +94,14 @@ async function createPlans() {
     for (const planData of plans) {
       const plan = new Plan(planData);
       await plan.save();
-      console.log(`✅ Plan créé: ${plan.name} (${plan.price}${plan.currency}/${plan.interval})`);
+      console.log(` Plan créé: ${plan.name} (${plan.price}${plan.currency}/${plan.interval})`);
     }
 
-    console.log('\n🎉 Tous les plans ont été créés avec succès !');
+    console.log('\n Tous les plans ont été créés avec succès !');
     
     // Afficher le résumé
     const allPlans = await Plan.find();
-    console.log('\n📋 Récapitulatif des plans:');
+    console.log('\n Récapitulatif des plans:');
     allPlans.forEach(plan => {
       console.log(`\n${plan.name}:`);
       console.log(`  - Prix: ${plan.price}${plan.currency}/${plan.interval}`);

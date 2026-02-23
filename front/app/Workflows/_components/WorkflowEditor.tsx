@@ -54,7 +54,7 @@ function WorkflowEditorContent() {
     const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
     const [selectedNode, setSelectedNode] = useState<Node | null>(null);
     const [workflowName, setWorkflowName] = useState('Nouveau workflow');
-    
+
     // ✅ useReactFlow est utilisé ici, à l'intérieur du ReactFlowProvider
     const { screenToFlowPosition } = useReactFlow();
 
@@ -91,10 +91,10 @@ function WorkflowEditorContent() {
                 id: getId(),
                 type,
                 position,
-                data: { 
-                    label: type === 'condition' ? 'Nouvelle condition' : 
-                           type === 'action' ? 'Nouvelle tâche' : 
-                           type === 'start' ? 'Début' : 'Fin'
+                data: {
+                    label: type === 'condition' ? 'Nouvelle condition' :
+                        type === 'action' ? 'Nouvelle tâche' :
+                            type === 'start' ? 'Début' : 'Fin'
                 },
             };
 
@@ -131,7 +131,7 @@ function WorkflowEditorContent() {
     return (
         <div className="flex flex-row h-full w-full relative">
             <Sidebar />
-            <SaveButton 
+            <SaveButton
                 nodes={nodes}
                 edges={edges}
                 workflowName={workflowName}
@@ -152,7 +152,11 @@ function WorkflowEditorContent() {
                     onNodeClick={onNodeClick}
                     onPaneClick={onPaneClick}
                     nodeTypes={nodeTypes}
+                    defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
+                    minZoom={0.2}
+                    maxZoom={2}
                     fitView
+                    fitViewOptions={{ maxZoom: 0.8 }}
                     snapToGrid={true}
                     snapGrid={[15, 15]}
                 >

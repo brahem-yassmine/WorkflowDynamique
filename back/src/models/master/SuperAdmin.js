@@ -32,7 +32,7 @@ const superAdminSchema = new mongoose.Schema({
   collection: 'superadmins'
 });
 
-// ✅ EXPORT sous forme de fonction qui prend la connexion
+// EXPORT sous forme de fonction qui prend la connexion
 module.exports = (connection) => {
   return connection.model('SuperAdmin', superAdminSchema);
 };

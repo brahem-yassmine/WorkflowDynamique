@@ -3,7 +3,7 @@
 // Mais la source de vérité reste dans master/Tenant
 const mongoose = require('mongoose');
 const subscriptionSchema = new mongoose.Schema({
-  // ❌ PLUS DE tenantId
+  //  PLUS DE tenantId
   planId: String, // juste l'ID du plan (pas de référence MongoDB)
   planName: String,
   billingCycle: String,

@@ -1,93 +1,194 @@
 'use client'
 
-import React from 'react';
-import Link from 'next/link';
-import Sidebar from './components/sidebar';
+import React, { useState } from 'react';
+import {
+  Activity,
+  Users,
+  GitBranch,
+  Clock,
+  TrendingUp,
+  CheckCircle2,
+  AlertCircle,
+  BarChart3,
+  Search,
+  Filter
+} from 'lucide-react';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  Cell
+} from 'recharts';
 
-// import Sidebar from 'admin/components';
+const data = [
+  { name: 'Mon', active: 12, completed: 8 },
+  { name: 'Tue', active: 15, completed: 10 },
+  { name: 'Wed', active: 18, completed: 12 },
+  { name: 'Thu', active: 22, completed: 15 },
+  { name: 'Fri', active: 20, completed: 18 },
+  { name: 'Sat', active: 10, completed: 5 },
+  { name: 'Sun', active: 8, completed: 4 },
+];
 
-// Composant principal de la page
-export default function EssaiPage() {
+const COLORS = ['#4f46e5', '#818cf8', '#6366f1', '#4338ca'];
+
+export default function AdminDashboard() {
+  const [searchTerm, setSearchTerm] = useState('');
+
   return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar />
-      <main className="flex-1 ml-64 p-8 overflow-y-auto">
-        {/* Header */}
-        <div className="bg-indigo-600 -mt-8 -mx-8 p-8 mb-6 flex justify-between items-center">
-          <div className="text-center">
-  <h1 className="text-3xl font-bold text-white">Admin dashboard</h1>
+    <div className="space-y-8 animate-in fade-in duration-500">
 
-    <p className="text-white">welcome admin !</p>
-</div>
-          
-          {/* Notification et Admin Button */}
-          
 
-           <div className="flex items-center gap-4">
-            <button className="relative p-2 text-white hover:bg-indigo-700 rounded-lg transition-colors">
+      {/* Control Bar */}
+      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+        <div className="relative w-full sm:max-w-md group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
+          <input
+            type="text"
+            placeholder="Search processes, users, or audit logs..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-12 pr-4 py-3 bg-white border border-slate-100 rounded-2xl shadow-sm focus:outline-none focus:ring-4 focus:ring-indigo-50 transition-all font-medium text-slate-700"
+          />
+        </div>
+        <div className="flex items-center gap-3">
+          <button className="p-3 bg-white border border-slate-100 rounded-xl text-slate-400 hover:text-indigo-600 transition-colors shadow-sm">
+            <Filter size={20} />
+          </button>
+          <div className="hidden md:flex flex-col items-end">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">System Status</span>
+            <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-500">
+              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+              Nominal
+            </span>
+          </div>
+        </div>
+      </div>
 
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-              </svg>
-              <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard
+          label="Active Workflows"
+          value="42"
+          trend="+12% vs last week"
+          icon={<GitBranch size={20} />}
+          color="bg-indigo-50 text-indigo-600"
+        />
+        <StatCard
+          label="Total Users"
+          value="128"
+          trend="+4 joined today"
+          icon={<Users size={20} />}
+          color="bg-blue-50 text-blue-600"
+        />
+        <StatCard
+          label="Avg. Completion"
+          value="84%"
+          trend="+3% improvement"
+          icon={<CheckCircle2 size={20} />}
+          color="bg-emerald-50 text-emerald-600"
+        />
+        <StatCard
+          label="Pending Tasks"
+          value="15"
+          trend="6 urgent"
+          icon={<AlertCircle size={20} />}
+          color="bg-rose-50 text-rose-600"
+        />
+      </div>
 
-            </button>
-
-<Link href="/essai/profile">
-  <button className="flex items-center gap-2 bg-indigo-700 text-white px-4 py-2 rounded-lg hover:bg-indigo-800 transition-colors">
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-      <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-    </svg>
-    <span className="font-medium">Admin</span>
-  </button>
-</Link>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Performance Chart */}
+        <div className="lg:col-span-2 bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
+          <div className="flex justify-between items-center mb-8">
+            <div>
+              <h3 className="text-lg font-black text-slate-800 tracking-tight">Execution Velocity</h3>
+              <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Workflow throughput (Weekly)</p>
+            </div>
+            <BarChart3 className="text-indigo-500" />
+          </div>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={data}>
+                <defs>
+                  <linearGradient id="colorActive" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.1} />
+                    <stop offset="95%" stopColor="#4f46e5" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 600, fill: '#94a3b8' }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 600, fill: '#94a3b8' }} />
+                <Tooltip
+                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  itemStyle={{ fontWeight: 700, color: '#4f46e5' }}
+                />
+                <Area type="monotone" dataKey="active" stroke="#4f46e5" strokeWidth={4} fillOpacity={1} fill="url(#colorActive)" />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Search Bar */}
-        <div className="mb-6">
-          <div className="relative">
-            <input 
-              type="text" 
-              placeholder="Type to search..." 
-              className="w-full p-3 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-            <span className="absolute left-3 top-3 text-gray-400">Q</span>
+        {/* Task Distribution */}
+        <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
+          <div className="mb-8">
+            <h3 className="text-lg font-black text-slate-800 tracking-tight">Node Load</h3>
+            <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Resource distribution</p>
+          </div>
+          <div className="h-[250px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data.slice(0, 4)}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 600, fill: '#94a3b8' }} />
+                <YAxis hide />
+                <Tooltip cursor={{ fill: '#f8fafc' }} />
+                <Bar dataKey="completed" fill="#4f46e5" radius={[6, 6, 0, 0]} barSize={40}>
+                  {data.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="mt-6 space-y-4">
+            <ActivityItem label="Budget Renewal" status="In Progress" color="bg-amber-500" />
+            <ActivityItem label="Member Onboarding" status="Completed" color="bg-emerald-500" />
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
 
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">Admin Dashboard</h2>
+function StatCard({ label, value, trend, icon, color }: { label: string; value: string; trend: string; icon: React.ReactNode; color: string }) {
+  return (
+    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+      <div className="flex justify-between items-start mb-4">
+        <div className={`p-3 rounded-2xl ${color}`}>{icon}</div>
+        <span className="text-[10px] font-black text-emerald-500 bg-emerald-50 px-2 py-1 rounded-lg uppercase tracking-tight">{trend}</span>
+      </div>
+      <div>
+        <p className="text-sm font-bold text-slate-400 uppercase tracking-widest leading-none">{label}</p>
+        <p className="text-3xl font-black text-slate-800 mt-2">{value}</p>
+      </div>
+    </div>
+  );
+}
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-gray-600 mb-2">Active Workflows</h3>
-            <p className="text-3xl font-bold text-indigo-600">12</p>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <a href="/essai/tasks" className="flex items-center gap-3 px-4 py-3 text-indigo-500 hover:bg-indigo-800 rounded-lg transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-              </svg>
-              <span className="text-sm font-medium">Pending Tasks</span>
-            </a>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-gray-600 mb-2">Recent Accounts</h3>
-            <p className="text-3xl font-bold text-indigo-600">23</p>
-          </div>
-        </div>
-
-        
-        {/* Global Dashboard Stats */}
-        <div className="mt-8 bg-white rounded-xl shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">Global Dashboard</h2>
-          <div className="flex items-center justify-between">
-            <span className="text-gray-600">Total Workflows</span>
-            <span className="text-3xl font-bold text-indigo-600">75</span>
-          </div>
-        </div>
-      </main>
+function ActivityItem({ label, status, color }: { label: string; status: string; color: string }) {
+  return (
+    <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
+      <div className="flex items-center gap-3">
+        <div className={`w-2 h-2 rounded-full ${color}`}></div>
+        <span className="text-sm font-bold text-slate-700">{label}</span>
+      </div>
+      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{status}</span>
     </div>
   );
 }

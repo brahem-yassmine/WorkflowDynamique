@@ -12,9 +12,11 @@ const authRoutes = require('./src/routes/authRoutes');
 const tenantRoutes = require('./src/routes/tenantRoutes');
 const planRoutes = require('./src/routes/planRoutes.js');
 const workflowRoutes = require('./src/routes/workflowRoutes');
-const workflowInstanceRoutes = require('./src/routes/WorkflowInstanceRoutes.js'); 
+const workflowInstanceRoutes = require('./src/routes/WorkflowInstanceRoutes.js');
 const subscriptionRoutes = require('./src/routes/subscriptionRoutes.js');
 const adminRoutes = require('./src/routes/adminRoutes');
+const tenantRoleRoutes = require('./src/routes/tenant/role.routes');
+const tenantDomainRoutes = require('./src/routes/tenant/domain.routes');
 
 const app = express();
 
@@ -26,50 +28,13 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // ========================
-// CONNEXION MONGODB - MASTER
-// ========================
-const MASTER_DB_URI = process.env.MASTER_DB_URI || 'mongodb://localhost:27017/workflow_master';
-
-console.log('🔄 Connexion à MongoDB...');
-
-const masterConnection = mongoose.createConnection(MASTER_DB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-  serverSelectionTimeoutMS: 5000, // Timeout de 5 secondes
-  socketTimeoutMS: 45000,
-});
-
-masterConnection.on('connected', () => {
-  console.log('✅ Connecté à la base MASTER avec succès');
-  
-  // Attacher les modèles master à la connexion
-  require('./src/models/master/Tenant')(masterConnection);
-  require('./src/models/master/Plan')(masterConnection);
-  require('./src/models/master/SuperAdmin')(masterConnection);
-  
-  console.log('📦 Modèles master chargés:', Object.keys(masterConnection.models).join(', '));
-  
-  // Rendre la connexion master accessible globalement
-  app.locals.masterDb = masterConnection;
-  
-  // Démarrer le serveur SEULEMENT après la connexion
-  startServer();
-});
-
-masterConnection.on('error', (err) => {
-  console.error('❌ Erreur de connexion MASTER:', err.message);
-  console.log('🔄 Tentative de reconnexion dans 5 secondes...');
-  setTimeout(() => {
-    masterConnection.openUri(MASTER_DB_URI);
-  }, 5000);
-});
-
 // MIDDLEWARE DE CONNEXION MASTER
+// ========================
 app.use((req, res, next) => {
   if (!app.locals.masterDb) {
-    return res.status(503).json({ 
-      success: false, 
-      message: 'Base de données en cours de connexion, veuillez réessayer' 
+    return res.status(503).json({
+      success: false,
+      message: 'Base de données en cours de connexion, veuillez réessayer'
     });
   }
   req.masterDb = app.locals.masterDb;
@@ -88,9 +53,19 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 
 // ========================
-// MIDDLEWARE DE TENANT
+// MIDDLEWARE DE TENANT (À DÉPLACER AVANT LES ROUTES PROTÉGÉES)
 // ========================
-const { tenantResolver } = require('./src/middleware/tenantMiddleware.js');
+let tenantResolver;
+try {
+  tenantResolver = require('./src/middleware/tenantMiddleware.js').tenantResolver;
+} catch (error) {
+  console.log('⚠️ Middleware tenant non trouvé, création d\'un middleware par défaut');
+  tenantResolver = (req, res, next) => {
+    req.tenantConnection = app.locals.masterDb; // Fallback
+    next();
+  };
+}
+
 app.use('/api', tenantResolver);
 
 // ========================
@@ -101,12 +76,14 @@ app.use('/api/users', userRoutes);
 app.use('/api/workflows', workflowRoutes);
 app.use('/api/workflow-instances', workflowInstanceRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/tenant/roles', tenantRoleRoutes);
+app.use('/api/tenant/domains', tenantDomainRoutes);
 
 // ========================
 // ROUTE RACINE
 // ========================
 app.get('/', (req, res) => {
-  res.json({ 
+  res.json({
     message: '🚀 API Workflow Dynamique',
     status: app.locals.masterDb ? 'connected' : 'connecting',
     timestamp: new Date().toISOString()
@@ -117,7 +94,7 @@ app.get('/', (req, res) => {
 // GESTION DES ERREURS 404
 // ========================
 app.use('*', (req, res) => {
-  res.status(404).json({ 
+  res.status(404).json({
     error: 'Route non trouvée',
     path: req.originalUrl
   });
@@ -134,14 +111,41 @@ app.use((err, req, res, next) => {
 });
 
 // ========================
-// FONCTION DE DÉMARRAGE
+// CONNEXION MONGODB - MASTER
 // ========================
-function startServer() {
-  const PORT = process.env.PORT || 5000;
-  const HOST = process.env.HOST || 'localhost';
+const MASTER_DB_URI = process.env.MASTER_DB_URI || 'mongodb://localhost:27017/workflow_master';
 
-  app.listen(PORT, HOST, () => {
-    console.log(`
+console.log('🔄 Connexion à MongoDB...');
+
+const masterConnection = mongoose.createConnection(MASTER_DB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
+});
+
+masterConnection.on('connected', () => {
+  console.log('✅ Connecté à la base MASTER avec succès');
+
+  try {
+    // Attacher les modèles master à la connexion
+    require('./src/models/master/Tenant')(masterConnection);
+    require('./src/models/master/Plan')(masterConnection);
+    require('./src/models/master/SuperAdmin')(masterConnection);
+    require('./src/models/master/permission.model')(masterConnection);
+    require('./src/models/master/Role')(masterConnection); // Use Master Role model for global roles
+
+    console.log('📦 Modèles master chargés:', Object.keys(masterConnection.models).join(', '));
+
+    // Rendre la connexion master accessible globalement
+    app.locals.masterDb = masterConnection;
+
+    // Démarrer le serveur SEULEMENT après la connexion
+    const PORT = process.env.PORT || 5000;
+    const HOST = process.env.HOST || 'localhost';
+
+    app.listen(PORT, HOST, () => {
+      console.log(`
   ╔════════════════════════════════════════════════╗
   ║     🚀  WORKFLOW DYNAMIQUE - SERVEUR PRÊT     ║
   ╚════════════════════════════════════════════════╝
@@ -149,12 +153,13 @@ function startServer() {
   📡 URL: http://${HOST}:${PORT}
   📊 DB: workflow_master
   ✅ Statut: Connecté
-  
-  📋 Routes disponibles:
-  ─────────────────────
-  🔓 Public:    /api/plans, /api/auth
-  🔐 Admin:     /api/admin
-  🔒 Protégées: /api/tenants, /api/users, /api/workflows
-    `);
-  });
-}
+      `);
+    });
+  } catch (error) {
+    console.error('❌ Erreur chargement modèles:', error);
+  }
+});
+
+masterConnection.on('error', (err) => {
+  console.error('❌ Erreur de connexion MASTER:', err.message);
+});

@@ -69,7 +69,7 @@ const tenantSchema = new mongoose.Schema({
   collection: 'tenants'
 });
 
-// ✅ EXPORT sous forme de fonction qui prend la connexion
+//  EXPORT sous forme de fonction qui prend la connexion
 module.exports = (connection) => {
   return connection.model('Tenant', tenantSchema);
 };

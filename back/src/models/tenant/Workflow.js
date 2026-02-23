@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 // stepSchema removed - replaced by nodes/edges structure inside workflowSchema
 
 const workflowSchema = new mongoose.Schema({
-  // ❌ À SUPPRIMER - plus besoin car on est dans la base du tenant
+  //  À SUPPRIMER - plus besoin car on est dans la base du tenant
   // tenantId: { ... },
 
   name: {
@@ -21,7 +21,7 @@ const workflowSchema = new mongoose.Schema({
     required: true
   },
 
-  // ✅ GRAPH MODEL REPLACEMENT
+  // GRAPH MODEL REPLACEMENT
   nodes: [{
     id: { type: String, required: true }, // React Flow ID (e.g., "1", "node-a")
     type: {
@@ -67,7 +67,7 @@ const workflowSchema = new mongoose.Schema({
     default: 'draft'
   },
 
-  // ✅ AJOUT - référence à l'utilisateur qui a créé le template
+  // AJOUT - référence à l'utilisateur qui a créé le template
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -76,5 +76,5 @@ const workflowSchema = new mongoose.Schema({
 
 }, { timestamps: true });
 
-// ✅ Factory pattern - on exporte une fonction
+// Factory pattern - on exporte une fonction
 module.exports = (connection) => connection.model('Workflow', workflowSchema);

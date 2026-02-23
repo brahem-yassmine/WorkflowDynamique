@@ -134,7 +134,7 @@ exports.createWorkflow = async (req, res) => {
       nodes: workflowNodes,
       edges: workflowEdges,
       status: 'draft',
-      createdBy: req.user.userId
+      createdBy: req.user.id
     });
 
     await workflow.save();
@@ -305,7 +305,7 @@ exports.executeWorkflow = async (req, res) => {
 
     const instance = new WorkflowInstance({
       workflowId: workflow._id,
-      createdBy: req.user.userId,
+      createdBy: req.user.id,
       title: req.body.title || `Instance de ${workflow.name}`,
       description: req.body.description || workflow.description, // Ajout description
 
@@ -323,7 +323,7 @@ exports.executeWorkflow = async (req, res) => {
         nodeId: startNode.id,
         nodeType: 'start',
         action: 'start',
-        performedBy: req.user.userId,
+        performedBy: req.user.id,
         comments: 'Workflow démarré',
         timestamp: new Date()
       }],
@@ -336,7 +336,7 @@ exports.executeWorkflow = async (req, res) => {
       history: [{ // Legacy history
         action: 'instance_created',
         title: 'Démarrage',
-        performedBy: req.user.userId,
+        performedBy: req.user.id,
         comments: 'Instance créée'
       }]
     });
@@ -434,7 +434,7 @@ exports.duplicateWorkflow = async (req, res) => {
       nodes: original.nodes.map(node => ({ ...node })), // Deep copy basique
       edges: original.edges.map(edge => ({ ...edge })), // Deep copy basique
       status: 'draft',
-      createdBy: req.user.userId
+      createdBy: req.user.id
     });
 
     await duplicate.save();

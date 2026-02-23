@@ -52,7 +52,7 @@ exports.createInstance = async (req, res) => {
     // ✅ Plus de tenantId, on utilise createdBy
     const instance = new WorkflowInstance({
       workflowId: workflow._id,
-      createdBy: req.user.userId,
+      createdBy: req.user.id,
       title,
       description: description || workflow.description,
 
@@ -70,7 +70,7 @@ exports.createInstance = async (req, res) => {
         nodeId: startNode.id,
         nodeType: 'start',
         action: 'start',
-        performedBy: req.user.userId,
+        performedBy: req.user.id,
         comments: 'Workflow démarré',
         timestamp: new Date()
       }],
@@ -84,7 +84,7 @@ exports.createInstance = async (req, res) => {
       history: [{
         action: 'instance_created',
         title: 'Démarrage',
-        performedBy: req.user.userId,
+        performedBy: req.user.id,
         comments: 'Instance de workflow créée'
       }]
     });
@@ -259,7 +259,7 @@ exports.approveNode = async (req, res) => {
       nodeId: nodeId,
       nodeType: 'action', // À récupérer du workflow si possible
       action: 'approved',
-      performedBy: req.user.userId,
+      performedBy: req.user.id,
       comments: comments || '',
       timestamp: new Date(),
       outputData: data
@@ -268,7 +268,7 @@ exports.approveNode = async (req, res) => {
     instance.history.push({
       action: 'step_approved',
       title: `Étape validée`,
-      performedBy: req.user.userId,
+      performedBy: req.user.id,
       comments: comments || `Action validée sur le noeud ${nodeId}`
     });
 
@@ -326,7 +326,7 @@ exports.approveNode = async (req, res) => {
       instance.history.push({
         action: 'workflow_completed',
         title: 'Terminé',
-        performedBy: req.user.userId,
+        performedBy: req.user.id,
         comments: 'Workflow terminé avec succès'
       });
     }
@@ -378,7 +378,7 @@ exports.rejectNode = async (req, res) => {
       nodeId: nodeId,
       nodeType: 'action',
       action: 'rejected',
-      performedBy: req.user.userId,
+      performedBy: req.user.id,
       comments: comments || 'Rejeté',
       timestamp: new Date()
     });
@@ -386,7 +386,7 @@ exports.rejectNode = async (req, res) => {
     instance.history.push({
       action: 'step_rejected',
       title: 'Action rejetée',
-      performedBy: req.user.userId,
+      performedBy: req.user.id,
       comments: comments || 'Étape rejetée'
     });
 
@@ -416,7 +416,7 @@ exports.cancelInstance = async (req, res) => {
 
     const instance = await WorkflowInstance.findOne({
       _id: instanceId,
-      createdBy: req.user.userId
+      createdBy: req.user.id
     });
 
     if (!instance) {
@@ -445,7 +445,7 @@ exports.cancelInstance = async (req, res) => {
     instance.history.push({
       action: 'instance_cancelled',
       title: 'Annulation',
-      performedBy: req.user.userId,
+      performedBy: req.user.id,
       comments: comments || 'Instance annulée par l\'utilisateur'
     });
 
@@ -495,13 +495,13 @@ exports.addAttachment = async (req, res) => {
     instance.attachments.push({
       filename,
       url,
-      uploadedBy: req.user.userId
+      uploadedBy: req.user.id
     });
 
     instance.history.push({
       action: 'attachment_added',
       title: 'Fichier ajouté',
-      performedBy: req.user.userId,
+      performedBy: req.user.id,
       comments: `Fichier ajouté: ${filename}`
     });
 

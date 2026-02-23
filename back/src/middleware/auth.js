@@ -5,21 +5,21 @@ const jwt = require('jsonwebtoken');
 const auth = async (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
-    
+
     if (!token) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Token manquant' 
+      return res.status(401).json({
+        success: false,
+        message: 'Token manquant'
       });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'votre_secret_jwt');
     req.user = decoded;
     next();
   } catch (error) {
-    res.status(401).json({ 
-      success: false, 
-      message: 'Token invalide' 
+    res.status(401).json({
+      success: false,
+      message: 'Token invalide ou expiré'
     });
   }
 };
@@ -28,19 +28,19 @@ const auth = async (req, res, next) => {
 const requireRole = (role) => {
   return (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Non authentifié' 
+      return res.status(401).json({
+        success: false,
+        message: 'Non authentifié'
       });
     }
-    
+
     if (req.user.role !== role && req.user.role !== 'super_admin') {
-      return res.status(403).json({ 
-        success: false, 
-        message: `Rôle ${role} requis` 
+      return res.status(403).json({
+        success: false,
+        message: `Rôle ${role} requis`
       });
     }
-    
+
     next();
   };
 };

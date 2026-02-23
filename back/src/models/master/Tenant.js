@@ -2,20 +2,20 @@
 const mongoose = require('mongoose');
 
 const tenantSchema = new mongoose.Schema({
-  slug: {
+  domain: {
     type: String,
     required: true,
     unique: true,
     lowercase: true,
     trim: true
   },
-  
+
   name: {
     type: String,
     required: true,
     trim: true
   },
-  
+
   email: {
     type: String,
     required: true,
@@ -23,48 +23,48 @@ const tenantSchema = new mongoose.Schema({
     lowercase: true,
     trim: true
   },
-  
+
   password: {
     type: String,
     required: true
   },
-  
+
   status: {
     type: String,
     enum: ['active', 'inactive', 'suspended'],
     default: 'active'
   },
-  
+
   adminName: {
     type: String,
-    default: function() {
+    default: function () {
       return this.email ? this.email.split('@')[0] : 'Admin';
     }
   },
-  
+
   industry: {
     type: String,
     default: 'Non spécifié'
   },
-  
+
   selectedPlan: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Plan',
     default: null
   },
-  
+
   databaseName: {
     type: String,
     required: true,
     unique: true
   },
-  
+
   databaseUri: {
     type: String,
     required: true
   }
-  
-}, { 
+
+}, {
   timestamps: true,
   collection: 'tenants'
 });

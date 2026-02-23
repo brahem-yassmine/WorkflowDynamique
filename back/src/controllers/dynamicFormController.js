@@ -48,8 +48,8 @@ exports.createForm = async (req, res) => {
         const form = new DynamicForm({
             name,
             description: description || '',
-            steps: steps || [{ id: 'step-' + Date.now(), title: 'Étape 1', status: 'active', fields: [] }],
-            createdBy: req.user.userId,
+            steps: steps || [{ id: 'step-' + Date.now(), title: 'Step 1', fields: [], status: 'pending' }],
+            createdBy: req.user.id,
             status: 'draft'
         });
 

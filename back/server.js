@@ -16,6 +16,7 @@ const workflowInstanceRoutes = require('./src/routes/WorkflowInstanceRoutes');
 const subscriptionRoutes = require('./src/routes/subscriptionRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
 const dynamicFormRoutes = require('./src/routes/dynamicFormRoutes');
+const checklistRoutes = require('./src/routes/checklistRoutes');
 
 const app = express();
 
@@ -103,6 +104,7 @@ app.use('/api/workflows', workflowRoutes);
 app.use('/api/workflow-instances', workflowInstanceRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/forms', dynamicFormRoutes);
+app.use('/api/checklists', checklistRoutes);
 
 // ========================
 // ROUTE RACINE

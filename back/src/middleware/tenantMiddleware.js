@@ -1,56 +1,92 @@
-// back/src/middleware/tenantMiddleware.js
-const Tenant = require('../models/master/Tenant');
+const mongoose = require('mongoose');
+const { getTenantConnection } = require('../services/tenantConnection');
 
 // ✅ Middleware pour résoudre le tenant à partir des headers
-const tenantResolver = (req, res, next) => {
-    try {
-        // Extraire tenantId du header ou de la query
-        const tenantId = req.headers['x-tenant-id'] || req.query.tenantId;
-        
-        if (!tenantId) {
-            return res.status(400).json({ 
-                success: false,
-                message: 'Tenant ID requis (header x-tenant-id ou query tenantId)' 
-            });
-        }
-        
-        req.tenantId = tenantId;
-        next();
-    } catch (error) {
-        console.error('Erreur tenantResolver:', error);
-        next(error);
-    }
-};
+const tenantResolver = async (req, res, next) => {
+  try {
+    // Extraire tenantId du header ou de la query
+    let tenantId = req.headers['x-tenant-id'] || req.query.tenantId;
 
+    console.log('🔍 [TenantResolver] tenantId reçue:', tenantId);
+
+    if (!tenantId) {
+      // Si pas de tenantId, on laisse passer (les middlewares suivants bloqueront si nécessaire)
+      return next();
+    }
+
+    // S'assurer que le tenantId est une chaîne
+    tenantId = String(tenantId);
+    req.tenantId = tenantId;
+
+    // Si on a accès à la base master, on récupère les infos du tenant
+    if (req.masterDb) {
+      const TenantModel = req.masterDb.model('Tenant');
+
+      // Validation du format ObjectId pour éviter un crash findById
+      if (!mongoose.Types.ObjectId.isValid(tenantId)) {
+        console.error('❌ [TenantResolver] format tenantId invalide:', tenantId);
+        return res.status(400).json({ success: false, message: 'Format de Tenant ID invalide' });
+      }
+
+      const tenant = await TenantModel.findById(tenantId);
+
+      if (!tenant) {
+        console.error('❌ [TenantResolver] Tenant non trouvé pour ID:', tenantId);
+        return res.status(404).json({
+          success: false,
+          message: 'Tenant non trouvé dans la base master'
+        });
+      }
+
+      req.tenant = tenant;
+      console.log('✅ [TenantResolver] Tenant résolu:', tenant.domain);
+
+      // Établir la connexion à la base spécifique du tenant
+      const tenantConn = await getTenantConnection(tenant.domain, tenant.databaseName);
+      req.tenantConn = tenantConn;
+    } else {
+      console.warn('⚠️ [TenantResolver] req.masterDb est manquant !');
+    }
+
+    next();
+  } catch (error) {
+    console.error('❌ [TenantResolver] CRASH:', error);
+    res.status(500).json({
+      success: false,
+      message: `Erreur résolution tenant: ${error.message}`,
+      error: error.stack // Ajout du stack pour plus de détails
+    });
+  }
+};
 // ✅ Vérifie que le tenant est actif
 const checkTenantActive = async (req, res, next) => {
   try {
     // Si on a déjà le tenant via tenantResolver
     if (req.tenant) {
       if (req.tenant.status !== 'active') {
-        return res.status(403).json({ 
-          success: false, 
-          message: 'Tenant inactif ou suspendu' 
+        return res.status(403).json({
+          success: false,
+          message: 'Tenant inactif ou suspendu'
         });
       }
       return next();
     }
-    
+
     // Sinon, vérifier via la base master
     if (!req.user || !req.user.tenantId) {
       return next();
     }
-    
+
     const TenantModel = req.masterDb?.model('Tenant') || Tenant;
     const tenant = await TenantModel.findById(req.user.tenantId);
-    
+
     if (tenant && tenant.status !== 'active') {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Tenant inactif' 
+      return res.status(403).json({
+        success: false,
+        message: 'Tenant inactif'
       });
     }
-    
+
     next();
   } catch (error) {
     console.error('Erreur checkTenantActive:', error);
@@ -65,36 +101,36 @@ const checkPlanLimits = (resourceType) => {
       if (!req.tenant || !req.tenant.planDetails) {
         return next();
       }
-      
+
       const limits = req.tenant.planDetails.features;
-      
+
       if (resourceType === 'users') {
         const User = req.tenantConn?.model('User');
         if (User) {
           const count = await User.countDocuments();
           if (count >= limits.maxUsers) {
-            return res.status(403).json({ 
-              success: false, 
-              message: `Limite de ${limits.maxUsers} utilisateurs atteinte` 
+            return res.status(403).json({
+              success: false,
+              message: `Limite de ${limits.maxUsers} utilisateurs atteinte`
             });
           }
         }
       }
-      
+
       // Ajouter d'autres types de ressources si nécessaire
       if (resourceType === 'workflows') {
         const Workflow = req.tenantConn?.model('Workflow');
         if (Workflow) {
           const count = await Workflow.countDocuments();
           if (count >= limits.maxWorkflows) {
-            return res.status(403).json({ 
-              success: false, 
-              message: `Limite de ${limits.maxWorkflows} workflows atteinte` 
+            return res.status(403).json({
+              success: false,
+              message: `Limite de ${limits.maxWorkflows} workflows atteinte`
             });
           }
         }
       }
-      
+
       next();
     } catch (error) {
       console.error('Erreur checkPlanLimits:', error);
@@ -108,19 +144,19 @@ const requirePlan = (requiredPlan) => {
   return (req, res, next) => {
     try {
       if (!req.tenant || !req.tenant.plan) {
-        return res.status(403).json({ 
+        return res.status(403).json({
           success: false,
-          message: 'Plan non défini pour ce tenant' 
+          message: 'Plan non défini pour ce tenant'
         });
       }
-      
+
       if (req.tenant.plan !== requiredPlan) {
-        return res.status(403).json({ 
+        return res.status(403).json({
           success: false,
-          message: `Ce plan (${requiredPlan}) est requis pour cette action` 
+          message: `Ce plan (${requiredPlan}) est requis pour cette action`
         });
       }
-      
+
       next();
     } catch (error) {
       console.error('Erreur requirePlan:', error);

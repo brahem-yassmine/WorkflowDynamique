@@ -231,8 +231,19 @@ export default function FormBuilder() {
     try {
       const token = localStorage.getItem('auth_token');
       const userStr = localStorage.getItem('user');
+      const tenantStr = localStorage.getItem('tenant');
+      
       const user = userStr ? JSON.parse(userStr) : null;
-      const tenantId = user?.tenantId || user?._id; // Fallback to user ID if tenantId is missing (for admin)
+      const tenant = tenantStr ? JSON.parse(tenantStr) : null;
+      
+      // ✅ Priorité au tenantId de l'objet tenant, puis au user.tenantId, puis au user._id
+      const tenantId = tenant?._id || user?.tenantId || user?._id;
+      
+      if (!tenantId) {
+        toast.error("Tenant ID missing. Please log in again.");
+        setIsSaving(false);
+        return;
+      }
       
       const response = await axios.post('http://localhost:5000/api/forms', {
         name: steps[0].title || "Untitled Form",

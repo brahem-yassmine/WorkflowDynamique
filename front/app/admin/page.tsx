@@ -4,7 +4,6 @@ import React from 'react';
 import Link from 'next/link';
 import Sidebar from './components/sidebar';
 
-// import Sidebar from 'admin/components';
 
 // Composant principal de la page
 export default function EssaiPage() {
@@ -33,7 +32,7 @@ export default function EssaiPage() {
 
             </button>
 
-<Link href="/essai/profile">
+<Link href="/admin/profile">
   <button className="flex items-center gap-2 bg-indigo-700 text-white px-4 py-2 rounded-lg hover:bg-indigo-800 transition-colors">
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
       <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />

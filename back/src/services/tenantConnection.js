@@ -17,7 +17,7 @@ async function getTenantConnection(tenantSlug, dbName) {
   // URI de connexion - à adapter selon ta config
   const baseUri = process.env.MONGO_URI || 'mongodb://localhost:27017';
   const uri = `${baseUri}/${dbName}`;
-  
+
   // Créer une nouvelle connexion
   const conn = mongoose.createConnection(uri, {
     useNewUrlParser: true,
@@ -31,11 +31,12 @@ async function getTenantConnection(tenantSlug, dbName) {
   //  ATTACHER LES MODÈLES DU TENANT À CETTE CONNEXION
   conn.model('User', require('../models/tenant/User')(conn).schema);
   conn.model('Workflow', require('../models/tenant/Workflow')(conn).schema);
+  conn.model('DynamicForm', require('../models/tenant/DynamicForm')(conn).schema);
   // Ajoute ici tous tes autres modèles tenant
 
   // Mettre en cache
   connections[tenantSlug] = conn;
-  
+
   console.log(` Connexion établie pour le tenant: ${tenantSlug}`);
   return conn;
 }

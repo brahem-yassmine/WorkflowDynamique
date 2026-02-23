@@ -12,9 +12,10 @@ const authRoutes = require('./src/routes/authRoutes');
 const tenantRoutes = require('./src/routes/tenantRoutes');
 const planRoutes = require('./src/routes/planRoutes.js');
 const workflowRoutes = require('./src/routes/workflowRoutes');
-const workflowInstanceRoutes = require('./src/routes/WorkflowInstanceRoutes.js'); 
-const subscriptionRoutes = require('./src/routes/subscriptionRoutes.js');
+const workflowInstanceRoutes = require('./src/routes/WorkflowInstanceRoutes');
+const subscriptionRoutes = require('./src/routes/subscriptionRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
+const dynamicFormRoutes = require('./src/routes/dynamicFormRoutes');
 
 const app = express();
 
@@ -41,17 +42,17 @@ const masterConnection = mongoose.createConnection(MASTER_DB_URI, {
 
 masterConnection.on('connected', () => {
   console.log('✅ Connecté à la base MASTER avec succès');
-  
+
   // Attacher les modèles master à la connexion
   require('./src/models/master/Tenant')(masterConnection);
   require('./src/models/master/Plan')(masterConnection);
   require('./src/models/master/SuperAdmin')(masterConnection);
-  
+
   console.log('📦 Modèles master chargés:', Object.keys(masterConnection.models).join(', '));
-  
+
   // Rendre la connexion master accessible globalement
   app.locals.masterDb = masterConnection;
-  
+
   // Démarrer le serveur SEULEMENT après la connexion
   startServer();
 });
@@ -67,9 +68,9 @@ masterConnection.on('error', (err) => {
 // MIDDLEWARE DE CONNEXION MASTER
 app.use((req, res, next) => {
   if (!app.locals.masterDb) {
-    return res.status(503).json({ 
-      success: false, 
-      message: 'Base de données en cours de connexion, veuillez réessayer' 
+    return res.status(503).json({
+      success: false,
+      message: 'Base de données en cours de connexion, veuillez réessayer'
     });
   }
   req.masterDb = app.locals.masterDb;
@@ -90,7 +91,7 @@ app.use('/api/admin', adminRoutes);
 // ========================
 // MIDDLEWARE DE TENANT
 // ========================
-const { tenantResolver } = require('./src/middleware/tenantMiddleware.js');
+const { tenantResolver } = require('./src/middleware/tenantMiddleware');
 app.use('/api', tenantResolver);
 
 // ========================
@@ -101,12 +102,13 @@ app.use('/api/users', userRoutes);
 app.use('/api/workflows', workflowRoutes);
 app.use('/api/workflow-instances', workflowInstanceRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/forms', dynamicFormRoutes);
 
 // ========================
 // ROUTE RACINE
 // ========================
 app.get('/', (req, res) => {
-  res.json({ 
+  res.json({
     message: '🚀 API Workflow Dynamique',
     status: app.locals.masterDb ? 'connected' : 'connecting',
     timestamp: new Date().toISOString()
@@ -117,7 +119,7 @@ app.get('/', (req, res) => {
 // GESTION DES ERREURS 404
 // ========================
 app.use('*', (req, res) => {
-  res.status(404).json({ 
+  res.status(404).json({
     error: 'Route non trouvée',
     path: req.originalUrl
   });

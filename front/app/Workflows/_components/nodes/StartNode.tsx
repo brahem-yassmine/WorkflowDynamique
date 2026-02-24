@@ -10,7 +10,7 @@ const StartNode = ({ data }: any) => {
                     <Play size={14} />
                 </div>
                 <div>
-                    <div className="text-sm font-bold text-gray-900">{data.label || 'Début'}</div>
+                    <div className="text-sm font-bold text-gray-900">{data.label || 'Start'}</div>
                 </div>
             </div>
             <Handle type="source" position={Position.Right} className="bg-green-500" style={{ borderRadius: '50%', width: '11px', height: '11px' }} />

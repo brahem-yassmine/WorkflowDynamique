@@ -73,7 +73,7 @@ export default function SuperAdminDashboard() {
 
       const token = localStorage.getItem('auth_token');
       if (!token) {
-        setError("Authentification requise");
+        setError("Authentication required");
         return;
       }
 
@@ -81,7 +81,7 @@ export default function SuperAdminDashboard() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
-      if (!tenantsResponse.ok) throw new Error('Échec de la synchronisation des données');
+      if (!tenantsResponse.ok) throw new Error('Data synchronization failed');
 
       const tenantsData = await tenantsResponse.json();
 
@@ -130,7 +130,7 @@ export default function SuperAdminDashboard() {
       ]);
 
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Erreur système critique");
+      setError(error instanceof Error ? error.message : "Critical system error");
     } finally {
       setLoading(false);
       setIsRefreshing(false);
@@ -234,9 +234,10 @@ export default function SuperAdminDashboard() {
                   outerRadius={100}
                   paddingAngle={8}
                   dataKey="value"
+                  cornerRadius={8}
                 >
                   {planDistribution.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} cornerRadius={8} />
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip />

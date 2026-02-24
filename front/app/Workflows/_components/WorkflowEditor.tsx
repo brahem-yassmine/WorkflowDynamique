@@ -1,11 +1,11 @@
 // front/app/Workflows/_components/WorkflowEditor.tsx
 "use client";
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
     ReactFlow,
-    ReactFlowProvider,  // Important: import depuis @xyflow/react
-    useReactFlow,        // Hook utilisé dans le contenu
+    ReactFlowProvider,  // Important: import from @xyflow/react
+    useReactFlow,        // Hook used in the content
     useNodesState,
     useEdgesState,
     Controls,
@@ -26,8 +26,11 @@ import ActionNode from './nodes/ActionNode';
 import ConditionNode from './nodes/ConditionNode';
 import SaveButton from './SaveButton';
 import NodeDetailsPanel from './NodeDetailsPanel';
+import { apiService } from '@/service/api.service';
 
-// Types de nœuds (définis à l'extérieur du composant pour éviter les re-rendus inutiles)
+import { useSearchParams } from 'next/navigation';
+
+// Node types (defined outside the component to avoid unnecessary re-renders)
 const nodeTypes = {
     start: StartNode,
     end: EndNode,
@@ -39,23 +42,51 @@ const initialNodes: Node[] = [
     {
         id: '1',
         type: 'start',
-        data: { label: 'Début' },
+        data: { label: 'Start' },
         position: { x: 250, y: 5 },
     },
 ];
 
-let nodeId = 2;
-const getId = () => `node_${nodeId++}`;
+const getId = (type: string) => `node_${type}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
-// Composant interne qui utilise useReactFlow
+// Internal component using useReactFlow
 function WorkflowEditorContent() {
+    const searchParams = useSearchParams();
+    const workflowId = searchParams.get('id');
     const reactFlowWrapper = useRef<HTMLDivElement>(null);
     const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
     const [selectedNode, setSelectedNode] = useState<Node | null>(null);
-    const [workflowName, setWorkflowName] = useState('Nouveau workflow');
+    const [workflowName, setWorkflowName] = useState('New Workflow');
+    const [workflowDomain, setWorkflowDomain] = useState('HR');
+    const [workflowProjectId, setWorkflowProjectId] = useState<string>('');
+    const [currentWorkflowId, setCurrentWorkflowId] = useState<string | null>(workflowId);
+    const [isSaving, setIsSaving] = useState(false);
 
-    // ✅ useReactFlow est utilisé ici, à l'intérieur du ReactFlowProvider
+    // Initial load
+    useEffect(() => {
+        if (workflowId) {
+            const loadWorkflow = async () => {
+                try {
+                    const response = await apiService.request(`/workflows/${workflowId}`);
+                    if (response.success && response.data) {
+                        const { name, nodes: loadedNodes, edges: loadedEdges, domain, projectId } = response.data;
+                        setWorkflowName(name);
+                        setWorkflowDomain(domain || 'HR');
+                        setWorkflowProjectId(projectId || '');
+                        setNodes(loadedNodes || []);
+                        setEdges(loadedEdges || []);
+                    }
+                } catch (error) {
+                    console.error('Failed to load workflow:', error);
+                    alert('Error loading workflow');
+                }
+            };
+            loadWorkflow();
+        }
+    }, [workflowId, setNodes, setEdges]);
+
+    // useReactFlow is used here, inside ReactFlowProvider
     const { screenToFlowPosition } = useReactFlow();
 
     const onConnect = useCallback(
@@ -64,7 +95,17 @@ function WorkflowEditorContent() {
                 ...params,
                 id: `edge_${Date.now()}`,
                 animated: true,
+                style: { strokeWidth: 2 },
             };
+            // Logic for condition nodes handles
+            if (params.sourceHandle === 'yes') {
+                newEdge.style = { stroke: '#10b981', strokeWidth: 3 };
+                newEdge.label = 'Yes';
+            } else if (params.sourceHandle === 'no') {
+                newEdge.style = { stroke: '#ef4444', strokeWidth: 3 };
+                newEdge.label = 'No';
+            }
+
             setEdges((eds) => addEdge(newEdge, eds));
         },
         [setEdges],
@@ -88,13 +129,13 @@ function WorkflowEditorContent() {
             });
 
             const newNode: Node = {
-                id: getId(),
+                id: getId(type),
                 type,
                 position,
                 data: {
-                    label: type === 'condition' ? 'Nouvelle condition' :
-                        type === 'action' ? 'Nouvelle tâche' :
-                            type === 'start' ? 'Début' : 'Fin'
+                    label: type === 'condition' ? 'New Condition' :
+                        type === 'action' ? 'New Task' :
+                            type === 'start' ? 'Start' : 'End'
                 },
             };
 
@@ -123,19 +164,61 @@ function WorkflowEditorContent() {
         setSelectedNode((prev) => prev && prev.id === id ? { ...prev, data: { ...prev.data, ...data } } : prev);
     }, [setNodes]);
 
-    const handleSave = useCallback((workflowData: any) => {
-        console.log('Workflow sauvegardé:', workflowData);
-        setWorkflowName(workflowData.name);
-    }, []);
+    const onNodeDelete = useCallback((id: string) => {
+        setNodes((nds) => nds.filter((node) => node.id !== id));
+        setEdges((eds) => eds.filter((edge) => edge.source !== id && edge.target !== id));
+        setSelectedNode(null);
+    }, [setNodes, setEdges]);
+
+    const handleSave = useCallback(async (meta: { name: string; domain: string; projectId?: string }) => {
+        try {
+            setIsSaving(true);
+            console.log('Attempting to save workflow:', meta);
+
+            const payload = {
+                name: meta.name,
+                domain: meta.domain || 'HR',
+                projectId: meta.projectId,
+                description: "Workflow created via visual editor",
+                nodes: nodes,
+                edges: edges,
+                status: 'draft'
+            };
+
+            let response;
+            if (currentWorkflowId) {
+                response = await apiService.updateWorkflow(currentWorkflowId, payload);
+            } else {
+                response = await apiService.createWorkflow(payload);
+                if (response.success && response.data?._id) {
+                    setCurrentWorkflowId(response.data._id);
+                }
+            }
+
+            if (response.success) {
+                alert(currentWorkflowId ? 'Workflow updated successfully!' : 'Workflow created successfully!');
+                setWorkflowName(meta.name);
+            } else {
+                alert('Save error: ' + (response.message || 'Unknown error'));
+            }
+        } catch (error: any) {
+            console.error('Workflow save error:', error);
+            alert('Server connection error: ' + error.message);
+            throw error;
+        } finally {
+            setIsSaving(false);
+        }
+    }, [nodes, edges, currentWorkflowId]);
 
     return (
         <div className="flex flex-row h-full w-full relative">
             <Sidebar />
             <SaveButton
-                nodes={nodes}
-                edges={edges}
-                workflowName={workflowName}
                 onSave={handleSave}
+                isSaving={isSaving}
+                initialName={workflowName}
+                initialDomain={workflowDomain}
+                initialProjectId={workflowProjectId}
             />
             <div
                 className="flex-grow h-full bg-slate-50"
@@ -152,11 +235,11 @@ function WorkflowEditorContent() {
                     onNodeClick={onNodeClick}
                     onPaneClick={onPaneClick}
                     nodeTypes={nodeTypes}
-                    defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
+                    defaultViewport={{ x: 0, y: 0, zoom: 1 }}
                     minZoom={0.2}
                     maxZoom={2}
                     fitView
-                    fitViewOptions={{ maxZoom: 0.8 }}
+                    fitViewOptions={{ maxZoom: 1 }}
                     snapToGrid={true}
                     snapGrid={[15, 15]}
                 >
@@ -170,17 +253,20 @@ function WorkflowEditorContent() {
                     selectedNode={selectedNode}
                     onClose={() => setSelectedNode(null)}
                     onUpdate={onNodeUpdate}
+                    onDelete={onNodeDelete}
                 />
             )}
         </div>
     );
 }
 
-// Composant principal avec le Provider à l'extérieur
+// Main component with Provider on the outside
 export default function WorkflowEditor() {
     return (
         <ReactFlowProvider>
-            <WorkflowEditorContent />
+            <React.Suspense fallback={<div>Loading editor...</div>}>
+                <WorkflowEditorContent />
+            </React.Suspense>
         </ReactFlowProvider>
     );
 }

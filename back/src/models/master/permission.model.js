@@ -22,6 +22,7 @@ const permissionSchema = new mongoose.Schema(
         "ROLE",
         "DEPARTMENT",
         "WORKFLOW",
+        "PROJECT",
         "TASK",
         "SYSTEM"
       ],
@@ -33,7 +34,7 @@ const permissionSchema = new mongoose.Schema(
   }
 );
 
-// EXPORTE une fonction qui prend la connexion
+// EXPORT a function that takes the connection
 module.exports = (connection) => {
   return connection.model("Permission", permissionSchema);
 };

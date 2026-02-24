@@ -9,30 +9,30 @@ const superAdminSchema = new mongoose.Schema({
     lowercase: true,
     trim: true
   },
-  
+
   password: {
     type: String,
     required: true
   },
-  
+
   firstName: { type: String, default: 'Super' },
   lastName: { type: String, default: 'Admin' },
-  
+
   role: {
     type: String,
     default: 'super_admin',
     enum: ['super_admin']
   },
-  
+
   lastLogin: Date,
   isActive: { type: Boolean, default: true }
-  
-}, { 
+
+}, {
   timestamps: true,
   collection: 'superadmins'
 });
 
-// EXPORT sous forme de fonction qui prend la connexion
+// EXPORT as a function that takes the connection
 module.exports = (connection) => {
   return connection.model('SuperAdmin', superAdminSchema);
 };

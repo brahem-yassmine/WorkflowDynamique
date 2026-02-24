@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 // stepSchema removed - replaced by nodes/edges structure inside workflowSchema
 
 const workflowSchema = new mongoose.Schema({
-  //  À SUPPRIMER - plus besoin car on est dans la base du tenant
+  // REMOVE - no longer needed as we are in the tenant database
   // tenantId: { ... },
 
   name: {
@@ -17,49 +17,20 @@ const workflowSchema = new mongoose.Schema({
 
   domain: {
     type: String,
-    enum: ['RH', 'Finance', 'IT', 'Vente', 'Direction'],
+    enum: ['HR', 'Finance', 'IT', 'Sales', 'Management'],
     required: true
   },
 
   // GRAPH MODEL REPLACEMENT
-  nodes: [{
-    id: { type: String, required: true }, // React Flow ID (e.g., "1", "node-a")
-    type: {
-      type: String,
-      required: true,
-      enum: ['start', 'action', 'condition', 'end']
-    },
-    data: {
-      label: String,
-      description: String,
-      responsibleDomain: String, // Pour 'action' nodes
-      actionType: {
-        type: String,
-        enum: ['approval', 'review', 'notification', 'task']
-      },
-      // Pour 'condition' nodes
-      conditionKey: String, // ex: "amount"
-      conditionOperator: String, // ex: ">", "==", "contains"
-      conditionValue: mongoose.Schema.Types.Mixed
-    },
-    position: {
-      x: Number,
-      y: Number
-    }
-  }],
+  nodes: {
+    type: [mongoose.Schema.Types.Mixed],
+    default: []
+  },
 
-  edges: [{
-    id: { type: String, required: true },
-    source: { type: String, required: true },
-    target: { type: String, required: true },
-    type: String, // 'default', 'smoothstep', etc.
-    label: String, // Label visible sur le lien (ex: "Oui", "Non")
-    animated: Boolean,
-    data: {
-      condition: Boolean, // Si vrai, c'est un chemin conditionnel
-      conditionValue: mongoose.Schema.Types.Mixed // Valeur requise pour prendre ce chemin
-    }
-  }],
+  edges: {
+    type: [mongoose.Schema.Types.Mixed],
+    default: []
+  },
 
   status: {
     type: String,
@@ -67,7 +38,14 @@ const workflowSchema = new mongoose.Schema({
     default: 'draft'
   },
 
-  // AJOUT - référence à l'utilisateur qui a créé le template
+  // ADD - reference to the project
+  projectId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Project',
+    required: false // Optional for backward compatibility, but recommended
+  },
+
+  // ADD - reference to the user who created the template
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -76,5 +54,5 @@ const workflowSchema = new mongoose.Schema({
 
 }, { timestamps: true });
 
-// Factory pattern - on exporte une fonction
+// Factory pattern - we export a function
 module.exports = (connection) => connection.model('Workflow', workflowSchema);

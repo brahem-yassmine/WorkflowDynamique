@@ -1,33 +1,33 @@
 // back/src/controllers/planController.js
 const jwt = require('jsonwebtoken');
 
-// ✅ Obtenir tous les plans disponibles
+// ✅ Get all available plans
 exports.getPlans = async (req, res) => {
   try {
-    console.log('📋 Récupération des plans...');
-    
-    // ✅ Vérification détaillée
+    console.log('📋 Fetching plans...');
+
+    // ✅ Detailed verification
     if (!req.masterDb) {
-      console.error('❌ masterDb non disponible');
-      return res.status(500).json({ 
-        success: false, 
-        message: 'Connexion à la base de données non établie' 
+      console.error('❌ masterDb unavailable');
+      return res.status(500).json({
+        success: false,
+        message: 'Database connection not established'
       });
     }
-    
-    console.log('📊 Modèles dans masterDb:', Object.keys(req.masterDb.models));
-    
-    // ✅ Vérifier si le modèle existe déjà
+
+    console.log('📊 Models in masterDb:', Object.keys(req.masterDb.models));
+
+    // ✅ Check if model already exists
     let Plan;
-    
+
     if (req.masterDb.models['Plan']) {
-      // Si le modèle existe déjà, l'utiliser
+      // If model exists, use it
       Plan = req.masterDb.model('Plan');
-      console.log('✅ Modèle Plan trouvé dans masterDb.models');
+      console.log('✅ Plan model found in masterDb.models');
     } else {
-      console.log('⚠️ Modèle Plan non trouvé, tentative de création...');
-      
-      // Si le modèle n'existe pas, le créer
+      console.log('⚠️ Plan model not found, attempting creation...');
+
+      // If model doesn't exist, create it
       const mongoose = require('mongoose');
       const PlanSchema = new mongoose.Schema({
         name: String,
@@ -39,61 +39,61 @@ exports.getPlans = async (req, res) => {
         description: String,
         isActive: Boolean
       }, { timestamps: true });
-      
+
       Plan = req.masterDb.model('Plan', PlanSchema);
-      console.log('✅ Modèle Plan créé dynamiquement');
+      console.log('✅ Plan model created dynamically');
     }
-    
-    // Maintenant faire la requête
+
+    // Perform query
     const plans = await Plan.find({ isActive: true })
       .sort({ price: 1 })
       .lean();
-    
-    console.log(`✅ ${plans.length} plans trouvés`);
-    
+
+    console.log(`✅ ${plans.length} plans found`);
+
     res.json({
       success: true,
       data: plans
     });
-    
+
   } catch (error) {
     console.error('❌ Error getPlans:', error.message);
     console.error('Stack:', error.stack);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Erreur serveur: ' + error.message 
+    res.status(500).json({
+      success: false,
+      message: 'Server error: ' + error.message
     });
   }
 };
 
-// ✅ Vérifier si besoin de sélection de plan
+// ✅ Check if plan selection is required
 exports.checkPlanSelection = async (req, res) => {
   try {
-    console.log('🔍 Vérification sélection plan pour user:', req.user?._id);
-    
+    console.log('🔍 Checking plan selection for user:', req.user?._id);
+
     if (!req.tenantConn) {
-      console.error('❌ tenantConn non disponible');
-      return res.status(500).json({ 
-        success: false, 
-        message: 'Connexion à la base tenant non établie' 
+      console.error('❌ tenantConn unavailable');
+      return res.status(500).json({
+        success: false,
+        message: 'Tenant database connection not established'
       });
     }
-    
+
     const User = req.tenantConn.model('User');
-    
+
     const user = await User.findById(req.user._id);
-    
+
     if (!user) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Utilisateur non trouvé' 
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
       });
     }
 
     const requiresPlanSelection = user.role === 'admin' && !user.hasSelectedPlan;
-    
-    console.log('✅ Vérification terminée:', { requiresPlanSelection, role: user.role });
-    
+
+    console.log('✅ Verification completed:', { requiresPlanSelection, role: user.role });
+
     res.json({
       success: true,
       data: {
@@ -102,42 +102,42 @@ exports.checkPlanSelection = async (req, res) => {
         role: user.role
       }
     });
-    
+
   } catch (error) {
     console.error('❌ Error checkPlanSelection:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Erreur serveur' 
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
     });
   }
 };
 
-// ✅ Sélectionner un plan
+// ✅ Select a plan
 exports.selectPlan = async (req, res) => {
   try {
     const { planId, billingCycle } = req.body;
     const userId = req.user._id;
     const tenantId = req.user.tenantId;
-    
-    console.log('📝 Sélection de plan:', { planId, billingCycle, userId, tenantId });
-    
+
+    console.log('📝 Selecting plan:', { planId, billingCycle, userId, tenantId });
+
     if (!req.masterDb) {
-      return res.status(500).json({ 
-        success: false, 
-        message: 'Connexion master non établie' 
+      return res.status(500).json({
+        success: false,
+        message: 'Master connection not established'
       });
     }
-    
+
     if (!req.tenantConn) {
-      return res.status(500).json({ 
-        success: false, 
-        message: 'Connexion tenant non établie' 
+      return res.status(500).json({
+        success: false,
+        message: 'Tenant connection not established'
       });
     }
-    
-    // Vérifier si le modèle Plan existe dans masterDb
+
+    // Check if Plan model exists in masterDb
     if (!req.masterDb.models['Plan']) {
-      console.log('⚠️ Modèle Plan non trouvé dans masterDb, création...');
+      console.log('⚠️ Plan model not found in masterDb, creating...');
       const mongoose = require('mongoose');
       const PlanSchema = new mongoose.Schema({
         name: String,
@@ -149,38 +149,38 @@ exports.selectPlan = async (req, res) => {
         description: String,
         isActive: Boolean
       }, { timestamps: true });
-      
+
       req.masterDb.model('Plan', PlanSchema);
     }
-    
+
     const Plan = req.masterDb.model('Plan');
     const User = req.tenantConn.model('User');
     const Subscription = req.tenantConn.model('Subscription');
     const Tenant = req.masterDb.model('Tenant');
-    
-    // Vérifier que le plan existe
+
+    // Verify plan exists
     const plan = await Plan.findById(planId);
     if (!plan) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Plan non trouvé' 
+      return res.status(404).json({
+        success: false,
+        message: 'Plan not found'
       });
     }
-    
-    // Mettre à jour l'utilisateur
+
+    // Update user
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Utilisateur non trouvé' 
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
       });
     }
-    
+
     user.hasSelectedPlan = true;
     user.planSelectedAt = new Date();
     await user.save();
-    
-    // Créer la souscription
+
+    // Create subscription
     const subscription = new Subscription({
       tenantId,
       planId: plan._id,
@@ -194,10 +194,10 @@ exports.selectPlan = async (req, res) => {
       currentPeriodStart: new Date(),
       currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
     });
-    
+
     await subscription.save();
-    
-    // Mettre à jour le tenant
+
+    // Update tenant
     const tenant = await Tenant.findById(tenantId);
     if (tenant) {
       tenant.selectedPlan = plan._id;
@@ -217,10 +217,10 @@ exports.selectPlan = async (req, res) => {
       };
       await tenant.save();
     }
-    
-    // Générer un nouveau token
+
+    // Generate new token
     const token = jwt.sign(
-      { 
+      {
         userId: user._id,
         tenantId: user.tenantId,
         role: user.role,
@@ -230,10 +230,10 @@ exports.selectPlan = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
-    
+
     res.json({
       success: true,
-      message: 'Plan sélectionné avec succès',
+      message: 'Plan selected successfully',
       data: {
         user: {
           _id: user._id,
@@ -246,12 +246,12 @@ exports.selectPlan = async (req, res) => {
         token
       }
     });
-    
+
   } catch (error) {
     console.error('❌ Error selectPlan:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Erreur serveur: ' + error.message 
+    res.status(500).json({
+      success: false,
+      message: 'Server error: ' + error.message
     });
   }
 };

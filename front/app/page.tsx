@@ -15,7 +15,7 @@ import Image from "next/image";
 import Link from "next/link";
 import axios from "axios";
 
-// Types pour les plans
+// Types for plans
 interface Plan {
   _id?: string;
   id?: string;
@@ -29,15 +29,15 @@ interface Plan {
   isPopular?: boolean;
 }
 
-// Fonction pour convertir l'objet features en tableau
+// Function to convert features object to array
 const featuresToArray = (features: any): string[] => {
   if (Array.isArray(features)) {
     return features;
   }
-  
+
   if (typeof features === 'object' && features !== null) {
     const array: string[] = [];
-    
+
     if (features.maxStaff) array.push(`Up to ${features.maxStaff} staff`);
     if (features.maxLocations) array.push(`Up to ${features.maxLocations} locations`);
     if (features.analysis) array.push(`${features.analysis} analysis`);
@@ -46,10 +46,10 @@ const featuresToArray = (features: any): string[] => {
     if (features.customSupport) array.push(`Custom support`);
     if (features.integrations) array.push(`Integrations`);
     if (features.api) array.push(`API access`);
-    
+
     return array.length > 0 ? array : ["No features listed"];
   }
-  
+
   return ["No features listed"];
 };
 
@@ -75,11 +75,10 @@ function PriceCard({
 
   return (
     <div
-      className={`p-8 rounded-3xl border ${
-        active 
-          ? "border-indigo-600 ring-4 ring-indigo-50 shadow-2xl scale-105 bg-white" 
-          : "border-gray-200 bg-white hover:shadow-xl transition-shadow"
-      }`}
+      className={`p-8 rounded-3xl border ${active
+        ? "border-indigo-600 ring-4 ring-indigo-50 shadow-2xl scale-105 bg-white"
+        : "border-gray-200 bg-white hover:shadow-xl transition-shadow"
+        }`}
     >
       {active && (
         <span className="bg-indigo-600 text-white px-3 py-1 rounded-full text-xs font-semibold mb-4 inline-block">
@@ -104,11 +103,10 @@ function PriceCard({
       </ul>
       <Link href="/signup">
         <button
-          className={`w-full py-3 rounded-xl font-bold transition ${
-            active 
-              ? "bg-indigo-600 text-white hover:bg-indigo-700" 
-              : "bg-gray-100 text-gray-800 hover:bg-gray-200"
-          }`}
+          className={`w-full py-3 rounded-xl font-bold transition ${active
+            ? "bg-indigo-600 text-white hover:bg-indigo-700"
+            : "bg-gray-100 text-gray-800 hover:bg-gray-200"
+            }`}
         >
           Choose Plan
         </button>
@@ -134,10 +132,10 @@ export default function LandingPage() {
     const fetchPlans = async () => {
       try {
         setLoading(true);
-        console.log("📦 Chargement des plans...");
+        console.log("📦 Loading plans...");
         const response = await axios.get("http://localhost:5000/api/plans");
-        console.log("✅ Plans reçus:", response.data);
-        
+        console.log("✅ Plans received:", response.data);
+
         let plansData = [];
         if (response.data.success && response.data.data) {
           plansData = response.data.data;
@@ -146,18 +144,18 @@ export default function LandingPage() {
         } else if (response.data.plans) {
           plansData = response.data.plans;
         }
-        
+
         setPlans(plansData);
         setError(null);
       } catch (error) {
-        console.error("❌ Erreur chargement plans:", error);
-        setError("Impossible de charger les plans. Veuillez rafraîchir la page.");
-        
+        console.error("❌ Error loading plans:", error);
+        setError("Failed to load plans. Please refresh the page.");
+
         setPlans([
           {
             name: "Demo Plan",
             code: "DEMO",
-            description: "Parfait pour découvrir la plateforme",
+            description: "Perfect for exploring the platform",
             price: 0,
             currency: "D",
             interval: "month",
@@ -173,7 +171,7 @@ export default function LandingPage() {
           {
             name: "Starter Plan",
             code: "STARTER",
-            description: "Idéal pour les petites équipes",
+            description: "Ideal for small teams",
             price: 79,
             currency: "D",
             interval: "month",
@@ -190,7 +188,7 @@ export default function LandingPage() {
           {
             name: "Pro Plan",
             code: "PRO",
-            description: "Pour les entreprises en croissance",
+            description: "For growing businesses",
             price: 299,
             currency: "D",
             interval: "month",
@@ -208,7 +206,7 @@ export default function LandingPage() {
         setLoading(false);
       }
     };
-    
+
     fetchPlans();
   }, []);
 
@@ -404,7 +402,7 @@ export default function LandingPage() {
           <h2 className="text-4xl font-bold mb-16 text-white">
             Plan & Pricing
           </h2>
-          
+
           {loading ? (
             <div className="flex justify-center items-center py-12">
               <Loader2 className="animate-spin text-indigo-600" size={48} />
@@ -416,7 +414,7 @@ export default function LandingPage() {
                 onClick={() => window.location.reload()}
                 className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-indigo-700 transition"
               >
-                Réessayer
+                Retry
               </button>
             </div>
           ) : (

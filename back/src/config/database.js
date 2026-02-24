@@ -6,27 +6,27 @@ const connectDB = async () => {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
-    
+
     console.log(` MongoDB Connected: ${conn.connection.host}`);
-    
-    // Gestion des erreurs
+
+    // Error handling
     mongoose.connection.on('error', (err) => {
       console.error(' MongoDB connection error:', err);
 
-      
+
     });
-    
+
     mongoose.connection.on('disconnected', () => {
       console.log(' MongoDB disconnected');
     });
-    
-    // Fermeture propre
+
+    // Proper closure
     process.on('SIGINT', async () => {
       await mongoose.connection.close();
       console.log('👋 MongoDB connection closed');
       process.exit(0);
     });
-    
+
   } catch (error) {
     console.error(` MongoDB connection error: ${error.message}`);
     process.exit(1);

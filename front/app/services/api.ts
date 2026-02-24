@@ -10,29 +10,29 @@ export const api = axios.create({
   },
 });
 
-// Intercepteur pour ajouter token et tenantId
+// Interceptor to add token and tenantId
 api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
-    // Essaie différents noms de token
-    const token = 
-      localStorage.getItem('token') || 
-      localStorage.getItem('auth_token') || 
+    // Try different token names
+    const token =
+      localStorage.getItem('token') ||
+      localStorage.getItem('auth_token') ||
       localStorage.getItem('accessToken');
-      
+
     const tenantId = localStorage.getItem('tenantId');
-    
-    console.log('🔍 Intercepteur - valeurs:', { 
-      token: token ? 'oui' : 'non', 
-      tenantId: tenantId ? tenantId : 'non' 
+
+    console.log('🔍 Interceptor - values:', {
+      token: token ? 'yes' : 'no',
+      tenantId: tenantId ? tenantId : 'no'
     });
-    
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-      console.log('✅ Token ajouté au header');
+      console.log('✅ Token added to header');
     } else {
-      console.error('❌ Token manquant dans localStorage!');
+      console.error('❌ Token missing in localStorage!');
     }
-    
+
     if (tenantId) {
       config.headers['x-tenant-id'] = tenantId;
     }
@@ -40,11 +40,11 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Log les erreurs
+// Log errors
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.error('❌ Erreur API:', {
+    console.error('❌ API Error:', {
       status: error.response?.status,
       data: error.response?.data,
       url: error.config?.url

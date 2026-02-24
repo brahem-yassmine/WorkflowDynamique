@@ -13,7 +13,9 @@ import {
   CheckCircle2,
   Info,
   X,
-  Lock
+  Lock,
+  Layers,
+  Briefcase
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -34,28 +36,7 @@ interface Permission {
   category: string;
 }
 
-const ROLE_SUGGESTIONS = [
-  {
-    name: 'Administrator',
-    description: 'Full system access with authority to manage users and global configurations.',
-    permissions: ['WORKFLOW_CREATE', 'WORKFLOW_VIEW', 'WORKFLOW_EDIT', 'WORKFLOW_DELETE', 'WORKFLOW_PUBLISH', 'WORKFLOW_ARCHIVE', 'WORKFLOW_DUPLICATE', 'WORKFLOW_CONFIGURE_ACL', 'USER_CREATE', 'USER_EDIT', 'USER_DELETE', 'USER_VIEW', 'ROLE_CREATE', 'ROLE_EDIT', 'ROLE_DELETE', 'ROLE_VIEW']
-  },
-  {
-    name: 'Lattice Manager',
-    description: 'Oversees workflows and team coordination without system-level settings access.',
-    permissions: ['WORKFLOW_CREATE', 'WORKFLOW_VIEW', 'WORKFLOW_EDIT', 'WORKFLOW_PUBLISH', 'WORKFLOW_ARCHIVE', 'WORKFLOW_DUPLICATE', 'USER_VIEW']
-  },
-  {
-    name: 'Workflow Editor',
-    description: 'Authorized to design and modify workflow structures and logic.',
-    permissions: ['WORKFLOW_VIEW', 'WORKFLOW_EDIT', 'WORKFLOW_DUPLICATE']
-  },
-  {
-    name: 'System Analyst',
-    description: 'Read-only access to monitor workflow execution and system metrics.',
-    permissions: ['WORKFLOW_VIEW']
-  }
-];
+const PERMISSION_ORDER = ['WORKFLOW', 'PROJECT', 'USER', 'ROLE', 'DEPARTMENT', 'TASK', 'SYSTEM'];
 
 export default function RolesPage() {
   const [roles, setRoles] = useState<Role[]>([]);
@@ -71,10 +52,17 @@ export default function RolesPage() {
   const [newRoleName, setNewRoleName] = useState('');
   const [newRoleDescription, setNewRoleDescription] = useState('');
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
+  const [currentStep, setCurrentStep] = useState(0); // 0: Info, 1+: Categories
+
+  const activeCategories = PERMISSION_ORDER.filter(cat =>
+    availablePermissions.some(p => p.category === cat)
+  );
 
   useEffect(() => {
     loadInitialData();
   }, []);
+
+  const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
 
   const loadInitialData = async () => {
     try {
@@ -87,10 +75,12 @@ export default function RolesPage() {
       ]);
 
       if (rolesRes.data.success) setRoles(rolesRes.data.data);
-      if (permsRes.data.success) setAvailablePermissions(permsRes.data.data);
+      if (permsRes.data.success) {
+        setAvailablePermissions(permsRes.data.data);
+      }
 
     } catch (err: any) {
-      console.error('❌ Erreur initialisation:', err);
+      console.error('❌ Initialization error:', err);
       setError(err.response?.data?.message || err.message);
     } finally {
       setLoading(false);
@@ -102,26 +92,32 @@ export default function RolesPage() {
       const response = await api.get('/api/tenant/roles');
       if (response.data.success) setRoles(response.data.data);
     } catch (err: any) {
-      console.error('❌ Erreur chargement rôles:', err);
+      console.error('❌ Error loading roles:', err);
     }
   };
 
-  const handleCreateRole = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreateOrUpdateRole = async () => {
     try {
       setIsCreating(true);
-      const response = await api.post('/api/tenant/roles', {
+      setError('');
+
+      const payload = {
         name: newRoleName,
         description: newRoleDescription,
         permissions: selectedPermissions
-      });
+      };
+
+      const response = editingRoleId
+        ? await api.put(`/api/tenant/roles/${editingRoleId}`, payload)
+        : await api.post('/api/tenant/roles', payload);
 
       if (response.data.success) {
         setIsModalOpen(false);
-        setNewRoleName('');
-        setNewRoleDescription('');
-        setSelectedPermissions([]);
+        resetForm();
         loadRoles();
+        if (editingRoleId) {
+          setSelectedRole(response.data.data);
+        }
       }
     } catch (err: any) {
       setError(err.response?.data?.message || err.message);
@@ -130,11 +126,21 @@ export default function RolesPage() {
     }
   };
 
-  const applySuggestion = (suggestion: typeof ROLE_SUGGESTIONS[0]) => {
-    // We apply it but the user can still edit
-    setNewRoleName(suggestion.name);
-    setNewRoleDescription(suggestion.description);
-    setSelectedPermissions(suggestion.permissions);
+  const startEditing = (role: Role) => {
+    setEditingRoleId(role._id);
+    setNewRoleName(role.name);
+    setNewRoleDescription(role.description || '');
+    setSelectedPermissions(role.permissions);
+    setCurrentStep(0);
+    setIsModalOpen(true);
+  };
+
+  const resetForm = () => {
+    setNewRoleName('');
+    setNewRoleDescription('');
+    setSelectedPermissions([]);
+    setCurrentStep(0);
+    setEditingRoleId(null);
   };
 
   const togglePermission = (permName: string) => {
@@ -149,6 +155,19 @@ export default function RolesPage() {
     role.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     role.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'WORKFLOW': return <Layers size={20} />;
+      case 'PROJECT': return <Briefcase size={20} />;
+      case 'USER': return <Shield size={20} />;
+      case 'ROLE': return <Lock size={20} />;
+      case 'SYSTEM': return <Info size={20} />;
+      default: return <CheckCircle2 size={20} />;
+    }
+  };
+
+  const currentCategory = currentStep > 0 ? activeCategories[currentStep - 1] : null;
 
   if (loading && roles.length === 0) {
     return (
@@ -170,7 +189,10 @@ export default function RolesPage() {
           <p className="text-slate-500 text-sm font-medium">Define and manage custom security perimeters for your current organization. These roles are isolated and specific to this tenant.</p>
         </div>
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            resetForm();
+            setIsModalOpen(true);
+          }}
           className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95"
         >
           <Plus size={18} />
@@ -277,7 +299,10 @@ export default function RolesPage() {
                     <Shield size={24} />
                   </div>
                   <div className="flex items-center gap-2">
-                    <button className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">
+                    <button
+                      onClick={() => startEditing(selectedRole)}
+                      className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                    >
                       <Edit3 size={18} />
                     </button>
                     <button onClick={() => setSelectedRole(null)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
@@ -298,24 +323,48 @@ export default function RolesPage() {
                     <p className="text-sm font-medium text-slate-600">{selectedRole.description || 'No system objective defined for this node.'}</p>
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="space-y-6 mt-8 overflow-y-auto custom-scrollbar pr-2 flex-grow">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Permissions Matrix ({selectedRole.permissions.length})</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {selectedRole.permissions.length > 0 ? (
-                        selectedRole.permissions.map(p => (
-                          <span key={p} className="bg-slate-50 text-slate-600 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-slate-100 text-center">
-                            {p}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-xs text-slate-400 italic">No permissions assigned.</span>
-                      )}
-                    </div>
+
+                    {activeCategories.map(cat => {
+                      const groupPerms = selectedRole.permissions.filter(pName =>
+                        availablePermissions.find(ap => ap.name === pName)?.category === cat
+                      );
+
+                      if (groupPerms.length === 0) return null;
+
+                      return (
+                        <div key={cat} className="space-y-3 border-l-2 border-slate-50 pl-4 py-1">
+                          <div className="flex items-center gap-2 text-indigo-600">
+                            <div className="p-1.5 bg-indigo-50 rounded-lg scale-75 transform-gpu">
+                              {getCategoryIcon(cat)}
+                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-widest">{cat}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5 pl-1">
+                            {groupPerms.map(p => (
+                              <span key={p} className="bg-white text-slate-600 text-[9px] font-black px-2.5 py-1.5 rounded-lg border border-slate-100 shadow-sm uppercase tracking-tight">
+                                {p.split('_').slice(1).join(' ')}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {selectedRole.permissions.length === 0 && (
+                      <div className="py-12 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-100">
+                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">No Authorized Nodes</p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 <div className="pt-8 border-t border-slate-50 space-y-3 mt-8">
-                  <button className="w-full py-3 bg-indigo-50 text-indigo-600 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-indigo-100 transition-all active:scale-95">
+                  <button
+                    onClick={() => startEditing(selectedRole)}
+                    className="w-full py-3 bg-indigo-50 text-indigo-600 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-indigo-100 transition-all active:scale-95"
+                  >
                     Manage Permissions
                   </button>
                   {!(selectedRole.isSystemRole || selectedRole.isDefault) && (
@@ -354,116 +403,136 @@ export default function RolesPage() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] relative z-10 overflow-hidden border border-slate-100 flex flex-col"
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[85vh] relative z-10 overflow-hidden border border-slate-100 flex flex-col"
             >
-              <div className="bg-indigo-600 p-8 text-white">
+              <div className="bg-indigo-600 p-8 text-white relative">
                 <div className="flex justify-between items-center">
                   <div>
-                    <h2 className="text-2xl font-black tracking-tight">Construct New Authority Node</h2>
-                    <p className="text-indigo-200 text-xs font-bold uppercase tracking-widest mt-1">Manual Access Configuration</p>
+                    <h2 className="text-2xl font-black tracking-tight">{editingRoleId ? 'Modify Existing Authority' : 'Construct New Authority Node'}</h2>
+                    {currentStep === 0 ? (
+                      <p className="text-indigo-200 text-xs font-bold uppercase tracking-widest mt-1">Step 1: Identity Profile</p>
+                    ) : (
+                      <p className="text-indigo-200 text-xs font-bold uppercase tracking-widest mt-1">Step {currentStep + 1}: {currentCategory} Matrix</p>
+                    )}
                   </div>
                   <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-indigo-500 rounded-xl transition-all">
                     <X size={24} />
                   </button>
                 </div>
+
+                {/* Progress Bar */}
+                <div className="absolute bottom-0 left-0 h-1.5 bg-indigo-500 w-full">
+                  <motion.div
+                    className="h-full bg-white shadow-[0_0_10px_white]"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${((currentStep + 1) / (activeCategories.length + 1)) * 100}%` }}
+                  />
+                </div>
               </div>
 
-              <div className="flex-grow overflow-y-auto p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* Suggestions & Basic Info */}
-                <div className="space-y-6">
-                  <div className="space-y-2">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                      Authority Templates
-                      <span className="px-1.5 py-0.5 bg-slate-100 text-[8px] rounded text-slate-400">Optional</span>
-                    </p>
-                    <div className="grid grid-cols-1 gap-2">
-                      {ROLE_SUGGESTIONS.map(suggestion => (
-                        <button
-                          key={suggestion.name}
-                          onClick={() => applySuggestion(suggestion)}
-                          className="text-left p-3 border border-slate-100 rounded-2xl hover:border-indigo-300 hover:bg-indigo-50/50 transition-all group"
-                        >
-                          <div className="flex justify-between items-center">
-                            <p className="text-xs font-black text-slate-700 group-hover:text-indigo-600">{suggestion.name}</p>
-                            <ChevronRight size={12} className="text-slate-300 group-hover:translate-x-1 transition-all" />
-                          </div>
-                        </button>
-                      ))}
+              <div className="flex-grow overflow-y-auto p-10">
+                {currentStep === 0 ? (
+                  <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+                    <div className="space-y-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Authority Node Name</label>
+                        <input
+                          value={newRoleName}
+                          onChange={(e) => setNewRoleName(e.target.value)}
+                          placeholder="e.g., Regional Supervisor"
+                          className="w-full h-14 bg-slate-50 rounded-2xl px-6 font-black text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none text-base transition-all"
+                        />
+                      </div>
+                      <div className="space-y-1.5 pt-4">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Description</label>
+                        <textarea
+                          value={newRoleDescription}
+                          onChange={(e) => setNewRoleDescription(e.target.value)}
+                          placeholder="Describe the scope and responsibilities of this role..."
+                          className="w-full h-32 bg-slate-50 rounded-2xl p-6 font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none text-sm resize-none"
+                        />
+                      </div>
                     </div>
                   </div>
-
-                  <div className="space-y-4 pt-4 border-t border-slate-50">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Custom Node Name</label>
-                      <input
-                        value={newRoleName}
-                        onChange={(e) => setNewRoleName(e.target.value)}
-                        placeholder="Type authority name here..."
-                        className="w-full h-11 bg-slate-50 rounded-xl px-4 font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none text-sm transition-all"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Objective/Description</label>
-                      <textarea
-                        value={newRoleDescription}
-                        onChange={(e) => setNewRoleDescription(e.target.value)}
-                        placeholder="Define the scope of this authority node..."
-                        className="w-full h-24 bg-slate-50 rounded-xl p-4 font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none text-sm resize-none"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Permissions Grid */}
-                <div className="space-y-4">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Permissions Matrix Allocation</p>
-                  <div className="grid grid-cols-1 gap-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                    {/* Group by category */}
-                    {Array.from(new Set(availablePermissions.map(p => p.category))).map(category => (
-                      <div key={category} className="space-y-2 mb-4">
-                        <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest border-b border-indigo-50 pb-1">{category}</p>
-                        <div className="grid grid-cols-1 gap-1.5">
-                          {availablePermissions.filter(p => p.category === category).map(permission => (
-                            <label
-                              key={permission._id}
-                              className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-all border ${selectedPermissions.includes(permission.name) ? 'bg-indigo-50 border-indigo-200' : 'bg-slate-50/50 border-transparent hover:bg-slate-50'}`}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={selectedPermissions.includes(permission.name)}
-                                onChange={() => togglePermission(permission.name)}
-                                className="hidden"
-                              />
-                              <div className={`w-5 h-5 rounded-lg flex items-center justify-center border-2 transition-all ${selectedPermissions.includes(permission.name) ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-200'}`}>
-                                {selectedPermissions.includes(permission.name) && <CheckCircle2 size={12} className="stroke-[4]" />}
-                              </div>
-                              <div>
-                                <p className="text-[11px] font-black text-slate-700">{permission.name.replace(`${category}_`, '')}</p>
-                                <p className="text-[9px] text-slate-400 leading-tight">{permission.description}</p>
-                              </div>
-                            </label>
-                          ))}
+                ) : (
+                  <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
+                    <div className="flex items-center justify-between border-b border-slate-50 pb-6 mb-6">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
+                          {currentCategory && getCategoryIcon(currentCategory)}
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-black text-slate-800 tracking-tight">{currentCategory} Permissions</h3>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Select relevant rights for this sector</p>
                         </div>
                       </div>
-                    ))}
+                      <div className="bg-slate-50 px-4 py-2 rounded-xl text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        {selectedPermissions.filter(p => availablePermissions.find(ap => ap.name === p)?.category === currentCategory).length} Selected
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3">
+                      {availablePermissions
+                        .filter(p => p.category === currentCategory)
+                        .map(permission => (
+                          <label
+                            key={permission._id}
+                            className={`flex items-center gap-4 p-5 rounded-2xl cursor-pointer transition-all border-2 ${selectedPermissions.includes(permission.name) ? 'bg-indigo-50/50 border-indigo-200' : 'bg-white border-slate-50 hover:border-slate-100 hover:bg-slate-50/30'}`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedPermissions.includes(permission.name)}
+                              onChange={() => togglePermission(permission.name)}
+                              className="hidden"
+                            />
+                            <div className={`w-6 h-6 rounded-lg flex items-center justify-center border-2 transition-all ${selectedPermissions.includes(permission.name) ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-200'}`}>
+                              {selectedPermissions.includes(permission.name) && <CheckCircle2 size={14} className="stroke-[4]" />}
+                            </div>
+                            <div>
+                              <p className="text-sm font-black text-slate-700">{permission.name.replace(`${currentCategory}_`, '')}</p>
+                              <p className="text-xs text-slate-400 font-medium leading-tight mt-0.5">{permission.description}</p>
+                            </div>
+                          </label>
+                        ))
+                      }
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
-              <div className="p-8 border-t border-slate-50 flex gap-4">
-                <button
-                  onClick={() => setIsModalOpen(false)}
-                  className="flex-1 py-3 text-slate-400 font-bold hover:text-slate-600 transition-all uppercase text-[10px] tracking-widest"
-                >
-                  Discard Structure
-                </button>
-                <button
-                  onClick={handleCreateRole}
-                  disabled={isCreating || !newRoleName}
-                  className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 uppercase text-[10px] tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isCreating ? 'Injecting Authority...' : 'Commit Node to Matrix'}
-                </button>
+              <div className="p-8 border-t border-slate-50 bg-slate-50/30 flex gap-4">
+                {currentStep > 0 && (
+                  <button
+                    onClick={() => setCurrentStep(prev => prev - 1)}
+                    className="px-8 py-4 text-slate-400 font-black hover:text-slate-600 transition-all uppercase text-[10px] tracking-widest flex items-center gap-2"
+                  >
+                    Previous Sector
+                  </button>
+                )}
+
+                <div className="flex-grow"></div>
+
+                {currentStep < activeCategories.length ? (
+                  <button
+                    onClick={() => setCurrentStep(prev => prev + 1)}
+                    disabled={currentStep === 0 && !newRoleName}
+                    className="px-10 py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 uppercase text-[10px] tracking-widest disabled:opacity-50 flex items-center gap-2"
+                  >
+                    Continue to {currentStep === 0 ? activeCategories[0] : activeCategories[currentStep]}
+                    <ChevronRight size={16} />
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleCreateOrUpdateRole}
+                    disabled={isCreating || !newRoleName}
+                    className="px-10 py-4 bg-emerald-600 text-white rounded-2xl font-black shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all active:scale-95 uppercase text-[10px] tracking-widest disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {isCreating ? 'Injecting Node...' : (editingRoleId ? 'Commit Updates' : 'Commit Node to Matrix')}
+                    <motion.div animate={{ x: [0, 5, 0] }} transition={{ repeat: Infinity, duration: 2 }}>
+                      <Shield size={16} />
+                    </motion.div>
+                  </button>
+                )}
               </div>
             </motion.div>
           </div>

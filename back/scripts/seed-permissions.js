@@ -27,6 +27,14 @@ const permissions = [
     { name: 'ROLE_EDIT', description: 'Can edit roles', category: 'ROLE' },
     { name: 'ROLE_DELETE', description: 'Can delete roles', category: 'ROLE' },
     { name: 'ROLE_VIEW', description: 'Can view roles', category: 'ROLE' },
+
+    // PROJECT permissions
+    { name: 'PROJECT_CREATE', description: 'Can create projects', category: 'PROJECT' },
+    { name: 'PROJECT_EDIT', description: 'Can edit projects', category: 'PROJECT' },
+    { name: 'PROJECT_DELETE', description: 'Can delete projects', category: 'PROJECT' },
+    { name: 'PROJECT_VIEW', description: 'Can view projects', category: 'PROJECT' },
+    { name: 'PROJECT_ARCHIVE', description: 'Can archive projects', category: 'PROJECT' },
+    { name: 'PROJECT_PUBLISH', description: 'Can publish projects', category: 'PROJECT' },
 ];
 
 async function seedPermissions() {
@@ -63,7 +71,7 @@ async function seedPermissions() {
             {
                 name: 'Manager',
                 description: 'Manage workflows and users within their assigned domain.',
-                permissions: ['WORKFLOW_VIEW', 'WORKFLOW_EDIT', 'USER_VIEW', 'ROLE_VIEW'],
+                permissions: ['WORKFLOW_VIEW', 'WORKFLOW_EDIT', 'USER_VIEW', 'ROLE_VIEW', 'PROJECT_VIEW', 'PROJECT_EDIT'],
                 isDefault: false,
                 isSystemRole: true
             }

@@ -8,7 +8,7 @@ router.use(auth);
 
 // Routes
 router.post('/', requireRole('admin'), RoleController.create);
-router.get('/', RoleController.getAll); // Autoriser la lecture pour tous les membres auth
+router.get('/', RoleController.getAll); // Allow reading for all auth members
 router.get('/active', RoleController.getActiveRoles);
 router.get('/permissions', requireRole('admin'), RoleController.getAvailablePermissions);
 router.get('/:id', requireRole('admin'), RoleController.getById);

@@ -25,7 +25,7 @@ interface UserData {
   role: 'admin' | 'user' | 'super_admin';
   firstName?: string;
   lastName?: string;
-  tenantId?: string;  // 👈 Ajouté
+  tenantId?: string;  // 👈 Added
   domain?: string;
   isActive: boolean;
   hasSelectedPlan?: boolean;
@@ -46,7 +46,7 @@ interface LoginResponse {
     user: UserData;
     requiresPlanSelection?: boolean;
     tenant?: any;
-    tenantId?: string;  // 👈 Ajouté pour être sûr
+    tenantId?: string;  // 👈 Added for certainty
   };
 }
 
@@ -60,7 +60,7 @@ export default function SigninPage() {
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const router = useRouter();
 
-  // ✅ Fonction de redirection améliorée
+  // ✅ Improved redirect function
   const getRedirectPath = (userData: UserData, requiresPlanSelection?: boolean): string => {
     const { role, hasSelectedPlan } = userData;
 
@@ -70,13 +70,13 @@ export default function SigninPage() {
       requiresPlanSelection
     });
 
-    // ✅ Si l'utilisateur n'a pas sélectionné de plan, rediriger vers la page de sélection
+    // ✅ If the user has not selected a plan, redirect to the selection page
     if (requiresPlanSelection || hasSelectedPlan === false) {
-      console.log('⚠️ Utilisateur sans plan, redirection vers /select-plan');
+      console.log('⚠️ User without plan, redirecting to /select-plan');
       return '/select-plan';
     }
 
-    // Redirection par rôle
+    // Redirect by role
     switch (role) {
       case 'super_admin':
         return '/super_admin';
@@ -102,7 +102,7 @@ export default function SigninPage() {
         return;
       }
 
-      console.log(' Tentative de connexion pour:', formData.email);
+      console.log(' Login attempt for:', formData.email);
 
       // Call backend API
       const response = await axios.post<LoginResponse>('http://localhost:5000/api/auth/login', {
@@ -114,7 +114,7 @@ export default function SigninPage() {
         }
       });
 
-      console.log(' Réponse serveur:', response.data);
+      console.log(' Server response:', response.data);
 
       if (response.data.success && response.data.data) {
         const { token, user, requiresPlanSelection } = response.data.data;
@@ -129,33 +129,33 @@ export default function SigninPage() {
           requiresPlanSelection
         });
 
-        // 1️⃣ RÉCUPÉRER LE TENANT ID
+        // 1️⃣ RETRIEVE TENANT ID
         const tenantId = user.tenantId || response.data.data.tenantId || response.data.data.tenant?._id;
 
-        console.log(' Tenant ID récupéré:', tenantId);
+        console.log(' Tenant ID retrieved:', tenantId);
 
-        // 2️⃣ SAUVEGARDER TOUTES LES DONNÉES
+        // 2️⃣ SAVE ALL DATA
         localStorage.setItem('auth_token', token);
         localStorage.setItem('user', JSON.stringify(user));
 
-        // 3️⃣ SAUVEGARDER LE TENANT ID SÉPARÉMENT (SOLUTION PRO)
+        // 3️⃣ SAVE TENANT ID SEPARATELY (PRO SOLUTION)
         if (tenantId) {
           localStorage.setItem('tenantId', tenantId);
-          console.log('✅ Tenant ID sauvegardé dans localStorage');
+          console.log('✅ Tenant ID saved in localStorage');
         } else {
-          console.warn('⚠️ Aucun Tenant ID trouvé dans la réponse');
+          console.warn('⚠️ No Tenant ID found in the response');
         }
 
         if (response.data.data.tenant) {
           localStorage.setItem('tenant', JSON.stringify(response.data.data.tenant));
         }
 
-        // 4️⃣ DÉTERMINER LA ROUTE DE REDIRECTION
+        // 4️⃣ DETERMINE REDIRECT ROUTE
         const redirectPath = getRedirectPath(user, requiresPlanSelection);
 
         console.log(' Redirection vers:', redirectPath);
 
-        // Petite pause pour que le state se mette à jour
+        // Small pause for the state to update
         setTimeout(() => {
           router.push(redirectPath);
         }, 100);
@@ -204,8 +204,8 @@ export default function SigninPage() {
   };
 
   const handleGoogleLogin = () => {
-    // À implémenter plus tard
-    console.log('Google login - À implémenter');
+    // To be implemented later
+    console.log('Google login - To be implemented');
     setError('Google login will be available soon');
   };
 
@@ -217,7 +217,7 @@ export default function SigninPage() {
     }));
   };
 
-  // Fonction pour pré-remplir avec les comptes de test
+  // Function to pre-fill with test accounts
   const fillTestAccount = (type: 'admin' | 'super_admin') => {
     if (type === 'admin') {
       setFormData({
@@ -366,8 +366,8 @@ export default function SigninPage() {
                   type="submit"
                   disabled={loading}
                   className={`w-full text-white font-semibold py-3 px-4 rounded-lg transition-colors ${loading
-                      ? 'bg-indigo-500 cursor-not-allowed'
-                      : 'bg-indigo-700 hover:bg-blue-700'
+                    ? 'bg-indigo-500 cursor-not-allowed'
+                    : 'bg-indigo-700 hover:bg-blue-700'
                     }`}
                 >
                   {loading ? (
@@ -396,7 +396,7 @@ export default function SigninPage() {
                 </p>
               </div>
 
-              {/* 👇 AJOUT DES BOUTONS DE TEST (optionnel) */}
+              {/* 👇 TEST BUTTONS ADDITION (optional) */}
               <div className="mt-6 pt-4 border-t border-gray-200">
                 <p className="text-xs text-gray-500 text-center mb-2">Test accounts (click to fill)</p>
                 <div className="flex gap-2 justify-center">

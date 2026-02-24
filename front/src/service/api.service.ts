@@ -12,18 +12,18 @@ class ApiService {
   private getTenantId(): string | null {
     if (typeof window === 'undefined') return null;
 
-    // 1. D'abord essayer de récupérer depuis le localStorage
+    // 1. Try to get from localStorage first
     const tenantId = localStorage.getItem('tenantId');
     if (tenantId) return tenantId;
 
-    // 2. Fallback : essayer de décoder le token
+    // 2. Fallback: try to decode token
     const token = this.getToken();
     if (token) {
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         return payload.tenantId || null;
       } catch (e) {
-        console.error('Erreur décodage token:', e);
+        console.error('Token decoding error:', e);
       }
     }
 
@@ -35,17 +35,17 @@ class ApiService {
     const tenantId = this.getTenantId();
 
     if (!token) {
-      throw new Error('Non authentifié');
+      throw new Error('Not authenticated');
     }
 
-    // Préparer les headers
+    // Prepare headers
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`,
       ...(options.headers as Record<string, string>),
     };
 
-    // 👇 SOLUTION PRO : Ajouter tenantId dans le header si présent
+    // PRO SOLUTION: Add tenantId in header if present
     if (tenantId) {
       headers['x-tenant-id'] = tenantId;
     }
@@ -57,9 +57,9 @@ class ApiService {
 
     const data = await response.json();
 
-    // Gestion des erreurs d'authentification
+    // Authentication error handling
     if (response.status === 401) {
-      // Token expiré ou invalide
+      // Token expired or invalid
       localStorage.removeItem('token');
       localStorage.removeItem('auth_token');
       localStorage.removeItem('accessToken');
@@ -69,23 +69,23 @@ class ApiService {
       if (typeof window !== 'undefined') {
         window.location.href = '/signin';
       }
-      throw new Error('Session expirée');
+      throw new Error('Session expired');
     }
 
-    // Gestion de l'erreur Tenant ID requis
-    if (response.status === 400 && (data.message?.includes('Tenant ID requis'))) {
-      console.error('Tenant ID manquant. Détails:', data.message);
-      throw new Error('Identifiant d\'organisation manquant ou invalide. Reconnectez-vous.');
+    // Tenant ID required error handling
+    if (response.status === 400 && (data.message?.includes('Tenant ID requis') || data.message?.includes('Tenant ID required'))) {
+      console.error('Missing Tenant ID. Details:', data.message);
+      throw new Error('Missing or invalid organization identifier. Please log in again.');
     }
 
     if (!response.ok) {
-      throw new Error(data.message || `Erreur ${response.status}: Impossible de traiter la demande`);
+      throw new Error(data.message || `Error ${response.status}: Unable to process request`);
     }
 
     return data;
   }
 
-  // Méthodes spécifiques
+  // Specific methods
   getRoles() {
     return this.request('/tenant/roles');
   }
@@ -156,6 +156,70 @@ class ApiService {
 
   deleteUser(id: string) {
     return this.request(`/users/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Workflow Management
+  getWorkflows() {
+    return this.request('/workflows');
+  }
+
+  getWorkflowById(id: string) {
+    return this.request(`/workflows/${id}`);
+  }
+
+  createWorkflow(data: any) {
+    return this.request('/workflows', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  updateWorkflow(id: string, data: any) {
+    return this.request(`/workflows/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  deleteWorkflow(id: string) {
+    return this.request(`/workflows/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  duplicateWorkflow(id: string) {
+    return this.request(`/workflows/${id}/duplicate`, {
+      method: 'POST',
+    });
+  }
+
+  // Project Management
+  getProjects() {
+    return this.request('/projects');
+  }
+
+  getProjectById(id: string) {
+    return this.request(`/projects/${id}`);
+  }
+
+  createProject(data: any) {
+    return this.request('/projects', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  updateProject(id: string, data: any) {
+    return this.request(`/projects/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  deleteProject(id: string) {
+    return this.request(`/projects/${id}`, {
       method: 'DELETE',
     });
   }

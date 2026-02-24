@@ -52,7 +52,7 @@ function UserSidebar() {
             <span className="text-sm font-bold">Notifications</span>
           </Link> */}
 
-          <Link href="/Workflows" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-xl transition-all group">
+          <Link href="User/Workflows" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-xl transition-all group">
             <GitBranch className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
             <span className="text-sm font-bold">My Workflows</span>
           </Link>

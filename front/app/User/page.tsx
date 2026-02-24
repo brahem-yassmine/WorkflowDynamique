@@ -13,7 +13,7 @@ import {
   Fingerprint
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { apiService } from '@/services/role.service';
+import { apiService } from '@/service/api.service';
 
 interface UserProfile {
   _id: string;
@@ -46,7 +46,7 @@ export default function UserProfilePage() {
           const parsedUser = JSON.parse(storedUser);
           setProfile(parsedUser);
 
-          // Tenter de récupérer les détails du rôle (permissions) sans bloquer la page
+          // Try to fetch role details (permissions) without blocking the page
           try {
             const rolesRes = await apiService.getRoles();
             if (rolesRes && rolesRes.success && rolesRes.data) {

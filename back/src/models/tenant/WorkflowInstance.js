@@ -2,17 +2,17 @@
 const mongoose = require('mongoose');
 
 const workflowInstanceSchema = new mongoose.Schema({
-  //  On garde la référence au workflow (dans la même base)
+  // We keep the reference to the workflow (in the same database)
   workflowId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Workflow',
     required: true
   },
 
-  //  À SUPPRIMER - tenantId (inutile dans la base du tenant)
+  // REMOVE - tenantId (useless in the tenant database)
   // tenantId: { ... },
 
-  //  On garde la référence à l'utilisateur (dans la même base)
+  // We keep the reference to the user (in the same database)
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -39,9 +39,9 @@ const workflowInstanceSchema = new mongoose.Schema({
 
   // GRAPH EXECUTION STATE
 
-  // Noeuds actuellement actifs (là où le processus est en attente)
+  // Currently active nodes (where the process is pending)
   currentNodes: [{
-    nodeId: String, // ID du noeud dans le graph (ex: "node-2")
+    nodeId: String, // Node ID in the graph (e.g., "node-2")
     status: {
       type: String,
       enum: ['pending', 'in_progress', 'completed', 'rejected'],
@@ -49,14 +49,14 @@ const workflowInstanceSchema = new mongoose.Schema({
     },
     startedAt: { type: Date, default: Date.now },
 
-    // Pour assignation dynamique
+    // For dynamic assignment
     responsibleUser: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
     }
   }],
 
-  // Historique d'exécution (Traçabilité complète)
+  // Execution history (Full traceability)
   executionPath: [{
     nodeId: String,
     nodeType: String,
@@ -67,11 +67,11 @@ const workflowInstanceSchema = new mongoose.Schema({
     },
     comments: String,
     timestamp: { type: Date, default: Date.now },
-    inputData: mongoose.Schema.Types.Mixed, // Données entrantes
-    outputData: mongoose.Schema.Types.Mixed // Résultat de l'étape
+    inputData: mongoose.Schema.Types.Mixed, // Incoming data
+    outputData: mongoose.Schema.Types.Mixed // Step result
   }],
 
-  // Variables du workflow (pour les conditions)
+  // Workflow variables (for conditions)
   variables: {
     type: Map,
     of: mongoose.Schema.Types.Mixed,
@@ -79,7 +79,7 @@ const workflowInstanceSchema = new mongoose.Schema({
   },
 
   history: [{
-    // Gardé pour compatibilité UI / logs généraux
+    // Kept for UI compatibility / general logs
     action: String,
     title: String,
     performedBy: {
@@ -117,17 +117,17 @@ const workflowInstanceSchema = new mongoose.Schema({
   }]
 }, { timestamps: true });
 
-// Helper pour savoir si l'instance est active
+// Helper to know if the instance is active
 workflowInstanceSchema.methods.isActive = function () {
   return !['completed', 'cancelled', 'rejected'].includes(this.status);
 };
 
-// Helper pour trouver le noeud actif actuel
+// Helper to find the current active node
 workflowInstanceSchema.methods.getNodeStatus = function (nodeId) {
   return this.currentNodes.find(n => n.nodeId === nodeId);
 };
 
-// On garde les index mais on enlève tenantId
+// We keep the indexes but remove tenantId
 workflowInstanceSchema.index({ workflowId: 1 });
 workflowInstanceSchema.index({ createdBy: 1 });
 workflowInstanceSchema.index({ status: 1 });

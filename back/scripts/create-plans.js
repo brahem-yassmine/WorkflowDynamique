@@ -4,16 +4,16 @@ const mongoose = require('mongoose');
 
 async function createPlans() {
   try {
-    // Connexion à la base MASTER
+    // Connection to MASTER database
     const MASTER_DB_URI = process.env.MASTER_DB_URI || 'mongodb://localhost:27017/workflow_master';
-    
-    console.log(' Connexion à MongoDB...');
+
+    console.log(' Connecting to MongoDB...');
     const conn = await mongoose.createConnection(MASTER_DB_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true
     });
 
-    // Définir le modèle Plan
+    // Define Plan model
     const PlanSchema = new mongoose.Schema({
       name: { type: String, required: true },
       code: { type: String, required: true, unique: true },
@@ -34,11 +34,11 @@ async function createPlans() {
 
     const Plan = conn.model('Plan', PlanSchema);
 
-    // Supprimer les anciens plans (optionnel)
+    // Delete old plans (optional)
     await Plan.deleteMany({});
-    console.log(' Anciens plans supprimés');
+    console.log(' Old plans deleted');
 
-    // Créer les nouveaux plans basés sur l'image
+    // Create new plans based on the image
     const plans = [
       {
         name: 'Demo Plan',
@@ -54,7 +54,7 @@ async function createPlans() {
           aiSupport: false,
           customSupport: false
         },
-        description: 'Pour démarrer avec les fonctionnalités de base'
+        description: 'To start with basic features'
       },
       {
         name: 'Starter Plan',
@@ -70,7 +70,7 @@ async function createPlans() {
           aiSupport: false,
           customSupport: false
         },
-        description: 'Pour les petites entreprises en croissance'
+        description: 'For growing small businesses'
       },
       {
         name: 'Pro Plan',
@@ -79,40 +79,40 @@ async function createPlans() {
         currency: 'D',
         interval: 'month',
         features: {
-          maxStaff: -1, // -1 signifie illimité
-          maxLocations: -1, // -1 signifie illimité
+          maxStaff: -1, // -1 means unlimited
+          maxLocations: -1, // -1 means unlimited
           analysis: 'Advanced AI',
           reports: true,
           aiSupport: true,
           customSupport: true
         },
-        description: 'Solution complète pour grandes entreprises'
+        description: 'Complete solution for large companies'
       }
     ];
 
-    // Insérer les plans
+    // Insert plans
     for (const planData of plans) {
       const plan = new Plan(planData);
       await plan.save();
-      console.log(` Plan créé: ${plan.name} (${plan.price}${plan.currency}/${plan.interval})`);
+      console.log(` Plan created: ${plan.name} (${plan.price}${plan.currency}/${plan.interval})`);
     }
 
-    console.log('\n Tous les plans ont été créés avec succès !');
-    
-    // Afficher le résumé
+    console.log('\n All plans have been created successfully!');
+
+    // Display summary
     const allPlans = await Plan.find();
-    console.log('\n Récapitulatif des plans:');
+    console.log('\n Plans summary:');
     allPlans.forEach(plan => {
       console.log(`\n${plan.name}:`);
-      console.log(`  - Prix: ${plan.price}${plan.currency}/${plan.interval}`);
-      console.log(`  - Staff: ${plan.features.maxStaff === -1 ? 'Illimité' : plan.features.maxStaff}`);
-      console.log(`  - Locations: ${plan.features.maxLocations === -1 ? 'Illimité' : plan.features.maxLocations}`);
+      console.log(`  - Price: ${plan.price}${plan.currency}/${plan.interval}`);
+      console.log(`  - Staff: ${plan.features.maxStaff === -1 ? 'Unlimited' : plan.features.maxStaff}`);
+      console.log(`  - Locations: ${plan.features.maxLocations === -1 ? 'Unlimited' : plan.features.maxLocations}`);
       console.log(`  - Analysis: ${plan.features.analysis}`);
     });
 
     process.exit(0);
   } catch (error) {
-    console.error(' Erreur:', error);
+    console.error(' Error:', error);
     process.exit(1);
   }
 }

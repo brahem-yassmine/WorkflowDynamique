@@ -11,7 +11,7 @@ const EndNode = ({ data }: any) => {
                     <Square size={14} />
                 </div>
                 <div>
-                    <div className="text-sm font-bold text-gray-900">{data.label || 'Fin'}</div>
+                    <div className="text-sm font-bold text-gray-900">{data.label || 'End'}</div>
                 </div>
             </div>
         </div>

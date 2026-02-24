@@ -2,30 +2,28 @@
 
 
 // back/src/controllers/workflowInstanceController.js
-// ❌ SUPPRIMER ces imports
+// ❌ REMOVE these imports
 // const WorkflowInstance = require('../models/WorkflowInstance');
 // const Workflow = require('../models/Workflow');
 // const User = require('../models/User');
 
-// ============================================
-// 1. CRÉER UNE INSTANCE DE WORKFLOW
-// ============================================
+// 1. CREATE WORKFLOW INSTANCE
 exports.createInstance = async (req, res) => {
   try {
     const { workflowId, title, description, data, priority, dueDate, tags } = req.body;
 
-    // ✅ Récupérer les modèles depuis la connexion tenant
+    // Get models from tenant connection
     const Workflow = req.tenantConn.model('Workflow');
     const WorkflowInstance = req.tenantConn.model('WorkflowInstance');
 
     if (!workflowId || !title) {
       return res.status(400).json({
         success: false,
-        message: 'Workflow ID et titre sont requis'
+        message: 'Workflow ID and title are required'
       });
     }
 
-    // ✅ Plus besoin de filtrer par tenantId
+    // No longer need to filter by tenantId
     const workflow = await Workflow.findOne({
       _id: workflowId,
       status: 'active'
@@ -34,44 +32,42 @@ exports.createInstance = async (req, res) => {
     if (!workflow) {
       return res.status(404).json({
         success: false,
-        message: 'Workflow actif non trouvé'
+        message: 'Active workflow not found'
       });
     }
 
-    // ✅ INITIALISATION GRAPH
-    // Trouver le noeud de départ
+    // GRAPH INITIALIZATION
+    // Find start node
     const startNode = workflow.nodes.find(n => n.type === 'start');
 
     if (!startNode) {
       return res.status(400).json({
         success: false,
-        message: 'Le workflow n\'a pas de noeud de départ'
+        message: 'Workflow has no start node'
       });
     }
 
-    // ✅ Plus de tenantId, on utilise createdBy
+    // No more tenantId, use createdBy
     const instance = new WorkflowInstance({
       workflowId: workflow._id,
       createdBy: req.user.userId,
       title,
       description: description || workflow.description,
 
-      // Initialisation du graph
+      // Graph initialization
       currentNodes: [{
         nodeId: startNode.id,
         status: 'in_progress',
         startedAt: new Date(),
         responsibleUser: null
       }],
-
-      variables: data || {}, // Variables initiales
-
+      variables: data || {}, // Initial variables
       executionPath: [{
         nodeId: startNode.id,
         nodeType: 'start',
         action: 'start',
         performedBy: req.user.userId,
-        comments: 'Workflow démarré',
+        comments: 'Workflow started',
         timestamp: new Date()
       }],
 
@@ -83,15 +79,15 @@ exports.createInstance = async (req, res) => {
 
       history: [{
         action: 'instance_created',
-        title: 'Démarrage',
+        title: 'Starting',
         performedBy: req.user.userId,
-        comments: 'Instance de workflow créée'
+        comments: 'Workflow instance created'
       }]
     });
 
     await instance.save();
 
-    // Peupler les références
+    // Populate references
     await instance.populate([
       { path: 'workflowId', select: 'name description' },
       { path: 'createdBy', select: 'email firstName lastName' }
@@ -99,22 +95,22 @@ exports.createInstance = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Instance de workflow créée',
+      message: 'Workflow instance created',
       data: instance
     });
 
   } catch (error) {
-    console.error('❌ Erreur createInstance:', error);
+    console.error('❌ createInstance Error:', error);
     res.status(500).json({
       success: false,
-      message: 'Erreur serveur',
+      message: 'Server error',
       error: error.message
     });
   }
 };
 
 // ============================================
-// 2. LISTER LES INSTANCES
+// 2. LIST INSTANCES
 // ============================================
 exports.getInstances = async (req, res) => {
   try {
@@ -130,7 +126,7 @@ exports.getInstances = async (req, res) => {
 
     const WorkflowInstance = req.tenantConn.model('WorkflowInstance');
 
-    // ❌ SUPPRIMER tenantId du query
+    // REMOVE tenantId from query
     const query = {};
 
     if (status) query.status = status;
@@ -166,16 +162,16 @@ exports.getInstances = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Erreur getInstances:', error);
+    console.error('❌ getInstances Error:', error);
     res.status(500).json({
       success: false,
-      message: 'Erreur serveur'
+      message: 'Server error'
     });
   }
 };
 
 // ============================================
-// 3. RÉCUPÉRER UNE INSTANCE
+// 3. GET INSTANCE BY ID
 // ============================================
 exports.getInstanceById = async (req, res) => {
   try {
@@ -183,7 +179,7 @@ exports.getInstanceById = async (req, res) => {
 
     const WorkflowInstance = req.tenantConn.model('WorkflowInstance');
 
-    // ❌ SUPPRIMER tenantId du filtre
+    // REMOVE tenantId from filter
     const instance = await WorkflowInstance.findById(instanceId)
       .populate('workflowId')
       .populate('createdBy', 'email firstName lastName')
@@ -193,7 +189,7 @@ exports.getInstanceById = async (req, res) => {
     if (!instance) {
       return res.status(404).json({
         success: false,
-        message: 'Instance non trouvée'
+        message: 'Instance not found'
       });
     }
 
@@ -203,16 +199,16 @@ exports.getInstanceById = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Erreur getInstanceById:', error);
+    console.error('❌ getInstanceById Error:', error);
     res.status(500).json({
       success: false,
-      message: 'Erreur serveur'
+      message: 'Server error'
     });
   }
 };
 
 // ============================================
-// 4. APPROUVER UNE ÉTAPE (TRANSITION NOEUD)
+// 4. APPROVE STEP (NODE TRANSITION)
 // ============================================
 exports.approveNode = async (req, res) => {
   try {
@@ -225,39 +221,39 @@ exports.approveNode = async (req, res) => {
     const instance = await WorkflowInstance.findById(instanceId);
 
     if (!instance) {
-      return res.status(404).json({ success: false, message: 'Instance non trouvée' });
+      return res.status(404).json({ success: false, message: 'Instance not found' });
     }
 
     if (instance.status !== 'in_progress') {
-      return res.status(400).json({ success: false, message: 'Instance non active' });
+      return res.status(400).json({ success: false, message: 'Instance not active' });
     }
 
-    // Trouver le noeud actif correspondant
+    // Find corresponding active node
     const currentNodeIndex = instance.currentNodes.findIndex(n => n.nodeId === nodeId && n.status === 'in_progress');
 
     if (currentNodeIndex === -1) {
-      return res.status(400).json({ success: false, message: 'Ce noeud n\'est pas actif ou n\'existe pas' });
+      return res.status(400).json({ success: false, message: 'This node is not active or does not exist' });
     }
 
     const currentNode = instance.currentNodes[currentNodeIndex];
 
-    // --- Validation Droits (TODO: Check responsibleDomain from Workflow definition) ---
-    // Pour l'instant on suppose que c'est bon si l'admin ou le user est là
+    // --- Rights Validation (TODO: Check responsibleDomain from Workflow definition) ---
+    // For now we assume it's good if admin or user is there
 
-    // 1. Marquer le noeud comme complété
-    instance.currentNodes.splice(currentNodeIndex, 1); // Retirer des noeuds actifs
+    // 1. Mark node as completed
+    instance.currentNodes.splice(currentNodeIndex, 1); // Remove from active nodes
 
-    // Mise à jour des variables
+    // Variables update
     if (data) {
       for (const [key, value] of Object.entries(data)) {
         instance.variables.set(key, value);
       }
     }
 
-    // Ajout à l'historique d'exécution
+    // Add to execution history
     instance.executionPath.push({
       nodeId: nodeId,
-      nodeType: 'action', // À récupérer du workflow si possible
+      nodeType: 'action', // Retrieve from workflow if possible
       action: 'approved',
       performedBy: req.user.userId,
       comments: comments || '',
@@ -267,26 +263,26 @@ exports.approveNode = async (req, res) => {
 
     instance.history.push({
       action: 'step_approved',
-      title: `Étape validée`,
+      title: `Step validated`,
       performedBy: req.user.userId,
-      comments: comments || `Action validée sur le noeud ${nodeId}`
+      comments: comments || `Action validated on node ${nodeId}`
     });
 
-    // 2. Calculer les prochains noeuds (Transition)
+    // 2. Calculate next nodes (Transition)
     const workflow = await Workflow.findById(instance.workflowId);
     if (!workflow) throw new Error('Workflow definition not found');
 
     const outgoingEdges = workflow.edges.filter(edge => edge.source === nodeId);
     const nextNodes = [];
 
-    // Logique de transition simple (supporte conditions basiques)
+    // Simple transition logic (supports basic conditions)
     for (const edge of outgoingEdges) {
       let conditionMet = true;
 
-      // Vérification conditionnelle sommaire
+      // Summary conditional check
       if (edge.data && edge.data.condition) {
         // Ex: edge.data.conditionValue === instance.variables.get('foo')
-        // Pour l'instant on prend tout par défaut
+        // For now take all by default
         conditionMet = true;
       }
 
@@ -299,16 +295,16 @@ exports.approveNode = async (req, res) => {
     let isFlowFinished = false;
 
     if (nextNodes.length === 0) {
-      // Fin de branche
+      // Branch end
       if (instance.currentNodes.length === 0) {
         isFlowFinished = true;
       }
     } else {
-      // Ajouter les prochains noeuds
+      // Add next nodes
       for (const node of nextNodes) {
         if (node.type === 'end') {
           isFlowFinished = true;
-          // On ne l'ajoute pas aux currentNodes, on termine juste
+          // We don't add it to currentNodes, just finish
         } else {
           instance.currentNodes.push({
             nodeId: node.id,
@@ -325,9 +321,9 @@ exports.approveNode = async (req, res) => {
       instance.timeCompleted = new Date();
       instance.history.push({
         action: 'workflow_completed',
-        title: 'Terminé',
+        title: 'Finished',
         performedBy: req.user.userId,
-        comments: 'Workflow terminé avec succès'
+        comments: 'Workflow finished successfully'
       });
     }
 
@@ -335,18 +331,18 @@ exports.approveNode = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Étape validée',
+      message: 'Step validated',
       data: instance
     });
 
   } catch (error) {
-    console.error('❌ Erreur approveNode:', error);
-    res.status(500).json({ success: false, message: 'Erreur serveur' });
+    console.error('❌ approveNode Error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
 // ============================================
-// 5. REJETER UNE ÉTAPE
+// 5. REJECT STEP
 // ============================================
 exports.rejectNode = async (req, res) => {
   try {
@@ -358,19 +354,19 @@ exports.rejectNode = async (req, res) => {
     const instance = await WorkflowInstance.findById(instanceId);
 
     if (!instance) {
-      return res.status(404).json({ success: false, message: 'Instance non trouvée' });
+      return res.status(404).json({ success: false, message: 'Instance not found' });
     }
 
     const currentNodeIndex = instance.currentNodes.findIndex(n => n.nodeId === nodeId && n.status === 'in_progress');
 
     if (currentNodeIndex === -1) {
-      return res.status(400).json({ success: false, message: 'Ce noeud n\'est pas actif' });
+      return res.status(400).json({ success: false, message: 'This node is not active' });
     }
 
-    // Marquer le noeud comme rejeté
+    // Mark node as rejected
     instance.currentNodes[currentNodeIndex].status = 'rejected';
 
-    // Logique standard: rejet = fin du workflow (statut rejected)
+    // Standard logic: reject = end of workflow (rejected status)
     instance.status = 'rejected';
     instance.timeCompleted = new Date();
 
@@ -379,33 +375,33 @@ exports.rejectNode = async (req, res) => {
       nodeType: 'action',
       action: 'rejected',
       performedBy: req.user.userId,
-      comments: comments || 'Rejeté',
+      comments: comments || 'Rejected',
       timestamp: new Date()
     });
 
     instance.history.push({
       action: 'step_rejected',
-      title: 'Action rejetée',
+      title: 'Action rejected',
       performedBy: req.user.userId,
-      comments: comments || 'Étape rejetée'
+      comments: comments || 'Step rejected'
     });
 
     await instance.save();
 
     res.json({
       success: true,
-      message: 'Étape rejetée',
+      message: 'Step rejected',
       data: instance
     });
 
   } catch (error) {
-    console.error('❌ Erreur rejectNode:', error);
-    res.status(500).json({ success: false, message: 'Erreur serveur' });
+    console.error('❌ rejectNode Error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
 // ============================================
-// 6. ANNULER UNE INSTANCE
+// 6. CANCEL INSTANCE
 // ============================================
 exports.cancelInstance = async (req, res) => {
   try {
@@ -422,52 +418,52 @@ exports.cancelInstance = async (req, res) => {
     if (!instance) {
       return res.status(404).json({
         success: false,
-        message: 'Instance non trouvée ou non autorisée'
+        message: 'Instance not found or not authorized'
       });
     }
 
-    if (instance.status === 'completed' || instance.status === 'approved' || instance.status === 'rejected') {
+    if (instance.status === 'completed') {
       return res.status(400).json({
         success: false,
-        message: 'Impossible d\'annuler une instance terminée'
+        message: 'Cannot cancel a completed instance'
       });
     }
 
     instance.status = 'cancelled';
     instance.timeCompleted = new Date();
 
-    // Annuler tous les noeuds en cours
+    // Cancel all active nodes
     instance.currentNodes.forEach(node => {
-      node.status = 'completed'; // Ou une autre valeur, mais on vide la liste active
+      node.status = 'completed'; // Or another value, but we clear active list
     });
     instance.currentNodes = [];
 
     instance.history.push({
       action: 'instance_cancelled',
-      title: 'Annulation',
+      title: 'Cancellation',
       performedBy: req.user.userId,
-      comments: comments || 'Instance annulée par l\'utilisateur'
+      comments: comments || 'Instance cancelled by user'
     });
 
     await instance.save();
 
     res.json({
       success: true,
-      message: 'Instance annulée',
+      message: 'Instance cancelled',
       data: instance
     });
 
   } catch (error) {
-    console.error('❌ Erreur cancelInstance:', error);
+    console.error('❌ cancelInstance Error:', error);
     res.status(500).json({
       success: false,
-      message: 'Erreur serveur'
+      message: 'Server error'
     });
   }
 };
 
 // ============================================
-// 7. AJOUTER UN FICHIER
+// 7. ADD FILE
 // ============================================
 exports.addAttachment = async (req, res) => {
   try {
@@ -479,7 +475,7 @@ exports.addAttachment = async (req, res) => {
     if (!filename || !url) {
       return res.status(400).json({
         success: false,
-        message: 'Nom du fichier et URL requis'
+        message: 'Filename and URL are required'
       });
     }
 
@@ -488,7 +484,7 @@ exports.addAttachment = async (req, res) => {
     if (!instance) {
       return res.status(404).json({
         success: false,
-        message: 'Instance non trouvée'
+        message: 'Instance not found'
       });
     }
 
@@ -500,36 +496,36 @@ exports.addAttachment = async (req, res) => {
 
     instance.history.push({
       action: 'attachment_added',
-      title: 'Fichier ajouté',
+      title: 'File added',
       performedBy: req.user.userId,
-      comments: `Fichier ajouté: ${filename}`
+      comments: `File added: ${filename}`
     });
 
     await instance.save();
 
     res.json({
       success: true,
-      message: 'Fichier ajouté',
+      message: 'File added',
       data: instance.attachments[instance.attachments.length - 1]
     });
 
   } catch (error) {
-    console.error('❌ Erreur addAttachment:', error);
+    console.error('❌ addAttachment Error:', error);
     res.status(500).json({
       success: false,
-      message: 'Erreur serveur'
+      message: 'Server error'
     });
   }
 };
 
 // ============================================
-// 8. STATISTIQUES DES INSTANCES
+// 8. INSTANCE STATISTICS
 // ============================================
 exports.getInstanceStats = async (req, res) => {
   try {
     const WorkflowInstance = req.tenantConn.model('WorkflowInstance');
 
-    // ❌ SUPPRIMER tenantId du match
+    // REMOVE tenantId from match
     const stats = await WorkflowInstance.aggregate([
       {
         $group: {
@@ -593,10 +589,10 @@ exports.getInstanceStats = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Erreur getInstanceStats:', error);
+    console.error('❌ getInstanceStats Error:', error);
     res.status(500).json({
       success: false,
-      message: 'Erreur serveur'
+      message: 'Server error'
     });
   }
 };

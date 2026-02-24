@@ -4,10 +4,20 @@ const mongoose = require('mongoose');
 const roleSchema = require('../models/tenant/role.model');
 const domainSchema = require('../models/tenant/domain.model');
 
-// Cache des connexions tenants
+// Tenants connections cache
 const tenantConnections = {};
 
-// Middleware pour résoudre le tenant à partir des headers ET créer la connexion
+// Helper to register all tenant-specific models on a connection
+const registerTenantModels = (conn) => {
+  if (!conn.models['Role']) conn.model('Role', roleSchema);
+  if (!conn.models['Domain']) conn.model('Domain', domainSchema);
+  if (!conn.models['User']) require('../models/tenant/User')(conn);
+  if (!conn.models['Workflow']) require('../models/tenant/Workflow')(conn);
+  if (!conn.models['WorkflowInstance']) require('../models/tenant/WorkflowInstance')(conn);
+  if (!conn.models['Project']) require('../models/tenant/Project')(conn);
+};
+
+// Middleware to resolve tenant from headers AND create/manage the connection
 const tenantResolver = async (req, res, next) => {
   try {
     const tenantId = req.headers['x-tenant-id'] || req.query.tenantId;
@@ -15,36 +25,37 @@ const tenantResolver = async (req, res, next) => {
     if (!tenantId) {
       return res.status(400).json({
         success: false,
-        message: 'Tenant ID requis (header x-tenant-id)'
+        message: 'Tenant ID required (x-tenant-id header)'
       });
     }
 
     req.tenantId = tenantId;
 
-    // 1. Vérifier si on a déjà une connexion active et prête
+    // 1. Check if we already have an active and ready connection
     if (tenantConnections[tenantId] && tenantConnections[tenantId].readyState === 1) {
       req.tenantConn = tenantConnections[tenantId];
       req.tenant = tenantConnections[tenantId].tenant;
+      registerTenantModels(req.tenantConn);
       return next();
     }
 
-    // 2. Sinon, on doit charger le tenant et/ou créer la connexion
-    console.log(`🔌 Résolution du tenant: ${tenantId}`);
+    // 2. Otherwise, load tenant and/or create connection
+    console.log(`🔌 Resolving tenant: ${tenantId}`);
 
     if (!req.masterDb) {
-      return res.status(503).json({ success: false, message: 'Base Master indisponible' });
+      return res.status(503).json({ success: false, message: 'Master Database unavailable' });
     }
 
     const TenantModel = req.masterDb.model('Tenant');
     const tenant = await TenantModel.findById(tenantId);
 
     if (!tenant) {
-      return res.status(404).json({ success: false, message: 'Entreprise non trouvée' });
+      return res.status(404).json({ success: false, message: 'Organization not found' });
     }
 
-    // 3. Créer la connexion si elle n'existe pas
+    // 3. Create connection if it doesn't exist
     if (!tenantConnections[tenantId]) {
-      console.log(`📡 Création connexion database: ${tenant.databaseName}`);
+      console.log(`📡 Creating database connection: ${tenant.databaseName}`);
 
       const conn = mongoose.createConnection(tenant.databaseUri, {
         useNewUrlParser: true,
@@ -52,15 +63,13 @@ const tenantResolver = async (req, res, next) => {
         serverSelectionTimeoutMS: 5000,
       });
 
-      // Attacher les modèles au démarrage de la connexion
-      conn.model('Role', roleSchema);
-      conn.model('Domain', domainSchema);
-      require('../models/tenant/User')(conn);
+      // Register models immediately
+      registerTenantModels(conn);
 
-      // Attendre la connexion (avec timeout)
+      // Wait for connection (with timeout)
       await Promise.race([
         new Promise((resolve) => conn.once('connected', resolve)),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout de connexion à la base tenant')), 8000))
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Tenant database connection timeout')), 8000))
       ]);
 
       conn.tenant = tenant;
@@ -70,17 +79,20 @@ const tenantResolver = async (req, res, next) => {
     req.tenantConn = tenantConnections[tenantId];
     req.tenant = tenant;
 
+    // Ensure models are registered even if we just fetched from cache (safety check)
+    registerTenantModels(req.tenantConn);
+
     next();
   } catch (error) {
-    console.error('❌ Erreur tenantResolver:', error.message);
+    console.error('❌ tenantResolver Error:', error.message);
     res.status(500).json({
       success: false,
-      message: 'Erreur technique d\'accès au domaine: ' + error.message
+      message: 'Technical error accessing domain: ' + error.message
     });
   }
 };
 
-// Vérifie que le tenant est actif
+// Checks if tenant is active
 const checkTenantActive = async (req, res, next) => {
   try {
     if (!req.tenant) {
@@ -90,18 +102,18 @@ const checkTenantActive = async (req, res, next) => {
     if (req.tenant.status !== 'active') {
       return res.status(403).json({
         success: false,
-        message: 'Tenant inactif ou suspendu'
+        message: 'Tenant inactive or suspended'
       });
     }
 
     next();
   } catch (error) {
-    console.error('Erreur checkTenantActive:', error);
+    console.error('checkTenantActive Error:', error);
     next(error);
   }
 };
 
-// Vérifie les limites du plan
+// Checks plan limits
 const checkPlanLimits = (resourceType) => {
   return async (req, res, next) => {
     try {
@@ -109,7 +121,7 @@ const checkPlanLimits = (resourceType) => {
         return next();
       }
 
-      // Récupérer les détails du plan
+      // Get plan details
       const Plan = req.masterDb.model('Plan');
       const plan = await Plan.findById(req.tenant.selectedPlan);
 
@@ -126,7 +138,7 @@ const checkPlanLimits = (resourceType) => {
           if (count >= (limits.maxUsers || 999)) {
             return res.status(403).json({
               success: false,
-              message: `Limite de ${limits.maxUsers || 999} utilisateurs atteinte`
+              message: `Limit of ${limits.maxUsers || 999} users reached`
             });
           }
         }
@@ -134,32 +146,32 @@ const checkPlanLimits = (resourceType) => {
 
       next();
     } catch (error) {
-      console.error('Erreur checkPlanLimits:', error);
+      console.error('checkPlanLimits Error:', error);
       next(error);
     }
   };
 };
 
-// Middleware pour requirePlan (si nécessaire)
+// Middleware for requirePlan (if needed)
 const requirePlan = (requiredPlan) => {
   return (req, res, next) => {
     try {
       if (!req.tenant || !req.tenant.selectedPlan) {
         return res.status(403).json({
           success: false,
-          message: 'Plan non défini pour ce tenant'
+          message: 'Plan not defined for this tenant'
         });
       }
 
       next();
     } catch (error) {
-      console.error('Erreur requirePlan:', error);
+      console.error('requirePlan Error:', error);
       next(error);
     }
   };
 };
 
-// EXPORT UNIQUE ET COHÉRENT
+// COHERENT EXPORTS
 module.exports = {
   tenantResolver,
   checkTenantActive,

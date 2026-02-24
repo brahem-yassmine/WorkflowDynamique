@@ -22,7 +22,7 @@ const planSchema = new mongoose.Schema({
   collection: 'plans'
 });
 
-//  EXPORT sous forme de fonction qui prend la connexion
+// EXPORT as a function that takes the connection
 module.exports = (connection) => {
   return connection.model('Plan', planSchema);
 };

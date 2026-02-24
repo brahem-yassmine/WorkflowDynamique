@@ -16,7 +16,7 @@ import {
     CheckCircle2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { apiService } from '@/services/role.service';
+import { apiService } from '@/service/api.service';
 import { toast } from 'sonner';
 
 interface Domain {
@@ -73,31 +73,31 @@ export default function DomainsPage() {
     const handleSubmit = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
 
-        console.log('🚀 Démarrage de la sauvegarde du domaine...', { name, description, color, isEditing });
+        console.log('🚀 Starting domain save...', { name, description, color, isEditing });
 
         if (!name || !description) {
-            toast.error('Veuillez remplir les champs obligatoires');
+            toast.error('Please fill in required fields');
             return;
         }
 
         try {
             const data = { name, description, color };
             if (isEditing && selectedDomain) {
-                console.log('📝 Mise à jour du domaine:', selectedDomain._id);
+                console.log('📝 Updating domain:', selectedDomain._id);
                 const res = await apiService.updateDomain(selectedDomain._id, data);
-                console.log('✅ Mise à jour réussie:', res);
+                console.log('✅ Update successful:', res);
                 toast.success('Domain updated successfully');
             } else {
-                console.log('➕ Création d\'un nouveau domaine...');
+                console.log('➕ Creating new domain...');
                 const res = await apiService.createDomain(data);
-                console.log('✅ Création réussie:', res);
+                console.log('✅ Creation successful:', res);
                 toast.success('Domain created successfully');
             }
             setIsModalOpen(false);
             fetchDomains();
             resetForm();
         } catch (error: any) {
-            console.error('❌ Erreur lors de la sauvegarde du domaine:', error);
+            console.error('❌ Error while saving domain:', error);
             toast.error(error.message || 'Error saving domain');
         }
     };

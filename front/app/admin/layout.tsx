@@ -12,6 +12,10 @@ const PAGE_METADATA: Record<string, { title: string, subtitle: string }> = {
         title: "Command Center",
         subtitle: "Manage your organization's workflows and talent."
     },
+    '/admin/projects': {
+        title: "Project Portfolios",
+        subtitle: "Organize and group your workflows into strategic projects."
+    },
     '/admin/userManagement': {
         title: "Persona Node Matrix",
         subtitle: "Manage organizational identities, authorization levels, and cell assignments."

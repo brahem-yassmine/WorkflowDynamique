@@ -2,19 +2,24 @@
 const Workflow = require('../models/tenant/Workflow.js');
 
 // ============================================
-// 1. LISTER TOUS LES WORKFLOWS
+// 1. LIST ALL WORKFLOWS
 // ============================================
 exports.getWorkflows = async (req, res) => {
   try {
     const { domain, status } = req.query;
 
-    // ✅ Récupérer le modèle Workflow depuis la connexion du tenant
+    // Get Workflow model from tenant connection
     const Workflow = req.tenantConn.model('Workflow');
 
-    // ❌ SUPPRIMER tenantId de la requête
+    // REMOVE tenantId from query
     const query = {};
+    const { projectId } = req.query;
 
-    // Filtrage par domaine pour les users normaux
+    if (projectId) {
+      query.projectId = projectId;
+    }
+
+    // Filter by domain for normal users
     if (req.user.role === 'user') {
       query.domain = req.user.domain;
     } else if (domain) {
@@ -34,16 +39,16 @@ exports.getWorkflows = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Erreur getWorkflows:', error);
+    console.error('❌ getWorkflows Error:', error);
     res.status(500).json({
       success: false,
-      message: 'Erreur serveur'
+      message: 'Server error'
     });
   }
 };
 
 // ============================================
-// 2. RÉCUPÉRER UN WORKFLOW PAR ID
+// 2. GET WORKFLOW BY ID
 // ============================================
 exports.getWorkflowById = async (req, res) => {
   try {
@@ -51,13 +56,13 @@ exports.getWorkflowById = async (req, res) => {
 
     const Workflow = req.tenantConn.model('Workflow');
 
-    // ❌ SUPPRIMER tenantId du filtre
+    // REMOVE tenantId from filter
     const workflow = await Workflow.findById(workflowId);
 
     if (!workflow) {
       return res.status(404).json({
         success: false,
-        message: 'Workflow non trouvé'
+        message: 'Workflow not found'
       });
     }
 
@@ -67,27 +72,27 @@ exports.getWorkflowById = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Erreur getWorkflowById:', error);
+    console.error('❌ getWorkflowById Error:', error);
     res.status(500).json({
       success: false,
-      message: 'Erreur serveur'
+      message: 'Server error'
     });
   }
 };
 
 // ============================================
-// 3. CRÉER UN NOUVEAU WORKFLOW
+// 3. CREATE NEW WORKFLOW
 // ============================================
 exports.createWorkflow = async (req, res) => {
   try {
-    const { name, description, domain, nodes, edges } = req.body;
+    const { name, description, domain, nodes, edges, projectId } = req.body;
 
     const Workflow = req.tenantConn.model('Workflow');
 
     if (!name) {
       return res.status(400).json({
         success: false,
-        message: 'Le nom est requis'
+        message: 'Name is required'
       });
     }
 
@@ -106,13 +111,13 @@ exports.createWorkflow = async (req, res) => {
           id: startId,
           type: 'start',
           position: { x: 100, y: 100 },
-          data: { label: 'Début' }
+          data: { label: 'Start' }
         },
         {
           id: endId,
           type: 'end',
           position: { x: 100, y: 300 },
-          data: { label: 'Fin' }
+          data: { label: 'End' }
         }
       ];
 
@@ -126,7 +131,7 @@ exports.createWorkflow = async (req, res) => {
       ];
     }
 
-    // ✅ AJOUTER createdBy (utilisateur qui crée le template)
+    // ADD createdBy (user who creates the template)
     const workflow = new Workflow({
       name,
       description: description || '',
@@ -134,6 +139,7 @@ exports.createWorkflow = async (req, res) => {
       nodes: workflowNodes,
       edges: workflowEdges,
       status: 'draft',
+      projectId: projectId || undefined,
       createdBy: req.user.userId
     });
 
@@ -141,32 +147,32 @@ exports.createWorkflow = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Workflow créé avec succès',
+      message: 'Workflow created successfully',
       data: workflow
     });
 
   } catch (error) {
-    console.error('❌ Erreur createWorkflow:', error);
+    console.error('❌ createWorkflow Error:', error);
 
     if (error.name === 'ValidationError') {
       const errors = Object.values(error.errors).map(err => err.message);
       return res.status(400).json({
         success: false,
-        message: 'Erreur de validation',
+        message: 'Validation error: ' + errors.join(', '),
         errors: errors
       });
     }
 
     res.status(500).json({
       success: false,
-      message: 'Erreur serveur',
+      message: 'Server error',
       error: error.message
     });
   }
 };
 
 // ============================================
-// 4. METTRE À JOUR UN WORKFLOW
+// 4. UPDATE WORKFLOW
 // ============================================
 exports.updateWorkflow = async (req, res) => {
   try {
@@ -180,15 +186,15 @@ exports.updateWorkflow = async (req, res) => {
     if (!workflow) {
       return res.status(404).json({
         success: false,
-        message: 'Workflow non trouvé'
+        message: 'Workflow not found'
       });
     }
 
-    // Validation implicite par Mongoose pour nodes/edges si fournis
+    // Implicit Mongoose validation for nodes/edges if provided
     if (updates.nodes) workflow.nodes = updates.nodes;
     if (updates.edges) workflow.edges = updates.edges;
 
-    // ❌ SUPPRIMER la protection tenantId (plus nécessaire)
+    // REMOVE tenantId protection (no longer needed)
     Object.keys(updates).forEach(key => {
       if (key !== '_id') {
         workflow[key] = updates[key];
@@ -199,31 +205,31 @@ exports.updateWorkflow = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Workflow mis à jour',
+      message: 'Workflow updated',
       data: workflow
     });
 
   } catch (error) {
-    console.error('❌ Erreur updateWorkflow:', error);
+    console.error('❌ updateWorkflow Error:', error);
 
     if (error.name === 'ValidationError') {
       const errors = Object.values(error.errors).map(err => err.message);
       return res.status(400).json({
         success: false,
-        message: 'Erreur de validation',
+        message: 'Validation error',
         errors: errors
       });
     }
 
     res.status(500).json({
       success: false,
-      message: 'Erreur serveur'
+      message: 'Server error'
     });
   }
 };
 
 // ============================================
-// 5. SUPPRIMER UN WORKFLOW
+// 5. DELETE WORKFLOW
 // ============================================
 exports.deleteWorkflow = async (req, res) => {
   try {
@@ -232,13 +238,13 @@ exports.deleteWorkflow = async (req, res) => {
     const Workflow = req.tenantConn.model('Workflow');
     const WorkflowInstance = req.tenantConn.model('WorkflowInstance');
 
-    // Vérifier s'il y a des instances liées
+    // Check if there are linked instances
     const instancesCount = await WorkflowInstance.countDocuments({ workflowId });
 
     if (instancesCount > 0) {
       return res.status(400).json({
         success: false,
-        message: `Impossible de supprimer : ${instancesCount} instance(s) existent. Archivez d'abord.`
+        message: `Deletion impossible: ${instancesCount} instance(s) exist. Archive first.`
       });
     }
 
@@ -247,27 +253,27 @@ exports.deleteWorkflow = async (req, res) => {
     if (!workflow) {
       return res.status(404).json({
         success: false,
-        message: 'Workflow non trouvé'
+        message: 'Workflow not found'
       });
     }
 
     res.json({
       success: true,
-      message: 'Workflow supprimé avec succès',
+      message: 'Workflow deleted successfully',
       data: { id: workflowId }
     });
 
   } catch (error) {
-    console.error('❌ Erreur deleteWorkflow:', error);
+    console.error('❌ deleteWorkflow Error:', error);
     res.status(500).json({
       success: false,
-      message: 'Erreur serveur'
+      message: 'Server error'
     });
   }
 };
 
 // ============================================
-// 6. EXÉCUTER UN WORKFLOW (CRÉER UNE INSTANCE)
+// 6. EXECUTE WORKFLOW (CREATE INSTANCE)
 // ============================================
 exports.executeWorkflow = async (req, res) => {
   try {
@@ -281,50 +287,50 @@ exports.executeWorkflow = async (req, res) => {
     if (!workflow) {
       return res.status(404).json({
         success: false,
-        message: 'Workflow non trouvé'
+        message: 'Workflow not found'
       });
     }
 
     if (workflow.status !== 'active') {
       return res.status(400).json({
         success: false,
-        message: 'Le workflow doit être actif pour être exécuté'
+        message: 'Workflow must be active to be executed'
       });
     }
 
-    // ✅ INITIALISATION GRAPH
-    // Trouver le noeud de départ (type: 'start')
+    // GRAPH INITIALIZATION
+    // Find start node (type: 'start')
     const startNode = workflow.nodes.find(n => n.type === 'start');
 
     if (!startNode) {
       return res.status(400).json({
         success: false,
-        message: 'Le workflow n\'a pas de noeud de départ (type: start)'
+        message: 'Workflow has no start node (type: start)'
       });
     }
 
     const instance = new WorkflowInstance({
       workflowId: workflow._id,
       createdBy: req.user.userId,
-      title: req.body.title || `Instance de ${workflow.name}`,
-      description: req.body.description || workflow.description, // Ajout description
+      title: req.body.title || `Instance of ${workflow.name}`,
+      description: req.body.description || workflow.description, // Add description
 
-      // Initialisation du graph
+      // Graph initialization
       currentNodes: [{
         nodeId: startNode.id,
         status: 'in_progress',
         startedAt: new Date(),
-        responsibleUser: null // Pourrait être défini dans startNode.data si nécessaire
+        responsibleUser: null // Could be defined in startNode.data if needed
       }],
 
-      variables: req.body.data || {}, // Variables initiales
+      variables: req.body.data || {}, // Initial variables
 
       executionPath: [{
         nodeId: startNode.id,
         nodeType: 'start',
         action: 'start',
         performedBy: req.user.userId,
-        comments: 'Workflow démarré',
+        comments: 'Workflow started',
         timestamp: new Date()
       }],
 
@@ -335,9 +341,9 @@ exports.executeWorkflow = async (req, res) => {
 
       history: [{ // Legacy history
         action: 'instance_created',
-        title: 'Démarrage',
+        title: 'Starting',
         performedBy: req.user.userId,
-        comments: 'Instance créée'
+        comments: 'Instance created'
       }]
     });
 
@@ -345,7 +351,7 @@ exports.executeWorkflow = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Workflow exécuté avec succès',
+      message: 'Workflow executed successfully',
       data: {
         workflowId: workflow._id,
         instanceId: instance._id,
@@ -356,16 +362,16 @@ exports.executeWorkflow = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Erreur executeWorkflow:', error);
+    console.error('❌ executeWorkflow Error:', error);
     res.status(500).json({
       success: false,
-      message: 'Erreur serveur'
+      message: 'Server error'
     });
   }
 };
 
 // ============================================
-// 7. CHANGER LE STATUT D'UN WORKFLOW
+// 7. CHANGE WORKFLOW STATUS
 // ============================================
 exports.changeWorkflowStatus = async (req, res) => {
   try {
@@ -377,7 +383,7 @@ exports.changeWorkflowStatus = async (req, res) => {
     if (!status || !['draft', 'active', 'archived'].includes(status)) {
       return res.status(400).json({
         success: false,
-        message: 'Statut invalide. Valeurs acceptées: draft, active, archived'
+        message: 'Invalid status. Accepted values: draft, active, archived'
       });
     }
 
@@ -386,7 +392,7 @@ exports.changeWorkflowStatus = async (req, res) => {
     if (!workflow) {
       return res.status(404).json({
         success: false,
-        message: 'Workflow non trouvé'
+        message: 'Workflow not found'
       });
     }
 
@@ -395,21 +401,21 @@ exports.changeWorkflowStatus = async (req, res) => {
 
     res.json({
       success: true,
-      message: `Statut du workflow changé à "${status}"`,
+      message: `Workflow status changed to "${status}"`,
       data: workflow
     });
 
   } catch (error) {
-    console.error('❌ Erreur changeWorkflowStatus:', error);
+    console.error('❌ changeWorkflowStatus Error:', error);
     res.status(500).json({
       success: false,
-      message: 'Erreur serveur'
+      message: 'Server error'
     });
   }
 };
 
 // ============================================
-// 8. DUPLIQUER UN WORKFLOW
+// 8. DUPLICATE WORKFLOW
 // ============================================
 exports.duplicateWorkflow = async (req, res) => {
   try {
@@ -422,18 +428,19 @@ exports.duplicateWorkflow = async (req, res) => {
     if (!original) {
       return res.status(404).json({
         success: false,
-        message: 'Workflow non trouvé'
+        message: 'Workflow not found'
       });
     }
 
-    // Créer une copie
+    // Create a copy
     const duplicate = new Workflow({
-      name: `${original.name} (copie)`,
+      name: `${original.name} (copy)`,
       description: original.description,
       domain: original.domain,
-      nodes: original.nodes.map(node => ({ ...node })), // Deep copy basique
-      edges: original.edges.map(edge => ({ ...edge })), // Deep copy basique
+      nodes: original.nodes.map(node => ({ ...node })), // Basic deep copy
+      edges: original.edges.map(edge => ({ ...edge })), // Basic deep copy
       status: 'draft',
+      projectId: original.projectId,
       createdBy: req.user.userId
     });
 
@@ -441,15 +448,15 @@ exports.duplicateWorkflow = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Workflow dupliqué avec succès',
+      message: 'Workflow duplicated successfully',
       data: duplicate
     });
 
   } catch (error) {
-    console.error('❌ Erreur duplicateWorkflow:', error);
+    console.error('❌ duplicateWorkflow Error:', error);
     res.status(500).json({
       success: false,
-      message: 'Erreur serveur'
+      message: 'Server error'
     });
   }
 };

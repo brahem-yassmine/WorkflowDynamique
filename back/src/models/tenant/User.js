@@ -1,8 +1,8 @@
-// back/src/models/tenant/User.js - ✅ NOUVEAU (version tenant)
+// back/src/models/tenant/User.js - ✅ NEW (tenant version)
 const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
-  // PLUS DE tenantId (c'est la base qui fait office de tenant)
+  // NO MORE tenantId (the database itself acts as the tenant)
 
   email: {
     type: String,
@@ -36,8 +36,8 @@ const userSchema = new mongoose.Schema({
   lastLogin: Date
 }, { timestamps: true });
 
-// ✅ Email unique dans ce tenant
+// ✅ Email unique in this tenant
 userSchema.index({ email: 1 }, { unique: true });
 
-// ✅ Factory pattern - on exporte une fonction
+// ✅ Factory pattern - we export a function
 module.exports = (connection) => connection.model('User', userSchema);

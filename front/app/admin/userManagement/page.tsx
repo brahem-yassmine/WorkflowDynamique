@@ -22,7 +22,7 @@ import {
     Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { apiService } from '@/services/role.service';
+import { apiService } from '@/service/api.service';
 import { toast } from 'sonner';
 
 // Types matches backend User model

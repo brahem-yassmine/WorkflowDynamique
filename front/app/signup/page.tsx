@@ -61,7 +61,7 @@ export default function SignupPage() {
     agreeTerms: false,
     planId: "",
   });
-  
+
   const [paymentDetails, setPaymentDetails] = useState<PaymentDetails>({
     cardNumber: "",
     cardHolder: "",
@@ -73,7 +73,7 @@ export default function SignupPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
-  
+
   const [error, setError] = useState<string>("");
   const [success, setSuccess] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
@@ -81,28 +81,28 @@ export default function SignupPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
   const router = useRouter();
 
-  // ✅ CHARGER LES PLANS AU DÉMARRAGE
+  // ✅ LOAD PLANS AT STARTUP
   useEffect(() => {
     const fetchPlans = async () => {
       try {
-        console.log("📦 Chargement des plans...");
+        console.log("📦 Loading plans...");
         const response = await axios.get("http://localhost:5000/api/plans");
-        console.log("✅ Plans reçus:", response.data);
-        
+        console.log("✅ Plans received:", response.data);
+
         if (response.data.success && response.data.data) {
           setPlans(response.data.data);
-          // Sélectionner le premier plan par défaut (souvent le plan gratuit)
+          // Select the first plan by default (often the free plan)
           if (response.data.data.length > 0) {
-            // Chercher le plan DEMO (gratuit) en priorité
+            // Look for the DEMO (free) plan as priority
             const demoPlan = response.data.data.find((p: Plan) => p.code === 'DEMO' || p.price === 0);
-            setFormData(prev => ({ 
-              ...prev, 
-              planId: demoPlan ? demoPlan._id : response.data.data[0]._id 
+            setFormData(prev => ({
+              ...prev,
+              planId: demoPlan ? demoPlan._id : response.data.data[0]._id
             }));
           }
         }
       } catch (error) {
-        console.error("❌ Erreur chargement plans:", error);
+        console.error("❌ Error loading plans:", error);
         setError("Unable to load plans. Please refresh the page.");
       } finally {
         setLoadingPlans(false);
@@ -113,7 +113,7 @@ export default function SignupPage() {
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    
+
     if (type === "checkbox") {
       const checked = (e.target as HTMLInputElement).checked;
       setFormData((prev) => ({
@@ -130,7 +130,7 @@ export default function SignupPage() {
 
   const handlePaymentChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    
+
     // Format card number with spaces
     if (name === "cardNumber") {
       const cleaned = value.replace(/\s/g, "");
@@ -140,20 +140,20 @@ export default function SignupPage() {
       }
       return;
     }
-    
+
     // Format expiry date (MM/YY)
     if (name === "expiryDate") {
       const cleaned = value.replace(/\D/g, "");
       if (cleaned.length <= 4) {
         if (cleaned.length > 2) {
-          setPaymentDetails(prev => ({ ...prev, [name]: `${cleaned.slice(0,2)}/${cleaned.slice(2)}` }));
+          setPaymentDetails(prev => ({ ...prev, [name]: `${cleaned.slice(0, 2)}/${cleaned.slice(2)}` }));
         } else {
           setPaymentDetails(prev => ({ ...prev, [name]: cleaned }));
         }
       }
       return;
     }
-    
+
     // Limit CVV to 3-4 digits
     if (name === "cvv") {
       const cleaned = value.replace(/\D/g, "");
@@ -162,7 +162,7 @@ export default function SignupPage() {
       }
       return;
     }
-    
+
     setPaymentDetails(prev => ({ ...prev, [name]: value }));
   };
 
@@ -202,7 +202,7 @@ export default function SignupPage() {
     }
 
     const selectedPlan = plans.find(p => p._id === formData.planId);
-    
+
     // If paid plan selected, show payment modal
     if (selectedPlan && selectedPlan.price > 0) {
       setSelectedPlan(selectedPlan);
@@ -253,7 +253,7 @@ export default function SignupPage() {
     setLoading(true);
     try {
       console.log("📤 Sending registration with plan:", formData.planId);
-      
+
       const response = await axios.post(
         "http://localhost:5000/api/auth/register",
         {
@@ -277,7 +277,7 @@ export default function SignupPage() {
         if (response.data.data.token) {
           localStorage.setItem("auth_token", response.data.data.token);
           localStorage.setItem("user", JSON.stringify(response.data.data.user));
-          
+
           if (response.data.data.tenant) {
             localStorage.setItem("tenant", JSON.stringify(response.data.data.tenant));
           }
@@ -291,7 +291,7 @@ export default function SignupPage() {
     } catch (err) {
       const error = err as AxiosError<ApiErrorResponse>;
       console.error("❌ Registration error:", error.response?.data || error.message);
-      
+
       if (error.response?.data?.message) {
         setError(error.response.data.message);
       } else if (error.response?.data?.errors) {
@@ -306,7 +306,7 @@ export default function SignupPage() {
     }
   };
 
-  // Fonction pour formater le prix
+  // Function to format the price
   const formatPrice = (price: number, currency: string = 'D', interval: string = 'month') => {
     if (price === 0) return 'Free';
     return `${price}${currency}/${interval}`;
@@ -554,18 +554,17 @@ export default function SignupPage() {
                         <label
                           key={plan._id}
                           onClick={() => handlePlanSelection(plan._id)}
-                          className={`block p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                            formData.planId === plan._id
+                          className={`block p-4 border-2 rounded-lg cursor-pointer transition-all ${formData.planId === plan._id
                               ? 'border-indigo-700 bg-blue-50'
                               : 'border-gray-200 hover:border-indigo-500'
-                          }`}
+                            }`}
                         >
                           <input
                             type="radio"
                             name="planId"
                             value={plan._id}
                             checked={formData.planId === plan._id}
-                            onChange={() => {}}
+                            onChange={() => { }}
                             className="sr-only"
                             required
                           />
@@ -573,8 +572,8 @@ export default function SignupPage() {
                             <div>
                               <h3 className="font-semibold text-gray-900">{plan.name}</h3>
                               <p className="text-sm text-gray-600">
-                                {plan.features?.maxStaff === -1 
-                                  ? '👥 Unlimited staff' 
+                                {plan.features?.maxStaff === -1
+                                  ? '👥 Unlimited staff'
                                   : `👥 Up to ${plan.features?.maxStaff} staff`}
                                 {' • '}
                                 {plan.features?.analysis}
@@ -658,11 +657,10 @@ export default function SignupPage() {
                 <button
                   type="submit"
                   disabled={loading || loadingPlans}
-                  className={`w-full text-white font-semibold py-3 px-4 rounded-lg transition-colors ${
-                    loading || loadingPlans
+                  className={`w-full text-white font-semibold py-3 px-4 rounded-lg transition-colors ${loading || loadingPlans
                       ? 'bg-indigo-500 cursor-not-allowed'
                       : 'bg-indigo-700 hover:bg-indigo-800'
-                  }`}
+                    }`}
                 >
                   {loading ? (
                     <span className="flex items-center justify-center">
@@ -711,12 +709,12 @@ export default function SignupPage() {
                       <div>
                         <h3 className="font-semibold text-lg">{plan.name}</h3>
                         <p className="text-sm text-blue-100">
-                          {plan.features?.maxStaff === -1 
-                            ? 'Unlimited staff' 
+                          {plan.features?.maxStaff === -1
+                            ? 'Unlimited staff'
                             : `Up to ${plan.features?.maxStaff} staff`}
                           {' • '}
-                          {plan.features?.maxLocations === -1 
-                            ? 'Unlimited locations' 
+                          {plan.features?.maxLocations === -1
+                            ? 'Unlimited locations'
                             : `Up to ${plan.features?.maxLocations} locations`}
                         </p>
                       </div>

@@ -5,13 +5,13 @@ class RoleController {
 
   static getModel(req) {
     if (!req.tenantConn) {
-      throw new Error('Connexion tenant non disponible');
+      throw new Error('Tenant connection not available');
     }
-    // Les rôles sont spécifiques à chaque tenant
+    // Roles are specific to each tenant
     return req.tenantConn.model('Role');
   }
 
-  // Créer un rôle
+  // Create a role
   static async create(req, res) {
     try {
       const Role = RoleController.getModel(req);
@@ -21,7 +21,7 @@ class RoleController {
       if (existingRole) {
         return res.status(400).json({
           success: false,
-          message: 'Un rôle avec ce nom existe déjà'
+          message: 'A role with this name already exists'
         });
       }
 
@@ -37,12 +37,12 @@ class RoleController {
       res.status(201).json({ success: true, data: role });
 
     } catch (error) {
-      console.error('Erreur création rôle:', error);
+      console.error('Role creation Error:', error);
       res.status(500).json({ success: false, message: error.message });
     }
   }
 
-  // Récupérer tous les rôles
+  // Get all roles
   static async getAll(req, res) {
     try {
       const Role = RoleController.getModel(req);
@@ -50,13 +50,13 @@ class RoleController {
       res.json({ success: true, data: roles });
 
     } catch (error) {
-      console.error('Erreur récupération rôles:', error);
+      console.error('getRoles Error:', error);
       res.status(500).json({ success: false, message: error.message });
     }
   }
 
-  // ✅ AJOUTER CETTE MÉTHODE
-  // Récupérer les rôles actifs
+  // ✅ ADD THIS METHOD
+  // Get active roles
   static async getActiveRoles(req, res) {
     try {
       const Role = RoleController.getModel(req);
@@ -64,12 +64,12 @@ class RoleController {
       res.json({ success: true, data: roles });
 
     } catch (error) {
-      console.error('Erreur récupération rôles actifs:', error);
+      console.error('getActiveRoles Error:', error);
       res.status(500).json({ success: false, message: error.message });
     }
   }
 
-  // Récupérer un rôle par ID
+  // Get role by ID
   static async getById(req, res) {
     try {
       const Role = RoleController.getModel(req);
@@ -77,18 +77,18 @@ class RoleController {
 
       const role = await Role.findById(id);
       if (!role) {
-        return res.status(404).json({ success: false, message: 'Rôle non trouvé' });
+        return res.status(404).json({ success: false, message: 'Role not found' });
       }
 
       res.json({ success: true, data: role });
 
     } catch (error) {
-      console.error('Erreur récupération rôle:', error);
+      console.error('getById Error:', error);
       res.status(500).json({ success: false, message: error.message });
     }
   }
 
-  // Mettre à jour un rôle
+  // Update a role
   static async update(req, res) {
     try {
       const Role = RoleController.getModel(req);
@@ -97,7 +97,7 @@ class RoleController {
 
       const role = await Role.findById(id);
       if (!role) {
-        return res.status(404).json({ success: false, message: 'Rôle non trouvé' });
+        return res.status(404).json({ success: false, message: 'Role not found' });
       }
 
       if (name && name !== role.name) {
@@ -105,7 +105,7 @@ class RoleController {
         if (existingRole) {
           return res.status(400).json({
             success: false,
-            message: 'Un rôle avec ce nom existe déjà'
+            message: 'A role with this name already exists'
           });
         }
       }
@@ -120,12 +120,12 @@ class RoleController {
       res.json({ success: true, data: role });
 
     } catch (error) {
-      console.error('Erreur mise à jour rôle:', error);
+      console.error('updateRole Error:', error);
       res.status(500).json({ success: false, message: error.message });
     }
   }
 
-  // Supprimer un rôle
+  // Delete a role
   static async delete(req, res) {
     try {
       const Role = RoleController.getModel(req);
@@ -133,27 +133,27 @@ class RoleController {
 
       const role = await Role.findById(id);
       if (!role) {
-        return res.status(404).json({ success: false, message: 'Rôle non trouvé' });
+        return res.status(404).json({ success: false, message: 'Role not found' });
       }
 
       if (role.isDefault) {
         return res.status(400).json({
           success: false,
-          message: 'Impossible de supprimer un rôle par défaut'
+          message: 'Impossible to delete a default role'
         });
       }
 
       await Role.findByIdAndDelete(id);
-      res.json({ success: true, message: 'Rôle supprimé avec succès' });
+      res.json({ success: true, message: 'Role deleted successfully' });
 
     } catch (error) {
-      console.error('Erreur suppression rôle:', error);
+      console.error('deleteRole Error:', error);
       res.status(500).json({ success: false, message: error.message });
     }
   }
 
-  // ✅ AJOUTER CETTE MÉTHODE
-  // Ajouter des permissions
+  // ✅ ADD THIS METHOD
+  // Add permissions
   static async addPermissions(req, res) {
     try {
       const Role = RoleController.getModel(req);
@@ -162,7 +162,7 @@ class RoleController {
 
       const role = await Role.findById(id);
       if (!role) {
-        return res.status(404).json({ success: false, message: 'Rôle non trouvé' });
+        return res.status(404).json({ success: false, message: 'Role not found' });
       }
 
       const newPermissions = [...new Set([...role.permissions, ...permissions])];
@@ -172,13 +172,13 @@ class RoleController {
       res.json({ success: true, data: role });
 
     } catch (error) {
-      console.error('Erreur ajout permissions:', error);
+      console.error('addPermissions Error:', error);
       res.status(500).json({ success: false, message: error.message });
     }
   }
 
-  // ✅ AJOUTER CETTE MÉTHODE
-  // Retirer des permissions
+  // ✅ ADD THIS METHOD
+  // Remove permissions
   static async removePermissions(req, res) {
     try {
       const Role = RoleController.getModel(req);
@@ -187,7 +187,7 @@ class RoleController {
 
       const role = await Role.findById(id);
       if (!role) {
-        return res.status(404).json({ success: false, message: 'Rôle non trouvé' });
+        return res.status(404).json({ success: false, message: 'Role not found' });
       }
 
       role.permissions = role.permissions.filter(p => !permissions.includes(p));
@@ -196,16 +196,16 @@ class RoleController {
       res.json({ success: true, data: role });
 
     } catch (error) {
-      console.error('Erreur retrait permissions:', error);
+      console.error('removePermissions Error:', error);
       res.status(500).json({ success: false, message: error.message });
     }
   }
-  // ✅ AJOUTER CETTE MÉTHODE
-  // Récupérer la liste globale des permissions disponibles
+  // ✅ ADD THIS METHOD
+  // Get global list of available permissions
   static async getAvailablePermissions(req, res) {
     try {
       if (!req.masterDb) {
-        return res.status(500).json({ success: false, message: 'Base Master non disponible' });
+        return res.status(500).json({ success: false, message: 'Master DB not available' });
       }
 
       const Permission = req.masterDb.model('Permission');
@@ -214,7 +214,7 @@ class RoleController {
       res.json({ success: true, data: permissions });
 
     } catch (error) {
-      console.error('Erreur récupération permissions:', error);
+      console.error('getAvailablePermissions Error:', error);
       res.status(500).json({ success: false, message: error.message });
     }
   }

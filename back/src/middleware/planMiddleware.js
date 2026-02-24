@@ -1,99 +1,99 @@
 // back/src/middleware/planMiddleware.js
-const Tenant = require('../models/Tenant');
-const User = require('../models/User');
-const Workflow = require('../models/Workflow');
+const Tenant = require('../models/master/Tenant');
+const User = require('../models/tenant/User');
+const Workflow = require('../models/tenant/Workflow');
 
-// Vérifier les limitations du plan
+// Check plan limits
 exports.checkPlanLimits = async (req, res, next) => {
   try {
     const tenant = await Tenant.findById(req.user.tenantId).populate('selectedPlan');
-    
+
     if (!tenant || !tenant.selectedPlan) {
       return res.status(403).json({
         success: false,
-        message: 'Aucun plan sélectionné',
+        message: 'No plan selected',
         requiresPlanSelection: true
       });
     }
-    
-    // Vérifier la période d'essai
+
+    // Check trial period
     if (tenant.trialPeriod.isActive && tenant.trialPeriod.endDate < new Date()) {
       tenant.trialPeriod.isActive = false;
       tenant.subscription.status = 'expired';
       await tenant.save();
-      
+
       return res.status(403).json({
         success: false,
-        message: 'Période d\'essai expirée',
+        message: 'Trial period expired',
         trialExpired: true
       });
     }
-    
-    // Attacher les infos du plan à req
+
+    // Attach plan info to req
     req.tenantPlan = tenant.planDetails;
     req.planLimits = tenant.planDetails.features;
-    
+
     next();
-    
+
   } catch (error) {
-    console.error('Erreur checkPlanLimits:', error);
+    console.error('checkPlanLimits Error:', error);
     res.status(500).json({
       success: false,
-      message: 'Erreur serveur'
+      message: 'Server error'
     });
   }
 };
 
-// Vérifier la limite d'utilisateurs
+// Check user limit
 exports.checkUserLimit = async (req, res, next) => {
   try {
     const tenantId = req.user.tenantId;
     const limits = req.planLimits;
-    
+
     const userCount = await User.countDocuments({ tenantId, isActive: true });
-    
+
     if (userCount >= limits.maxUsers) {
       return res.status(403).json({
         success: false,
-        message: `Limite d'utilisateurs atteinte (${limits.maxUsers})`,
+        message: `User limit reached (${limits.maxUsers})`,
         code: 'USER_LIMIT_EXCEEDED'
       });
     }
-    
+
     next();
-    
+
   } catch (error) {
-    console.error('Erreur checkUserLimit:', error);
+    console.error('checkUserLimit Error:', error);
     res.status(500).json({
       success: false,
-      message: 'Erreur serveur'
+      message: 'Server error'
     });
   }
 };
 
-// Vérifier la limite de workflows
+// Check workflow limit
 exports.checkWorkflowLimit = async (req, res, next) => {
   try {
     const tenantId = req.user.tenantId;
     const limits = req.planLimits;
-    
+
     const workflowCount = await Workflow.countDocuments({ tenantId });
-    
+
     if (workflowCount >= limits.maxWorkflows) {
       return res.status(403).json({
         success: false,
-        message: `Limite de workflows atteinte (${limits.maxWorkflows})`,
+        message: `Workflow limit reached (${limits.maxWorkflows})`,
         code: 'WORKFLOW_LIMIT_EXCEEDED'
       });
     }
-    
+
     next();
-    
+
   } catch (error) {
-    console.error('Erreur checkWorkflowLimit:', error);
+    console.error('checkWorkflowLimit Error:', error);
     res.status(500).json({
       success: false,
-      message: 'Erreur serveur'
+      message: 'Server error'
     });
   }
 };

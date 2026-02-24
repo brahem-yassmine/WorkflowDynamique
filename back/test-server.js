@@ -3,7 +3,7 @@ const express = require('express');
 const app = express();
 
 app.get('/api/test', (req, res) => {
-  res.json({ message: 'Serveur OK', time: new Date() });
+  res.json({ message: 'Server OK', time: new Date() });
 });
 
 app.get('/api/auth/login', (req, res) => {
@@ -12,6 +12,6 @@ app.get('/api/auth/login', (req, res) => {
 
 const PORT = 5000;
 app.listen(PORT, () => {
-  console.log(`✅ Serveur de test démarré sur http://localhost:${PORT}`);
+  console.log(`✅ Test server started on http://localhost:${PORT}`);
   console.log(`📝 Test API: http://localhost:${PORT}/api/test`);
 });

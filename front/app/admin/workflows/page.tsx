@@ -1,476 +1,538 @@
-// app/workflows/page.tsx
 'use client'
 
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import {
+  Plus,
+  Search,
+  Filter,
+  MoreHorizontal,
+  GitBranch,
+  Calendar,
+  Layers,
+  Trash2,
+  Edit,
+  Eye,
+  CheckCircle2,
+  Clock,
+  Archive,
+  ArrowRight,
+  Copy,
+  Briefcase
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { apiService } from '@/service/api.service';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import EditIcon from '@mui/icons-material/Edit';
-import SaveIcon from '@mui/icons-material/Save';
-import DeleteIcon from '@mui/icons-material/Delete';
-import AddIcon from '@mui/icons-material/Add';
-import Checkbox from '@mui/material/Checkbox';
+import { useSearchParams } from 'next/navigation';
 
-function Sidebar() {
-  return (
-    <aside className="w-64 bg-indigo-700 text-white flex flex-col h-full fixed">
-      <div className="p-6">
-        <h1 className="text-2xl font-bold text-white">Axia Solutions</h1>
-        <p className="text-indigo-200 text-sm mt-1">Admin panel</p>
-      </div>
-      
-      <nav className="flex-1 mt-6 overflow-y-auto">
-        <div className="px-4 space-y-1">
-          <Link href="/essai" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-lg transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z" />
-              <path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z" />
-            </svg>
-            <span className="text-sm font-medium flex-1">Global Dashboard</span>
-          </Link>
-          
-          <Link href="/essai/user-management" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-lg transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-            </svg>
-            <span className="text-sm font-medium">User Managment</span>
-          </Link>
-          <Link href="/essai/roles" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-lg transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
-            <span className="text-sm font-medium">Roles</span>
-          </Link>
-          
-          <Link href="/essai/workflows" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-lg transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-            </svg>
-            <span className="text-sm font-medium">Workflows</span>
-          </Link>
-          
-          <Link href="/essai/create" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-lg transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span className="text-sm font-medium">Create</span>
-          </Link>
-          
-          <Link href="/essai/tasks" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-lg transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-            </svg>
-            <span className="text-sm font-medium">Tasks</span>
-          </Link>
-          
-          <Link href="/essai/reports" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-lg transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0_1-2-2z" />
-             </svg>
-                         <span className="text-sm font-medium">reports</span>
-
-          </Link>
-
-
-          <Link href="/essai/notifications" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-lg transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-            </svg>
-            <span className="text-sm font-medium">Notifications</span>
-          </Link>
-          
-          <Link href="/essai/billing" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-lg transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-            </svg>
-            <span className="text-sm font-medium">Billing</span>
-          </Link>
-          
-          <Link href="/essai/logs" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-lg transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
-            </svg>
-            <span className="text-sm font-medium">Logs & History</span>
-          </Link>
-          
-          <Link href="/essai/profile" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-lg transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-            <span className="text-sm font-medium">Profile</span>
-          </Link>
-        </div>
-      </nav>
-
-
-<div className="p-4 border-t border-indigo-600">
-  <Link href="/">
-    <button className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-lg w-full transition-colors">
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-      </svg>
-      <span className="text-sm font-medium">Logout</span>
-    </button>
-  </Link>
-</div>
-    </aside>
-  );
-}
-
-
-// Types
 interface Workflow {
-  id: string;
+  _id: string;
   name: string;
+  domain: string;
   description: string;
-  status: 'active' | 'draft' | 'archived';
+  status: 'draft' | 'active' | 'archived';
+  nodes: any[];
+  edges: any[];
+  projectId?: string;
   createdAt: string;
+  updatedAt: string;
 }
 
-interface NotificationSetting {
-  role: string;
-  initiated: boolean;
-  rolledBack: boolean;
-  edited: boolean;
-  completed: boolean;
-  inheritOverride: boolean;
+interface Project {
+  _id: string;
+  name: string;
 }
 
 export default function WorkflowsPage() {
-  const router = useRouter();
-  
-  const [workflows, setWorkflows] = useState<Workflow[]>([
-    { id: 'WF-001', name: 'Budget Approval', description: 'Annual budget review and approval process', status: 'active', createdAt: '2025-01-15' },
-    { id: 'WF-002', name: 'Employee Onboarding', description: 'New employee onboarding workflow', status: 'active', createdAt: '2025-01-20' },
-    { id: 'WF-003', name: 'Contract Review', description: 'Legal contract review and approval', status: 'draft', createdAt: '2025-02-01' },
-    { id: 'WF-004', name: 'IT Access Request', description: 'System access request and approval', status: 'active', createdAt: '2025-02-10' },
-  ]);
+  const [workflows, setWorkflows] = useState<Workflow[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({ name: '', domain: 'HR', projectId: '' });
+  const [isUpdating, setIsUpdating] = useState(false);
 
-  const [notificationSettings, setNotificationSettings] = useState<NotificationSetting[]>([
-    // Workflow Consumer
-    { role: 'Application User', initiated: false, rolledBack: false, edited: false, completed: false, inheritOverride: false },
-    { role: 'Configuration Manager', initiated: false, rolledBack: false, edited: false, completed: false, inheritOverride: true },
-    { role: 'License Manager', initiated: false, rolledBack: false, edited: false, completed: false, inheritOverride: true },
-    { role: 'Project Manager', initiated: false, rolledBack: false, edited: false, completed: false, inheritOverride: true },
-    { role: 'UA Tester', initiated: false, rolledBack: false, edited: false, completed: false, inheritOverride: false },
-    { role: 'User', initiated: false, rolledBack: false, edited: false, completed: false, inheritOverride: true },
-    
-    // Workflow Administrator
-    { role: 'Project Manager', initiated: false, rolledBack: false, edited: false, completed: false, inheritOverride: true },
-    { role: 'Repackager', initiated: false, rolledBack: false, edited: false, completed: false, inheritOverride: false },
-    { role: 'SCAdmin', initiated: false, rolledBack: false, edited: false, completed: false, inheritOverride: true },
-    { role: 'System Administrator', initiated: false, rolledBack: false, edited: false, completed: false, inheritOverride: false },
-    { role: 'Tech Lead', initiated: false, rolledBack: false, edited: false, completed: false, inheritOverride: true },
-  ]);
+  const searchParams = useSearchParams();
+  const projectIdFilter = searchParams.get('projectId');
 
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ name: '', description: '' });
+  useEffect(() => {
+    fetchData();
+  }, [projectIdFilter]);
 
-  const handleEdit = (workflow: Workflow) => {
-    setEditingId(workflow.id);
-    setEditForm({ name: workflow.name, description: workflow.description });
-  };
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [wfRes, projRes] = await Promise.all([
+        apiService.request(`/workflows${projectIdFilter ? `?projectId=${projectIdFilter}` : ''}`),
+        apiService.getProjects()
+      ]);
 
-  const handleSave = (id: string) => {
-    setWorkflows(workflows.map(w => 
-      w.id === id ? { ...w, name: editForm.name, description: editForm.description } : w
-    ));
-    setEditingId(null);
-  };
-
-  const handleDelete = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this workflow?')) {
-      setWorkflows(workflows.filter(w => w.id !== id));
-      if (editingId === id) {
-        setEditingId(null);
-      }
+      if (wfRes.success) setWorkflows(wfRes.data);
+      if (projRes.success) setProjects(projRes.data);
+    } catch (error) {
+      console.error('Error fetching workflows:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleCheckboxChange = (index: number, field: keyof Omit<NotificationSetting, 'role'>) => {
-    const updated = [...notificationSettings];
-    updated[index] = { ...updated[index], [field]: !updated[index][field] };
-    setNotificationSettings(updated);
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this workflow?')) return;
+    try {
+      const response = await apiService.request(`/workflows/${id}`, { method: 'DELETE' });
+      if (response.success) {
+        setWorkflows(prev => prev.filter(w => w._id !== id));
+        if (selectedWorkflow?._id === id) setSelectedWorkflow(null);
+      }
+    } catch (error: any) {
+      alert('Error during deletion: ' + error.message);
+    }
   };
 
-  const handleUpdateNotifications = () => {
-    // Logique pour sauvegarder les notifications
-    console.log('Notifications updated:', notificationSettings);
-    alert('Notifications settings saved successfully!');
+  const handleDuplicate = async (id: string) => {
+    try {
+      setDuplicatingId(id);
+      const response = await apiService.duplicateWorkflow(id);
+      if (response.success) {
+        setWorkflows([response.data, ...workflows]);
+        alert('Workflow cloned successfully! You can find it as a "(copy)" version.');
+      }
+    } catch (error: any) {
+      alert('Error duplicating: ' + error.message);
+    } finally {
+      setDuplicatingId(null);
+    }
   };
 
-  const handleCreateWorkflow = () => {
-    router.push('/workflows/create');
+  const handleUpdateMetadata = async () => {
+    if (!selectedWorkflow || !editForm.name.trim()) return;
+    try {
+      setIsUpdating(true);
+      const response = await apiService.updateWorkflow(selectedWorkflow._id, {
+        name: editForm.name,
+        domain: editForm.domain,
+        projectId: editForm.projectId || undefined
+      });
+
+      if (response.success) {
+        setWorkflows(prev => prev.map(w => w._id === selectedWorkflow._id ? { ...w, ...response.data } : w));
+        setSelectedWorkflow({ ...selectedWorkflow, ...response.data });
+        setShowEditModal(false);
+      }
+    } catch (error: any) {
+      alert('Error updating: ' + error.message);
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
-  const handleSaveNotifications = () => {
-    // Logique pour sauvegarder les paramètres de notification
-    console.log('Notification settings saved:', notificationSettings);
-    alert('Notification settings saved successfully!');
+  const openEditModal = () => {
+    if (!selectedWorkflow) return;
+    setEditForm({
+      name: selectedWorkflow.name,
+      domain: selectedWorkflow.domain,
+      projectId: selectedWorkflow.projectId || ''
+    });
+    setShowEditModal(true);
   };
+
+  const filteredWorkflows = workflows.filter(w =>
+    w.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    w.domain.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const getWorkflowProjectName = (pId?: string) => {
+    if (!pId) return "No Project";
+    return projects.find(p => p._id === pId)?.name || "Unknown Project";
+  };
+
+  const getStatusStyles = (status: string) => {
+    switch (status) {
+      case 'active': return 'bg-emerald-50 text-emerald-600 border-emerald-100';
+      case 'draft': return 'bg-amber-50 text-amber-600 border-amber-100';
+      case 'archived': return 'bg-slate-100 text-slate-500 border-slate-200';
+      default: return 'bg-slate-50 text-slate-600 border-slate-100';
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="relative w-20 h-20">
+          <div className="absolute inset-0 border-4 border-indigo-100 rounded-full animate-pulse"></div>
+          <div className="absolute inset-0 border-4 border-indigo-600 rounded-full border-t-transparent animate-spin"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar />
-      <main className="flex-1 ml-64 p-8 overflow-y-auto">
-        {/* Header */}
-        <div className="bg-indigo-600 -mt-8 -mx-8 p-8 mb-6">
-          <h1 className="text-3xl font-bold text-white">Workflows</h1>
-          <p className="text-indigo-200">Manage your workflow phases and notifications</p>
+    <div className="space-y-8 animate-in fade-in duration-500">
+      {/* Control Bar */}
+      <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+        <div className="relative w-full md:max-w-md group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
+          <input
+            type="text"
+            placeholder="Search workflows by name, domain..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-12 pr-4 py-3 bg-white border border-slate-100 rounded-2xl shadow-sm focus:outline-none focus:ring-4 focus:ring-indigo-50 transition-all font-medium text-slate-700"
+          />
         </div>
-
-        {/* Workflow Stats et Bouton Create Workflow */}
-        <div className="mb-6 flex gap-4">
-          <div className="bg-white rounded-lg shadow p-6 flex-1">
-            <div className="flex items-center gap-4">
-              <span className="text-4xl font-bold text-indigo-600">{workflows.length}</span>
-              <span className="text-gray-600">list of workflows</span>
+        <div className="flex items-center gap-3">
+          {projectIdFilter && (
+            <div className="flex items-center gap-2 bg-indigo-50 px-4 py-2 rounded-xl text-indigo-600 border border-indigo-100">
+              <span className="text-xs font-black uppercase tracking-widest flex items-center gap-2">
+                <Briefcase size={14} />
+                Project: {getWorkflowProjectName(projectIdFilter)}
+              </span>
+              <Link href="/admin/workflows">
+                <button className="text-indigo-400 hover:text-indigo-600 font-black">×</button>
+              </Link>
             </div>
-          </div>
-          <button
-            onClick={handleCreateWorkflow}
-            className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
-          >
-            <AddIcon fontSize="small" />
-            Create Workflow
+          )}
+          <button onClick={fetchData} className="p-3 bg-white border border-slate-100 rounded-xl text-slate-400 hover:text-indigo-600 transition-colors shadow-sm">
+            <Clock size={20} />
           </button>
+          <Link href="/admin/create_workflows">
+            <button className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95">
+              <Plus size={18} />
+              Create Flow
+            </button>
+          </Link>
         </div>
+      </div>
 
-        {/* Workflows List */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Active Workflows</h2>
-          
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-100">
-                  <th className="p-3 text-left text-sm font-medium text-gray-600">Id</th>
-                  <th className="p-3 text-left text-sm font-medium text-gray-600">details (selected to edit)</th>
-                  <th className="p-3 text-center text-sm font-medium text-gray-600">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {workflows.map((workflow) => (
-                  <tr key={workflow.id} className="border-b hover:bg-gray-50">
-                    <td className="p-3 font-medium">{workflow.id}</td>
-                    <td className="p-3">
-                      {editingId === workflow.id ? (
-                        <div className="space-y-2">
-                          <input
-                            type="text"
-                            value={editForm.name}
-                            onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                            className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            placeholder="Workflow name"
-                          />
-                          <input
-                            type="text"
-                            value={editForm.description}
-                            onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                            className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            placeholder="Description"
-                          />
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-[calc(100vh-280px)]">
+        {/* Workflow Grid/List */}
+        <div className="lg:col-span-8 overflow-y-auto pr-2 custom-scrollbar">
+          {filteredWorkflows.length === 0 ? (
+            <div className="bg-white rounded-3xl border border-dashed border-slate-200 p-12 text-center h-full flex flex-col items-center justify-center">
+              <div className="w-20 h-20 bg-slate-50 rounded-2xl flex items-center justify-center mb-6 text-slate-300">
+                <GitBranch size={40} />
+              </div>
+              <h3 className="text-xl font-black text-slate-800 tracking-tight">No Flow Found</h3>
+              <p className="text-slate-500 mt-2 max-w-xs">Start architecting your organization logic by creating your first workflow.</p>
+              <Link href="/admin/create_workflows" className="mt-8">
+                <button className="px-8 py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-all">
+                  Get Started
+                </button>
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-12 pb-8">
+              {/* Group by Project */}
+              {projects.map(project => {
+                const projectWorkflows = filteredWorkflows.filter(w => w.projectId === project._id);
+                if (projectWorkflows.length === 0) return null;
+
+                return (
+                  <div key={project._id} className="space-y-6">
+                    <div className="flex items-center justify-between px-2">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100">
+                          <Briefcase size={20} />
                         </div>
-                      ) : (
                         <div>
-                          <div className="font-medium">{workflow.name}</div>
-                          <div className="text-sm text-gray-500">{workflow.description}</div>
+                          <h3 className="text-xl font-black text-slate-800 tracking-tight">{project.name}</h3>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-0.5">Project Collection</p>
                         </div>
-                      )}
-                    </td>
-                    <td className="p-3">
-                      <div className="flex items-center justify-center gap-2">
-                        {editingId === workflow.id ? (
-                          <>
-                            <button
-                              onClick={() => handleSave(workflow.id)}
-                              className="flex items-center gap-1 px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
-                            >
-                              <SaveIcon fontSize="small" />
-                              save
-                            </button>
-                            <button
-                              onClick={() => setEditingId(null)}
-                              className="px-3 py-1 bg-gray-500 text-white rounded-lg hover:bg-gray-600 text-sm"
-                            >
-                              cancel
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              onClick={() => handleEdit(workflow)}
-                              className="flex items-center gap-1 px-3 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
-                            >
-                              <EditIcon fontSize="small" />
-                              edit
-                            </button>
-                            <button
-                              onClick={() => handleDelete(workflow.id)}
-                              className="flex items-center gap-1 px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm"
-                            >
-                              <DeleteIcon fontSize="small" />
-                              delete
-                            </button>
-                          </>
-                        )}
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      <span className="px-3 py-1 bg-indigo-600 text-white rounded-full text-[10px] font-black uppercase tracking-wider shadow-lg shadow-indigo-100">
+                        {projectWorkflows.length} Flows
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {projectWorkflows.map(workflow => (
+                        <WorkflowCard
+                          key={workflow._id}
+                          workflow={workflow}
+                          projectName={project.name}
+                          isSelected={selectedWorkflow?._id === workflow._id}
+                          onClick={() => setSelectedWorkflow(workflow)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Unassigned Workflows */}
+              {filteredWorkflows.filter(w => !w.projectId).length > 0 && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between px-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 shadow-sm border border-slate-100">
+                        <GitBranch size={20} />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-black text-slate-800 tracking-tight">Standalone Flows</h3>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-0.5">No Project assigned</p>
+                      </div>
+                    </div>
+                    <span className="px-3 py-1 bg-slate-200 text-slate-600 rounded-full text-[10px] font-black uppercase tracking-wider">
+                      {filteredWorkflows.filter(w => !w.projectId).length} Flows
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {filteredWorkflows.filter(w => !w.projectId).map(workflow => (
+                      <WorkflowCard
+                        key={workflow._id}
+                        workflow={workflow}
+                        projectName="No Project"
+                        isSelected={selectedWorkflow?._id === workflow._id}
+                        onClick={() => setSelectedWorkflow(workflow)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Templates Section */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Templates</h2>
-          <button 
-            onClick={handleCreateWorkflow}
-            className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
-          >
-            <AddIcon fontSize="small" />
-            create
-          </button>
+        {/* Workflow Inspector */}
+        <div className="lg:col-span-4 h-full">
+          <AnimatePresence mode="wait">
+            {selectedWorkflow ? (
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 h-full flex flex-col"
+              >
+                <div className="flex justify-between items-start mb-8">
+                  <div className={`px-3 py-1 rounded-lg border text-[10px] font-black uppercase tracking-widest ${getStatusStyles(selectedWorkflow.status)}`}>
+                    {selectedWorkflow.status} Status
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setSelectedWorkflow(null)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
+                      <MoreHorizontal size={20} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-indigo-50 w-16 h-16 rounded-2xl flex items-center justify-center text-indigo-600 mb-6">
+                  <GitBranch size={32} />
+                </div>
+
+                <h2 className="text-2xl font-black text-slate-800 tracking-tight mb-2">{selectedWorkflow.name}</h2>
+                <p className="text-sm font-medium text-slate-500 leading-relaxed mb-8">{selectedWorkflow.description || 'No description provided for this orchestration schema.'}</p>
+
+                <div className="space-y-6 flex-grow">
+                  <DetailRow label="Strategic Domain" icon={<Layers size={16} />}>
+                    <span className="text-sm font-bold text-slate-700 bg-slate-50 px-3 py-1 rounded-lg">{selectedWorkflow.domain}</span>
+                  </DetailRow>
+                  <DetailRow label="Project" icon={<Briefcase size={16} />}>
+                    <span className="text-sm font-bold text-slate-700">{getWorkflowProjectName(selectedWorkflow.projectId)}</span>
+                  </DetailRow>
+                  <DetailRow label="Node Logic" icon={<CheckCircle2 size={16} />}>
+                    <span className="text-sm font-bold text-slate-700">{selectedWorkflow.nodes.length} Blocks Configured</span>
+                  </DetailRow>
+                  <DetailRow label="Protocol Version" icon={<Calendar size={16} />}>
+                    <span className="text-sm font-bold text-slate-700">
+                      {new Date(selectedWorkflow.updatedAt).toLocaleDateString()}
+                    </span>
+                  </DetailRow>
+                </div>
+
+                <div className="pt-8 border-t border-slate-50 space-y-3">
+                  <Link href={`/admin/create_workflows?id=${selectedWorkflow._id}`} className="block">
+                    <button className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all active:scale-95 shadow-lg shadow-indigo-100">
+                      <Layers size={16} />
+                      Edit Visual Flow
+                    </button>
+                  </Link>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => handleDuplicate(selectedWorkflow._id)}
+                      disabled={duplicatingId === selectedWorkflow._id}
+                      className="flex-1 py-4 bg-slate-50 text-slate-600 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-100 transition-all font-bold disabled:opacity-50"
+                    >
+                      <Copy size={14} />
+                      {duplicatingId === selectedWorkflow._id ? 'Cloning...' : 'Clone Flow'}
+                    </button>
+                    <button
+                      onClick={() => handleDelete(selectedWorkflow._id)}
+                      className="p-4 bg-rose-50 text-rose-600 rounded-2xl hover:bg-rose-100 transition-all"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            ) : (
+              <div className="bg-slate-100/30 rounded-3xl border border-dashed border-slate-200 h-full flex flex-col items-center justify-center p-12 text-center">
+                <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-6 text-slate-200 border border-slate-100">
+                  <Eye size={32} />
+                </div>
+                <h3 className="text-lg font-black text-slate-400 tracking-tight">Select a Workflow</h3>
+                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Select an item from the list to view its architecture or start editing.</p>
+              </div>
+            )}
+          </AnimatePresence>
         </div>
+      </div>
 
-        {/* Workflow Phase Notifications */}
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Workflow Phase Notifications</h2>
-          
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-gray-100">
-                  <th className="p-3 text-left text-sm font-medium text-gray-600">Role</th>
-                  <th className="p-3 text-center text-sm font-medium text-gray-600">Initiated</th>
-                  <th className="p-3 text-center text-sm font-medium text-gray-600">Rolled back</th>
-                  <th className="p-3 text-center text-sm font-medium text-gray-600">Edited</th>
-                  <th className="p-3 text-center text-sm font-medium text-gray-600">Completed</th>
-                  <th className="p-3 text-center text-sm font-medium text-gray-600">Inherit/override</th>
-                </tr>
-              </thead>
-              <tbody>
-                {/* Workflow Consumer Section */}
-                <tr className="bg-indigo-50">
-                  <td colSpan={6} className="p-2 font-bold text-indigo-800">Workflow Consumer</td>
-                </tr>
-                
-                {notificationSettings.slice(0, 6).map((setting, idx) => (
-                  <tr key={`consumer-${idx}`} className="border-b hover:bg-gray-50">
-                    <td className="p-3 font-medium">{setting.role}</td>
-                    <td className="p-3 text-center">
-                      <Checkbox
-                        checked={setting.initiated}
-                        onChange={() => handleCheckboxChange(idx, 'initiated')}
-                        size="small"
-                      />
-                    </td>
-                    <td className="p-3 text-center">
-                      <Checkbox
-                        checked={setting.rolledBack}
-                        onChange={() => handleCheckboxChange(idx, 'rolledBack')}
-                        size="small"
-                      />
-                    </td>
-                    <td className="p-3 text-center">
-                      <Checkbox
-                        checked={setting.edited}
-                        onChange={() => handleCheckboxChange(idx, 'edited')}
-                        size="small"
-                      />
-                    </td>
-                    <td className="p-3 text-center">
-                      <Checkbox
-                        checked={setting.completed}
-                        onChange={() => handleCheckboxChange(idx, 'completed')}
-                        size="small"
-                      />
-                    </td>
-                    <td className="p-3 text-center">
-                      <Checkbox
-                        checked={setting.inheritOverride}
-                        onChange={() => handleCheckboxChange(idx, 'inheritOverride')}
-                        size="small"
-                        className={setting.inheritOverride ? 'text-indigo-600' : ''}
-                      />
-                    </td>
-                  </tr>
-                ))}
-
-                {/* Workflow Administrator Section */}
-                <tr className="bg-indigo-50">
-                  <td colSpan={6} className="p-2 font-bold text-indigo-800">Workflow Administrator</td>
-                </tr>
-
-                {notificationSettings.slice(6).map((setting, idx) => (
-                  <tr key={`admin-${idx}`} className="border-b hover:bg-gray-50">
-                    <td className="p-3 font-medium">{setting.role}</td>
-                    <td className="p-3 text-center">
-                      <Checkbox
-                        checked={setting.initiated}
-                        onChange={() => handleCheckboxChange(idx + 6, 'initiated')}
-                        size="small"
-                      />
-                    </td>
-                    <td className="p-3 text-center">
-                      <Checkbox
-                        checked={setting.rolledBack}
-                        onChange={() => handleCheckboxChange(idx + 6, 'rolledBack')}
-                        size="small"
-                      />
-                    </td>
-                    <td className="p-3 text-center">
-                      <Checkbox
-                        checked={setting.edited}
-                        onChange={() => handleCheckboxChange(idx + 6, 'edited')}
-                        size="small"
-                      />
-                    </td>
-                    <td className="p-3 text-center">
-                      <Checkbox
-                        checked={setting.completed}
-                        onChange={() => handleCheckboxChange(idx + 6, 'completed')}
-                        size="small"
-                      />
-                    </td>
-                    <td className="p-3 text-center">
-                      <Checkbox
-                        checked={setting.inheritOverride}
-                        onChange={() => handleCheckboxChange(idx + 6, 'inheritOverride')}
-                        size="small"
-                        className={setting.inheritOverride ? 'text-indigo-600' : ''}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-4 mt-6">
-            <button 
-              onClick={handleUpdateNotifications}
-              className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+      {/* Edit Metadata Modal */}
+      <AnimatePresence>
+        {showEditModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowEditModal(false)}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-3xl shadow-xl w-full max-w-md relative z-10 overflow-hidden border border-slate-100"
             >
-              Update
-            </button>
-            <button 
-              onClick={handleSaveNotifications}
-              className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
-            >
-              <SaveIcon fontSize="small" />
-              Save
-            </button>
-            <button className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2">
-              <AddIcon fontSize="small" />
-              Add User/Group
-            </button>
+              <div className="bg-indigo-600 p-6 text-white">
+                <h3 className="text-xl font-black">Workflow Settings</h3>
+                <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-widest mt-1">Global Configuration</p>
+              </div>
+
+              <div className="p-6 space-y-5">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Name</label>
+                  <input
+                    type="text"
+                    value={editForm.name}
+                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                    className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-indigo-50 font-bold text-slate-700 outline-none transition-all"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Project</label>
+                  <select
+                    value={editForm.projectId}
+                    onChange={(e) => setEditForm({ ...editForm, projectId: e.target.value })}
+                    className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-indigo-50 font-bold text-slate-700 outline-none transition-all"
+                  >
+                    <option value="">No Project</option>
+                    {projects.map(p => (
+                      <option key={p._id} value={p._id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Domain</label>
+                  <select
+                    value={editForm.domain}
+                    onChange={(e) => setEditForm({ ...editForm, domain: e.target.value })}
+                    className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-indigo-50 font-bold text-slate-700 outline-none transition-all"
+                  >
+                    {['HR', 'Finance', 'IT', 'Sales', 'Management'].map(d => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => setShowEditModal(false)}
+                    className="flex-1 py-3 text-slate-400 font-bold uppercase text-[10px] tracking-widest"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleUpdateMetadata}
+                    disabled={isUpdating}
+                    className="flex-1 py-3 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all uppercase text-[10px] tracking-widest shadow-lg shadow-indigo-100 disabled:opacity-50"
+                  >
+                    {isUpdating ? 'Update Info' : 'Update Info'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
           </div>
-        </div>
-      </main>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
-// il doit travailler sur cette page 
+
+function WorkflowCard({ workflow, projectName, isSelected, onClick }: { workflow: Workflow; projectName: string; isSelected: boolean; onClick: () => void }) {
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active': return 'bg-emerald-500';
+      case 'draft': return 'bg-amber-500';
+      case 'archived': return 'bg-slate-400';
+      default: return 'bg-slate-300';
+    }
+  };
+
+  return (
+    <motion.div
+      whileHover={{ y: -5 }}
+      onClick={onClick}
+      className={`bg-white p-6 rounded-3xl border transition-all cursor-pointer group relative overflow-hidden ${isSelected ? 'border-indigo-500 ring-4 ring-indigo-50 shadow-xl' : 'border-slate-100 hover:border-indigo-200 shadow-sm'}`}
+    >
+      <div className={`absolute top-0 left-0 w-1.5 h-full ${getStatusColor(workflow.status)}`}></div>
+
+      <div className="flex justify-between items-start mb-6">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-slate-50 rounded-xl group-hover:bg-indigo-50 transition-colors">
+            <GitBranch size={20} className="text-slate-400 group-hover:text-indigo-600" />
+          </div>
+          <div>
+            <h4 className="font-black text-slate-800 tracking-tight group-hover:text-indigo-600 transition-colors">{workflow.name}</h4>
+            <div className="flex items-center gap-2 mt-1">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{workflow.domain}</p>
+              <span className="w-1 h-1 bg-slate-200 rounded-full"></span>
+              <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400">{projectName}</p>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link href={`/admin/create_workflows?id=${workflow._id}`} onClick={(e) => e.stopPropagation()}>
+            <div className="p-2 hover:bg-indigo-50 text-slate-300 hover:text-indigo-600 rounded-lg transition-all">
+              <Edit size={14} />
+            </div>
+          </Link>
+          <div className={`w-2.5 h-2.5 rounded-full ${getStatusColor(workflow.status)} animate-pulse`}></div>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between mt-8 pt-6 border-t border-slate-50">
+        <div className="flex items-center gap-4">
+          <div className="flex flex-col">
+            <span className="text-[9px] font-black uppercase tracking-tight text-slate-400">Blocks</span>
+            <span className="text-xs font-black text-slate-700">{workflow.nodes.length}</span>
+          </div>
+          <div className="h-6 w-px bg-slate-100"></div>
+          <div className="flex flex-col">
+            <span className="text-[9px] font-black uppercase tracking-tight text-slate-400">Edges</span>
+            <span className="text-xs font-black text-slate-700">{workflow.edges.length}</span>
+          </div>
+        </div>
+
+        <button className="p-2 bg-slate-50 rounded-xl text-slate-400 group-hover:text-indigo-600 group-hover:bg-indigo-50 transition-all">
+          <ArrowRight size={16} />
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
+function DetailRow({ label, icon, children }: { label: string; icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-3 text-slate-400">
+        <div className="p-2.5 bg-slate-50 rounded-xl">{icon}</div>
+        <span className="text-[10px] font-black uppercase tracking-widest leading-none">{label}</span>
+      </div>
+      {children}
+    </div>
+  );
+}

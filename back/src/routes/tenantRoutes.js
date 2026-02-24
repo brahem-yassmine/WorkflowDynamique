@@ -1,8 +1,8 @@
 // back/src/routes/tenantRoutes.js
 const express = require('express');
 const router = express.Router();
-const { 
-  getDashboard, 
+const {
+  getDashboard,
   getTenantInfo,
   getTenantSettings,
   updateTenantSettings,
@@ -14,30 +14,30 @@ const { auth } = require('../middleware/auth');
 const { checkTenantActive, requirePlan } = require('../middleware/tenantMiddleware');
 const { checkPlanLimits } = require('../middleware/tenantMiddleware');
 
-// Toutes les routes nécessitent auth + tenant actif
+// All routes require auth + active tenant
 router.use(auth, checkTenantActive);
 
-// Routes publiques pour le tenant (même sans plan)
+// Public routes for tenant (even without plan)
 router.get('/dashboard', getDashboard);
 router.get('/info', getTenantInfo);
 
-// Routes qui nécessitent un plan
+// Routes that require a plan
 router.get('/settings', requirePlan, getTenantSettings);
 router.put('/settings', requirePlan, updateTenantSettings);
 
-// Gestion des membres de l'équipe
+// Team members management
 router.get('/team', requirePlan, getTeamMembers);
-router.post('/team/invite', 
-  requirePlan, 
-  checkPlanLimits('users'), // Vérifie la limite d'utilisateurs
+router.post('/team/invite',
+  requirePlan,
+  checkPlanLimits('users'), // Verify user limit
   inviteTeamMember
 );
 router.delete('/team/:userId', requirePlan, removeTeamMember);
 
-// Statistiques
+// Statistics
 router.get('/stats', requirePlan, async (req, res) => {
   try {
-    // Exemple de stats
+    // Stats example
     const stats = {
       totalWorkflows: await req.tenantConn.model('Workflow').countDocuments(),
       activeInstances: await req.tenantConn.model('WorkflowInstance').countDocuments({ status: 'active' }),

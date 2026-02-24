@@ -1,20 +1,21 @@
+// front/app/Workflows/_components/WorkflowEditor.tsx
 "use client";
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
     ReactFlow,
-    ReactFlowProvider,
-    addEdge,
+    ReactFlowProvider,  // Important: import from @xyflow/react
+    useReactFlow,        // Hook used in the content
     useNodesState,
     useEdgesState,
-    useReactFlow,
     Controls,
     Background,
     MiniMap,
     Connection,
     Edge,
     Node,
-    BackgroundVariant
+    BackgroundVariant,
+    addEdge
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -22,36 +23,91 @@ import Sidebar from './Sidebar';
 import StartNode from './nodes/StartNode';
 import EndNode from './nodes/EndNode';
 import ActionNode from './nodes/ActionNode';
+import ConditionNode from './nodes/ConditionNode';
+import SaveButton from './SaveButton';
+import NodeDetailsPanel from './NodeDetailsPanel';
+import { apiService } from '@/service/api.service';
 
+import { useSearchParams } from 'next/navigation';
+
+// Node types (defined outside the component to avoid unnecessary re-renders)
 const nodeTypes = {
     start: StartNode,
     end: EndNode,
     action: ActionNode,
+    condition: ConditionNode,
 };
 
 const initialNodes: Node[] = [
     {
         id: '1',
         type: 'start',
-        data: { label: 'Début' },
+        data: { label: 'Start' },
         position: { x: 250, y: 5 },
     },
 ];
 
-import NodeDetailsPanel from './NodeDetailsPanel';
+const getId = (type: string) => `node_${type}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
-let id = 0;
-const getId = () => `dndnode_${id++}`;
-
-const WorkflowEditorContent = () => {
-    const reactFlowWrapper = useRef(null);
+// Internal component using useReactFlow
+function WorkflowEditorContent() {
+    const searchParams = useSearchParams();
+    const workflowId = searchParams.get('id');
+    const reactFlowWrapper = useRef<HTMLDivElement>(null);
     const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-    const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-    const { screenToFlowPosition } = useReactFlow();
+    const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
     const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+    const [workflowName, setWorkflowName] = useState('New Workflow');
+    const [workflowDomain, setWorkflowDomain] = useState('HR');
+    const [workflowProjectId, setWorkflowProjectId] = useState<string>('');
+    const [currentWorkflowId, setCurrentWorkflowId] = useState<string | null>(workflowId);
+    const [isSaving, setIsSaving] = useState(false);
+
+    // Initial load
+    useEffect(() => {
+        if (workflowId) {
+            const loadWorkflow = async () => {
+                try {
+                    const response = await apiService.request(`/workflows/${workflowId}`);
+                    if (response.success && response.data) {
+                        const { name, nodes: loadedNodes, edges: loadedEdges, domain, projectId } = response.data;
+                        setWorkflowName(name);
+                        setWorkflowDomain(domain || 'HR');
+                        setWorkflowProjectId(projectId || '');
+                        setNodes(loadedNodes || []);
+                        setEdges(loadedEdges || []);
+                    }
+                } catch (error) {
+                    console.error('Failed to load workflow:', error);
+                    alert('Error loading workflow');
+                }
+            };
+            loadWorkflow();
+        }
+    }, [workflowId, setNodes, setEdges]);
+
+    // useReactFlow is used here, inside ReactFlowProvider
+    const { screenToFlowPosition } = useReactFlow();
 
     const onConnect = useCallback(
-        (params: Connection) => setEdges((eds) => addEdge(params, eds)),
+        (params: Connection) => {
+            const newEdge: Edge = {
+                ...params,
+                id: `edge_${Date.now()}`,
+                animated: true,
+                style: { strokeWidth: 2 },
+            };
+            // Logic for condition nodes handles
+            if (params.sourceHandle === 'yes') {
+                newEdge.style = { stroke: '#10b981', strokeWidth: 3 };
+                newEdge.label = 'Yes';
+            } else if (params.sourceHandle === 'no') {
+                newEdge.style = { stroke: '#ef4444', strokeWidth: 3 };
+                newEdge.label = 'No';
+            }
+
+            setEdges((eds) => addEdge(newEdge, eds));
+        },
         [setEdges],
     );
 
@@ -65,12 +121,7 @@ const WorkflowEditorContent = () => {
             event.preventDefault();
 
             const type = event.dataTransfer.getData('application/reactflow');
-            const payloadString = event.dataTransfer.getData('application/reactflow-payload');
-            const payload = payloadString ? JSON.parse(payloadString) : {};
-
-            if (typeof type === 'undefined' || !type) {
-                return;
-            }
+            if (!type) return;
 
             const position = screenToFlowPosition({
                 x: event.clientX,
@@ -78,10 +129,14 @@ const WorkflowEditorContent = () => {
             });
 
             const newNode: Node = {
-                id: getId(),
+                id: getId(type),
                 type,
                 position,
-                data: { label: `${type}`, ...payload },
+                data: {
+                    label: type === 'condition' ? 'New Condition' :
+                        type === 'action' ? 'New Task' :
+                            type === 'start' ? 'Start' : 'End'
+                },
             };
 
             setNodes((nds) => nds.concat(newNode));
@@ -101,20 +156,72 @@ const WorkflowEditorContent = () => {
         setNodes((nds) =>
             nds.map((node) => {
                 if (node.id === id) {
-                    return { ...node, data };
+                    return { ...node, data: { ...node.data, ...data } };
                 }
                 return node;
             })
         );
-        // Mettre à jour le noeud sélectionné également pour refléter les changements dans le panneau
-        setSelectedNode((prev) => prev && prev.id === id ? { ...prev, data } : prev);
+        setSelectedNode((prev) => prev && prev.id === id ? { ...prev, data: { ...prev.data, ...data } } : prev);
     }, [setNodes]);
+
+    const onNodeDelete = useCallback((id: string) => {
+        setNodes((nds) => nds.filter((node) => node.id !== id));
+        setEdges((eds) => eds.filter((edge) => edge.source !== id && edge.target !== id));
+        setSelectedNode(null);
+    }, [setNodes, setEdges]);
+
+    const handleSave = useCallback(async (meta: { name: string; domain: string; projectId?: string }) => {
+        try {
+            setIsSaving(true);
+            console.log('Attempting to save workflow:', meta);
+
+            const payload = {
+                name: meta.name,
+                domain: meta.domain || 'HR',
+                projectId: meta.projectId,
+                description: "Workflow created via visual editor",
+                nodes: nodes,
+                edges: edges,
+                status: 'draft'
+            };
+
+            let response;
+            if (currentWorkflowId) {
+                response = await apiService.updateWorkflow(currentWorkflowId, payload);
+            } else {
+                response = await apiService.createWorkflow(payload);
+                if (response.success && response.data?._id) {
+                    setCurrentWorkflowId(response.data._id);
+                }
+            }
+
+            if (response.success) {
+                alert(currentWorkflowId ? 'Workflow updated successfully!' : 'Workflow created successfully!');
+                setWorkflowName(meta.name);
+            } else {
+                alert('Save error: ' + (response.message || 'Unknown error'));
+            }
+        } catch (error: any) {
+            console.error('Workflow save error:', error);
+            alert('Server connection error: ' + error.message);
+            throw error;
+        } finally {
+            setIsSaving(false);
+        }
+    }, [nodes, edges, currentWorkflowId]);
 
     return (
         <div className="flex flex-row h-full w-full relative">
             <Sidebar />
+            <SaveButton
+                onSave={handleSave}
+                isSaving={isSaving}
+                initialName={workflowName}
+                initialDomain={workflowDomain}
+                initialProjectId={workflowProjectId}
+            />
             <div
-                className="flex-grow w-full h-full bg-slate-50 border-2 border-dashed border-slate-300 relative"
+                className="flex-grow h-full bg-slate-50"
                 ref={reactFlowWrapper}
                 onDrop={onDrop}
                 onDragOver={onDragOver}
@@ -128,13 +235,17 @@ const WorkflowEditorContent = () => {
                     onNodeClick={onNodeClick}
                     onPaneClick={onPaneClick}
                     nodeTypes={nodeTypes}
+                    defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+                    minZoom={0.2}
+                    maxZoom={2}
                     fitView
+                    fitViewOptions={{ maxZoom: 1 }}
                     snapToGrid={true}
-                    snapGrid={[20, 20]}
+                    snapGrid={[15, 15]}
                 >
                     <Controls />
                     <MiniMap />
-                    <Background color="#ccc" variant={BackgroundVariant.Dots} gap={20} size={1} />
+                    <Background variant={BackgroundVariant.Dots} gap={15} size={1} />
                 </ReactFlow>
             </div>
             {selectedNode && (
@@ -142,20 +253,20 @@ const WorkflowEditorContent = () => {
                     selectedNode={selectedNode}
                     onClose={() => setSelectedNode(null)}
                     onUpdate={onNodeUpdate}
+                    onDelete={onNodeDelete}
                 />
             )}
         </div>
     );
-};
+}
 
-const WorkflowEditor = () => {
+// Main component with Provider on the outside
+export default function WorkflowEditor() {
     return (
-        <div className="h-full w-full">
-            <ReactFlowProvider>
+        <ReactFlowProvider>
+            <React.Suspense fallback={<div>Loading editor...</div>}>
                 <WorkflowEditorContent />
-            </ReactFlowProvider>
-        </div>
+            </React.Suspense>
+        </ReactFlowProvider>
     );
-};
-
-export default WorkflowEditor;
+}

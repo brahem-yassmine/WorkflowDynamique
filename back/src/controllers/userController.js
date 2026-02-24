@@ -2,188 +2,192 @@
 const bcrypt = require('bcryptjs');
 
 
-// ✅ Plus d'import de User (via req.tenantConn)
+// ✅ No more User import (via req.tenantConn)
 
 
-// Lister les utilisateurs de l'entreprise
+// List company users
 exports.getUsers = async (req, res) => {
   try {
     const User = req.tenantConn.model('User');
-    
+
     const users = await User.find()
       .select('-password')
       .sort({ createdAt: -1 });
-    
+
     res.json({
       success: true,
       data: users
     });
-    
+
   } catch (error) {
-    console.error('Erreur getUsers:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Erreur serveur' 
+    console.error('getUsers Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
     });
   }
 };
 
-// Créer un nouvel utilisateur
+// Create a new user
 exports.createUser = async (req, res) => {
+  console.log('👤 userController.createUser - Body:', req.body);
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Permission refusée' 
+    if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+      console.warn('🚫 Permission denied for role:', req.user.role);
+      return res.status(403).json({
+        success: false,
+        message: 'Permission denied'
       });
     }
-    
+
     const { email, password, firstName, lastName, role, domain } = req.body;
-    
+
     if (!email || !password) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Email et mot de passe requis' 
+      return res.status(400).json({
+        success: false,
+        message: 'Email and password required'
       });
     }
-    
+
     const User = req.tenantConn.model('User');
-    
-    // Vérifier si l'utilisateur existe déjà dans ce tenant
+
+    // Check if user already exists in this tenant
     const existingUser = await User.findOne({ email });
-    
+
     if (existingUser) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Cet utilisateur existe déjà' 
+      console.warn('⚠️ User already exists:', email);
+      return res.status(400).json({
+        success: false,
+        message: 'This user already exists'
       });
     }
-    
+
+    console.log('🔐 Hashing password...');
     const hashedPassword = await bcrypt.hash(password, 10);
+
     const user = new User({
       email,
       password: hashedPassword,
       firstName: firstName || '',
       lastName: lastName || '',
       role: role || 'user',
-      domain: domain || 'RH'
+      domain: domain || 'HR'
     });
-    
+
+    console.log('💾 Saving user...');
     await user.save();
-    
+    console.log('✅ User created:', email);
+
     const userResponse = user.toObject();
     delete userResponse.password;
-    
+
     res.status(201).json({
       success: true,
-      message: 'Utilisateur créé avec succès',
+      message: 'User created successfully',
       data: userResponse
     });
-    
+
   } catch (error) {
-    console.error('Erreur createUser:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Erreur serveur' 
+    console.error('❌ createUser Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error: ' + error.message
     });
   }
 };
 
-// Mettre à jour un utilisateur
+// Update a user
 exports.updateUser = async (req, res) => {
   try {
     const { userId } = req.params;
     const updates = req.body;
-    
+
     const User = req.tenantConn.model('User');
-    
-    // Vérifier les permissions
+
+    // Check permissions
     const targetUser = await User.findById(userId);
     if (!targetUser) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Utilisateur non trouvé' 
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
       });
     }
-    
+
     if (req.user.role !== 'admin' && req.user.userId.toString() !== userId) {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Permission refusée' 
+      return res.status(403).json({
+        success: false,
+        message: 'Permission denied'
       });
     }
-    
-    // Ne pas permettre à un non-admin de changer le rôle
-    if (req.user.role !== 'admin' && updates.role) {
-      delete updates.role;
-    }
-    
+
+    // Do not allow non-admin to change role
+
     if (updates.password) {
       updates.password = await bcrypt.hash(updates.password, 10);
     }
-    
+
     Object.assign(targetUser, updates);
     await targetUser.save();
-    
+
     const userResponse = targetUser.toObject();
     delete userResponse.password;
-    
+
     res.json({
       success: true,
-      message: 'Utilisateur mis à jour',
+      message: 'User updated',
       data: userResponse
     });
-    
+
   } catch (error) {
-    console.error('Erreur updateUser:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Erreur serveur' 
+    console.error('updateUser Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
     });
   }
 };
 
-// ✅ Supprimer un utilisateur
+// Delete a user
 exports.deleteUser = async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Permission refusée' 
+      return res.status(403).json({
+        success: false,
+        message: 'Permission denied'
       });
     }
-    
+
     const { userId } = req.params;
     const User = req.tenantConn.model('User');
-    
+
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Utilisateur non trouvé' 
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
       });
     }
-    
-    // Empêcher la suppression de soi-même
+
+    // Prevent self-deletion
     if (user._id.toString() === req.user.userId.toString()) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Vous ne pouvez pas supprimer votre propre compte' 
+      return res.status(400).json({
+        success: false,
+        message: 'You cannot delete your own account'
       });
     }
-    
+
     await user.deleteOne();
-    
+
     res.json({
       success: true,
-      message: 'Utilisateur supprimé avec succès'
+      message: 'User deleted successfully'
     });
-    
+
   } catch (error) {
-    console.error('Erreur deleteUser:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Erreur serveur' 
+    console.error('deleteUser Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
     });
   }
 };

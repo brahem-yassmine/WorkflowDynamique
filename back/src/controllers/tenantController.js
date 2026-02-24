@@ -1,131 +1,305 @@
 // back/src/controllers/tenantController.js
-// ✅ Plus besoin d'importer Tenant et User (ils sont dans req)
 
-// back/src/controllers/tenantController.js
-
-// Dashboard principal
+// Main Dashboard
 exports.getDashboard = async (req, res) => {
   try {
+    // Verify tenant exists
+    if (!req.tenant) {
+      return res.status(404).json({
+        success: false,
+        message: "Tenant not found"
+      });
+    }
+
     res.json({
       success: true,
       data: {
-        message: "Dashboard tenant",
-        tenant: req.tenant,
-        user: req.user
+        message: "Tenant Dashboard",
+        tenant: {
+          id: req.tenant._id,
+          name: req.tenant.name,
+          email: req.tenant.email,
+          status: req.tenant.status,
+          plan: req.tenant.selectedPlan
+        },
+        user: req.user ? {
+          id: req.user.id,
+          email: req.user.email,
+          role: req.user.role
+        } : null
       }
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error('getDashboard Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 };
 
-// Informations du tenant
+// Tenant information
 exports.getTenantInfo = async (req, res) => {
   try {
+    if (!req.tenant) {
+      return res.status(404).json({
+        success: false,
+        message: "Tenant not found"
+      });
+    }
+
     res.json({
       success: true,
-      data: req.tenant
+      data: {
+        _id: req.tenant._id,
+        name: req.tenant.name,
+        email: req.tenant.email,
+        status: req.tenant.status,
+        industry: req.tenant.industry,
+        adminName: req.tenant.adminName,
+        selectedPlan: req.tenant.selectedPlan,
+        createdAt: req.tenant.createdAt
+      }
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error('getTenantInfo Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 };
 
-// Paramètres du tenant
+// Tenant settings
 exports.getTenantSettings = async (req, res) => {
   try {
-    // Récupérer les settings depuis la base tenant
-    const Settings = req.tenantConn?.model('Settings');
-    let settings = await Settings?.findOne();
-    
-    if (!settings) {
-      settings = { theme: 'light', notifications: true };
+    // Verify tenant connection exists
+    if (!req.tenantConn) {
+      return res.status(500).json({
+        success: false,
+        message: "Tenant database connection not available"
+      });
     }
-    
-    res.json({ success: true, data: settings });
+
+    // Get or create Settings model
+    let Settings;
+    try {
+      Settings = req.tenantConn.model('Settings');
+    } catch (error) {
+      // If model doesn't exist, create it
+      const mongoose = require('mongoose');
+      const settingsSchema = new mongoose.Schema({
+        theme: { type: String, default: 'light' },
+        notifications: { type: Boolean, default: true },
+        language: { type: String, default: 'en' },
+        timezone: { type: String, default: 'UTC' }
+      }, { timestamps: true });
+
+      Settings = req.tenantConn.model('Settings', settingsSchema);
+    }
+
+    let settings = await Settings.findOne();
+
+    if (!settings) {
+      settings = await Settings.create({
+        theme: 'light',
+        notifications: true,
+        language: 'en',
+        timezone: 'UTC'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: settings
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error('❌ getTenantSettings Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 };
 
 exports.updateTenantSettings = async (req, res) => {
   try {
-    const Settings = req.tenantConn?.model('Settings');
-    let settings = await Settings?.findOneAndUpdate(
+    if (!req.tenantConn) {
+      return res.status(500).json({
+        success: false,
+        message: "Tenant database connection not available"
+      });
+    }
+
+    const Settings = req.tenantConn.model('Settings');
+
+    let settings = await Settings.findOneAndUpdate(
       {},
       req.body,
-      { new: true, upsert: true }
+      { new: true, upsert: true, runValidators: true }
     );
-    
-    res.json({ success: true, data: settings });
+
+    res.json({
+      success: true,
+      data: settings
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error('❌ updateTenantSettings Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 };
 
-// Gestion d'équipe
+// Team management
 exports.getTeamMembers = async (req, res) => {
   try {
-    const User = req.tenantConn?.model('User');
+    if (!req.tenantConn) {
+      return res.status(500).json({
+        success: false,
+        message: "Tenant database connection not available"
+      });
+    }
+
+    const User = req.tenantConn.model('User');
     const users = await User.find({ role: { $ne: 'super_admin' } })
-      .select('-password');
-    
-    res.json({ success: true, data: users });
+      .select('-password -__v')
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      data: users
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error('❌ getTeamMembers Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 };
 
 exports.inviteTeamMember = async (req, res) => {
   try {
-    const { email, role } = req.body;
-    const User = req.tenantConn?.model('User');
-    
-    // Vérifier si l'utilisateur existe déjà
-    const existing = await User.findOne({ email });
-    if (existing) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Cet utilisateur existe déjà" 
+    const { email, role, firstName, lastName } = req.body;
+
+    if (!email || !role) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and role required"
       });
     }
-    
-    // Créer une invitation (à implémenter avec un service d'email)
-    const invitation = {
+
+    if (!req.tenantConn) {
+      return res.status(500).json({
+        success: false,
+        message: "Tenant database connection not available"
+      });
+    }
+
+    const User = req.tenantConn.model('User');
+
+    // Check if user already exists
+    const existing = await User.findOne({ email });
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: "This user already exists"
+      });
+    }
+
+    // Create an invitation
+    const Invitation = req.tenantConn.model('Invitation');
+
+    // Generate unique token
+    const generateToken = () => {
+      return Math.random().toString(36).substring(2, 15) +
+        Math.random().toString(36).substring(2, 15);
+    };
+
+    const invitation = await Invitation.create({
       email,
       role,
-      token: Math.random().toString(36).substring(7),
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-    };
-    
-    // Sauvegarder l'invitation
-    const Invitation = req.tenantConn?.model('Invitation');
-    await Invitation?.create(invitation);
-    
-    // TODO: Envoyer l'email d'invitation
-    
-    res.json({ 
-      success: true, 
-      message: "Invitation envoyée",
-      data: { email, role }
+      firstName,
+      lastName,
+      token: generateToken(),
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+    });
+
+    // TODO: Send invitation email
+    console.log(`📧 Invitation created for ${email} with token: ${invitation.token}`);
+
+    res.json({
+      success: true,
+      message: "Invitation sent",
+      data: {
+        email,
+        role,
+        token: invitation.token,
+        expiresAt: invitation.expiresAt
+      }
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error('❌ inviteTeamMember Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 };
 
 exports.removeTeamMember = async (req, res) => {
   try {
     const { userId } = req.params;
-    const User = req.tenantConn?.model('User');
-    
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID required"
+      });
+    }
+
+    if (!req.tenantConn) {
+      return res.status(500).json({
+        success: false,
+        message: "Tenant database connection not available"
+      });
+    }
+
+    const User = req.tenantConn.model('User');
+
+    // Verify user exists
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+
+    // Prevent deleting the last admin
+    if (user.role === 'admin') {
+      const adminCount = await User.countDocuments({ role: 'admin' });
+      if (adminCount <= 1) {
+        return res.status(400).json({
+          success: false,
+          message: "Impossible to delete the last administrator"
+        });
+      }
+    }
+
     await User.findByIdAndDelete(userId);
-    
-    res.json({ 
-      success: true, 
-      message: "Membre retiré avec succès" 
+
+    res.json({
+      success: true,
+      message: "Member removed successfully"
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error('❌ removeTeamMember Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 };

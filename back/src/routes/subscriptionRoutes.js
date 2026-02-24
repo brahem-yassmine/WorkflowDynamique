@@ -9,7 +9,7 @@ const {
 const { auth } = require('../middleware/auth');
 const { checkTenantActive, requirePlan } = require('../middleware/tenantMiddleware');
 
-// Toutes les routes nécessitent auth et tenant actif
+// All routes require auth and active tenant
 router.use(auth, checkTenantActive);
 
 router.get('/history', getSubscriptionHistory);

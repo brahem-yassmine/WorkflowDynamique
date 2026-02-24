@@ -1,3 +1,5 @@
+//front/app/Workflows/_components/WorkflowMonitor.tsx
+
 "use client";
 
 import React, { useEffect } from 'react';
@@ -36,7 +38,7 @@ const WorkflowMonitor = ({ initialNodes, initialEdges, currentNodeIds, execution
     const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
-    // Mettre à jour les styles des noeuds en fonction du statut
+    // Update node styles based on status
     useEffect(() => {
         setNodes((nds) =>
             nds.map((node) => {
@@ -52,7 +54,7 @@ const WorkflowMonitor = ({ initialNodes, initialEdges, currentNodeIds, execution
                 } else if (isRejected) {
                     style = { border: '2px solid #ef4444' };
                 } else {
-                    style = { opacity: 0.5 }; // Griser les noeuds non visités
+                    style = { opacity: 0.5 }; // Gray out unvisited nodes
                 }
 
                 return {

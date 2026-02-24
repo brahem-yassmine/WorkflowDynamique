@@ -9,6 +9,8 @@ export const metadata: Metadata = {
   description: "Plateforme de Gestion de Workflow Dynamique",
 };
 
+import { Toaster } from "sonner";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -18,6 +20,7 @@ export default function RootLayout({
     <html lang="fr">
       <body className={inter.className}>
         {children}
+        <Toaster position="top-right" richColors />
       </body>
     </html>
   );

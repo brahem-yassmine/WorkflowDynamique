@@ -1,111 +1,105 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import {
+  LayoutDashboard,
+  Users,
+  LayoutGrid,
+  ShieldCheck,
+  GitBranch,
+  PlusSquare,
+  CheckSquare,
+  FolderKanban,
+  CreditCard,
+  FileText,
+  UserCircle,
+  LogOut,
+  Zap,
+  ChevronRight
+} from 'lucide-react';
 
+const menuItems = [
+  { icon: LayoutDashboard, label: "Command Center", href: "/admin" },
+  { icon: Users, label: "User Network", href: "/admin/userManagement" },
+  { icon: LayoutGrid, label: "Structural Domains", href: "/admin/domains" },
+  { icon: ShieldCheck, label: "Authority Roles", href: "/admin/roles" },
+  { icon: FolderKanban, label: "Project Portfolios", href: "/admin/projects" },
+  { icon: GitBranch, label: "All Workflows", href: "/admin/workflows" },
+  { icon: PlusSquare, label: "Provision Flow", href: "/admin/create_workflows" },
+  { icon: CheckSquare, label: "Task Monitor", href: "/admin/tasks" },
+  { icon: CreditCard, label: "Fiscal / Billing", href: "/admin/billing" },
+  { icon: FileText, label: "System Logs", href: "/admin/logs" },
+  { icon: UserCircle, label: "Personal Node", href: "/admin/profile" },
+];
 
 function Sidebar() {
+  const pathname = usePathname();
+
   return (
-    <aside className="w-64 bg-indigo-700 text-white flex flex-col h-full fixed">
-      <div className="p-6">
-        <h1 className="text-2xl font-bold text-white">Axia Solutions</h1>
-        <p className="text-indigo-200 text-sm mt-1">Admin panel</p>
-      </div>
-      
-      <nav className="flex-1 mt-6 overflow-y-auto">
-        <div className="px-4 space-y-1">
-          <Link href="/essai" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-lg transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z" />
-              <path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z" />
-            </svg>
-            <span className="text-sm font-medium flex-1">Global Dashboard</span>
-          </Link>
-          
-          <Link href="/essai/user-management" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-lg transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-            </svg>
-            <span className="text-sm font-medium">User Managment</span>
-          </Link>
-          <Link href="/essai/roles" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-lg transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
-            <span className="text-sm font-medium">Roles</span>
-          </Link>
-          
-          <Link href="/essai/workflows" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-lg transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-            </svg>
-            <span className="text-sm font-medium">Workflows</span>
-          </Link>
-          
-          <Link href="/essai/create" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-lg transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span className="text-sm font-medium">Create</span>
-          </Link>
-          
-          <Link href="/essai/tasks" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-lg transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-            </svg>
-            <span className="text-sm font-medium">Tasks</span>
-          </Link>
-          
-          <Link href="/essai/reports" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-lg transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0_1-2-2z" />
-             </svg>
-                         <span className="text-sm font-medium">reports</span>
+    <aside className="w-64 bg-indigo-700 text-white flex flex-col h-full shadow-2xl relative overflow-hidden">
+      {/* Decorative background elements */}
+      <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl"></div>
+      <div className="absolute bottom-0 left-0 w-24 h-24 bg-indigo-900/20 rounded-full -ml-12 -mb-12 blur-xl"></div>
 
-          </Link>
-
-
-          <Link href="/essai/notifications" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-lg transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-            </svg>
-            <span className="text-sm font-medium">Notifications</span>
-          </Link>
-          
-          <Link href="/essai/billing" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-lg transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-            </svg>
-            <span className="text-sm font-medium">Billing</span>
-          </Link>
-          
-          <Link href="/essai/logs" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-lg transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
-            </svg>
-            <span className="text-sm font-medium">Logs & History</span>
-          </Link>
-          
-          <Link href="/essai/profile" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-lg transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-            <span className="text-sm font-medium">Profile</span>
-          </Link>
+      <div className="p-8 relative z-10">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg shadow-indigo-900/20">
+            <Zap size={22} className="text-indigo-600 fill-indigo-600" />
+          </div>
+          <div>
+            <h1 className="text-xl font-black text-white tracking-tighter">Axia Core</h1>
+            <p className="text-[10px] text-indigo-200 font-black uppercase tracking-widest opacity-80">Admin Console</p>
+          </div>
         </div>
+      </div>
+
+      <nav className="flex-1 mt-4 overflow-y-auto px-4 space-y-1 relative z-10 custom-scrollbar">
+        {menuItems.map((item, index) => {
+          const isActive = pathname === item.href;
+          return (
+            <Link
+              key={index}
+              href={item.href}
+              className={`
+                flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 group relative
+                ${isActive ? 'bg-white text-indigo-700 shadow-xl shadow-indigo-900/20' : 'text-indigo-100 hover:bg-white/10 hover:text-white'}
+              `}
+            >
+              <item.icon size={18} className={`${isActive ? 'text-indigo-600' : 'text-indigo-300 group-hover:text-white'} transition-colors`} />
+              <span className={`text-xs font-bold tracking-tight flex-1 ${isActive ? 'font-black' : ''}`}>
+                {item.label}
+              </span>
+              {isActive && (
+                <motion.div layoutId="activeDot" className="w-1.5 h-1.5 bg-indigo-600 rounded-full shadow-sm"></motion.div>
+              )}
+              {!isActive && (
+                <ChevronRight size={14} className="opacity-0 group-hover:opacity-40 transition-opacity" />
+              )}
+            </Link>
+          );
+        })}
       </nav>
 
+      <div className="p-6 mt-auto relative z-10">
+        <div className="bg-indigo-800/50 rounded-2xl p-4 border border-indigo-400/20 mb-6">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></div>
+            <span className="text-[9px] font-black text-indigo-200 uppercase tracking-widest">Lattice Security</span>
+          </div>
+          <p className="text-[11px] font-bold text-white/90">Master Node Active</p>
+        </div>
 
-<div className="p-4 border-t border-indigo-600">
-  <Link href="/signin">
-    <button className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-lg w-full transition-colors">
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-      </svg>
-      <span className="text-sm font-medium">Logout</span>
-    </button>
-  </Link>
-</div>
+        <Link href="/signin">
+          <button className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-white/10 hover:text-white rounded-2xl w-full transition-all group">
+            <LogOut size={18} className="group-hover:-translate-x-1 transition-transform" />
+            <span className="text-xs font-bold tracking-tight">Terminate Session</span>
+          </button>
+        </Link>
+      </div>
     </aside>
   );
 }
- export default Sidebar;
+
+import { motion } from 'framer-motion';
+export default Sidebar;

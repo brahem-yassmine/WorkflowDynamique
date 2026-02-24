@@ -3,12 +3,12 @@ require('dotenv').config();
 const mongoose = require('mongoose');
 const Plan = require('../src/models/Plan');
 
-// ✅ Plans par défaut avec les BONS noms
+//  Default plans with CORRECT names
 const defaultPlans = [
   {
     name: 'free_trial',
     displayName: 'Demo',
-    description: '15 jours pour découvrir toutes les fonctionnalités',
+    description: '15 days to discover all features',
     monthlyPrice: 0,
     yearlyPrice: 0,
     trialPeriodDays: 15,
@@ -23,10 +23,10 @@ const defaultPlans = [
       maxStorage: 0.5
     },
     highlights: [
-      '15 jours d\'essai gratuit',
-      '1 utilisateur',
+      '15-day free trial',
+      '1 user',
       '3 workflows',
-      'Support par email'
+      'Email support'
     ],
     displayOrder: 1,
     isPopular: false,
@@ -35,7 +35,7 @@ const defaultPlans = [
   {
     name: 'starter',
     displayName: 'Starter',
-    description: 'Pour les petites équipes qui débutent',
+    description: 'For small teams getting started',
     monthlyPrice: 29,
     yearlyPrice: 279,
     trialPeriodDays: 14,
@@ -50,10 +50,10 @@ const defaultPlans = [
       maxStorage: 5
     },
     highlights: [
-      'Jusqu\'à 5 utilisateurs',
+      'Up to 5 users',
       '10 workflows',
-      '5 Go de stockage',
-      'Support prioritaire'
+      '5 GB storage',
+      'Priority support'
     ],
     displayOrder: 2,
     isPopular: false,
@@ -62,7 +62,7 @@ const defaultPlans = [
   {
     name: 'pro',
     displayName: 'Pro',
-    description: 'Pour les équipes en pleine croissance',
+    description: 'For growing teams',
     monthlyPrice: 79,
     yearlyPrice: 759,
     trialPeriodDays: 14,
@@ -77,18 +77,18 @@ const defaultPlans = [
       maxStorage: 50
     },
     highlights: [
-      'Utilisateurs illimités',
-      'Workflows illimités',
-      'Assistance IA',
-      'Marque personnalisée',
-      '50 Go de stockage',
-      'API avancée',
-      'Analytiques avancées'
+      'Unlimited users',
+      'Unlimited workflows',
+      'AI Assistance',
+      'Custom branding',
+      '50 GB storage',
+      'Advanced API',
+      'Advanced analytics'
     ],
     displayOrder: 3,
     isPopular: true,
     badge: {
-      text: 'Recommandé',
+      text: 'Recommended',
       color: 'blue'
     },
     isActive: true
@@ -97,46 +97,46 @@ const defaultPlans = [
 
 async function seedPlans() {
   try {
-    // ✅ Connexion à MongoDB
+    //  Connection to MongoDB
     const MONGO_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/workflow_dynamique';
     await mongoose.connect(MONGO_URI);
-    console.log('✅ Connecté à MongoDB');
+    console.log(' Connected to MongoDB');
 
-    // ✅ SUPPRIMER TOUS les plans existants
-    console.log('\n🗑️ Suppression des anciens plans...');
+    // DELETE ALL existing plans
+    console.log('\n Deleting old plans...');
     await Plan.deleteMany({});
-    console.log('✅ Anciens plans supprimés');
+    console.log(' Old plans deleted');
 
-    // ✅ CRÉER les nouveaux plans
-    console.log('\n Création des nouveaux plans...');
+    // CREATE new plans
+    console.log('\n Creating new plans...');
     for (const planData of defaultPlans) {
       const plan = new Plan(planData);
       await plan.save();
-      console.log(` Plan créé: ${plan.displayName} (${plan.name}) - ${plan.monthlyPrice === 0 ? 'Gratuit' : plan.monthlyPrice + '€'}`);
+      console.log(` Plan created: ${plan.displayName} (${plan.name}) - ${plan.monthlyPrice === 0 ? 'Free' : plan.monthlyPrice + '€'}`);
     }
 
-    // ✅ VÉRIFIER le résultat
+    // VERIFY the result
     const finalPlans = await Plan.find({}).sort({ displayOrder: 1 });
-    console.log('\n Plans finaux dans la base:');
+    console.log('\n Final plans in the database:');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     finalPlans.forEach(plan => {
-      console.log(`\n ${plan.displayName} ${plan.isPopular ? '⭐' : ''}`);
+      console.log(`\n ${plan.displayName} ${plan.isPopular ? '' : ''}`);
       console.log(`   ID: ${plan._id}`);
       console.log(`   Name: ${plan.name}`);
-      console.log(`   Prix: ${plan.monthlyPrice === 0 ? 'Gratuit' : plan.monthlyPrice + 'D'}`);
-      console.log(`   Essai: ${plan.trialPeriodDays} jours`);
+      console.log(`   Price: ${plan.monthlyPrice === 0 ? 'Free' : plan.monthlyPrice + 'D'}`);
+      console.log(`   Trial: ${plan.trialPeriodDays} days`);
     });
 
     console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log(`✅ ${finalPlans.length} plans actifs`);
+    console.log(` ${finalPlans.length} active plans`);
 
   } catch (error) {
-    console.error(' Erreur:', error);
+    console.error(' Error:', error);
   } finally {
     await mongoose.disconnect();
-    console.log('\n👋 Déconnecté de MongoDB');
+    console.log('\n Disconnected from MongoDB');
   }
 }
 
-// Exécuter
+// Execute
 seedPlans();

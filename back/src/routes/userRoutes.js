@@ -6,15 +6,16 @@ const { getUsers, createUser, updateUser, deleteUser } = require('../controllers
 const { auth, requireRole } = require('../middleware/auth');
 const { checkTenantActive, checkPlanLimits } = require('../middleware/tenantMiddleware');
 
-// Toutes les routes nécessitent auth + tenant actif
+// All routes require auth + active tenant
 router.use(auth, checkTenantActive);
 
 // Admin seulement pour la liste, création et suppression
+// Admin only for listing and creation
 router.get('/', requireRole('admin'), getUsers);
 router.post('/', requireRole('admin'), checkPlanLimits('users'), createUser);
 router.delete('/:userId', requireRole('admin'), deleteUser);
 
-// Admin ou l'utilisateur lui-même pour la mise à jour
+// Admin or the user themselves for update
 router.put('/:userId', updateUser);
 
 module.exports = router;

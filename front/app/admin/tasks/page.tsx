@@ -1,21 +1,23 @@
-// app/tasks/page.tsx
 'use client'
 
-import { useState } from 'react';
-import Link from 'next/link';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
-import AddIcon from '@mui/icons-material/Add';
-import WarningIcon from '@mui/icons-material/Warning';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
-import PersonIcon from '@mui/icons-material/Person';
-import CategoryIcon from '@mui/icons-material/Category';
-import DescriptionIcon from '@mui/icons-material/Description';
+import React, { useState } from 'react';
+import {
+  Plus,
+  Search,
+  Filter,
+  MoreHorizontal,
+  Clock,
+  AlertCircle,
+  CheckCircle2,
+  MessageSquare,
+  Paperclip,
+  Trash2,
+  Edit,
+  User,
+  Calendar
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
-import Sidebar from '../components/sidebar';
-
-// Types pour les tâches
 interface Task {
   id: string;
   name: string;
@@ -27,343 +29,231 @@ interface Task {
   comments: number;
   attachments: number;
   warnings: number;
+  dueDate: string;
 }
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([
-    // Pending Tasks
-    { 
-      id: '1', 
-      name: 'Renew budget proposal', 
-      priority: 'High', 
-      category: 'Draft',
-      description: 'Update and renew the annual budget proposal',
-      assignedTo: 'John Doe',
-      state: 'pending',
-      comments: 0, 
-      attachments: 1, 
-      warnings: 1 
-    },
-    { 
-      id: '2', 
-      name: 'Plan Q kickoff', 
-      priority: 'Medium', 
-      category: 'Event',
-      description: 'Plan the quarterly kickoff meeting',
-      assignedTo: 'Jane Smith',
-      state: 'pending',
-      comments: 0, 
-      attachments: 1, 
-      warnings: 1 
-    },
-    { 
-      id: '3', 
-      name: 'Update marketing plan', 
-      priority: 'Medium', 
-      category: 'Brief',
-      description: 'Refresh the marketing strategy document',
-      assignedTo: 'Mike Johnson',
-      state: 'in-progress',
-      comments: 0, 
-      attachments: 1, 
-      warnings: 1 
-    },
-    { 
-      id: '4', 
-      name: 'New design flow', 
-      priority: 'Low', 
-      category: 'Strategy',
-      description: 'Create new design workflow',
-      assignedTo: 'Sarah Williams',
-      state: 'in-progress',
-      comments: 1, 
-      attachments: 2, 
-      warnings: 1 
-    },
-    { 
-      id: '5', 
-      name: 'Brand sync', 
-      priority: 'High', 
-      category: 'Meeting',
-      description: 'Sync with brand team',
-      assignedTo: 'David Brown',
-      state: 'done',
-      comments: 0, 
-      attachments: 1, 
-      warnings: 1 
-    },
-    { 
-      id: '6', 
-      name: 'LP mini-site', 
-      priority: 'High', 
-      category: 'Website',
-      description: 'Create landing page mini-site',
-      assignedTo: 'Emily Davis',
-      state: 'done',
-      comments: 0, 
-      attachments: 1, 
-      warnings: 1 
-    },
+    { id: '1', name: 'Renew budget proposal', priority: 'High', category: 'Finance', description: 'Update and renew the annual budget proposal for the upcoming fiscal year.', assignedTo: 'John Doe', state: 'pending', comments: 3, attachments: 2, warnings: 1, dueDate: '2 days left' },
+    { id: '2', name: 'Plan Q kickoff', priority: 'Medium', category: 'Events', description: 'Coordinate with all department heads for the next quarterly kickoff.', assignedTo: 'Jane Smith', state: 'pending', comments: 0, attachments: 1, warnings: 0, dueDate: '5 days left' },
+    { id: '3', name: 'Update marketing plan', priority: 'Medium', category: 'Brief', description: 'Refresh the marketing strategy document with latest analytics.', assignedTo: 'Mike Johnson', state: 'in-progress', comments: 5, attachments: 3, warnings: 0, dueDate: 'Tomorrow' },
+    { id: '4', name: 'New design flow', priority: 'Low', category: 'Product', description: 'Design the user flow for the new AI-powered workflow builder.', assignedTo: 'Sarah Williams', state: 'in-progress', comments: 12, attachments: 8, warnings: 2, dueDate: 'Next week' },
+    { id: '5', name: 'Brand sync', priority: 'High', category: 'Marketing', description: 'Synchronize brand assets with the global design team.', assignedTo: 'David Brown', state: 'done', comments: 2, attachments: 1, warnings: 0, dueDate: 'Completed' },
   ]);
 
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [showAddModal, setShowAddModal] = useState(false);
-
-  const getPriorityColor = (priority: string) => {
-    switch(priority) {
-      case 'High': return 'text-red-600 bg-red-50';
-      case 'Medium': return 'text-yellow-600 bg-yellow-50';
-      case 'Low': return 'text-green-600 bg-green-50';
-      default: return 'text-gray-600 bg-gray-50';
-    }
-  };
-
-  const handleTaskClick = (task: Task) => {
-    setSelectedTask(task);
-  };
-
-  const handleDeleteTask = (taskId: string) => {
-    if (window.confirm('Are you sure you want to delete this task?')) {
-      setTasks(tasks.filter(task => task.id !== taskId));
-      if (selectedTask?.id === taskId) {
-        setSelectedTask(null);
-      }
-    }
-  };
+  const [searchTerm, setSearchTerm] = useState('');
 
   const handleStateChange = (taskId: string, newState: Task['state']) => {
-    setTasks(tasks.map(task => 
-      task.id === taskId ? { ...task, state: newState } : task
-    ));
-    if (selectedTask?.id === taskId) {
-      setSelectedTask({ ...selectedTask, state: newState });
+    setTasks(tasks.map(t => t.id === taskId ? { ...t, state: newState } : t));
+    if (selectedTask?.id === taskId) setSelectedTask({ ...selectedTask, state: newState });
+  };
+
+  const getPriorityStyles = (priority: string) => {
+    switch (priority) {
+      case 'High': return 'bg-rose-50 text-rose-600 border-rose-100';
+      case 'Medium': return 'bg-amber-50 text-amber-600 border-amber-100';
+      case 'Low': return 'bg-emerald-50 text-emerald-600 border-emerald-100';
+      default: return 'bg-slate-50 text-slate-600 border-slate-100';
     }
   };
 
-  const TaskCard = ({ task }: { task: Task }) => (
-    <div 
-      onClick={() => handleTaskClick(task)}
-      className={`bg-white p-4 rounded-lg shadow hover:shadow-md transition-shadow cursor-pointer border-l-4 ${
-        task.state === 'pending' ? 'border-yellow-400' :
-        task.state === 'in-progress' ? 'border-blue-400' :
-        'border-green-400'
-      }`}
-    >
-      <h4 className="font-medium text-gray-800 mb-2">{task.name}</h4>
-      <div className="flex flex-wrap items-center gap-2 mb-2">
-        <span className={`text-xs px-2 py-1 rounded-full ${getPriorityColor(task.priority)}`}>
-          {task.priority}
-        </span>
-        <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-full">
-          {task.category}
-        </span>
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500">
+
+
+      {/* Control Bar */}
+      <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+        <div className="relative w-full md:max-w-md group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
+          <input
+            type="text"
+            placeholder="Search by task name, owner or category..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-12 pr-4 py-3 bg-white border border-slate-100 rounded-2xl shadow-sm focus:outline-none focus:ring-4 focus:ring-indigo-50 transition-all font-medium text-slate-700"
+          />
+        </div>
+        <div className="flex items-center gap-3">
+          <button className="p-3 bg-white border border-slate-100 rounded-xl text-slate-400 hover:text-indigo-600 transition-colors shadow-sm">
+            <Filter size={20} />
+          </button>
+          <button className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95">
+            <Plus size={18} />
+            Create Task
+          </button>
+        </div>
       </div>
-      <div className="flex items-center gap-3 text-xs text-gray-500">
-        <span className="flex items-center gap-1">
-          <span className="w-4 h-4 rounded-full border border-gray-300 flex items-center justify-center text-[10px]">
-            {task.comments}
-          </span>
-          <span>○</span>
-          <span>{task.attachments}</span>
-        </span>
-        {task.warnings > 0 && (
-          <span className="flex items-center gap-1 text-yellow-600">
-            <WarningIcon fontSize="small" className="text-sm" />
-            <span>{task.warnings}</span>
-          </span>
-        )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-[calc(100vh-280px)]">
+        {/* Kanban Board */}
+        <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-3 gap-6 overflow-hidden">
+          <Column
+            title="Scheduled"
+            count={tasks.filter(t => t.state === 'pending').length}
+            color="bg-slate-400"
+          >
+            {tasks.filter(t => t.state === 'pending').map(t => (
+              <TaskCard key={t.id} task={t} onClick={() => setSelectedTask(t)} styles={getPriorityStyles(t.priority)} />
+            ))}
+          </Column>
+
+          <Column
+            title="In Execution"
+            count={tasks.filter(t => t.state === 'in-progress').length}
+            color="bg-indigo-500"
+          >
+            {tasks.filter(t => t.state === 'in-progress').map(t => (
+              <TaskCard key={t.id} task={t} onClick={() => setSelectedTask(t)} styles={getPriorityStyles(t.priority)} />
+            ))}
+          </Column>
+
+          <Column
+            title="Synchronized"
+            count={tasks.filter(t => t.state === 'done').length}
+            color="bg-emerald-500"
+          >
+            {tasks.filter(t => t.state === 'done').map(t => (
+              <TaskCard key={t.id} task={t} onClick={() => setSelectedTask(t)} styles={getPriorityStyles(t.priority)} />
+            ))}
+          </Column>
+        </div>
+
+        {/* Task Inspector */}
+        <div className="lg:col-span-4 h-full">
+          <AnimatePresence mode="wait">
+            {selectedTask ? (
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 h-full flex flex-col"
+              >
+                <div className="flex justify-between items-start mb-8">
+                  <div className={`px-3 py-1 rounded-lg border text-[10px] font-black uppercase tracking-widest ${getPriorityStyles(selectedTask.priority)}`}>
+                    {selectedTask.priority} Priority
+                  </div>
+                  <button onClick={() => setSelectedTask(null)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
+                    <MoreHorizontal size={20} />
+                  </button>
+                </div>
+
+                <h2 className="text-2xl font-black text-slate-800 tracking-tight mb-2">{selectedTask.name}</h2>
+                <p className="text-sm font-medium text-slate-500 leading-relaxed mb-8">{selectedTask.description}</p>
+
+                <div className="space-y-6 flex-grow">
+                  <DetailRow label="Protocol State" icon={<Clock size={16} />}>
+                    <select
+                      value={selectedTask.state}
+                      onChange={(e) => handleStateChange(selectedTask.id, e.target.value as Task['state'])}
+                      className="bg-slate-50 border-none text-xs font-black text-indigo-600 rounded-lg py-1 px-3 outline-none"
+                    >
+                      <option value="pending">Scheduled</option>
+                      <option value="in-progress">Executing</option>
+                      <option value="done">Synchronized</option>
+                    </select>
+                  </DetailRow>
+                  <DetailRow label="Assignee Node" icon={<User size={16} />}>
+                    <span className="text-sm font-bold text-slate-700">{selectedTask.assignedTo}</span>
+                  </DetailRow>
+                  <DetailRow label="Deadline" icon={<Calendar size={16} />}>
+                    <span className={`text-sm font-black ${selectedTask.dueDate === 'Critical' ? 'text-rose-600' : 'text-slate-700'}`}>
+                      {selectedTask.dueDate}
+                    </span>
+                  </DetailRow>
+                </div>
+
+                <div className="pt-8 border-t border-slate-50 space-y-3">
+                  <button className="w-full py-3 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all active:scale-95 shadow-lg shadow-indigo-100">
+                    <Edit size={16} />
+                    Update Node
+                  </button>
+                  <button className="w-full py-3 bg-rose-50 text-rose-600 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-rose-100 transition-all active:scale-95">
+                    <Trash2 size={16} />
+                    Terminate Node
+                  </button>
+                </div>
+              </motion.div>
+            ) : (
+              <div className="bg-slate-50/50 rounded-3xl border border-dashed border-slate-200 h-full flex flex-col items-center justify-center p-12 text-center">
+                <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-6 text-slate-300">
+                  <CheckCircle2 size={32} />
+                </div>
+                <h3 className="text-lg font-black text-slate-400 tracking-tight">Inspector Idle</h3>
+                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Select a task node to view sub-metrics.</p>
+              </div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   );
+}
 
+function Column({ title, count, color, children }: { title: string; count: number; color: string; children: React.ReactNode }) {
   return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar />
-      <main className="flex-1 ml-64 p-8 overflow-y-auto">
-        {/* Header */}
-        <div className="bg-indigo-600 -mt-8 -mx-8 p-8 mb-6">
-          <h1 className="text-3xl font-bold text-white">Task Management</h1>
+    <div className="flex flex-col h-full bg-slate-50/50 rounded-3xl p-5 border border-slate-100">
+      <div className="flex items-center justify-between mb-6 px-1">
+        <div className="flex items-center gap-3">
+          <div className={`w-2 h-2 rounded-full ${color}`}></div>
+          <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">{title}</h3>
         </div>
+        <span className="text-[10px] font-black text-slate-400 bg-white px-2 py-0.5 rounded-lg border border-slate-100">{count}</span>
+      </div>
+      <div className="flex-grow overflow-y-auto space-y-4 pr-2 custom-scrollbar">
+        {children}
+      </div>
+    </div>
+  );
+}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Kanban Board */}
-          <div className="lg:col-span-2">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">This week</h2>
-            
-            <div className="space-y-6">
-              {/* Pending Section */}
-              <div>
-                <h3 className="text-lg font-medium text-gray-700 mb-3 flex items-center gap-2">
-                  <span className="w-3 h-3 bg-yellow-400 rounded-full"></span>
-                  To do
-                </h3>
-                <div className="space-y-3">
-                  {tasks.filter(t => t.state === 'pending').map(task => (
-                    <TaskCard key={task.id} task={task} />
-                  ))}
-                </div>
-              </div>
-
-              {/* In Progress Section */}
-              <div>
-                <h3 className="text-lg font-medium text-gray-700 mb-3 flex items-center gap-2">
-                  <span className="w-3 h-3 bg-blue-400 rounded-full"></span>
-                  In progress
-                </h3>
-                <div className="space-y-3">
-                  {tasks.filter(t => t.state === 'in-progress').map(task => (
-                    <TaskCard key={task.id} task={task} />
-                  ))}
-                </div>
-              </div>
-
-              {/* Done Section */}
-              <div>
-                <h3 className="text-lg font-medium text-gray-700 mb-3 flex items-center gap-2">
-                  <span className="w-3 h-3 bg-green-400 rounded-full"></span>
-                  Done
-                </h3>
-                <div className="space-y-3">
-                  {tasks.filter(t => t.state === 'done').map(task => (
-                    <TaskCard key={task.id} task={task} />
-                  ))}
-                  <button className="w-full p-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-indigo-500 hover:text-indigo-600 transition-colors flex items-center justify-center gap-2">
-                    <AddIcon fontSize="small" />
-                    Add new subitem...
-                  </button>
-                </div>
-              </div>
+function TaskCard({ task, onClick, styles }: { task: Task; onClick: () => void; styles: string }) {
+  return (
+    <motion.div
+      whileHover={{ y: -4 }}
+      onClick={onClick}
+      className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 cursor-pointer hover:shadow-md transition-all group relative overflow-hidden"
+    >
+      <div className="absolute top-0 left-0 w-1 h-full bg-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+      <div className="flex justify-between items-start mb-3">
+        <span className={`px-2 py-0.5 rounded-md border text-[9px] font-black uppercase tracking-tighter ${styles}`}>
+          {task.category}
+        </span>
+        <span className="text-[9px] font-black text-slate-400 flex items-center gap-1 uppercase tracking-widest">
+          <Clock size={10} /> {task.dueDate}
+        </span>
+      </div>
+      <h4 className="text-sm font-bold text-slate-800 mb-4 line-clamp-2">{task.name}</h4>
+      <div className="flex items-center justify-between mt-auto">
+        <div className="w-6 h-6 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] font-black text-slate-400 uppercase">
+          {task.assignedTo.slice(0, 2)}
+        </div>
+        <div className="flex items-center gap-3 text-slate-400">
+          <div className="flex items-center gap-1 text-[10px] font-black tracking-tighter">
+            <MessageSquare size={12} /> {task.comments}
+          </div>
+          <div className="flex items-center gap-1 text-[10px] font-black tracking-tighter">
+            <Paperclip size={12} /> {task.attachments}
+          </div>
+          {task.warnings > 0 && (
+            <div className="text-rose-500">
+              <AlertCircle size={14} />
             </div>
-          </div>
-
-          {/* Right Column - Task Details (API Tasks style) */}
-          <div className="lg:col-span-1">
-            {selectedTask ? (
-              <div className="bg-white rounded-lg shadow-lg p-6 sticky top-8">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-gray-800">Task Details</h3>
-                  <button
-                    onClick={() => setSelectedTask(null)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                {/* Task Name */}
-                <div className="mb-4">
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div className="font-medium text-gray-600">Task name</div>
-                    <div className="font-medium text-gray-600">Task name</div>
-                    <div className="col-span-2 text-gray-800 font-medium">{selectedTask.name}</div>
-                  </div>
-                </div>
-
-                {/* State */}
-                <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                  <div className="text-sm text-gray-600 mb-1">State</div>
-                  <select
-                    value={selectedTask.state}
-                    onChange={(e) => handleStateChange(selectedTask.id, e.target.value as Task['state'])}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value="pending">Pending</option>
-                    <option value="in-progress">In Progress</option>
-                    <option value="done">Done</option>
-                  </select>
-                </div>
-
-                {/* Details */}
-                <div className="mb-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Details:</h4>
-                  <div className="space-y-3">
-                    {/* Description */}
-                    <div className="flex items-start gap-2">
-                      <DescriptionIcon fontSize="small" className="text-gray-400 mt-1" />
-                      <div>
-                        <div className="text-xs text-gray-500">description</div>
-                        <div className="text-sm text-gray-800">{selectedTask.description}</div>
-                      </div>
-                    </div>
-
-                    {/* Category */}
-                    <div className="flex items-start gap-2">
-                      <CategoryIcon fontSize="small" className="text-gray-400 mt-1" />
-                      <div>
-                        <div className="text-xs text-gray-500">category</div>
-                        <div className="text-sm text-gray-800">{selectedTask.category}</div>
-                      </div>
-                    </div>
-
-                    {/* Assigned To */}
-                    <div className="flex items-start gap-2">
-                      <PersonIcon fontSize="small" className="text-gray-400 mt-1" />
-                      <div>
-                        <div className="text-xs text-gray-500">By...</div>
-                        <div className="text-sm text-gray-800">{selectedTask.assignedTo}</div>
-                      </div>
-                    </div>
-
-                    {/* Priority */}
-                    <div className="flex items-start gap-2">
-                      <span className="text-gray-400 text-sm">⚠️</span>
-                      <div>
-                        <div className="text-xs text-gray-500">Priority</div>
-                        <span className={`text-xs px-2 py-1 rounded-full ${getPriorityColor(selectedTask.priority)}`}>
-                          {selectedTask.priority}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="border-t pt-4 space-y-2">
-                  <button
-                    onClick={() => handleDeleteTask(selectedTask.id)}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                  >
-                    <DeleteIcon fontSize="small" />
-                    delete task
-                  </button>
-                  
-                  <button
-                    onClick={() => handleStateChange(selectedTask.id, 
-                      selectedTask.state === 'done' ? 'pending' : 
-                      selectedTask.state === 'pending' ? 'in-progress' : 'done'
-                    )}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-                  >
-                    <EditIcon fontSize="small" />
-                    change state
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setSelectedTask(null);
-                      setShowAddModal(true);
-                    }}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                  >
-                    <AddIcon fontSize="small" />
-                    add task
-                  </button>
-                </div>
-
-                {/* Footer */}
-                <div className="mt-4 text-xs text-gray-400 border-t pt-2">
-                  © Task
-                </div>
-              </div>
-            ) : (
-              <div className="bg-white rounded-lg shadow-lg p-6 sticky top-8 text-center text-gray-500">
-                <p className="mb-2">Select a task to view details</p>
-                <p className="text-sm">Click on any task from the list</p>
-              </div>
-            )}
-          </div>
+          )}
         </div>
-      </main>
+      </div>
+    </motion.div>
+  );
+}
+
+function DetailRow({ label, icon, children }: { label: string; icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-3 text-slate-400">
+        <div className="p-2 bg-slate-50 rounded-lg">{icon}</div>
+        <span className="text-[10px] font-black uppercase tracking-widest leading-none">{label}</span>
+      </div>
+      {children}
     </div>
   );
 }

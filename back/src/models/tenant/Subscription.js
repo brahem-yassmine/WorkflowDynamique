@@ -1,18 +1,18 @@
-// back/src/models/tenant/Subscription.js -  OPTIONNEL
-// Si tu veux garder un historique des abonnements DANS le tenant
-// Mais la source de vérité reste dans master/Tenant
+// back/src/models/tenant/Subscription.js - OPTIONAL
+// If you want to keep a subscription history INSIDE the tenant
+// But the source of truth remains in master/Tenant
 const mongoose = require('mongoose');
 const subscriptionSchema = new mongoose.Schema({
-  // ❌ PLUS DE tenantId
-  planId: String, // juste l'ID du plan (pas de référence MongoDB)
+  // NO MORE tenantId
+  planId: String, // just the plan ID (no MongoDB reference)
   planName: String,
   billingCycle: String,
   price: Number,
   status: String,
   startDate: Date,
   endDate: Date,
-  
-  // Référence à l'utilisateur qui a fait l'action
+
+  // Reference to the user who performed the action
   selectedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'

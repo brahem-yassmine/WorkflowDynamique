@@ -3,11 +3,22 @@
 import { useState, useEffect } from "react";
 import {
   Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import {
+  Loader2,
+  RefreshCw,
+  Search,
+  Filter,
+  ChevronRight,
+  MoreHorizontal,
+  Mail,
+  Calendar,
+  Database,
+  User,
+  ShieldCheck,
+  ShieldAlert,
+  Building2
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -23,16 +34,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, RefreshCw } from "lucide-react";
 
 type Company = {
   id: string;
@@ -53,157 +54,70 @@ export default function CompanyManagement() {
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [open, setOpen] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
-  // ✅ Charger les entreprises avec débogage
   const fetchCompanies = async () => {
     try {
       setLoading(true);
       setError(null);
-      
-      console.log("=".repeat(50));
-      console.log("📋 ÉTAPE 1: Début chargement entreprises");
-      
       const token = localStorage.getItem('auth_token');
-      console.log("📋 ÉTAPE 2: Token présent:", token ? "Oui" : "Non");
-      
-      if (!token) {
-        setError("Token non trouvé - Veuillez vous reconnecter");
-        alert("Veuillez vous reconnecter");
-        return;
-      }
+      if (!token) return;
 
-      console.log("📋 ÉTAPE 3: Envoi requête à /api/admin/tenants");
-      
       const response = await fetch('http://localhost:5000/api/admin/tenants', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
 
-      console.log("📋 ÉTAPE 4: Status réponse:", response.status);
-      console.log("📋 ÉTAPE 4b: Status texte:", response.statusText);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("❌ Réponse erreur:", errorText);
-        throw new Error(`Erreur HTTP ${response.status}: ${response.statusText}`);
-      }
-
+      if (!response.ok) throw new Error('Failed to synchronize nodes');
       const data = await response.json();
-      console.log("📋 ÉTAPE 5: Données reçues:", data);
-      
-      console.log("📋 ÉTAPE 6: success:", data.success);
-      console.log("📋 ÉTAPE 7: data.data type:", typeof data.data);
-      console.log("📋 ÉTAPE 8: data.data est un tableau?", Array.isArray(data.data));
-      
+
       if (data.success && Array.isArray(data.data)) {
-        console.log("📋 ÉTAPE 9: Nombre de tenants:", data.data.length);
-        
-        if (data.data.length === 0) {
-          console.log("⚠️ Aucun tenant trouvé dans la base");
-          setCompanies([]);
-          return;
-        }
-        
-        // Afficher le premier tenant pour voir sa structure
-        console.log("📋 ÉTAPE 10: Structure premier tenant:", JSON.stringify(data.data[0], null, 2));
-        
-        const formattedCompanies: Company[] = data.data.map((tenant: any, index: number) => {
-          console.log(`📋 Mapping tenant ${index + 1}:`, tenant._id);
-          
-          return {
-            id: tenant._id || '',
-            name: tenant.name || 'Sans nom',
-            plan: tenant.selectedPlan?.name || tenant.planDetails?.name || 'Non défini',
-            users: tenant.userCount || 0,
-            registrationDate: tenant.createdAt ? new Date(tenant.createdAt).toLocaleDateString('fr-FR') : 'Date inconnue',
-            adminName: tenant.adminName || (tenant.email ? tenant.email.split('@')[0] : 'Admin'),
-            email: tenant.email || 'Email inconnu',
-            status: tenant.status || 'inactif',
-            databaseName: tenant.databaseName || 'N/A'
-          };
-        });
-        
-        console.log("📋 ÉTAPE 11: Entreprises formatées:", formattedCompanies);
-        setCompanies(formattedCompanies);
-        
-        if (formattedCompanies.length > 0) {
-          console.log("✅ Succès: Entreprises chargées:", formattedCompanies.length);
-        } else {
-          console.log("⚠️ Aucune entreprise formatée");
-        }
-      } else {
-        console.error("❌ Format de réponse invalide:", data);
-        setError("Format de données invalide reçu du serveur");
-        alert("Erreur: Format de données invalide");
+        setCompanies(data.data.map((tenant: any) => ({
+          id: tenant._id || '',
+          name: tenant.name || 'Anonymous Entity',
+          plan: tenant.selectedPlan?.name || tenant.planDetails?.name || 'Standard Tier',
+          users: tenant.userCount || 0,
+          registrationDate: tenant.createdAt ? new Date(tenant.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown',
+          adminName: tenant.adminName || tenant.email?.split('@')[0] || 'Admin',
+          email: tenant.email || 'N/A',
+          status: tenant.status || 'inactive',
+          databaseName: tenant.databaseName || 'system_node'
+        })));
       }
-      
     } catch (error) {
-      console.error("❌ Erreur détaillée:", error);
-      setError(error instanceof Error ? error.message : "Erreur inconnue");
-      alert(`Impossible de charger les entreprises: ${error instanceof Error ? error.message : "Erreur inconnue"}`);
+      setError(error instanceof Error ? error.message : "Synchronization error");
     } finally {
-      console.log("📋 ÉTAPE FINALE: Fin du chargement");
       setLoading(false);
     }
   };
 
-  // ✅ Mettre à jour une entreprise
   const updateCompany = async () => {
     if (!selectedCompany) return;
-
     try {
       setUpdating(true);
-      console.log("📝 Mise à jour entreprise:", selectedCompany);
-      
       const token = localStorage.getItem('auth_token');
-
       const response = await fetch(`http://localhost:5000/api/admin/tenants/${selectedCompany.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          name: selectedCompany.name,
-          email: selectedCompany.email,
-          adminName: selectedCompany.adminName,
-          status: selectedCompany.status
-        })
+        body: JSON.stringify(selectedCompany)
       });
-
-      const data = await response.json();
-
-      if (data.success) {
-        console.log("✅ Mise à jour réussie");
-        alert("Entreprise mise à jour avec succès");
-        
-        setCompanies(prev =>
-          prev.map(c => c.id === selectedCompany.id ? selectedCompany : c)
-        );
-        
+      if (response.ok) {
+        setCompanies(prev => prev.map(c => c.id === selectedCompany.id ? selectedCompany : c));
         setOpen(false);
-      } else {
-        throw new Error(data.message || 'Erreur mise à jour');
       }
-    } catch (error) {
-      console.error("❌ Erreur mise à jour:", error);
-      alert(`Erreur: ${error instanceof Error ? error.message : "Erreur inconnue"}`);
+    } catch (err) {
+      console.error(err);
     } finally {
       setUpdating(false);
     }
   };
 
-  // ✅ Changer le statut
   const toggleCompanyStatus = async (companyId: string, currentStatus: string) => {
     try {
       const token = localStorage.getItem('auth_token');
       const newStatus = currentStatus === 'active' ? 'suspended' : 'active';
-      
-      console.log(`🔄 Changement statut: ${currentStatus} -> ${newStatus}`);
-
       const response = await fetch(`http://localhost:5000/api/admin/tenants/${companyId}/status`, {
         method: 'PATCH',
         headers: {
@@ -214,279 +128,260 @@ export default function CompanyManagement() {
       });
 
       if (response.ok) {
-        console.log("✅ Statut changé");
-        alert(`Entreprise ${newStatus === 'active' ? 'réactivée' : 'suspendue'}`);
-        fetchCompanies();
-      } else {
-        const error = await response.text();
-        console.error("❌ Erreur API:", error);
-        alert("Erreur lors du changement de statut");
+        setCompanies(prev => prev.map(c => c.id === companyId ? { ...c, status: newStatus } : c));
       }
-    } catch (error) {
-      console.error("❌ Erreur:", error);
-      alert("Impossible de changer le statut");
+    } catch (err) {
+      console.error(err);
     }
   };
 
-  // Charger au démarrage
-  useEffect(() => {
-    fetchCompanies();
-  }, []);
+  useEffect(() => { fetchCompanies(); }, []);
 
-  const StatusBadge = ({ status }: { status: string }) => {
-    const styles = {
-      active: "bg-green-100 text-green-800",
-      suspended: "bg-yellow-100 text-yellow-800",
-      inactive: "bg-gray-100 text-gray-800"
-    };
-    
-    const texts = {
-      active: "Actif",
-      suspended: "Suspendu",
-      inactive: "Inactif"
-    };
-
-    return (
-      <Badge className={styles[status as keyof typeof styles] || styles.inactive}>
-        {texts[status as keyof typeof texts] || status}
-      </Badge>
-    );
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-muted/40 p-8 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p>Chargement des entreprises...</p>
-        </div>
-      </div>
-    );
-  }
+  const filteredCompanies = companies.filter(c =>
+    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
-    <div className="min-h-screen bg-muted/40 p-8 space-y-8">
-      {/* En-tête avec bouton de débogage */}
-      <div className="flex justify-between items-center">
+    <div className="space-y-8 animate-in fade-in duration-500">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Gestion des Entreprises</h1>
-          <p className="text-muted-foreground">
-            {companies.length} entreprise(s) trouvée(s)
-          </p>
-          {error && (
-            <p className="text-sm text-red-600 mt-2">
-              Erreur: {error}
-            </p>
-          )}
+          <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight flex items-center gap-3">
+            Organization Matrix
+            <span className="px-3 py-1 bg-indigo-100 text-indigo-600 text-[10px] font-black rounded-full uppercase tracking-widest">Active Nodes</span>
+          </h1>
+          <p className="text-slate-500 font-medium mt-1">Lattice-level management of corporate identities and access tiers.</p>
         </div>
-        <div className="space-x-2">
-          <Button 
-            onClick={() => {
-              console.log("🔍 Vérification manuelle...");
-              console.log("Token:", localStorage.getItem('auth_token'));
-              console.log("User:", localStorage.getItem('user'));
-              fetchCompanies();
-            }} 
-            variant="outline" 
-            size="sm"
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Rafraîchir
-          </Button>
+        <button
+          onClick={fetchCompanies}
+          className="flex items-center gap-2 px-6 py-3 bg-white text-indigo-600 border border-indigo-100 rounded-xl font-bold shadow-sm hover:shadow-md hover:bg-indigo-50 transition-all active:scale-95"
+        >
+          <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
+          Re-Sync Nodes
+        </button>
+      </div>
+
+      {/* Quick Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <QuickStatCard label="Total Organizations" value={companies.length} icon={<Building2 size={20} />} color="bg-blue-50 text-blue-600" />
+        <QuickStatCard label="Live Instances" value={companies.filter(c => c.status === 'active').length} icon={<ShieldCheck size={20} />} color="bg-emerald-50 text-emerald-600" />
+        <QuickStatCard label="Suspended Clusters" value={companies.filter(c => c.status === 'suspended').length} icon={<ShieldAlert size={20} />} color="bg-rose-50 text-rose-600" />
+      </div>
+
+      {/* Control Bar */}
+      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+        <div className="relative w-full sm:max-w-md group text-slate-400">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 group-focus-within:text-indigo-500 transition-colors" size={18} />
+          <input
+            type="text"
+            placeholder="Search by identity or connectivity endpoint..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-12 pr-4 py-3 bg-white border border-slate-100 rounded-2xl shadow-sm focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-indigo-200 transition-all font-medium text-slate-700"
+          />
+        </div>
+        <div className="flex items-center gap-3">
+          <button className="p-3 bg-white border border-slate-100 rounded-xl text-slate-400 hover:text-indigo-600 transition-colors shadow-sm">
+            <Filter size={20} />
+          </button>
+          <span className="text-xs font-black text-slate-400 uppercase tracking-widest pl-2">Lattice Depth: Global</span>
         </div>
       </div>
 
-      {/* Statistiques */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">Total entreprises</p>
-            <p className="text-2xl font-bold">{companies.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">Actives</p>
-            <p className="text-2xl font-bold text-green-600">
-              {companies.filter(c => c.status === 'active').length}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">Suspendues</p>
-            <p className="text-2xl font-bold text-yellow-600">
-              {companies.filter(c => c.status === 'suspended').length}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Tableau */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Toutes les entreprises</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Entreprise</TableHead>
-                <TableHead>Plan</TableHead>
-                <TableHead>Utilisateurs</TableHead>
-                <TableHead>Inscription</TableHead>
-                <TableHead>Statut</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-
-            <TableBody>
-              {companies.map((company) => (
-                <TableRow key={company.id}>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{company.name}</p>
-                      <p className="text-xs text-muted-foreground">{company.email}</p>
+      {/* Organizations Matrix Table */}
+      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50/50">
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Organization Entity</th>
+                <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Protocol Tier</th>
+                <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Nodes Active</th>
+                <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Initialization</th>
+                <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Lattice Status</th>
+                <th className="px-8 py-5 text-right"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {filteredCompanies.map((company) => (
+                <tr key={company.id} className="hover:bg-indigo-50/20 transition-all group">
+                  <td className="px-8 py-5">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black shadow-sm group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                        {company.name.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-800">{company.name}</p>
+                        <p className="text-xs font-medium text-slate-400 italic">ID: {company.id.slice(-8).toUpperCase()}</p>
+                      </div>
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{company.plan}</Badge>
-                  </TableCell>
-                  <TableCell>{company.users}</TableCell>
-                  <TableCell>{company.registrationDate}</TableCell>
-                  <TableCell>
-                    <StatusBadge status={company.status} />
-                  </TableCell>
-                  <TableCell className="text-right space-x-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setSelectedCompany(company);
-                        setOpen(true);
-                      }}
-                    >
-                      Détails
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={company.status === 'active' ? 'outline' : 'default'}
-                      onClick={() => toggleCompanyStatus(company.id, company.status)}
-                    >
-                      {company.status === 'active' ? 'Suspendre' : 'Réactiver'}
-                    </Button>
-                  </TableCell>
-                </TableRow>
+                  </td>
+                  <td className="px-6 py-5 text-center">
+                    <span className="px-3 py-1 bg-white border border-indigo-100 text-indigo-600 text-[10px] font-black rounded-lg uppercase tracking-tight">
+                      {company.plan}
+                    </span>
+                  </td>
+                  <td className="px-6 py-5 text-center">
+                    <span className="text-sm font-black text-slate-600">{company.users}</span>
+                  </td>
+                  <td className="px-6 py-5">
+                    <div className="flex items-center gap-2 text-slate-500 font-semibold text-xs">
+                      <Calendar size={14} className="text-slate-300" />
+                      {company.registrationDate}
+                    </div>
+                  </td>
+                  <td className="px-6 py-5">
+                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase border ${company.status === 'active'
+                        ? 'bg-emerald-50 text-emerald-600 border-emerald-100/50'
+                        : 'bg-rose-50 text-rose-600 border-rose-100/50'
+                      }`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${company.status === 'active' ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></span>
+                      {company.status}
+                    </span>
+                  </td>
+                  <td className="px-8 py-5 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => { setSelectedCompany(company); setOpen(true); }}
+                        className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                      >
+                        <ChevronRight size={18} />
+                      </button>
+                      <button
+                        onClick={() => toggleCompanyStatus(company.id, company.status)}
+                        className={`p-2 rounded-lg transition-all ${company.status === 'active'
+                            ? 'text-rose-400 hover:bg-rose-50 hover:text-rose-600'
+                            : 'text-emerald-400 hover:bg-emerald-50 hover:text-emerald-600'
+                          }`}
+                        title={company.status === 'active' ? 'Suspend Cluster' : 'Authorize Cluster'}
+                      >
+                        {company.status === 'active' ? <ShieldAlert size={18} /> : <ShieldCheck size={18} />}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
               ))}
+            </tbody>
+          </table>
+        </div>
+        {filteredCompanies.length === 0 && (
+          <div className="p-20 text-center text-slate-400 font-bold italic tracking-tight">
+            No registered organizations detected in this lattice sector.
+          </div>
+        )}
+      </div>
 
-              {companies.length === 0 && !loading && (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
-                    <p className="text-gray-500">Aucune entreprise trouvée</p>
-                    <Button 
-                      onClick={fetchCompanies} 
-                      variant="link" 
-                      className="mt-2"
-                    >
-                      Rafraîchir
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* Dialog */}
+      {/* Detail Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Détails de l'entreprise</DialogTitle>
+        <DialogContent className="sm:max-w-[550px] bg-white rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
+          <DialogHeader className="bg-indigo-700 p-8 text-white relative">
+            <DialogTitle className="text-2xl font-black tracking-tight">Refine Entity Specifications</DialogTitle>
+            <p className="text-indigo-200 text-xs font-bold uppercase tracking-widest mt-1 opacity-80">Manual Node Override</p>
           </DialogHeader>
 
           {selectedCompany && (
-            <div className="space-y-4 py-4">
-              <div>
-                <label className="text-sm font-medium">Nom</label>
-                <Input
-                  value={selectedCompany.name}
-                  onChange={(e) =>
-                    setSelectedCompany({
-                      ...selectedCompany,
-                      name: e.target.value,
-                    })
-                  }
-                />
+            <div className="p-8 space-y-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Entity Name</label>
+                  <div className="relative flex items-center">
+                    <Building2 className="absolute left-3 text-slate-300" size={16} />
+                    <Input
+                      className="pl-10 h-12 bg-slate-50 border-slate-100 rounded-xl focus:ring-4 focus:ring-indigo-50 font-bold text-slate-700"
+                      value={selectedCompany.name}
+                      onChange={(e) => setSelectedCompany({ ...selectedCompany, name: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Status Protocol</label>
+                  <Select
+                    value={selectedCompany.status}
+                    onValueChange={(value) => setSelectedCompany({ ...selectedCompany, status: value })}
+                  >
+                    <SelectTrigger className="h-12 bg-slate-50 border-slate-100 rounded-xl font-bold">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active Lattice</SelectItem>
+                      <SelectItem value="suspended">Suspended Cluster</SelectItem>
+                      <SelectItem value="inactive">Deep Cold Storage</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div>
-                <label className="text-sm font-medium">Email</label>
-                <Input
-                  type="email"
-                  value={selectedCompany.email}
-                  onChange={(e) =>
-                    setSelectedCompany({
-                      ...selectedCompany,
-                      email: e.target.value,
-                    })
-                  }
-                />
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Connectivity Endpoint (Admin Email)</label>
+                <div className="relative flex items-center">
+                  <Mail className="absolute left-3 text-slate-300" size={16} />
+                  <Input
+                    className="pl-10 h-12 bg-slate-50 border-slate-100 rounded-xl focus:ring-4 focus:ring-indigo-50 font-bold text-slate-700"
+                    type="email"
+                    value={selectedCompany.email}
+                    onChange={(e) => setSelectedCompany({ ...selectedCompany, email: e.target.value })}
+                  />
+                </div>
               </div>
 
               <div>
-                <label className="text-sm font-medium">Admin</label>
-                <Input
-                  value={selectedCompany.adminName}
-                  onChange={(e) =>
-                    setSelectedCompany({
-                      ...selectedCompany,
-                      adminName: e.target.value,
-                    })
-                  }
-                />
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Primary Persona Link</label>
+                <div className="relative flex items-center">
+                  <User className="absolute left-3 text-slate-300" size={16} />
+                  <Input
+                    className="pl-10 h-12 bg-slate-50 border-slate-100 rounded-xl focus:ring-4 focus:ring-indigo-50 font-bold text-slate-700"
+                    value={selectedCompany.adminName}
+                    onChange={(e) => setSelectedCompany({ ...selectedCompany, adminName: e.target.value })}
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="text-sm font-medium">Statut</label>
-                <Select
-                  value={selectedCompany.status}
-                  onValueChange={(value) =>
-                    setSelectedCompany({
-                      ...selectedCompany,
-                      status: value,
-                    })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Actif</SelectItem>
-                    <SelectItem value="suspended">Suspendu</SelectItem>
-                    <SelectItem value="inactive">Inactif</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="text-sm text-muted-foreground">
-                <p>Base: {selectedCompany.databaseName}</p>
-                <p>Inscription: {selectedCompany.registrationDate}</p>
-                <p>Utilisateurs: {selectedCompany.users}</p>
+              <div className="p-4 bg-indigo-50/50 border border-indigo-100 rounded-2xl grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-[9px] font-black text-indigo-400 uppercase">System Key</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Database size={14} className="text-indigo-600" />
+                    <span className="text-xs font-bold text-indigo-900">{selectedCompany.databaseName}</span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-[9px] font-black text-indigo-400 uppercase">Creation Hash</p>
+                  <p className="text-xs font-bold text-indigo-900 mt-1">{selectedCompany.id.toUpperCase()}</p>
+                </div>
               </div>
             </div>
           )}
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>
-              Annuler
-            </Button>
-            <Button onClick={updateCompany} disabled={updating}>
-              {updating ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Sauvegarder'}
-            </Button>
+          <DialogFooter className="p-8 pt-0 flex gap-4">
+            <button
+              onClick={() => setOpen(false)}
+              className="flex-1 py-3 text-slate-400 font-bold hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"
+            >
+              Discard Changes
+            </button>
+            <button
+              onClick={updateCompany}
+              disabled={updating}
+              className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 disabled:opacity-50"
+            >
+              {updating ? <Loader2 size={18} className="animate-spin inline mr-2" /> : "Synchronize Node"}
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function QuickStatCard({ label, value, icon, color }: { label: string; value: string | number; icon: React.ReactNode; color: string }) {
+  return (
+    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex items-center gap-5">
+      <div className={`p-4 rounded-2xl ${color}`}>{icon}</div>
+      <div>
+        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{label}</p>
+        <p className="text-3xl font-black text-slate-800 tracking-tight">{value}</p>
+      </div>
     </div>
   );
 }

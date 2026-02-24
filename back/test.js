@@ -3,31 +3,31 @@ const mongoose = require('mongoose');
 
 async function testConnection() {
   try {
-    console.log('🔌 Test de connexion MongoDB...');
-    
+    console.log('🔌 MongoDB connection test...');
+
     const conn = await mongoose.connect('mongodb://localhost:27017/workflow_master', {
       useNewUrlParser: true,
       useUnifiedTopology: true
     });
-    
-    console.log('✅ Connecté à MongoDB!');
-    
-    // Définir un modèle simple
+
+    console.log('✅ Connected to MongoDB!');
+
+    // Define a simple model
     const TestSchema = new mongoose.Schema({
       name: String
     });
-    
+
     const Test = conn.model('Test', TestSchema);
-    
-    // Tester une requête
+
+    // Test a query
     const result = await Test.find();
-    console.log('✅ Requête réussie!');
-    
+    console.log('✅ Query successful!');
+
     await conn.disconnect();
-    console.log('👋 Déconnecté');
-    
+    console.log('👋 Disconnected');
+
   } catch (error) {
-    console.error('❌ Erreur:', error.message);
+    console.error('❌ Error:', error.message);
   }
 }
 

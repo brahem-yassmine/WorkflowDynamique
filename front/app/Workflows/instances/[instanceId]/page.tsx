@@ -27,11 +27,11 @@ export default function InstancePage({ params }: { params: { instanceId: string 
     return (
         <div className="flex flex-col h-full w-full p-6">
             <div className="mb-6">
-                <h1 className="text-2xl font-bold">Suivi de l'instance</h1>
+                <h1 className="text-2xl font-bold">Instance Tracking</h1>
                 <p className="text-gray-500">ID: {params.instanceId}</p>
                 <div className="flex gap-2 mt-2">
-                    <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-semibold">Statut: En cours</span>
-                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-semibold">Priorité: Moyenne</span>
+                    <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-semibold">Status: In progress</span>
+                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-semibold">Priority: Medium</span>
                 </div>
             </div>
 

@@ -1,128 +1,442 @@
-'use client'
+'use client';
 
-import Link from 'next/link';
 import * as React from 'react';
-import { useState } from 'react';
-import { List, ListItem, ListItemButton, IconButton } from '@mui/material';
-import { Edit as EditIcon, Delete as DeleteIcon, Person as PersonIcon, Search } from '@mui/icons-material';
-import Sidebar from '../components/sidebar';
-import { toast, Toaster } from 'sonner';
+import { useState, useEffect } from 'react';
+import {
+    User,
+    Users,
+    UserPlus,
+    Search,
+    Filter,
+    MoreVertical,
+    Edit3,
+    Trash2,
+    Shield,
+    Briefcase,
+    Mail,
+    Activity,
+    ChevronRight,
+    X,
+    CheckCircle2,
+    AlertCircle,
+    Lock
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { apiService } from '@/service/api.service';
+import { toast } from 'sonner';
 
-interface User { id: string; name: string; email: string; role: string; department: string; domain: string; status: string; }
+// Types matches backend User model
+interface Persona {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    role: string;
+    domain: string;
+    isActive: boolean;
+    createdAt?: string;
+}
 
-const UserForm = ({ onSave, onCancel, user }: { onSave: (u: any) => void, onCancel: () => void, user?: User | null }) => {
-  const [fd, setFd] = useState(user || { name: '', email: '', role: 'User', department: 'IT', domain: 'IT', status: 'Active' });
-  
-  const fields = [
-    { name: 'name', label: 'Full Name', type: 'text' },
-    { name: 'email', label: 'Email Address', type: 'email' },
-    { name: 'role', label: 'Role', type: 'select', options: ['Admin', 'Manager', 'User', 'Editor'] },
-    { name: 'department', label: 'Department', type: 'select', options: ['IT', 'Operations', 'Sales', 'Marketing', 'HR', 'Finance'] },
-    { name: 'domain', label: 'Domain', type: 'select', options: ['Finance', 'Operations', 'IT', 'Marketing', 'Sales'] },
-    { name: 'status', label: 'Status', type: 'select', options: ['Active', 'Inactive'] }
-  ];
+interface Role {
+    _id: string;
+    name: string;
+}
 
-  return (
-    <form onSubmit={(e) => { e.preventDefault(); onSave(fd); }} className="bg-white rounded-xl border p-6 mb-6 shadow-sm">
-      <h2 className="text-lg font-bold mb-4 text-gray-800">{user ? 'Edit' : 'Add'} User</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {fields.map(f => (
-          <div key={f.name}>
-            <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">{f.label}</label>
-            {f.type === 'select' ? (
-              <select value={(fd as any)[f.name]} onChange={e => setFd({...fd, [f.name]: e.target.value})} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
-                {f.options?.map(o => <option key={o} value={o}>{o}</option>)}
-              </select>
-            ) : (
-              <input type={f.type} required value={(fd as any)[f.name]} onChange={e => setFd({...fd, [f.name]: e.target.value})} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
-            )}
-          </div>
-        ))}
-      </div>
-      <div className="flex justify-end gap-2 mt-6">
-        <button type="button" onClick={onCancel} className="px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm font-medium">Cancel</button>
-        <button type="submit" className="px-5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-bold shadow-md transition-all">
-          {user ? 'Update' : 'Create'} User
-        </button>
-      </div>
-    </form>
-  );
-};
-
-const INITIAL_USERS: User[] = [
-  { id: '1', name: 'John Doe', email: 'john@example.com', role: 'Admin', department: 'IT', domain: 'Finance', status: 'Active' },
-  { id: '2', name: 'Jane Smith', email: 'jane@example.com', role: 'Manager', department: 'Operations', domain: 'Operations', status: 'Active' },
-  { id: '3', name: 'Mike Johnson', email: 'mike@example.com', role: 'User', department: 'Sales', domain: 'IT', status: 'Inactive' },
-  { id: '4', name: 'Sarah Williams', email: 'sarah@example.com', role: 'Editor', department: 'Marketing', domain: 'Finance', status: 'Active' },
-];
+interface Domain {
+    _id: string;
+    name: string;
+}
 
 export default function UserManagementPage() {
-  const [users, setUsers] = useState<User[]>(INITIAL_USERS);
-  const [search, setSearch] = useState('');
-  const [ui, setUi] = useState({ showForm: false, editing: null as User | null });
+    const [users, setUsers] = useState<Persona[]>([]);
+    const [roles, setRoles] = useState<Role[]>([]);
+    const [domains, setDomains] = useState<Domain[]>([]);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedUser, setSelectedUser] = useState<Persona | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
 
-  const handleSave = (userData: any) => {
-    if (ui.editing) {
-      setUsers(users.map(u => u.id === ui.editing!.id ? { ...u, ...userData } : u));
-      toast.success('User updated successfully');
-    } else {
-      setUsers([...users, { ...userData, id: `${Date.now()}` }]);
-      toast.success('New user created');
-    }
-    setUi({ showForm: false, editing: null });
-  };
+    // Form states
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [formRole, setFormRole] = useState('user');
+    const [formDomain, setFormDomain] = useState('');
 
-  const filtered = users.filter(u => Object.values(u).some(v => v.toString().toLowerCase().includes(search.toLowerCase())));
+    const fetchData = async () => {
+        try {
+            setIsLoading(true);
+            const [usersRes, rolesRes, domainsRes] = await Promise.all([
+                apiService.getUsers(),
+                apiService.getRoles(),
+                apiService.getDomains()
+            ]);
 
-  return (
-    <div className="flex h-screen bg-gray-50">
-      <Toaster position="top-right" richColors />
-      <Sidebar />
-      <main className="flex-1 ml-64 p-8 overflow-y-auto">
-        <div className="bg-indigo-600 -mt-8 -mx-8 p-10 mb-8 rounded-b-[40px] shadow-lg">
-          <h1 className="text-3xl font-extrabold text-white">User Management</h1>
-        </div>
+            if (usersRes.success) setUsers(usersRes.data);
+            if (rolesRes.success) setRoles(rolesRes.data);
+            if (domainsRes.success) setDomains(domainsRes.data);
 
-        <div className="mb-8 flex gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-3 text-gray-400" />
-            <input type="text" placeholder="Search users by name, role or email..." value={search} onChange={(e) => setSearch(e.target.value)}
-                   className="w-full p-3 pl-10 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 shadow-sm transition-all outline-none" />
-          </div>
-          {!ui.showForm && <button onClick={() => setUi({ showForm: true, editing: null })} className="bg-indigo-600 text-white px-8 py-3 rounded-2xl hover:bg-indigo-700 font-bold shadow-lg transition-transform active:scale-95">+ Add User</button>}
-        </div>
+            if (domainsRes.data?.length > 0 && !formDomain) {
+                setFormDomain(domainsRes.data[0].name);
+            }
+        } catch (error: any) {
+            toast.error('Failed to synchronize lattice network');
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-        {ui.showForm && <UserForm onSave={handleSave} onCancel={() => setUi({ showForm: false, editing: null })} user={ui.editing} />}
+    useEffect(() => {
+        fetchData();
+    }, []);
 
-        <div className="bg-white rounded-3xl shadow-sm border overflow-hidden p-2">
-          <List>
-            {filtered.map((user) => (
-              <ListItem key={user.id} divider className="hover:bg-indigo-50/30 transition-colors rounded-2xl" 
-                  secondaryAction={
-                  <div className="flex gap-1 pr-2">
-                    <IconButton onClick={() => setUi({ showForm: true, editing: user })} size="small"><EditIcon className="text-indigo-600" fontSize="small" /></IconButton>
-                    <IconButton onClick={() => { setUsers(users.filter(u => u.id !== user.id)); toast.error('User deleted'); }} size="small"><DeleteIcon className="text-red-400" fontSize="small" /></IconButton>
-                  </div>
-                }>
-                <ListItemButton component={Link} href={`#`} className="rounded-2xl py-3" onClick={(e) => e.preventDefault()}>
-                  <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center mr-4"><PersonIcon className="text-indigo-600" /></div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-bold text-gray-800">{user.name}</span>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${user.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{user.status}</span>
+    const handleSaveUser = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            const userData = {
+                firstName,
+                lastName,
+                email,
+                role: formRole,
+                domain: formDomain || (domains.length > 0 ? domains[0].name : 'Default')
+            };
+
+            if (isEditing && selectedUser) {
+                const updateData: any = { ...userData };
+                if (password) updateData.password = password;
+                await apiService.updateUser(selectedUser._id, updateData);
+                toast.success('Agent profile updated');
+            } else {
+                if (!password) {
+                    toast.error('Identity key (password) required for new nodes');
+                    return;
+                }
+                await apiService.createUser({ ...userData, password });
+                toast.success('New persona authorized in lattice');
+            }
+
+            setIsModalOpen(false);
+            fetchData();
+            resetForm();
+        } catch (error: any) {
+            toast.error(error.message || 'Injection error');
+        }
+    };
+
+    const handleToggleStatus = async (user: Persona) => {
+        try {
+            await apiService.updateUser(user._id, { isActive: !user.isActive });
+            toast.success(`Access ${!user.isActive ? 'restored' : 'suspended'}`);
+            fetchData();
+            if (selectedUser?._id === user._id) {
+                setSelectedUser({ ...user, isActive: !user.isActive });
+            }
+        } catch (error: any) {
+            toast.error('Status synchronization failed');
+        }
+    };
+
+    const handleDelete = async (id: string) => {
+        if (!confirm('Are you sure you want to purge this persona from the lattice?')) return;
+        try {
+            await apiService.deleteUser(id);
+            toast.success('Persona purged');
+            setSelectedUser(null);
+            fetchData();
+        } catch (error: any) {
+            toast.error('Purge operation failed');
+        }
+    };
+
+    const resetForm = () => {
+        setFirstName('');
+        setLastName('');
+        setEmail('');
+        setPassword('');
+        setFormRole('user');
+        setFormDomain(domains.length > 0 ? domains[0].name : '');
+        setIsEditing(false);
+    };
+
+    const handleEdit = (user: Persona) => {
+        setIsEditing(true);
+        setFirstName(user.firstName || '');
+        setLastName(user.lastName || '');
+        setEmail(user.email);
+        setPassword('');
+        setFormRole(user.role);
+        setFormDomain(user.domain);
+        setIsModalOpen(true);
+    };
+
+    const filteredUsers = users.filter(user =>
+        `${user.firstName} ${user.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.role.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    return (
+        <div className="space-y-8 animate-in fade-in duration-500">
+            {/* Header section */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h1 className="text-3xl font-black text-slate-800 tracking-tight">Talent Network Management</h1>
+                    <p className="text-slate-500 text-sm font-medium">Manage organization nodes, assign tiers, and authorize access domains.</p>
+                </div>
+            </div>
+
+            {/* Control Bar */}
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+                <div className="relative w-full md:max-w-xl group">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
+                    <input
+                        type="text"
+                        placeholder="Search by identity signature, email, or role..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-12 pr-4 py-3 bg-white border border-slate-100 rounded-2xl shadow-sm focus:outline-none focus:ring-4 focus:ring-indigo-50 transition-all font-medium text-slate-700"
+                    />
+                </div>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => { resetForm(); setIsModalOpen(true); }}
+                        className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95"
+                    >
+                        <UserPlus size={18} />
+                        Authorize Persona
+                    </button>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                {/* User List Matrix */}
+                <div className="lg:col-span-8 bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+                    <div className="px-8 py-6 border-b border-slate-50 flex justify-between items-center">
+                        <h3 className="text-lg font-black text-slate-800 tracking-tight">Lattice Entities</h3>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{filteredUsers.length} Nodes Detected</span>
                     </div>
-                    <div className="flex gap-4 text-xs text-gray-500">
-                      <span>{user.email}</span>
-                      <span className="font-medium text-indigo-600">{user.role} • {user.department}</span>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-slate-50/50">
+                                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Entity Signature</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Access Role</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">System Status</th>
+                                    <th className="px-8 py-4 text-right"></th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                                {isLoading ? (
+                                    Array(5).fill(0).map((_, i) => (
+                                        <tr key={i} className="animate-pulse">
+                                            <td colSpan={4} className="px-8 py-6 h-16 bg-slate-50/50"></td>
+                                        </tr>
+                                    ))
+                                ) : filteredUsers.map((user) => (
+                                    <tr
+                                        key={user._id}
+                                        onClick={() => setSelectedUser(user)}
+                                        className={`hover:bg-indigo-50/20 transition-all cursor-pointer group ${selectedUser?._id === user._id ? 'bg-indigo-50/40' : ''}`}
+                                    >
+                                        <td className="px-8 py-5">
+                                            <div className="flex items-center gap-4">
+                                                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-sm transition-all shadow-sm ${selectedUser?._id === user._id ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-indigo-100 group-hover:text-indigo-600'}`}>
+                                                    {(user.firstName || user.email).charAt(0).toUpperCase()}
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-bold text-slate-800">{user.firstName} {user.lastName}</p>
+                                                    <p className="text-xs font-medium text-slate-400">{user.email}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-5">
+                                            <span className="px-2.5 py-1 bg-white border border-indigo-100 text-indigo-600 text-[10px] font-black rounded-lg uppercase tracking-tight">
+                                                {user.role}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-5">
+                                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${user.isActive ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
+                                                <span className={`w-1 h-1 rounded-full ${user.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></span>
+                                                {user.isActive ? 'Active' : 'Suspended'}
+                                            </span>
+                                        </td>
+                                        <td className="px-8 py-5 text-right">
+                                            <ChevronRight size={18} className={`inline text-slate-300 transition-transform ${selectedUser?._id === user._id ? 'translate-x-1 text-indigo-600' : ''}`} />
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
-                  </div>
-                </ListItemButton>
-              </ListItem>
-            ))}
-            {filtered.length === 0 && <div className="p-12 text-center text-gray-400 font-medium">No matches found for "{search}".</div>}
-          </List>
+                </div>
+
+                {/* Persona Inspector */}
+                <div className="lg:col-span-4 h-full">
+                    <AnimatePresence mode="wait">
+                        {selectedUser ? (
+                            <motion.div
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: 20 }}
+                                className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 h-full flex flex-col sticky top-24"
+                            >
+                                <div className="flex justify-between items-start mb-8">
+                                    <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
+                                        <User size={24} />
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => handleEdit(selectedUser)}
+                                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                                        >
+                                            <Edit3 size={18} />
+                                        </button>
+                                        <button onClick={() => setSelectedUser(null)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
+                                            <X size={18} />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <h2 className="text-2xl font-black text-slate-800 tracking-tight mb-1">{selectedUser.firstName} {selectedUser.lastName}</h2>
+                                <p className="text-xs font-black text-indigo-500 uppercase tracking-widest mb-8">{selectedUser.role} Agent</p>
+
+                                <div className="space-y-6 flex-grow">
+                                    <InspectorInfo label="Connectivity" icon={<Mail size={16} />} value={selectedUser.email} />
+                                    <InspectorInfo label="Core Domain" icon={<Briefcase size={16} />} value={selectedUser.domain} />
+                                    <InspectorInfo label="Lattice Status" icon={<Activity size={16} />}>
+                                        <span className={`text-xs font-black ${selectedUser.isActive ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                            {selectedUser.isActive ? 'NOMINAL SYNC' : 'ACCESS SUSPENDED'}
+                                        </span>
+                                    </InspectorInfo>
+                                </div>
+
+                                <div className="pt-8 border-t border-slate-50 space-y-3">
+                                    <button
+                                        onClick={() => handleToggleStatus(selectedUser)}
+                                        className={`w-full py-3 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg ${selectedUser.isActive ? 'bg-amber-50 text-amber-600 shadow-amber-100 hover:bg-amber-100' : 'bg-emerald-50 text-emerald-600 shadow-emerald-100 hover:bg-emerald-100'}`}
+                                    >
+                                        {selectedUser.isActive ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}
+                                        {selectedUser.isActive ? 'Suspend Access' : 'Authorize Node'}
+                                    </button>
+                                    <button
+                                        onClick={() => handleDelete(selectedUser._id)}
+                                        className="w-full py-3 bg-rose-50 text-rose-600 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-rose-100 transition-all active:scale-95"
+                                    >
+                                        <Trash2 size={16} />
+                                        Purge Persona
+                                    </button>
+                                </div>
+                            </motion.div>
+                        ) : (
+                            <div className="bg-slate-50/50 rounded-3xl border border-dashed border-slate-200 h-full flex flex-col items-center justify-center p-12 text-center">
+                                <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-6 text-slate-300">
+                                    <Users size={32} />
+                                </div>
+                                <h3 className="text-lg font-black text-slate-400 tracking-tight">Inspector Inactive</h3>
+                                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Select an entity from the matrix.</p>
+                            </div>
+                        )}
+                    </AnimatePresence>
+                </div>
+            </div>
+
+            {/* Auth Modal */}
+            <AnimatePresence>
+                {isModalOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setIsModalOpen(false)}
+                            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="bg-white rounded-3xl shadow-2xl w-full max-w-lg relative z-10 overflow-hidden border border-slate-100"
+                        >
+                            <div className="bg-indigo-600 p-8 text-white">
+                                <h2 className="text-2xl font-black tracking-tight">{isEditing ? 'Refine Node' : 'Authorize Entity'}</h2>
+                                <p className="text-indigo-200 text-xs font-bold uppercase tracking-widest mt-1">Manual Lattice Injection</p>
+                            </div>
+                            <form onSubmit={handleSaveUser} className="p-8 space-y-5">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">First Name</label>
+                                        <input value={firstName} onChange={(e) => setFirstName(e.target.value)} required placeholder="John" className="w-full h-11 bg-slate-50 rounded-xl px-4 font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none text-sm" />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Last Name</label>
+                                        <input value={lastName} onChange={(e) => setLastName(e.target.value)} required placeholder="Doe" className="w-full h-11 bg-slate-50 rounded-xl px-4 font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none text-sm" />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Connectivity (Email)</label>
+                                    <input value={email} onChange={(e) => setEmail(e.target.value)} required type="email" placeholder="john@company.com" className="w-full h-11 bg-slate-50 rounded-xl px-4 font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none text-sm" />
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Identity Key (Password)</label>
+                                    <div className="relative">
+                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
+                                        <input
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            required={!isEditing}
+                                            type="password"
+                                            placeholder={isEditing ? "(Leave blank to keep current)" : "Minimum 6 characters"}
+                                            className="w-full h-11 bg-slate-50 rounded-xl pl-12 pr-4 font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none text-sm"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Access Tier (Role)</label>
+                                        <select value={formRole} onChange={(e) => setFormRole(e.target.value)} className="w-full h-11 bg-slate-50 rounded-xl px-4 font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none">
+                                            <option value="user">User Node</option>
+                                            <option value="admin">Administrator</option>
+                                            {roles.map(r => (
+                                                <option key={r._id} value={r.name}>{r.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Target Domain</label>
+                                        <select value={formDomain} onChange={(e) => setFormDomain(e.target.value)} className="w-full h-11 bg-slate-50 rounded-xl px-4 font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none">
+                                            <option value="">Select Domain...</option>
+                                            {domains.map(d => (
+                                                <option key={d._id} value={d.name}>{d.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="flex gap-4 pt-6">
+                                    <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 text-slate-400 font-bold hover:text-slate-600 transition-all uppercase text-xs tracking-widest">Discard</button>
+                                    <button type="submit" className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 uppercase text-xs tracking-widest">Commit Injection</button>
+                                </div>
+                            </form>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
-      </main>
-    </div>
-  );
+    );
+}
+
+function InspectorInfo({ label, icon, value, children }: { label: string; icon: React.ReactNode; value?: string; children?: React.ReactNode }) {
+    return (
+        <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 text-slate-400">
+                <div className="p-2 bg-slate-50 rounded-lg">{icon}</div>
+                <span className="text-[10px] font-black uppercase tracking-widest leading-none">{label}</span>
+            </div>
+            {value ? <span className="text-sm font-bold text-slate-700">{value}</span> : children}
+        </div>
+    );
 }

@@ -19,7 +19,7 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./src/*"]  // ✅ Correction : pointer vers ./src/
     }
   },
   "include": [

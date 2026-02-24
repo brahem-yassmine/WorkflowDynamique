@@ -2,19 +2,19 @@
 const express = require('express');
 const router = express.Router();
 
-//  Importer le contrôleur
+//  Controller imports
 const authController = require('../controllers/authController');
 
-//  VÉRIFICATION - Afficher ce qui est importé
-console.log('Contenu de authController:', Object.keys(authController));
+//  DEBUG - Display imported methods
+console.log('authController content:', Object.keys(authController));
 console.log('registerTenant:', typeof authController.registerTenant);
 console.log('login:', typeof authController.login);
 
-//  Routes POST (pour inscription et connexion)
+//  POST Routes (registration and login)
 router.post('/register', authController.registerTenant);
 router.post('/login', authController.login);
 
-// Si vous avez des routes GET, assurez-vous qu'elles existent
-// router.get('/verify', authController.verifyToken); // À décommenter seulement si verifyToken existe
+// If you have GET routes, make sure they exist
+// router.get('/verify', authController.verifyToken); // Uncomment only if verifyToken exists
 
 module.exports = router;

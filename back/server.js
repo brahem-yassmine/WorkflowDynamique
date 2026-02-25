@@ -18,6 +18,11 @@ const adminRoutes = require('./src/routes/adminRoutes');
 const tenantRoleRoutes = require('./src/routes/tenant/role.routes');
 const tenantDomainRoutes = require('./src/routes/tenant/domain.routes');
 const projectRoutes = require('./src/routes/projectRoutes');
+const formRoutes = require('./src/routes/formRoutes');
+const checklistRoutes = require('./src/routes/checklistRoutes');
+const taskRoutes = require('./src/routes/taskRoutes');
+
+
 
 
 const app = express();
@@ -81,6 +86,11 @@ app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/tenant/roles', tenantRoleRoutes);
 app.use('/api/tenant/domains', tenantDomainRoutes);
 app.use('/api/projects', projectRoutes);
+app.use('/api/forms', formRoutes);
+app.use('/api/checklists', checklistRoutes);
+app.use('/api/tasks', taskRoutes);
+
+
 
 
 // ========================

@@ -24,14 +24,18 @@ const menuItems = [
   { icon: Users, label: "User Network", href: "/admin/userManagement" },
   { icon: LayoutGrid, label: "Structural Domains", href: "/admin/domains" },
   { icon: ShieldCheck, label: "Authority Roles", href: "/admin/roles" },
-  { icon: FolderKanban, label: "Project Portfolios", href: "/admin/projects" },
+  { icon: FolderKanban, label: "Project ", href: "/admin/projects" },
   { icon: GitBranch, label: "All Workflows", href: "/admin/workflows" },
-  { icon: PlusSquare, label: "Provision Flow", href: "/admin/create_workflows" },
+  { icon: PlusSquare, label: "create Workflow", href: "/admin/create_workflows" },
   { icon: CheckSquare, label: "Task Monitor", href: "/admin/tasks" },
   { icon: CreditCard, label: "Fiscal / Billing", href: "/admin/billing" },
   { icon: FileText, label: "System Logs", href: "/admin/logs" },
+  { icon: LayoutDashboard, label: "formulaire", href: "/form" },
   { icon: UserCircle, label: "Personal Node", href: "/admin/profile" },
 ];
+
+
+
 
 function Sidebar() {
   const pathname = usePathname();

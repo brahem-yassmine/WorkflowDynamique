@@ -158,7 +158,7 @@ masterConnection.on('connected', () => {
     const PORT = process.env.PORT || 5000;
     const HOST = process.env.HOST || 'localhost';
 
-    app.listen(PORT, HOST, () => {
+    const server = app.listen(PORT, HOST, () => {
       console.log(`
   ╔════════════════════════════════════════════════╗
   ║     🚀  DYNAMIC WORKFLOW - SERVER READY       ║
@@ -168,6 +168,16 @@ masterConnection.on('connected', () => {
   📊 DB: workflow_master
   ✅ Status: Connected
       `);
+    });
+
+    server.on('error', (error) => {
+      if (error.code === 'EADDRINUSE') {
+        console.error(`❌ Error: Port ${PORT} is already in use.`);
+        console.error(`💡 Suggestion: Kill the process using port ${PORT} or change the PORT in your .env file.`);
+        process.exit(1);
+      } else {
+        console.error('❌ Server startup error:', error);
+      }
     });
   } catch (error) {
     console.error('❌ Error loading models:', error);

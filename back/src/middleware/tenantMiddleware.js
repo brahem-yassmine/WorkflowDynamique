@@ -9,12 +9,17 @@ const tenantConnections = {};
 
 // Helper to register all tenant-specific models on a connection
 const registerTenantModels = (conn) => {
+  if (!conn) return;
   if (!conn.models['Role']) conn.model('Role', roleSchema);
   if (!conn.models['Domain']) conn.model('Domain', domainSchema);
   if (!conn.models['User']) require('../models/tenant/User')(conn);
   if (!conn.models['Workflow']) require('../models/tenant/Workflow')(conn);
   if (!conn.models['WorkflowInstance']) require('../models/tenant/WorkflowInstance')(conn);
   if (!conn.models['Project']) require('../models/tenant/Project')(conn);
+  if (!conn.models['Form']) require('../models/tenant/Form')(conn);
+  if (!conn.models['FormResponse']) require('../models/tenant/FormResponse')(conn);
+  if (!conn.models['Checklist']) require('../models/tenant/Checklist')(conn);
+  if (!conn.models['Task']) require('../models/tenant/Task')(conn);
 };
 
 // Middleware to resolve tenant from headers AND create/manage the connection

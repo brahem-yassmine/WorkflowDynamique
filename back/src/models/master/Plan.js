@@ -8,6 +8,8 @@ const planSchema = new mongoose.Schema({
   currency: { type: String, default: 'D' },
   interval: { type: String, default: 'month' },
   features: {
+    maxUsers: { type: Number, default: 10 },
+    maxWorkflows: { type: Number, default: 10 },
     maxStaff: { type: Number, default: 5 },
     maxLocations: { type: Number, default: 5 },
     analysis: { type: String, default: 'Fixed' },

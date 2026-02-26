@@ -1,8 +1,12 @@
 // back/src/controllers/dynamicFormController.js
+const { recordActivity } = require('../services/auditLogger');
 
 // 1. Lister tous les formulaires
 exports.getForms = async (req, res) => {
     try {
+        if (!req.tenantConn) {
+            return res.status(400).json({ success: false, message: 'Tenant connection missing. Please provide x-tenant-id header.' });
+        }
         const DynamicForm = req.tenantConn.model('DynamicForm');
         const forms = await DynamicForm.find().sort({ createdAt: -1 });
 
@@ -55,6 +59,13 @@ exports.createForm = async (req, res) => {
 
         await form.save();
 
+        // Log the activity
+        await recordActivity(req, 'CREATE_FORM', {
+            type: 'Form',
+            id: form._id,
+            name: form.name
+        });
+
         res.status(201).json({
             success: true,
             message: 'Formulaire créé avec succès',
@@ -79,6 +90,13 @@ exports.updateForm = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Formulaire non trouvé' });
         }
 
+        // Log the activity
+        await recordActivity(req, 'UPDATE_FORM', {
+            type: 'Form',
+            id: form._id,
+            name: form.name
+        });
+
         res.json({
             success: true,
             message: 'Formulaire mis à jour',
@@ -101,6 +119,13 @@ exports.deleteForm = async (req, res) => {
         if (!form) {
             return res.status(404).json({ success: false, message: 'Formulaire non trouvé' });
         }
+
+        // Log the activity
+        await recordActivity(req, 'DELETE_FORM', {
+            type: 'Form',
+            id: form._id,
+            name: form.name
+        });
 
         res.json({
             success: true,
@@ -205,6 +230,13 @@ exports.cloneForm = async (req, res) => {
         });
 
         await clonedForm.save();
+
+        // Log the activity
+        await recordActivity(req, 'CLONE_FORM', {
+            type: 'Form',
+            id: clonedForm._id,
+            name: clonedForm.name
+        }, { originalFormId: formId });
 
         res.status(201).json({
             success: true,

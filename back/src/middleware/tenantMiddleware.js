@@ -101,34 +101,42 @@ const checkTenantActive = async (req, res, next) => {
 const checkPlanLimits = (resourceType) => {
   return async (req, res, next) => {
     try {
-      if (!req.tenant || !req.tenant.selectedPlan) {
+      if (!req.tenant) {
         return next();
       }
 
-      const limits = req.tenant.planDetails.features;
+      // Default limits if planDetails or features are missing
+      const defaultLimits = {
+        maxUsers: 10,
+        maxWorkflows: 5
+      };
+
+      const limits = req.tenant.planDetails?.features || defaultLimits;
 
       if (resourceType === 'users') {
         const User = req.tenantConn?.model('User');
         if (User) {
           const count = await User.countDocuments();
-          if (count >= limits.maxUsers) {
+          // Use limit from plan or default
+          const maxUsers = limits.maxUsers || defaultLimits.maxUsers;
+          if (count >= maxUsers) {
             return res.status(403).json({
               success: false,
-              message: `Limite de ${limits.maxUsers} utilisateurs atteinte`
+              message: `Limite de ${maxUsers} utilisateurs atteinte`
             });
           }
         }
       }
 
-      // Ajouter d'autres types de ressources si nécessaire
       if (resourceType === 'workflows') {
         const Workflow = req.tenantConn?.model('Workflow');
         if (Workflow) {
           const count = await Workflow.countDocuments();
-          if (count >= limits.maxWorkflows) {
+          const maxWorkflows = limits.maxWorkflows || defaultLimits.maxWorkflows;
+          if (count >= maxWorkflows) {
             return res.status(403).json({
               success: false,
-              message: `Limite de ${limits.maxWorkflows} workflows atteinte`
+              message: `Limite de ${maxWorkflows} workflows atteinte`
             });
           }
         }
@@ -136,8 +144,8 @@ const checkPlanLimits = (resourceType) => {
 
       next();
     } catch (error) {
-      console.error('checkPlanLimits Error:', error);
-      next(error);
+      console.error('❌ checkPlanLimits Error:', error);
+      next(); // Don't block the request if limit check fails technically
     }
   };
 };

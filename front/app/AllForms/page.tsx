@@ -13,7 +13,8 @@ import {
   Layers,
   CheckCircle2,
   Clock,
-  ArrowRight
+  ArrowRight,
+  ChevronLeft
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -120,6 +121,13 @@ export default function AllFormsPage() {
       <div className="bg-white border-b border-gray-100 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-4">
+            <button 
+              onClick={() => router.push('/admin')}
+              className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-400 hover:text-indigo-600"
+              title="Back to Dashboard"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
             <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-100">
               <Layers className="w-5 h-5 text-white" />
             </div>

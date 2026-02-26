@@ -58,6 +58,20 @@ async function getTenantConnection(domain, dbName) {
       require('../models/tenant/FormResponse')(conn);
       console.log(' - Task...');
       require('../models/tenant/Task')(conn);
+      console.log(' - Project...');
+      require('../models/tenant/Project')(conn);
+      console.log(' - Role...');
+      require('../models/tenant/role.model')(conn);
+      console.log(' - Domain...');
+      require('../models/tenant/domain.model')(conn);
+      console.log(' - Department...');
+      require('../models/tenant/department.model')(conn);
+      console.log(' - Subscription...');
+      require('../models/tenant/Subscription')(conn);
+      console.log(' - WorkflowInstance...');
+      require('../models/tenant/WorkflowInstance')(conn);
+      console.log(' - ActivityLog...');
+      require('../models/tenant/ActivityLog')(conn);
       console.log('✅ [TenantConn] Modèles chargés');
     } catch (modelError) {
       console.error('❌ [TenantConn] Erreur chargement modèles:', modelError);

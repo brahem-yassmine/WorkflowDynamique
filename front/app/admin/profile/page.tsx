@@ -1,12 +1,11 @@
 'use client'
 
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   User,
   Mail,
   Lock,
   ShieldCheck,
-  Settings,
   Eye,
   EyeOff,
   RefreshCw,
@@ -16,25 +15,86 @@ import {
   History,
   Camera
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { api } from '../../services/api';
+import { toast, Toaster } from 'sonner';
 
 export default function ProfilePage() {
   const [showPassword, setShowPassword] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
-    name: 'Foulen Ben Foulen',
-    email: 'foulen.benfoulen@axia.global',
-    password: 'password123',
-    role: 'Infrastructure Admin'
+    name: 'Loading...',
+    email: '',
+    password: '',
+    role: 'User'
   });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        const user = JSON.parse(storedUser);
+        setUserId(user._id || user.id);
+        const syncPass = localStorage.getItem('user_pass_sync') || '';
+        setFormData({
+          name: user.name || (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : (user.firstName || 'Admin')),
+          email: user.email || '',
+          password: syncPass,
+          role: user.role === 'super_admin' ? 'Master Administrator' : (user.role === 'admin' ? 'Infrastructure Admin' : 'Agent Node')
+        });
+      }
+    }
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleSave = async () => {
+    if (!userId) return toast.error("User identity unidentified.");
+    if (!formData.name.trim()) return toast.error("Identity name required.");
+    
+    setIsSaving(true);
+    try {
+      const names = formData.name.split(' ');
+      const firstName = names[0];
+      const lastName = names.slice(1).join(' ') || '';
+
+      const payload: any = {
+        firstName,
+        lastName,
+        email: formData.email,
+        name: formData.name
+      };
+
+      if (formData.password) {
+        payload.password = formData.password;
+      }
+
+      const res = await api.put(`/api/users/${userId}`, payload);
+
+      if (res.data.success) {
+        toast.success("Profile synchronized successfully!");
+        // Update localStorage
+        const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+        const updatedUser = { ...storedUser, ...res.data.data };
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        
+        // Update synced password if changed
+        if (formData.password) {
+          localStorage.setItem('user_pass_sync', formData.password);
+        }
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Sync error detected.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-
-
+      <Toaster position="top-right" richColors />
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         {/* Profile Card */}
         <div className="lg:col-span-1 space-y-6">
@@ -118,12 +178,13 @@ export default function ProfilePage() {
                     name="password"
                     value={formData.password}
                     onChange={handleChange}
+                    placeholder={showPassword ? "Type new password..." : "•••••••• "}
                     className="w-full h-12 bg-slate-50 border-none rounded-xl px-4 font-bold text-slate-700 focus:ring-4 focus:ring-indigo-50 transition-all outline-none pr-12"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 outline-none"
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
@@ -131,9 +192,13 @@ export default function ProfilePage() {
               </InputGroup>
 
               <div className="pt-4 flex gap-4">
-                <button className="flex-1 py-3 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 active:scale-95">
-                  <Save size={16} />
-                  Synchronize Credentials
+                <button 
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="flex-1 py-3 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 active:scale-95 disabled:opacity-50"
+                >
+                  {isSaving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
+                  {isSaving ? 'Synchronizing...' : 'Synchronize Credentials'}
                 </button>
                 <button className="px-6 py-3 bg-slate-50 text-slate-400 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-100 hover:text-slate-600 transition-all">
                   <RefreshCw size={16} />

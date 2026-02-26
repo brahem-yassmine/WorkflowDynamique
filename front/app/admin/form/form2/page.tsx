@@ -5,7 +5,8 @@ import {
   FileText, Type, Hash, Calendar, CheckSquare, PenTool, AlignLeft, List, 
   ArrowLeft, Send, CheckCircle2, Clock, Mail, Phone
 } from 'lucide-react';
-import axios from 'axios';
+import { api } from '../../../services/api';
+import { useSearchParams } from 'next/navigation';
 import { toast, Toaster } from 'sonner';
 import Link from 'next/link';
 
@@ -16,25 +17,26 @@ const FIELD_ICONS: Record<string, any> = {
 };
 
 export default function Form2Page() {
+  const searchParams = useSearchParams();
+  const formId = searchParams.get('id');
+  
   const [form, setForm] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    const fetchLatestForm = async () => {
+    const fetchForm = async () => {
       try {
-        const token = localStorage.getItem('auth_token');
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
-        const tenant = JSON.parse(localStorage.getItem('tenant') || '{}');
-        const tenantId = tenant?._id || user?.tenantId;
+        const endpoint = formId ? `/api/forms/${formId}` : '/api/forms';
+        const res = await api.get(endpoint);
 
-        const res = await axios.get('http://localhost:5000/api/forms', {
-          headers: { 'Authorization': `Bearer ${token}`, 'x-tenant-id': tenantId }
-        });
-
-        if (res.data.success && res.data.data.length > 0) {
-          setForm(res.data.data[0]); // Get the most recent form
+        if (res.data.success) {
+          if (formId) {
+            setForm(res.data.data);
+          } else if (res.data.data.length > 0) {
+            setForm(res.data.data[0]); // Fallback to latest
+          }
         }
       } catch (error) {
         toast.error("Failed to load form structure.");
@@ -42,8 +44,8 @@ export default function Form2Page() {
         setLoading(false);
       }
     };
-    fetchLatestForm();
-  }, []);
+    fetchForm();
+  }, [formId]);
 
   const handleChange = (fieldId: string, value: any) => {
     setFormData(prev => ({ ...prev, [fieldId]: value }));

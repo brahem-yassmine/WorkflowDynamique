@@ -1,5 +1,6 @@
 // back/src/controllers/userController.js
 const bcrypt = require('bcryptjs');
+const { recordActivity } = require('../services/auditLogger');
 
 
 // ✅ No more User import (via req.tenantConn)
@@ -73,6 +74,13 @@ exports.createUser = async (req, res) => {
 
     await user.save();
 
+    // Log the activity
+    await recordActivity(req, 'CREATE_USER', {
+      type: 'User',
+      id: user._id,
+      name: `${user.firstName} ${user.lastName}`.trim() || user.email
+    });
+
     const userResponse = user.toObject();
     delete userResponse.password;
 
@@ -91,16 +99,38 @@ exports.createUser = async (req, res) => {
   }
 };
 
-// Update a user
+// Update a user (Multi-DB aware: Tenant User, Tenant Owner, or SuperAdmin)
 exports.updateUser = async (req, res) => {
   try {
     const { userId } = req.params;
     const updates = req.body;
+    let targetUser = null;
+    let userModelName = 'User';
 
-    const User = req.tenantConn.model('User');
+    // 1. Search in Tenant-specific database (Standard Users)
+    if (req.tenantConn) {
+      try {
+        const User = req.tenantConn.model('User');
+        targetUser = await User.findById(userId);
+      } catch (err) {
+        console.log('User not found in tenant DB, checking master...');
+      }
+    }
 
-    // Vérifier les permissions
-    const targetUser = await User.findById(userId);
+    // 2. If not found, check in Master DB - Tenant collection (Owners/Admins)
+    if (!targetUser && req.masterDb) {
+      const Tenant = req.masterDb.model('Tenant');
+      targetUser = await Tenant.findById(userId);
+      if (targetUser) userModelName = 'Tenant';
+    }
+
+    // 3. If still not found, check in Master DB - SuperAdmin collection
+    if (!targetUser && req.masterDb) {
+      const SuperAdmin = req.masterDb.model('SuperAdmin');
+      targetUser = await SuperAdmin.findById(userId);
+      if (targetUser) userModelName = 'SuperAdmin';
+    }
+
     if (!targetUser) {
       return res.status(404).json({
         success: false,
@@ -108,31 +138,53 @@ exports.updateUser = async (req, res) => {
       });
     }
 
-    if (req.user.role !== 'admin' && req.user.id.toString() !== userId) {
+    // Permission check
+    const isSelf = req.user.id.toString() === userId;
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'super_admin';
+
+    if (!isAdmin && !isSelf) {
       return res.status(403).json({
         success: false,
         message: 'Permission refusée'
       });
     }
 
-    // Ne pas permettre à un non-admin de changer le rôle
-    if (req.user.role !== 'admin' && updates.role) {
+    // Don't allow changing role if not authorized
+    if (!isAdmin && updates.role) {
       delete updates.role;
     }
 
+    // Password hashing
     if (updates.password) {
       updates.password = await bcrypt.hash(updates.password, 10);
     }
 
+    // Field Mapping for Tenant (Owner) model: adminName vs firstName/lastName
+    if (userModelName === 'Tenant') {
+      if (updates.firstName || updates.lastName || updates.name) {
+        const fName = updates.firstName || (updates.name ? updates.name.split(' ')[0] : (targetUser.adminName ? targetUser.adminName.split(' ')[0] : 'Admin'));
+        const lName = updates.lastName || (updates.name ? updates.name.split(' ').slice(1).join(' ') : (targetUser.adminName ? targetUser.adminName.split(' ').slice(1).join(' ') : ''));
+        updates.adminName = `${fName} ${lName}`.trim();
+      }
+    }
+
+    // Apply updates
     Object.assign(targetUser, updates);
     await targetUser.save();
+
+    // Log the activity
+    await recordActivity(req, 'UPDATE_USER', {
+      type: userModelName,
+      id: targetUser._id,
+      name: userModelName === 'Tenant' ? targetUser.adminName : (`${targetUser.firstName} ${targetUser.lastName}`.trim() || targetUser.email)
+    });
 
     const userResponse = targetUser.toObject();
     delete userResponse.password;
 
     res.json({
       success: true,
-      message: 'User updated',
+      message: 'User updated successfully',
       data: userResponse
     });
 
@@ -175,6 +227,13 @@ exports.deleteUser = async (req, res) => {
     }
 
     await user.deleteOne();
+
+    // Log the activity
+    await recordActivity(req, 'DELETE_USER', {
+      type: 'User',
+      id: user._id,
+      name: `${user.firstName} ${user.lastName}`.trim() || user.email
+    });
 
     res.json({
       success: true,

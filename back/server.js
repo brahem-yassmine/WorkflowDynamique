@@ -12,12 +12,15 @@ const authRoutes = require('./src/routes/authRoutes');
 const tenantRoutes = require('./src/routes/tenantRoutes');
 const planRoutes = require('./src/routes/planRoutes.js');
 const workflowRoutes = require('./src/routes/workflowRoutes');
+const projectRoutes = require('./src/routes/projectRoutes');
 const workflowInstanceRoutes = require('./src/routes/WorkflowInstanceRoutes');
 const subscriptionRoutes = require('./src/routes/subscriptionRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
 const dynamicFormRoutes = require('./src/routes/dynamicFormRoutes');
 const checklistRoutes = require('./src/routes/checklistRoutes');
 const taskRoutes = require('./src/routes/taskRoutes');
+const roleRoutes = require('./src/routes/tenant/role.routes');
+const domainRoutes = require('./src/routes/tenant/domain.routes');
 
 const app = express();
 
@@ -120,12 +123,15 @@ app.use('/api', tenantResolver);
 // ========================
 app.use('/api/tenants', tenantRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/projects', projectRoutes);
 app.use('/api/workflows', workflowRoutes);
 app.use('/api/workflow-instances', workflowInstanceRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/forms', dynamicFormRoutes);
 app.use('/api/checklists', checklistRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/tenant/roles', roleRoutes);
+app.use('/api/tenant/domains', domainRoutes);
 
 // ========================
 // ROOT ROUTE

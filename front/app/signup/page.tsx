@@ -16,6 +16,7 @@ import {
 interface SignupFormData {
   companyName: string;
   adminEmail: string;
+  industry: string;
   password: string;
   confirmPassword: string;
   agreeTerms: boolean;
@@ -56,6 +57,7 @@ export default function SignupPage() {
   const [formData, setFormData] = useState<SignupFormData>({
     companyName: "",
     adminEmail: "",
+    industry: "Other",
     password: "",
     confirmPassword: "",
     agreeTerms: false,
@@ -259,6 +261,7 @@ export default function SignupPage() {
         {
           companyName: formData.companyName,
           adminEmail: formData.adminEmail,
+          industry: formData.industry,
           password: formData.password,
           planId: formData.planId,
         },
@@ -516,6 +519,26 @@ export default function SignupPage() {
                     required
                     disabled={loading}
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Industry *
+                  </label>
+                  <select
+                    name="industry"
+                    value={formData.industry}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
+                    required
+                    disabled={loading}
+                  >
+                    <option value="Construction & Engineering ">Construction & Engineering </option>
+                    <option value="Information Technology & Software">Information Technology & Software</option>
+                    <option value="Corporate & Business Services">Corporate & Business Services</option>
+                    <option value="Healthcare">Healthcare</option>
+                    <option value="Other">Other</option>
+                  </select>
                 </div>
 
                 <div>

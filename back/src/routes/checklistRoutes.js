@@ -1,25 +1,16 @@
-// back/src/routes/checklistRoutes.js
 const express = require('express');
 const router = express.Router();
-
-const {
-    getChecklists,
-    getChecklistById,
-    createChecklist,
-    updateChecklist,
-    deleteChecklist
-} = require('../controllers/checklistController');
-
+const checklistController = require('../controllers/checklistController');
 const { auth } = require('../middleware/auth');
-const { checkTenantActive } = require('../middleware/tenantMiddleware');
+const { tenantResolver } = require('../middleware/tenantMiddleware');
 
-// Protected routes
-router.use(auth, checkTenantActive);
+router.use(auth);
+router.use(tenantResolver);
 
-router.get('/', getChecklists);
-router.get('/:id', getChecklistById);
-router.post('/', createChecklist);
-router.put('/:id', updateChecklist);
-router.delete('/:id', deleteChecklist);
+router.get('/', checklistController.getChecklists);
+router.get('/:id', checklistController.getChecklistById);
+router.post('/', checklistController.createChecklist);
+router.put('/:id', checklistController.updateChecklist);
+router.delete('/:id', checklistController.deleteChecklist);
 
 module.exports = router;

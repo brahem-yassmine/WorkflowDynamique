@@ -1,12 +1,15 @@
-// back/src/models/tenant/Checklist.js
 const mongoose = require('mongoose');
 
-const taskSchema = new mongoose.Schema({
+const checklistTaskSchema = new mongoose.Schema({
     id: { type: String, required: true },
     title: { type: String, required: true },
     completed: { type: Boolean, default: false },
-    priority: { type: String, enum: ['low', 'medium', 'high'], default: 'medium' }
-}, { _id: false });
+    priority: {
+        type: String,
+        enum: ['low', 'medium', 'high'],
+        default: 'medium'
+    }
+});
 
 const checklistSchema = new mongoose.Schema({
     name: {
@@ -14,7 +17,7 @@ const checklistSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
-    tasks: [taskSchema],
+    tasks: [checklistTaskSchema],
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
@@ -22,4 +25,5 @@ const checklistSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
+// Factory pattern
 module.exports = (connection) => connection.model('Checklist', checklistSchema);

@@ -9,11 +9,11 @@ const auth = async (req, res, next) => {
     if (!token) {
       return res.status(401).json({
         success: false,
-        message: 'Missing token'
+        message: 'Token manquant'
       });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'votre_secret_jwt');
     req.user = decoded;
 
     // ✅ SECURITY: Tenant isolation
@@ -33,7 +33,7 @@ const auth = async (req, res, next) => {
   } catch (error) {
     res.status(401).json({
       success: false,
-      message: 'Invalid token'
+      message: 'Token invalide ou expiré'
     });
   }
 };
@@ -44,14 +44,14 @@ const requireRole = (role) => {
     if (!req.user) {
       return res.status(401).json({
         success: false,
-        message: 'Not authenticated'
+        message: 'Non authentifié'
       });
     }
 
     if (req.user.role !== role && req.user.role !== 'super_admin') {
       return res.status(403).json({
         success: false,
-        message: `Role ${role} required`
+        message: `Rôle ${role} requis`
       });
     }
 

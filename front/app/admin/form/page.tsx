@@ -7,12 +7,11 @@ import { CSS } from '@dnd-kit/utilities';
 import { 
   FileText, Type, Hash, Calendar, CheckSquare, PenTool, AlignLeft, List, 
   GripVertical, Trash2, Mail, Phone, Settings, Move, 
-  Clock, ThumbsUp, ThumbsDown, Maximize2, Minimize2, Save, Plus, ArrowRight, ArrowLeft
+  Clock, ThumbsUp, ThumbsDown, Maximize2, Minimize2, Save, Plus, ArrowRight
 } from 'lucide-react';
 import axios from 'axios';
 import { toast, Toaster } from 'sonner';
 import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
 
 const STEP_STATUSES = [
   { id: 'pending', label: 'Pending', icon: Clock, color: 'text-yellow-500', bg: 'bg-yellow-50', border: 'border-yellow-200' },
@@ -21,15 +20,15 @@ const STEP_STATUSES = [
 ];
 
 const FIELD_TYPES = [
-  { id: 'text', label: 'Text Field', icon: Type, description: 'Short text (names, titles)' },
-  { id: 'email', label: 'Email', icon: Mail, description: 'Validated email format' },
-  { id: 'phone', label: 'Phone Number', icon: Phone, description: 'Global phone numbers' },
-  { id: 'number', label: 'Number', icon: Hash, description: 'Quantities or numerical IDs' },
-  { id: 'textarea', label: 'Text Area', icon: AlignLeft, description: 'Multi-line descriptions' },
-  { id: 'select', label: 'Dropdown List', icon: List, description: 'Single choice from a list' },
-  { id: 'date', label: 'Date', icon: Calendar, description: 'Calendar date selection' },
-  { id: 'signature', label: 'Signature', icon: PenTool, description: 'Digital sign or file upload' },
-  { id: 'checkbox', label: 'Checkbox', icon: CheckSquare, description: 'Multiple choices ' },
+  { id: 'text', label: 'Text Field', icon: Type },
+  { id: 'email', label: 'Email', icon: Mail },
+  { id: 'phone', label: 'Phone Number', icon: Phone },
+  { id: 'number', label: 'Number', icon: Hash },
+  { id: 'textarea', label: 'Text Area', icon: AlignLeft },
+  { id: 'select', label: 'Dropdown List', icon: List },
+  { id: 'date', label: 'Date', icon: Calendar },
+  { id: 'signature', label: 'Signature', icon: PenTool },
+  { id: 'checkbox', label: 'Checkbox', icon: CheckSquare },
 ];
 
 const PREVIEWS: Record<string, (f: any) => React.ReactNode> = {
@@ -54,28 +53,13 @@ const PREVIEWS: Record<string, (f: any) => React.ReactNode> = {
     </div>
   ),
   signature: () => (
-    <div className="space-y-2">
-      <label 
-        htmlFor="builder-sig-test"
-        className="w-full h-24 border-2 border-gray-100 border-dashed rounded-xl flex flex-col items-center justify-center bg-gray-50 group/sig hover:bg-indigo-50/30 transition-all relative overflow-hidden cursor-pointer block"
-      >
-        <div className="flex flex-col items-center transition-all group-hover/sig:-translate-y-2">
-          <PenTool className="w-6 h-6 text-indigo-300 mb-1" />
-          <p className="text-[10px] text-gray-400 italic font-medium text-center px-4">Signature / Upload</p>
-        </div>
-        <div className="absolute inset-x-0 bottom-2 flex items-center justify-center translate-y-8 group-hover/sig:translate-y-0 opacity-0 group-hover/sig:opacity-100 transition-all">
-          <div className="px-3 py-1 bg-indigo-600 text-white rounded-lg text-[9px] font-bold uppercase tracking-tight shadow-md flex items-center gap-1.5 backdrop-blur-sm">
-            <Plus className="w-2.5 h-2.5" /> Select Local File
-          </div>
-        </div>
-      </label>
-      <input 
-        id="builder-sig-test" 
-        type="file" 
-        className="hidden" 
-        accept="image/*,.pdf" 
-        onChange={() => toast.info("File selector triggered successfully!", { description: "Testing trigger only. Upload works in Preview mode." })}
-      />
+    <div className="w-full h-24 border-2 border-gray-100 border-dashed rounded-xl flex flex-col items-center justify-center bg-gray-50 group/sig hover:bg-indigo-50/30 transition-all relative overflow-hidden">
+      <PenTool className="w-6 h-6 text-gray-200 mb-2 group-hover/sig:text-indigo-200 transition-colors" />
+      <p className="text-xs text-gray-300 italic group-hover/sig:text-indigo-300 transition-colors">Sign here or upload signature</p>
+      <div className="absolute inset-0 flex items-center justify-center gap-3 opacity-0 group-hover/sig:opacity-100 transition-opacity bg-white/60 backdrop-blur-sm">
+        <button className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-indigo-700"><PenTool className="w-3 h-3" /> Sign Now</button>
+        <button className="px-3 py-1.5 bg-white border border-indigo-200 text-indigo-600 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-indigo-50"><Plus className="w-3 h-3" /> Upload</button>
+      </div>
     </div>
   ),
   default: (f) => <input type="text" className="w-full p-3 border-2 border-gray-100 rounded-xl text-sm bg-gray-50 text-gray-400 cursor-not-allowed" placeholder={f.placeholder || `Enter ${f.type}...`} readOnly />
@@ -178,40 +162,8 @@ export default function FormBuilder() {
   const [steps, setSteps] = useState<Step[]>([{ id: 'step-1', title: 'New Step', fields: [], status: 'pending' }]);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
-  const [formId, setFormId] = useState<string | null>(null);
-  
-  const searchParams = useSearchParams();
-  const router = useRouter();
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
   const currentStep = steps[currentStepIndex];
-
-  useEffect(() => {
-    const id = searchParams.get('id');
-    if (id) {
-      setFormId(id);
-      fetchFormData(id);
-    }
-  }, [searchParams]);
-
-  const fetchFormData = async (id: string) => {
-    try {
-      const token = localStorage.getItem('auth_token');
-      const tenantId = localStorage.getItem('tenantId');
-      
-      const res = await axios.get(`http://localhost:5000/api/forms/${id}`, {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'x-tenant-id': tenantId
-        }
-      });
-      if (res.data.success) {
-        setSteps(res.data.data.steps || []);
-      }
-    } catch (error) {
-      console.error("Error fetching form:", error);
-      toast.error("Failed to load form data");
-    }
-  };
 
   const handleDragEnd = ({ active, over }: DragEndEvent) => {
     if (active.id !== over?.id) {
@@ -230,49 +182,13 @@ export default function FormBuilder() {
       const token = localStorage.getItem('auth_token');
       const user = JSON.parse(localStorage.getItem('user') || 'null');
       const tenant = JSON.parse(localStorage.getItem('tenant') || 'null');
-      const tenantId = localStorage.getItem('tenantId') || tenant?._id || user?.tenantId;
+      const tenantId = tenant?._id || user?.tenantId || user?._id;
+      if (!tenantId) return toast.error("Tenant ID missing.");
       
-      if (!tenantId) {
-        console.error("DEBUG: Tenant ID missing", { user, tenant });
-        return toast.error("Tenant ID missing. Please log in again.");
-      }
-      
-      const payload = { 
-        name: steps[0]?.title || "Untitled Form", 
-        steps, 
-        description: "Form created with Form Builder" 
-      };
-
-      let res;
-      if (formId) {
-        // Update existing form
-        res = await axios.put(`http://localhost:5000/api/forms/${formId}`, payload, {
-          headers: { 
-            'Authorization': `Bearer ${token}`, 
-            'x-tenant-id': tenantId 
-          }
-        });
-      } else {
-        // Create new form
-        res = await axios.post('http://localhost:5000/api/forms', payload, {
-          headers: { 
-            'Authorization': `Bearer ${token}`, 
-            'x-tenant-id': tenantId 
-          }
-        });
-      }
-
-      if (res.data.success) {
-        toast.success(formId ? 'Form updated!' : 'Form saved!');
-        if (!formId && res.data.data?._id) {
-           router.push(`/form?id=${res.data.data._id}`);
-        }
-      }
-    } catch (e: any) { 
-      toast.error('Save failed: ' + (e.response?.data?.message || e.message)); 
-    } finally { 
-      setIsSaving(false); 
-    }
+      const res = await axios.post('http://localhost:5000/api/forms', { name: steps[0].title || "Untitled Form", steps, description: "Form created with Form Builder" }, { headers: { 'Authorization': `Bearer ${token}`, 'x-tenant-id': tenantId }});
+      if (res.data.success) toast.success('Form saved!');
+    } catch (e: any) { toast.error('Save failed: ' + (e.response?.data?.message || e.message)); }
+    finally { setIsSaving(false); }
   };
 
   const handleUpdateField = (id: string, updates: any) => {
@@ -307,21 +223,9 @@ export default function FormBuilder() {
       <Toaster position="top-right" richColors />
       <div className="bg-indigo-600 text-white p-4 shadow-md">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link 
-              href="/AllForms" 
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-              title="Back to All Forms"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <div className="flex items-center gap-2">
-              <FileText className="w-5 h-5" />
-              <h1 className="text-xl font-bold">Form Builder</h1>
-            </div>
-          </div>
+          <div className="flex items-center gap-2"><FileText className="w-5 h-5" /><h1 className="text-xl font-bold">Form Builder</h1></div>
           <div className="flex items-center gap-3">
-            <Link href="/form/form2" className="flex items-center gap-2 px-4 py-2 bg-indigo-500 text-white rounded-lg font-semibold hover:bg-indigo-400 transition-all shadow-sm">
+            <Link href="/admin/form/form2" className="flex items-center gap-2 px-4 py-2 bg-indigo-500 text-white rounded-lg font-semibold hover:bg-indigo-400 transition-all shadow-sm">
               Next <ArrowRight className="w-4 h-4" />
             </Link>
             <button onClick={handleSave} disabled={isSaving} className={`flex items-center gap-2 px-4 py-2 bg-white text-indigo-600 rounded-lg font-semibold hover:bg-indigo-50 ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}>
@@ -341,20 +245,10 @@ export default function FormBuilder() {
             <div className="bg-white rounded-lg shadow-sm p-3 sticky top-4">
               <h2 className="font-semibold text-gray-800 mb-3 text-sm flex items-center gap-1"><Settings className="w-3 h-3" /> Fields</h2>
               <div className="space-y-1.5">
-                {FIELD_TYPES.map(t => (
-                  <div 
-                    key={t.id} 
-                    draggable 
-                    onDragStart={(e) => e.dataTransfer.setData('text', t.id)} 
-                    className="flex flex-col gap-1 p-3 border rounded-xl cursor-move hover:border-indigo-300 hover:shadow-md text-sm group transition-all bg-white"
-                  >
-                    <div className="flex items-center gap-2">
-                       <t.icon className="w-4 h-4 text-gray-400 group-hover:text-indigo-600 transition-colors" /> 
-                       <span className="font-bold text-gray-700 group-hover:text-gray-900 transition-colors">{t.label}</span>
-                    </div>
-                    <p className="text-[10px] text-gray-400 leading-tight group-hover:text-gray-500">{t.description}</p>
-                  </div>
-                ))}
+                {FIELD_TYPES.map(t => <div key={t.id} draggable onDragStart={(e) => e.dataTransfer.setData('text', t.id)} className="flex items-center gap-2 p-2 border rounded-lg cursor-move hover:border-indigo-300 hover:shadow-sm text-sm group transition-all">
+                  <t.icon className="w-4 h-4 text-gray-400 group-hover:text-indigo-600 transition-colors" /> 
+                  <span className="font-medium text-gray-600 group-hover:text-gray-900 transition-colors">{t.label}</span>
+                </div>)}
               </div>
             </div>
           </div>
@@ -362,8 +256,8 @@ export default function FormBuilder() {
           <div className="col-span-12 md:col-span-9 bg-white rounded-lg shadow-sm">
             <div className="p-4 border-b flex flex-wrap items-center justify-between gap-4">
               <input value={currentStep.title} onChange={(e) => setSteps(p => p.map((s, i) => i === currentStepIndex ? { ...s, title: e.target.value } : s))} className="text-lg font-semibold bg-transparent border-b border-transparent focus:border-indigo-500 outline-none flex-1" />
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-yellow-50 text-yellow-500 border border-yellow-200">
-                <Clock className="w-3.5 h-3.5" /> Pending
+              <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-lg border">
+                {STEP_STATUSES.map(s => <button key={s.id} onClick={() => setSteps(p => p.map((st, i) => i === currentStepIndex ? { ...st, status: s.id as any } : st))} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium ${currentStep.status === s.id ? `${s.bg} ${s.color} border ${s.border}` : 'text-gray-400 hover:bg-gray-100'}`}><s.icon className="w-3.5 h-3.5" /> {s.label}</button>)}
               </div>
             </div>
 

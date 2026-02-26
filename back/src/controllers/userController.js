@@ -20,10 +20,10 @@ exports.getUsers = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('getUsers Error:', error);
+    console.error('Erreur getUsers:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: 'Erreur serveur'
     });
   }
 };
@@ -32,11 +32,10 @@ exports.getUsers = async (req, res) => {
 exports.createUser = async (req, res) => {
   console.log('👤 userController.createUser - Body:', req.body);
   try {
-    if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
-      console.warn('🚫 Permission denied for role:', req.user.role);
+    if (req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Permission denied'
+        message: 'Permission refusée'
       });
     }
 
@@ -45,24 +44,22 @@ exports.createUser = async (req, res) => {
     if (!email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Email and password required'
+        message: 'Email et mot de passe requis'
       });
     }
 
     const User = req.tenantConn.model('User');
 
-    // Check if user already exists in this tenant
+    // Vérifier si l'utilisateur existe déjà dans ce tenant
     const existingUser = await User.findOne({ email });
 
     if (existingUser) {
-      console.warn('⚠️ User already exists:', email);
       return res.status(400).json({
         success: false,
-        message: 'This user already exists'
+        message: 'Cet utilisateur existe déjà'
       });
     }
 
-    console.log('🔐 Hashing password...');
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = new User({
@@ -74,9 +71,7 @@ exports.createUser = async (req, res) => {
       domain: domain || 'HR'
     });
 
-    console.log('💾 Saving user...');
     await user.save();
-    console.log('✅ User created:', email);
 
     const userResponse = user.toObject();
     delete userResponse.password;
@@ -88,10 +83,10 @@ exports.createUser = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ createUser Error:', error);
+    console.error('Erreur createUser:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error: ' + error.message
+      message: 'Erreur serveur'
     });
   }
 };
@@ -104,23 +99,26 @@ exports.updateUser = async (req, res) => {
 
     const User = req.tenantConn.model('User');
 
-    // Check permissions
+    // Vérifier les permissions
     const targetUser = await User.findById(userId);
     if (!targetUser) {
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: 'Utilisateur non trouvé'
       });
     }
 
-    if (req.user.role !== 'admin' && req.user.userId.toString() !== userId) {
+    if (req.user.role !== 'admin' && req.user.id.toString() !== userId) {
       return res.status(403).json({
         success: false,
-        message: 'Permission denied'
+        message: 'Permission refusée'
       });
     }
 
-    // Do not allow non-admin to change role
+    // Ne pas permettre à un non-admin de changer le rôle
+    if (req.user.role !== 'admin' && updates.role) {
+      delete updates.role;
+    }
 
     if (updates.password) {
       updates.password = await bcrypt.hash(updates.password, 10);
@@ -139,10 +137,10 @@ exports.updateUser = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('updateUser Error:', error);
+    console.error('Erreur updateUser:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: 'Erreur serveur'
     });
   }
 };
@@ -153,7 +151,7 @@ exports.deleteUser = async (req, res) => {
     if (req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Permission denied'
+        message: 'Permission refusée'
       });
     }
 
@@ -164,15 +162,15 @@ exports.deleteUser = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: 'Utilisateur non trouvé'
       });
     }
 
-    // Prevent self-deletion
-    if (user._id.toString() === req.user.userId.toString()) {
+    // Empêcher la suppression de soi-même
+    if (user._id.toString() === req.user.id.toString()) {
       return res.status(400).json({
         success: false,
-        message: 'You cannot delete your own account'
+        message: 'Vous ne pouvez pas supprimer votre propre compte'
       });
     }
 
@@ -184,10 +182,10 @@ exports.deleteUser = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('deleteUser Error:', error);
+    console.error('Erreur deleteUser:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: 'Erreur serveur'
     });
   }
 };

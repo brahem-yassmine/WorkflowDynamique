@@ -1,91 +1,91 @@
-// back/src/middleware/tenantMiddleware.js
-const Tenant = require('../models/master/Tenant');
 const mongoose = require('mongoose');
-const roleSchema = require('../models/tenant/role.model');
-const domainSchema = require('../models/tenant/domain.model');
+const { getTenantConnection } = require('../services/tenantConnection');
 
-// Tenants connections cache
-const tenantConnections = {};
-
-// Helper to register all tenant-specific models on a connection
-const registerTenantModels = (conn) => {
-  if (!conn) return;
-  if (!conn.models['Role']) conn.model('Role', roleSchema);
-  if (!conn.models['Domain']) conn.model('Domain', domainSchema);
-  if (!conn.models['User']) require('../models/tenant/User')(conn);
-  if (!conn.models['Workflow']) require('../models/tenant/Workflow')(conn);
-  if (!conn.models['WorkflowInstance']) require('../models/tenant/WorkflowInstance')(conn);
-  if (!conn.models['Project']) require('../models/tenant/Project')(conn);
-  if (!conn.models['Form']) require('../models/tenant/Form')(conn);
-  if (!conn.models['FormResponse']) require('../models/tenant/FormResponse')(conn);
-  if (!conn.models['Checklist']) require('../models/tenant/Checklist')(conn);
-  if (!conn.models['Task']) require('../models/tenant/Task')(conn);
-};
-
-// Middleware to resolve tenant from headers AND create/manage the connection
+// ✅ Middleware pour résoudre le tenant à partir des headers
 const tenantResolver = async (req, res, next) => {
   try {
-    const tenantId = req.headers['x-tenant-id'] || req.query.tenantId;
+    // Extraire tenantId du header ou de la query
+    let tenantId = req.headers['x-tenant-id'] || req.query.tenantId;
+
+    console.log('🔍 [TenantResolver] tenantId reçue:', tenantId);
 
     if (!tenantId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Tenant ID required (x-tenant-id header)'
-      });
-    }
-
-    req.tenantId = tenantId;
-
-    // 1. Check if we already have an active and ready connection
-    if (tenantConnections[tenantId] && tenantConnections[tenantId].readyState === 1) {
-      req.tenantConn = tenantConnections[tenantId];
-      req.tenant = tenantConnections[tenantId].tenant;
-      registerTenantModels(req.tenantConn);
+      // Si pas de tenantId, on laisse passer (les middlewares suivants bloqueront si nécessaire)
       return next();
     }
 
-    // 2. Otherwise, load tenant and/or create connection
-    console.log(`🔌 Resolving tenant: ${tenantId}`);
+    // S'assurer que le tenantId est une chaîne
+    tenantId = String(tenantId);
+    req.tenantId = tenantId;
 
-    if (!req.masterDb) {
-      return res.status(503).json({ success: false, message: 'Master Database unavailable' });
+    // Si on a accès à la base master, on récupère les infos du tenant
+    if (req.masterDb) {
+      const TenantModel = req.masterDb.model('Tenant');
+
+      // Validation du format ObjectId pour éviter un crash findById
+      if (!mongoose.Types.ObjectId.isValid(tenantId)) {
+        console.error('❌ [TenantResolver] format tenantId invalide:', tenantId);
+        return res.status(400).json({ success: false, message: 'Format de Tenant ID invalide' });
+      }
+
+      const tenant = await TenantModel.findById(tenantId);
+
+      if (!tenant) {
+        console.error('❌ [TenantResolver] Tenant non trouvé pour ID:', tenantId);
+        return res.status(404).json({
+          success: false,
+          message: 'Tenant non trouvé dans la base master'
+        });
+      }
+
+      req.tenant = tenant;
+      console.log('✅ [TenantResolver] Tenant résolu:', tenant.domain);
+
+      // Établir la connexion à la base spécifique du tenant
+      const tenantConn = await getTenantConnection(tenant.domain, tenant.databaseName);
+      req.tenantConn = tenantConn;
+    } else {
+      console.warn('⚠️ [TenantResolver] req.masterDb est manquant !');
     }
 
-    const TenantModel = req.masterDb.model('Tenant');
-    const tenant = await TenantModel.findById(tenantId);
-
-    if (!tenant) {
-      return res.status(404).json({ success: false, message: 'Organization not found' });
+    next();
+  } catch (error) {
+    console.error('❌ [TenantResolver] CRASH:', error);
+    res.status(500).json({
+      success: false,
+      message: `Erreur résolution tenant: ${error.message}`,
+      error: error.stack // Ajout du stack pour plus de détails
+    });
+  }
+};
+// ✅ Vérifie que le tenant est actif
+const checkTenantActive = async (req, res, next) => {
+  try {
+    // Si on a déjà le tenant via tenantResolver
+    if (req.tenant) {
+      if (req.tenant.status !== 'active') {
+        return res.status(403).json({
+          success: false,
+          message: 'Tenant inactif ou suspendu'
+        });
+      }
+      return next();
     }
 
-    // 3. Create connection if it doesn't exist
-    if (!tenantConnections[tenantId]) {
-      console.log(`📡 Creating database connection: ${tenant.databaseName}`);
+    // Sinon, vérifier via la base master
+    if (!req.user || !req.user.tenantId) {
+      return next();
+    }
 
-      const conn = mongoose.createConnection(tenant.databaseUri, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-        serverSelectionTimeoutMS: 5000,
+    const TenantModel = req.masterDb?.model('Tenant') || Tenant;
+    const tenant = await TenantModel.findById(req.user.tenantId);
+
+    if (tenant && tenant.status !== 'active') {
+      return res.status(403).json({
+        success: false,
+        message: 'Tenant inactif'
       });
-
-      // Register models immediately
-      registerTenantModels(conn);
-
-      // Wait for connection (with timeout)
-      await Promise.race([
-        new Promise((resolve) => conn.once('connected', resolve)),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Tenant database connection timeout')), 8000))
-      ]);
-
-      conn.tenant = tenant;
-      tenantConnections[tenantId] = conn;
     }
-
-    req.tenantConn = tenantConnections[tenantId];
-    req.tenant = tenant;
-
-    // Ensure models are registered even if we just fetched from cache (safety check)
-    registerTenantModels(req.tenantConn);
 
     next();
   } catch (error) {
@@ -97,27 +97,6 @@ const tenantResolver = async (req, res, next) => {
   }
 };
 
-// Checks if tenant is active
-const checkTenantActive = async (req, res, next) => {
-  try {
-    if (!req.tenant) {
-      return next();
-    }
-
-    if (req.tenant.status !== 'active') {
-      return res.status(403).json({
-        success: false,
-        message: 'Tenant inactive or suspended'
-      });
-    }
-
-    next();
-  } catch (error) {
-    console.error('checkTenantActive Error:', error);
-    next(error);
-  }
-};
-
 // Checks plan limits
 const checkPlanLimits = (resourceType) => {
   return async (req, res, next) => {
@@ -126,24 +105,30 @@ const checkPlanLimits = (resourceType) => {
         return next();
       }
 
-      // Get plan details
-      const Plan = req.masterDb.model('Plan');
-      const plan = await Plan.findById(req.tenant.selectedPlan);
+      const limits = req.tenant.planDetails.features;
 
-      if (!plan) {
-        return next();
-      }
-
-      const limits = plan.features || {};
-
-      if (resourceType === 'users' && req.tenantConn) {
-        const User = req.tenantConn.model('User');
+      if (resourceType === 'users') {
+        const User = req.tenantConn?.model('User');
         if (User) {
           const count = await User.countDocuments();
-          if (count >= (limits.maxUsers || 999)) {
+          if (count >= limits.maxUsers) {
             return res.status(403).json({
               success: false,
-              message: `Limit of ${limits.maxUsers || 999} users reached`
+              message: `Limite de ${limits.maxUsers} utilisateurs atteinte`
+            });
+          }
+        }
+      }
+
+      // Ajouter d'autres types de ressources si nécessaire
+      if (resourceType === 'workflows') {
+        const Workflow = req.tenantConn?.model('Workflow');
+        if (Workflow) {
+          const count = await Workflow.countDocuments();
+          if (count >= limits.maxWorkflows) {
+            return res.status(403).json({
+              success: false,
+              message: `Limite de ${limits.maxWorkflows} workflows atteinte`
             });
           }
         }
@@ -161,10 +146,17 @@ const checkPlanLimits = (resourceType) => {
 const requirePlan = (requiredPlan) => {
   return (req, res, next) => {
     try {
-      if (!req.tenant || !req.tenant.selectedPlan) {
+      if (!req.tenant || !req.tenant.plan) {
         return res.status(403).json({
           success: false,
-          message: 'Plan not defined for this tenant'
+          message: 'Plan non défini pour ce tenant'
+        });
+      }
+
+      if (req.tenant.plan !== requiredPlan) {
+        return res.status(403).json({
+          success: false,
+          message: `Ce plan (${requiredPlan}) est requis pour cette action`
         });
       }
 

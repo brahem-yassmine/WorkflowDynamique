@@ -2,7 +2,7 @@
 const mongoose = require('mongoose');
 
 const tenantSchema = new mongoose.Schema({
-  slug: {
+  domain: {
     type: String,
     required: true,
     unique: true,

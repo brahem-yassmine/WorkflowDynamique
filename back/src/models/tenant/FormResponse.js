@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const formResponseSchema = new mongoose.Schema({
     formId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Form',
+        ref: 'DynamicForm',
         required: true
     },
     data: {

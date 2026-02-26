@@ -1,6 +1,7 @@
 'use client'
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
     CreditCard,
     TrendingUp,
@@ -13,9 +14,23 @@ import {
     Activity,
     Zap,
     DollarSign,
-    ShieldCheck
+    ShieldCheck,
+    ChevronUp,
+    ChevronDown,
+    X
 } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+
+type PlanType = 'demo' | 'starter' | 'pro';
+
+const PLANS: { id: PlanType; name: string; price: string; features: string[] }[] = [
+  { id: 'demo',    name: 'Demo Starter',  price: 'Free',       features: ['Basic features', 'Email support'] },
+  { id: 'starter', name: 'Starter',       price: '$29/month',  features: ['All demo features', 'Priority support', 'API access'] },
+  { id: 'pro',     name: 'Professional',  price: '$99/month',  features: ['All starter features', '24/7 support', 'Advanced analytics'] },
+];
+
+const fmtDate = (d: Date | null) =>
+  d ? d.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : 'N/A';
 
 const FISCAL_DATA = [
     { month: 'Oct', amount: 4500 },
@@ -33,6 +48,44 @@ const INVOICES = [
 ];
 
 export default function BillingPage() {
+    const router = useRouter();
+    const [plan,    setPlan]    = useState<PlanType>('demo');
+    const [days,    setDays]    = useState(0);
+    const [start,   setStart]   = useState<Date | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [confirm, setConfirm] = useState(false);
+
+    useEffect(() => {
+        const saved = localStorage.getItem('selectedPlan') as PlanType;
+        const savedDate = localStorage.getItem('planStartDate');
+        if (saved && PLANS.find(p => p.id === saved)) setPlan(saved);
+        const date = savedDate ? new Date(savedDate) : new Date();
+        if (!savedDate) localStorage.setItem('planStartDate', date.toISOString());
+        setStart(date);
+        setDays(Math.ceil(Math.abs(Date.now() - date.getTime()) / 86400000));
+        setLoading(false);
+    }, []);
+
+    const changePlan = async (next: PlanType) => {
+        setLoading(true);
+        await new Promise(r => setTimeout(r, 700));
+        localStorage.setItem('selectedPlan', next);
+        localStorage.setItem('planStartDate', new Date().toISOString());
+        setPlan(next);
+        setStart(new Date());
+        setDays(0);
+        setLoading(false);
+        setConfirm(false);
+    };
+
+    const idx = PLANS.findIndex(p => p.id === plan);
+
+    if (loading) return (
+        <div className="flex h-[60vh] items-center justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
+        </div>
+    );
+
     return (
         <div className="space-y-10 animate-in fade-in duration-500">
 
@@ -87,26 +140,111 @@ export default function BillingPage() {
                             <ShieldCheck size={32} />
                         </div>
                         <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-200">Current Authorization</h3>
-                        <h2 className="text-3xl font-black tracking-tight mt-2">Enterprise Lattice</h2>
+                        <h2 className="text-3xl font-black tracking-tight mt-2">{PLANS[idx].name}</h2>
                         <p className="text-indigo-100 text-sm font-medium mt-4 leading-relaxed opacity-80">
-                            Full access to complex orchestration nodes, unlimited talent management, and advanced security forensics.
+                            {idx === 0 ? 'Basic orchestration nodes with fundamental support protocols.' : 
+                             idx === 1 ? 'Enhanced lattice throughput with priority uplink and API access.' : 
+                             'Full enterprise-grade orchestration with 24/7 forensics and advanced analytics.'}
                         </p>
                     </div>
 
                     <div className="relative z-10 pt-10 border-t border-white/10">
-                        <div className="flex justify-between items-center mb-6">
-                            <span className="text-indigo-200 text-xs font-bold">Node Usage</span>
-                            <span className="text-white text-xs font-black tracking-widest">78 / 100</span>
+                        <div className="grid grid-cols-2 gap-4 mb-6">
+                            <div>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-300">Sync Date</p>
+                                <p className="text-sm font-black mt-1">{fmtDate(start)}</p>
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-300">Days Active</p>
+                                <p className="text-sm font-black mt-1">{days} Days</p>
+                            </div>
+                        </div>
+                        <div className="flex justify-between items-center mb-2">
+                            <span className="text-indigo-200 text-[10px] font-black uppercase tracking-widest">Cycle Progress</span>
+                            <span className="text-white text-[10px] font-black tracking-widest">{Math.min(100, Math.round((days / 30) * 100))}%</span>
                         </div>
                         <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
-                            <div className="h-full bg-white w-[78%] rounded-full shadow-[0_0_10px_rgba(255,255,255,0.5)]"></div>
+                            <div className="h-full bg-white rounded-full transition-all duration-1000" style={{ width: `${Math.min(100, (days / 30) * 100)}%` }}></div>
                         </div>
-                        <button className="w-full mt-10 py-4 bg-white text-indigo-700 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-50 transition-all active:scale-95 shadow-xl">
-                            Upgrade Matrix Capacity
+                        <button 
+                            onClick={() => setConfirm(plan !== 'demo')}
+                            disabled={plan === 'demo'}
+                            className="w-full mt-10 py-4 bg-white text-indigo-700 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-50 transition-all active:scale-95 shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {plan === 'demo' ? 'Uplink to Paid Matrix' : 'Terminate Proxy Session'}
                         </button>
                     </div>
                 </div>
             </div>
+
+            {/* Change Plan - Subscription Protocol */}
+            <section className="bg-white rounded-[40px] p-10 shadow-sm border border-slate-100">
+                <div className="flex justify-between items-center mb-10">
+                    <div>
+                        <h3 className="text-xl font-black text-slate-800 tracking-tight">Subscription Protocol</h3>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Matrix Scaling Options</p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {PLANS.map((p, i) => {
+                        const isCurrent = i === idx;
+                        return (
+                            <div key={p.id} className={`rounded-[32px] border-2 p-8 transition-all relative overflow-hidden group ${
+                                isCurrent ? 'border-indigo-600 bg-indigo-50/50' : 'border-slate-50 bg-white hover:border-slate-200'
+                            }`}>
+                                {isCurrent && (
+                                    <div className="absolute top-4 right-4 bg-indigo-600 text-white p-1 rounded-full">
+                                        <CheckCircle2 size={12} />
+                                    </div>
+                                )}
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{p.price}</p>
+                                <h4 className="text-xl font-black text-slate-800 tracking-tight mb-6">{p.name}</h4>
+                                <ul className="space-y-4 mb-10">
+                                    {p.features.map(f => (
+                                        <li key={f} className="text-xs text-slate-500 font-bold flex gap-3 items-center">
+                                            <div className={`p-1 rounded-md ${isCurrent ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                                                <CheckCircle2 size={10} />
+                                            </div>
+                                            {f}
+                                        </li>
+                                    ))}
+                                </ul>
+                                <button
+                                    onClick={() => changePlan(p.id)}
+                                    disabled={isCurrent || loading}
+                                    className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 ${
+                                        isCurrent 
+                                        ? 'bg-slate-100 text-slate-400 cursor-default' 
+                                        : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-100'
+                                    }`}
+                                >
+                                    {isCurrent ? 'Active Protocol' : 'Sync Request'}
+                                </button>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                <div className="mt-10 flex gap-4">
+                    <button
+                        onClick={() => idx > 0 && changePlan(PLANS[idx - 1].id)}
+                        disabled={idx === 0 || loading}
+                        className="flex-1 py-4 px-6 bg-slate-50 text-slate-600 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-100 transition-all disabled:opacity-50"
+                    >
+                        <ChevronDown size={14} />
+                        Downgrade Protocol
+                    </button>
+                    <button
+                        onClick={() => idx < PLANS.length - 1 && changePlan(PLANS[idx + 1].id)}
+                        disabled={idx === PLANS.length - 1 || loading}
+                        className="flex-1 py-4 px-6 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50"
+                    >
+                        <ChevronUp size={14} />
+                        Upgrade Matrix
+                    </button>
+                </div>
+            </section>
 
             {/* Invoice Registry */}
             <section className="bg-white rounded-[40px] shadow-sm border border-slate-100 overflow-hidden">
@@ -150,6 +288,34 @@ export default function BillingPage() {
                     </table>
                 </div>
             </section>
+        {/* Confirm modal */}
+        {confirm && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+            <div className="bg-white rounded-[40px] p-10 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-200">
+              <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mb-6">
+                <AlertCircle size={32} />
+              </div>
+              <h3 className="text-2xl font-black text-slate-800 tracking-tight mb-2">Terminate Protocol?</h3>
+              <p className="text-sm text-slate-500 font-bold leading-relaxed mb-8">
+                By terminating your current subscription protocol, you will be moved back to the basic Demo plan. Matrix access will be limited.
+              </p>
+              <div className="flex gap-4">
+                <button 
+                    onClick={() => setConfirm(false)} 
+                    className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all"
+                >
+                    Retain Plan
+                </button>
+                <button 
+                    onClick={() => changePlan('demo')} 
+                    className="flex-1 py-4 bg-rose-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-rose-700 transition-all shadow-lg shadow-rose-100"
+                >
+                    Yes, Terminate
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         </div>
     );
 }

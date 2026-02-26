@@ -27,4 +27,4 @@ const domainSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
-module.exports = domainSchema;
+module.exports = (connection) => connection.model('Domain', domainSchema);

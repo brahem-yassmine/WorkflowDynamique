@@ -10,6 +10,7 @@ import {
   CheckSquare, Plus, Trash2, GripVertical, ListTodo, AlertCircle, Save, Clock
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
+import axios from 'axios';
 
 interface WorkflowTask {
   id: string;
@@ -54,11 +55,43 @@ function SortableTask({ task, onUpdate, onDelete }: any) {
 }
 
 export default function WorkflowChecklist() {
-  const [tasks, setTasks] = useState<WorkflowTask[]>([
-    { id: '1', title: 'Verify document validity', completed: false, priority: 'high' },
-    { id: '2', title: 'Approve initial request', completed: true, priority: 'medium' },
-  ]);
+  const [tasks, setTasks] = useState<WorkflowTask[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [checklistName, setChecklistName] = useState('Workflow Checklist');
+  const [checklistId, setChecklistId] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    fetchChecklist();
+  }, []);
+
+  const fetchChecklist = async () => {
+    try {
+      const tenant = JSON.parse(localStorage.getItem('tenant') || '{}');
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const tenantId = tenant?._id || user?.tenantId;
+
+      const token = localStorage.getItem('auth_token');
+      if (!tenantId || !token) return;
+
+      const res = await axios.get('http://localhost:5000/api/checklists', {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'x-tenant-id': tenantId 
+        }
+      });
+
+      if (res.data.success && res.data.data.length > 0) {
+        // En prendre un pour la démo, ou filtrer si nécessaire
+        const checklist = res.data.data[0];
+        setTasks(checklist.tasks);
+        setChecklistName(checklist.name);
+        setChecklistId(checklist._id);
+      }
+    } catch (error) {
+      console.error('Error fetching checklist:', error);
+    }
+  };
+
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -87,10 +120,42 @@ export default function WorkflowChecklist() {
 
   const handleSave = async () => {
     setIsSaving(true);
-    setTimeout(() => {
+    try {
+      const tenant = JSON.parse(localStorage.getItem('tenant') || '{}');
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const tenantId = tenant?._id || user?.tenantId;
+
+      if (!tenantId) {
+        toast.error("Tenant ID missing");
+        return;
+      }
+
+      const method = checklistId ? 'put' : 'post';
+      const url = checklistId 
+        ? `http://localhost:5000/api/checklists/${checklistId}` 
+        : 'http://localhost:5000/api/checklists';
+
+      const token = localStorage.getItem('auth_token');
+      const response = await axios[method](url, {
+        name: checklistName,
+        tasks: tasks
+      }, {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'x-tenant-id': tenantId 
+        }
+      });
+
+      if (response.data.success) {
+        if (!checklistId) setChecklistId(response.data.data._id);
+        toast.success('Workflow tasks saved');
+      }
+    } catch (error) {
+      console.error('Error saving checklist:', error);
+      toast.error('Failed to save checklist');
+    } finally {
       setIsSaving(false);
-      toast.success('Workflow tasks saved');
-    }, 1000);
+    }
   };
 
   const completedCount = tasks.filter(t => t.completed).length;

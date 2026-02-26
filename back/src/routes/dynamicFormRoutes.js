@@ -7,7 +7,10 @@ const {
     getFormById,
     createForm,
     updateForm,
-    deleteForm
+    deleteForm,
+    updateFormStatus,
+    submitForm,
+    cloneForm
 } = require('../controllers/dynamicFormController');
 
 const { auth } = require('../middleware/auth');
@@ -22,5 +25,8 @@ router.get('/:formId', getFormById);
 router.post('/', createForm);
 router.put('/:formId', updateForm);
 router.delete('/:formId', deleteForm);
+router.patch('/:formId/status', updateFormStatus);
+router.post('/:formId/submit', submitForm);
+router.post('/:formId/clone', cloneForm);
 
 module.exports = router;

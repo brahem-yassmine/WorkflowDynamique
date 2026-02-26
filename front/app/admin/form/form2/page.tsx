@@ -3,9 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { 
   FileText, Type, Hash, Calendar, CheckSquare, PenTool, AlignLeft, List, 
-  ArrowLeft, Send, CheckCircle2, Clock, Mail, Phone, Trash2
+  ArrowLeft, Send, CheckCircle2, Clock, Mail, Phone
 } from 'lucide-react';
-import { api } from '../../services/api';
+import { api } from '../../../services/api';
 import { useSearchParams } from 'next/navigation';
 import { toast, Toaster } from 'sonner';
 import Link from 'next/link';
@@ -51,57 +51,13 @@ export default function Form2Page() {
     setFormData(prev => ({ ...prev, [fieldId]: value }));
   };
 
-  const handleFileChange = (fieldId: string, file: File | null) => {
-    if (!file) return;
-    
-    // Check if image or PDF
-    if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
-      return toast.error("Only images and PDF files are allowed.");
-    }
-
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      handleChange(fieldId, {
-        name: file.name,
-        type: file.type,
-        data: reader.result, // Base64 string
-        size: file.size
-      });
-      toast.success(`${file.name} uploaded!`);
-    };
-    reader.readAsDataURL(file);
-  };
-
   const handleSubmit = async () => {
-    if (!form?._id) return toast.error("Form ID missing.");
-    
     setIsSubmitting(true);
-    try {
-      const res = await api.post(`/api/forms/${form._id}/submit`, { data: formData });
-
-      if (res.data.success) {
-        toast.success("Form submitted successfully!");
-      }
-    } catch (error: any) {
-      toast.error("Submission failed: " + (error.response?.data?.message || error.message));
-    } finally {
+    // Simulate submission
+    setTimeout(() => {
+      toast.success("Form submitted successfully!");
       setIsSubmitting(false);
-    }
-  };
-
-  const handleStatusUpdate = async (status: 'approved' | 'rejected') => {
-    if (!form?._id) return toast.error("Form ID missing.");
-    
-    try {
-      const res = await api.patch(`/api/forms/${form._id}/status`, { status });
-
-      if (res.data.success) {
-        setForm(res.data.data);
-        toast.success(`Form ${status === 'approved' ? 'Approved' : 'Rejected'}!`);
-      }
-    } catch (error: any) {
-      toast.error("Status update failed: " + (error.response?.data?.message || error.message));
-    }
+    }, 1500);
   };
 
   if (loading) return (
@@ -118,7 +74,7 @@ export default function Form2Page() {
       <div className="text-center">
         <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
         <p className="text-gray-500 mb-4">No form found. Please create one first.</p>
-        <Link href="/form" className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-bold">Go to Builder</Link>
+        <Link href="/admin/form" className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-bold">Go to Builder</Link>
       </div>
     </div>
   );
@@ -130,52 +86,22 @@ export default function Form2Page() {
       <div className="bg-white border-b sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href="/form" className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500">
+            <Link href="/admin/form" className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500">
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <div>
               <h1 className="text-xl font-bold text-gray-800">{form.name}</h1>
-              <div className="flex items-center gap-2 mt-0.5">
-                <p className="text-xs text-gray-400">Interactive Mode • </p>
-                {form.steps.some((s: any) => s.status === 'approved') ? (
-                  <span className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-200 uppercase tracking-wider">
-                    <CheckCircle2 className="w-2.5 h-2.5" /> Approved
-                  </span>
-                ) : form.steps.some((s: any) => s.status === 'rejected') ? (
-                   <span className="flex items-center gap-1 text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-200 uppercase tracking-wider">
-                    <Clock className="w-2.5 h-2.5" /> Rejected
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-1 text-[10px] font-bold text-yellow-600 bg-yellow-50 px-1.5 py-0.5 rounded border border-yellow-200 uppercase tracking-wider">
-                    <Clock className="w-2.5 h-2.5" /> Pending
-                  </span>
-                )}
-              </div>
+              <p className="text-xs text-gray-400">Interactive Mode • Filling allowed</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={() => handleStatusUpdate('approved')}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700 transition-all shadow-sm"
-            >
-              Approve
-            </button>
-            <button 
-              onClick={() => handleStatusUpdate('rejected')}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-bold hover:bg-red-700 transition-all shadow-sm"
-            >
-              Reject
-            </button>
-            <div className="w-px h-6 bg-gray-200 mx-1"></div>
-            <button 
-              onClick={handleSubmit} 
-              disabled={isSubmitting}
-              className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 disabled:opacity-70"
-            >
-              {isSubmitting ? <Clock className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              {isSubmitting ? 'Submitting...' : 'Submit Form'}
-            </button>
-          </div>
+          <button 
+            onClick={handleSubmit} 
+            disabled={isSubmitting}
+            className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 disabled:opacity-70"
+          >
+            {isSubmitting ? <Clock className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            {isSubmitting ? 'Submitting...' : 'Submit Form'}
+          </button>
         </div>
       </div>
 
@@ -244,54 +170,14 @@ export default function Form2Page() {
                         ))}
                       </div>
                     ) : field.type === 'signature' ? (
-                      <div className="space-y-3">
-                        <label 
-                          htmlFor={`file-${field.id}`}
-                          className="w-full aspect-video md:aspect-auto md:h-40 border-2 border-gray-100 border-dashed rounded-2xl bg-white flex flex-col items-center justify-center group hover:border-indigo-200 hover:bg-indigo-50/30 transition-all cursor-pointer relative overflow-hidden block"
-                        >
-                          {formData[field.id]?.data ? (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white p-4">
-                              {formData[field.id].type === 'application/pdf' ? (
-                                <div className="flex flex-col items-center gap-2">
-                                  <FileText className="w-12 h-12 text-red-500" />
-                                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider truncate max-w-full px-2">{formData[field.id].name}</p>
-                                </div>
-                              ) : (
-                                <img src={formData[field.id].data} alt="Signature Preview" className="max-h-full object-contain pointer-events-none" />
-                              )}
-                              <button 
-                                type="button"
-                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleChange(field.id, null); }}
-                                className="absolute top-2 right-2 p-1.5 bg-red-50 text-red-500 rounded-full hover:bg-red-100 transition-colors z-20"
-                                title="Remove file"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          ) : (
-                            <>
-                              <div className="flex flex-col items-center animate-in fade-in zoom-in duration-300">
-                                <PenTool className="w-8 h-8 text-indigo-400 mb-2 group-hover:scale-110 transition-transform" />
-                                <p className="text-xs text-gray-400 font-medium text-center px-4 leading-relaxed group-hover:text-indigo-500 transition-colors">
-                                  Click to upload your signature<br/>
-                                  <span className="text-[10px] text-gray-300 font-normal mt-1 block">(PNG, JPG or PDF)</span>
-                                </p>
-                              </div>
-                              <div className="absolute inset-x-0 bottom-4 px-4 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0 flex justify-center gap-2">
-                                <div className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider shadow-lg shadow-indigo-100">
-                                  Choose Local File
-                                </div>
-                              </div>
-                            </>
-                          )}
-                        </label>
-                        <input 
-                          id={`file-${field.id}`}
-                          type="file" 
-                          className="hidden" 
-                          accept="image/*,.pdf"
-                          onChange={(e) => handleFileChange(field.id, e.target.files?.[0] || null)}
-                        />
+                      <div className="w-full aspect-video md:aspect-auto md:h-40 border-2 border-gray-100 border-dashed rounded-2xl bg-white flex flex-col items-center justify-center group hover:border-indigo-200 hover:bg-indigo-50/30 transition-all cursor-crosshair relative overflow-hidden">
+                        <PenTool className="w-8 h-8 text-gray-200 mb-2 group-hover:text-indigo-300 transition-all" />
+                        <p className="text-xs text-gray-400 group-hover:text-indigo-400 transition-all font-medium">Click to sign or drop signature image here</p>
+                        
+                        <div className="absolute inset-x-0 bottom-4 px-4 opacity-0 group-hover:opacity-100 transition-opacity flex justify-center gap-2">
+                           <button className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-[10px] font-bold shadow-lg shadow-indigo-100 uppercase tracking-wider">Sign Now</button>
+                           <button className="px-3 py-1.5 bg-white border border-indigo-100 text-indigo-600 rounded-lg text-[10px] font-bold uppercase tracking-wider">Upload PNG</button>
+                        </div>
                       </div>
                     ) : (
                       <input 

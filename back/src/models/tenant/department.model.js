@@ -29,4 +29,4 @@ const departmentSchema = new mongoose.Schema(
   }
 );
 
-module.exports = departmentSchema;
+module.exports = (connection) => connection.model('Department', departmentSchema);

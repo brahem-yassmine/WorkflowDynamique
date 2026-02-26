@@ -262,7 +262,6 @@ export default function KanbanPage() {
       if (isOverATask) {
         const overIndex = updated.findIndex((t) => t._id === over.id);
         if (overIndex === -1) return prev;
-        // Move to target column
         updated[activeIndex].status = updated[overIndex].status;
         return arrayMove(updated, activeIndex, overIndex);
       }
@@ -276,7 +275,7 @@ export default function KanbanPage() {
     });
   };
 
-  const handleDragEnd = async (event: DragEndEvent) => {
+  const handleDragEnd = async (_event: DragEndEvent) => {
     setActiveTask(null);
   };
 
@@ -313,7 +312,6 @@ export default function KanbanPage() {
 
   const deleteTask = async (id: string) => {
     const { tenantId, token } = getAuthInfo();
-    // Optimistic update
     setTasks((prev) => prev.filter((t) => t._id !== id));
     try {
       await axios.delete(`http://localhost:5000/api/tasks/${id}`, {

@@ -44,7 +44,14 @@ const tenantSchema = new mongoose.Schema({
 
   industry: {
     type: String,
-    default: 'Not specified'
+    enum: [
+      'Construction & Engineering ',
+      'Information Technology & Software',
+      'Corporate & Business Services',
+      'Healthcare',
+      'Other'
+    ],
+    default: 'Other'
   },
 
   selectedPlan: {

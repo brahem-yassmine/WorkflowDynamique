@@ -60,7 +60,17 @@ const getTenantModel = async () => {
     password: { type: String, required: true },
     domain: { type: String, required: true, unique: true },
     status: { type: String, default: 'active' },
-    industry: { type: String, default: 'Unspecified' },
+    industry: {
+      type: String,
+      enum: [
+        'Construction & Engineering ',
+        'Information Technology & Software',
+        'Corporate & Business Services',
+        'Healthcare',
+        'Other'
+      ],
+      default: 'Other'
+    },
     adminName: { type: String },
     selectedPlan: { type: mongoose.Schema.Types.ObjectId, ref: 'Plan' },
     databaseName: { type: String, required: true, unique: true },
@@ -329,12 +339,12 @@ const login = async (req, res) => {
 // ====================================
 const registerTenant = async (req, res) => {
   try {
-    const { companyName, adminEmail, password, planId } = req.body;
+    const { companyName, adminEmail, password, planId, industry } = req.body;
 
-    console.log('📝 Tenant registration:', { companyName, adminEmail, planId });
+    console.log('📝 Tenant registration:', { companyName, adminEmail, planId, industry });
 
     // ✅ Validation
-    if (!companyName || !adminEmail || !password || !planId) {
+    if (!companyName || !adminEmail || !password || !planId || !industry) {
       return res.status(400).json({
         success: false,
         message: 'All fields are required'
@@ -394,7 +404,7 @@ const registerTenant = async (req, res) => {
       password: hashedPassword,
       domain: `${safeCompanyName}.workflow.com`,
       status: 'active',
-      industry: 'Unspecified',
+      industry: industry || 'Other',
       adminName: adminEmail.split('@')[0],
       selectedPlan: plan._id,
       databaseName: dbName,

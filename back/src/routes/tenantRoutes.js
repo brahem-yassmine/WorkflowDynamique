@@ -8,7 +8,8 @@ const {
   updateTenantSettings,
   getTeamMembers,
   inviteTeamMember,
-  removeTeamMember
+  removeTeamMember,
+  getActivityLogs
 } = require('../controllers/tenantController');
 const { auth } = require('../middleware/auth');
 const { checkTenantActive, requirePlan } = require('../middleware/tenantMiddleware');
@@ -49,5 +50,8 @@ router.get('/stats', requirePlan, async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
+
+// Activity logs
+router.get('/logs', requirePlan, getActivityLogs);
 
 module.exports = router;

@@ -32,7 +32,7 @@ exports.createInstance = async (req, res) => {
 
     const instance = new WorkflowInstance({
       workflowId: workflow._id,
-      createdBy: req.user.userId,
+      createdBy: req.user.id,
       title,
       description: description || workflow.description,
       currentNodes: [{
@@ -47,8 +47,8 @@ exports.createInstance = async (req, res) => {
         nodeId: startNode.id,
         nodeType: 'start',
         action: 'start',
-        performedBy: req.user.userId,
-        comments: 'Workflow started',
+        performedBy: req.user.id,
+        comments: 'Workflow démarré',
         timestamp: new Date()
       }],
       status: 'in_progress',
@@ -58,9 +58,9 @@ exports.createInstance = async (req, res) => {
       timeStarted: new Date(),
       history: [{
         action: 'instance_created',
-        title: 'Starting',
-        performedBy: req.user.userId,
-        comments: 'Workflow instance created'
+        title: 'Démarrage',
+        performedBy: req.user.id,
+        comments: 'Instance de workflow créée'
       }]
     });
 
@@ -199,7 +199,7 @@ exports.approveNode = async (req, res) => {
       nodeId: nodeId,
       nodeType: 'action',
       action: 'approved',
-      performedBy: req.user.userId,
+      performedBy: req.user.id,
       comments: comments || '',
       timestamp: new Date(),
       outputData: data
@@ -207,9 +207,9 @@ exports.approveNode = async (req, res) => {
 
     instance.history.push({
       action: 'step_approved',
-      title: `Step validated`,
-      performedBy: req.user.userId,
-      comments: comments || `Action validated on node ${nodeId}`
+      title: `Étape validée`,
+      performedBy: req.user.id,
+      comments: comments || `Action validée sur le noeud ${nodeId}`
     });
 
     const workflow = await Workflow.findById(instance.workflowId);
@@ -251,9 +251,9 @@ exports.approveNode = async (req, res) => {
       instance.timeCompleted = new Date();
       instance.history.push({
         action: 'workflow_completed',
-        title: 'Finished',
-        performedBy: req.user.userId,
-        comments: 'Workflow finished successfully'
+        title: 'Terminé',
+        performedBy: req.user.id,
+        comments: 'Workflow terminé avec succès'
       });
     }
 
@@ -327,16 +327,16 @@ exports.rejectNode = async (req, res) => {
       nodeId: nodeId,
       nodeType: 'action',
       action: 'rejected',
-      performedBy: req.user.userId,
-      comments: comments || 'Rejected',
+      performedBy: req.user.id,
+      comments: comments || 'Rejeté',
       timestamp: new Date()
     });
 
     instance.history.push({
       action: 'step_rejected',
-      title: 'Action rejected',
-      performedBy: req.user.userId,
-      comments: comments || 'Step rejected'
+      title: 'Action rejetée',
+      performedBy: req.user.id,
+      comments: comments || 'Étape rejetée'
     });
 
     await instance.save();
@@ -378,7 +378,7 @@ exports.cancelInstance = async (req, res) => {
 
     const instance = await WorkflowInstance.findOne({
       _id: instanceId,
-      createdBy: req.user.userId
+      createdBy: req.user.id
     });
 
     if (!instance) {
@@ -406,9 +406,9 @@ exports.cancelInstance = async (req, res) => {
 
     instance.history.push({
       action: 'instance_cancelled',
-      title: 'Cancellation',
-      performedBy: req.user.userId,
-      comments: comments || 'Instance cancelled by user'
+      title: 'Annulation',
+      performedBy: req.user.id,
+      comments: comments || 'Instance annulée par l\'utilisateur'
     });
 
     await instance.save();
@@ -457,14 +457,14 @@ exports.addAttachment = async (req, res) => {
     instance.attachments.push({
       filename,
       url,
-      uploadedBy: req.user.userId
+      uploadedBy: req.user.id
     });
 
     instance.history.push({
       action: 'attachment_added',
-      title: 'File added',
-      performedBy: req.user.userId,
-      comments: `File added: ${filename}`
+      title: 'Fichier ajouté',
+      performedBy: req.user.id,
+      comments: `Fichier ajouté: ${filename}`
     });
 
     await instance.save();

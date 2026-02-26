@@ -2,7 +2,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { getUsers, createUser, updateUser } = require('../controllers/userController');
+const { getUsers, createUser, updateUser, deleteUser } = require('../controllers/userController');
 const { auth, requireRole } = require('../middleware/auth');
 const { checkTenantActive, checkPlanLimits } = require('../middleware/tenantMiddleware');
 
@@ -12,6 +12,7 @@ router.use(auth, checkTenantActive);
 // Publicly accessible to tenant members for lookups
 router.get('/', getUsers);
 router.post('/', requireRole('admin'), checkPlanLimits('users'), createUser);
+router.delete('/:userId', requireRole('admin'), deleteUser);
 
 // Admin or the user themselves for update
 router.put('/:userId', updateUser);

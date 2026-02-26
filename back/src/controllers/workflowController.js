@@ -2,6 +2,7 @@
 const Workflow = require('../models/tenant/Workflow.js');
 const notificationController = require('./notificationController');
 const User = require('../models/tenant/User');
+const { recordActivity } = require('../services/auditLogger');
 
 // ============================================
 // 1. LIST ALL WORKFLOWS
@@ -141,8 +142,7 @@ exports.createWorkflow = async (req, res) => {
       nodes: workflowNodes,
       edges: workflowEdges,
       status: 'draft',
-      projectId: projectId || undefined,
-      createdBy: req.user.userId
+      createdBy: req.user.id
     });
 
     await workflow.save();
@@ -160,6 +160,13 @@ exports.createWorkflow = async (req, res) => {
         link: `/admin/workflows?id=${workflow._id}`
       });
     }
+
+    // Log the activity
+    await recordActivity(req, 'CREATE_WORKFLOW', {
+      type: 'Workflow',
+      id: workflow._id,
+      name: workflow.name
+    });
 
     res.status(201).json({
       success: true,
@@ -219,6 +226,13 @@ exports.updateWorkflow = async (req, res) => {
 
     await workflow.save();
 
+    // Log the activity
+    await recordActivity(req, 'UPDATE_WORKFLOW', {
+      type: 'Workflow',
+      id: workflow._id,
+      name: workflow.name
+    });
+
     res.json({
       success: true,
       message: 'Workflow updated',
@@ -265,6 +279,15 @@ exports.deleteWorkflow = async (req, res) => {
     }
 
     const workflow = await Workflow.findByIdAndDelete(workflowId);
+
+    if (workflow) {
+      // Log the activity
+      await recordActivity(req, 'DELETE_WORKFLOW', {
+        type: 'Workflow',
+        id: workflow._id,
+        name: workflow.name
+      });
+    }
 
     if (!workflow) {
       return res.status(404).json({
@@ -330,9 +353,9 @@ exports.executeWorkflow = async (req, res) => {
 
     const instance = new WorkflowInstance({
       workflowId: workflow._id,
-      createdBy: req.user.userId,
-      title: req.body.title || `Instance of ${workflow.name}`,
-      description: req.body.description || workflow.description, // Add description
+      createdBy: req.user.id,
+      title: req.body.title || `Instance de ${workflow.name}`,
+      description: req.body.description || workflow.description, // Ajout description
 
       // Graph initialization
       currentNodes: [{
@@ -348,8 +371,8 @@ exports.executeWorkflow = async (req, res) => {
         nodeId: startNode.id,
         nodeType: 'start',
         action: 'start',
-        performedBy: req.user.userId,
-        comments: 'Workflow started',
+        performedBy: req.user.id,
+        comments: 'Workflow démarré',
         timestamp: new Date()
       }],
 
@@ -360,9 +383,9 @@ exports.executeWorkflow = async (req, res) => {
 
       history: [{ // Legacy history
         action: 'instance_created',
-        title: 'Starting',
-        performedBy: req.user.userId,
-        comments: 'Instance created'
+        title: 'Démarrage',
+        performedBy: req.user.id,
+        comments: 'Instance créée'
       }]
     });
 
@@ -476,11 +499,17 @@ exports.duplicateWorkflow = async (req, res) => {
       nodes: original.nodes.map(node => ({ ...node })), // Basic deep copy
       edges: original.edges.map(edge => ({ ...edge })), // Basic deep copy
       status: 'draft',
-      projectId: original.projectId,
-      createdBy: req.user.userId
+      createdBy: req.user.id
     });
 
     await duplicate.save();
+
+    // Log the activity
+    await recordActivity(req, 'CLONE_WORKFLOW', {
+      type: 'Workflow',
+      id: duplicate._id,
+      name: duplicate.name
+    }, { originalWorkflowId: workflowId });
 
     res.status(201).json({
       success: true,

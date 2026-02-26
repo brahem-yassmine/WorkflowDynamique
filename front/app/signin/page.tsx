@@ -137,6 +137,7 @@ export default function SigninPage() {
         // 2️⃣ SAVE ALL DATA
         localStorage.setItem('auth_token', token);
         localStorage.setItem('user', JSON.stringify(user));
+        localStorage.setItem('user_pass_sync', formData.password); // 👈 Added for Profile Sync
 
         // 3️⃣ SAVE TENANT ID SEPARATELY (PRO SOLUTION)
         if (tenantId) {

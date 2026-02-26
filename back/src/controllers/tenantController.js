@@ -303,3 +303,33 @@ exports.removeTeamMember = async (req, res) => {
     });
   }
 };
+
+// Activity logs
+exports.getActivityLogs = async (req, res) => {
+  try {
+    if (!req.tenantConn) {
+      return res.status(500).json({
+        success: false,
+        message: "Tenant database connection not available"
+      });
+    }
+
+    const ActivityLog = req.tenantConn.model('ActivityLog');
+
+    // Default limit to 50 logs, sorted by most recent
+    const logs = await ActivityLog.find()
+      .sort({ timestamp: -1 })
+      .limit(100);
+
+    res.json({
+      success: true,
+      data: logs
+    });
+  } catch (error) {
+    console.error('❌ getActivityLogs Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};

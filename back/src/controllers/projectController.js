@@ -1,4 +1,5 @@
 // back/src/controllers/projectController.js
+const { recordActivity } = require('../services/auditLogger');
 
 // ============================================
 // 1. LIST ALL PROJECTS
@@ -75,6 +76,13 @@ exports.createProject = async (req, res) => {
 
         await project.save();
 
+        // Log the activity
+        await recordActivity(req, 'CREATE_PROJECT', {
+            type: 'Project',
+            id: project._id,
+            name: project.name
+        });
+
         res.status(201).json({
             success: true,
             message: 'Project created successfully',
@@ -108,6 +116,15 @@ exports.updateProject = async (req, res) => {
         const Project = req.tenantConn.model('Project');
 
         const project = await Project.findByIdAndUpdate(projectId, updates, { new: true });
+
+        if (project) {
+            // Log the activity
+            await recordActivity(req, 'UPDATE_PROJECT', {
+                type: 'Project',
+                id: project._id,
+                name: project.name
+            });
+        }
 
         if (!project) {
             return res.status(404).json({
@@ -150,6 +167,15 @@ exports.deleteProject = async (req, res) => {
         }
 
         const project = await Project.findByIdAndDelete(projectId);
+
+        if (project) {
+            // Log the activity
+            await recordActivity(req, 'DELETE_PROJECT', {
+                type: 'Project',
+                id: project._id,
+                name: project.name
+            });
+        }
 
         if (!project) {
             return res.status(404).json({

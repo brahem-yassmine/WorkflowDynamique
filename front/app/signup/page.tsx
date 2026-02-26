@@ -275,21 +275,12 @@ export default function SignupPage() {
       console.log("✅ Registration response:", response.data);
 
       if (response.data.success) {
-        setSuccess("Company created successfully! Redirecting to dashboard...");
+        setSuccess("Company created successfully");
 
-        if (response.data.data.token) {
-          localStorage.setItem("auth_token", response.data.data.token);
-          localStorage.setItem("user", JSON.stringify(response.data.data.user));
-
-          if (response.data.data.tenant) {
-            localStorage.setItem("tenant", JSON.stringify(response.data.data.tenant));
-          }
-        }
-
-        // Redirect after 2 seconds
+        // Redirect to login after 3 seconds
         setTimeout(() => {
-          router.push("/admin");
-        }, 2000);
+          router.push("/signin");
+        }, 3000);
       }
     } catch (err) {
       const error = err as AxiosError<ApiErrorResponse>;

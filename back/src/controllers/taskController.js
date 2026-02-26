@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { recordActivity } = require('../services/auditLogger');
 
 // Helper to get Task model for the current tenant
 const getTaskModel = (req) => req.tenantConn.model('Task');
@@ -30,6 +31,13 @@ exports.createTask = async (req, res) => {
         });
 
         await task.save();
+
+        // Log the activity
+        await recordActivity(req, 'CREATE_TASK', {
+            type: 'Task',
+            id: task._id,
+            name: task.title
+        });
         res.status(201).json({ success: true, data: task });
     } catch (error) {
         console.error('❌ createTask Error:', error);
@@ -46,6 +54,13 @@ exports.updateTask = async (req, res) => {
         const task = await Task.findByIdAndUpdate(id, updates, { new: true });
         if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
 
+        // Log the activity
+        await recordActivity(req, 'UPDATE_TASK', {
+            type: 'Task',
+            id: task._id,
+            name: task.title
+        });
+
         res.json({ success: true, data: task });
     } catch (error) {
         console.error('❌ updateTask Error:', error);
@@ -60,6 +75,13 @@ exports.deleteTask = async (req, res) => {
 
         const task = await Task.findByIdAndDelete(id);
         if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
+
+        // Log the activity
+        await recordActivity(req, 'DELETE_TASK', {
+            type: 'Task',
+            id: task._id,
+            name: task.title
+        });
 
         res.json({ success: true, message: 'Task deleted' });
     } catch (error) {
@@ -81,6 +103,12 @@ exports.reorderTasks = async (req, res) => {
         }));
 
         await Task.bulkWrite(bulkOps);
+
+        // Log the activity
+        await recordActivity(req, 'REORDER_TASKS', {
+            type: 'Task',
+            name: 'Multiple Tasks'
+        }, { count: tasks.length });
         res.json({ success: true, message: 'Tasks reordered' });
     } catch (error) {
         console.error('❌ reorderTasks Error:', error);

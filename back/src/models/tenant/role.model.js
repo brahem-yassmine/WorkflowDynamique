@@ -41,4 +41,4 @@ const roleSchema = new mongoose.Schema(
   }
 );
 
-module.exports = roleSchema;
+module.exports = (connection) => connection.model('Role', roleSchema);

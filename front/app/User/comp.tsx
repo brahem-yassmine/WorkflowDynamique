@@ -47,14 +47,19 @@ function UserSidebar() {
             <span className="text-sm font-bold">New Workflow</span>
           </Link>
 
-          {/* <Link href="/User/Notifications" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-xl transition-all group">
+          <Link href="/User/Notifications" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-xl transition-all group">
             <Bell className="h-5 w-5 group-hover:scale-110 transition-transform" />
-            <span className="text-sm font-bold">Notifications</span>
-          </Link> */}
+            <span className="text-sm font-bold">Alert Inbox</span>
+          </Link>
 
-          <Link href="User/Workflows" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-xl transition-all group">
+          <Link href="/User/Workflows" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-xl transition-all group">
             <GitBranch className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
             <span className="text-sm font-bold">My Workflows</span>
+          </Link>
+
+          <Link href="/User/InviteTeam" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-xl transition-all group">
+            <Users className="h-5 w-5 group-hover:scale-110 transition-transform" />
+            <span className="text-sm font-bold">Invite Matrix</span>
           </Link>
 
 

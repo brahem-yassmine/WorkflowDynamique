@@ -20,6 +20,7 @@ const registerTenantModels = (conn) => {
   if (!conn.models['FormResponse']) require('../models/tenant/FormResponse')(conn);
   if (!conn.models['Checklist']) require('../models/tenant/Checklist')(conn);
   if (!conn.models['Task']) require('../models/tenant/Task')(conn);
+  if (!conn.models['Notification']) require('../models/tenant/Notification')(conn);
 };
 
 // Middleware to resolve tenant from headers AND create/manage the connection

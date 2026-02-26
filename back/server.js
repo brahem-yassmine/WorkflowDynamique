@@ -21,6 +21,7 @@ const projectRoutes = require('./src/routes/projectRoutes');
 const formRoutes = require('./src/routes/formRoutes');
 const checklistRoutes = require('./src/routes/checklistRoutes');
 const taskRoutes = require('./src/routes/taskRoutes');
+const notificationRoutes = require('./src/routes/notificationRoutes');
 
 
 
@@ -89,6 +90,7 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/forms', formRoutes);
 app.use('/api/checklists', checklistRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 
 

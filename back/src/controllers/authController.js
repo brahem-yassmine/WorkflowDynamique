@@ -300,6 +300,7 @@ const login = async (req, res) => {
         email: user.email,
         role: role,
         tenantId: tenantId,
+        domain: user.domain || 'HR',
         permissions: permissions // 👈 ADDED
       },
       process.env.JWT_SECRET || 'your_jwt_secret',
@@ -319,7 +320,8 @@ const login = async (req, res) => {
           role: role,
           name: user.name || user.firstName || (role === 'admin' ? user.name : 'Admin'),
           hasSelectedPlan: role === 'admin' ? true : true,
-          tenantId: tenantId // 👈 ADDED: so that the front can retrieve it
+          tenantId: tenantId,
+          domain: user.domain || 'HR' // 👈 ADDED
         },
         tenantId: tenantId // 👈 ADDED: directly in data to be sure
       }

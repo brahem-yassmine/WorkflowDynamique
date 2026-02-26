@@ -53,6 +53,9 @@ const workflowInstanceSchema = new mongoose.Schema({
     responsibleUser: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
+    },
+    responsibleDomain: {
+      type: String // e.g., 'HR', 'IT', etc.
     }
   }],
 
@@ -127,26 +130,13 @@ workflowInstanceSchema.methods.getNodeStatus = function (nodeId) {
   return this.currentNodes.find(n => n.nodeId === nodeId);
 };
 
-// We keep the indexes but remove tenantId
+// Indexing for performance
 workflowInstanceSchema.index({ workflowId: 1 });
 workflowInstanceSchema.index({ createdBy: 1 });
 workflowInstanceSchema.index({ status: 1 });
-workflowInstanceSchema.index({ 'steps.responsibleDomain': 1 });
+workflowInstanceSchema.index({ 'currentNodes.responsibleUser': 1 });
+workflowInstanceSchema.index({ 'currentNodes.responsibleDomain': 1 });
 workflowInstanceSchema.index({ dueDate: 1 });
-
-workflowInstanceSchema.methods.nextStep = function () {
-  if (this.currentStepIndex < this.steps.length - 1) {
-    this.currentStepIndex += 1;
-    this.steps[this.currentStepIndex].status = 'in_progress';
-    this.steps[this.currentStepIndex].startedAt = new Date();
-    return true;
-  }
-  return false;
-};
-
-workflowInstanceSchema.methods.getCurrentStep = function () {
-  return this.steps[this.currentStepIndex];
-};
 
 workflowInstanceSchema.methods.isCompleted = function () {
   return this.status === 'completed' || this.status === 'approved' || this.status === 'rejected';

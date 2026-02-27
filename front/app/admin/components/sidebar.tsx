@@ -30,7 +30,7 @@ const menuItems = [
   { icon: CheckSquare, label: "Task Monitor", href: "/admin/tasks" },
   { icon: CreditCard, label: "Fiscal / Billing", href: "/admin/billing" },
   { icon: FileText, label: "System Logs", href: "/admin/logs" },
-  { icon: FileText, label: "Forms", href: "/AllForms" },
+  { icon: FileText, label: "Forms", href: "/admin/AllForms" },
   { icon: UserCircle, label: "Personal Node", href: "/admin/profile" },
 ];
 

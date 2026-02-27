@@ -189,10 +189,10 @@ exports.updateUser = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Erreur updateUser:', error);
+    console.error('❌ [userController.updateUser] Error:', error);
     res.status(500).json({
       success: false,
-      message: 'Erreur serveur'
+      message: 'Erreur serveur: ' + (error.message || 'Unknown error')
     });
   }
 };

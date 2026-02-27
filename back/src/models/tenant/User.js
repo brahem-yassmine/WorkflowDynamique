@@ -33,7 +33,10 @@ const userSchema = new mongoose.Schema({
     default: true
   },
 
-  lastLogin: Date
+  lastLogin: Date,
+
+  resetPasswordToken: String,
+  resetPasswordExpires: Date
 }, { timestamps: true });
 
 // ✅ Email unique in this tenant

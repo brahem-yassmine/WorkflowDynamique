@@ -25,7 +25,10 @@ const superAdminSchema = new mongoose.Schema({
   },
 
   lastLogin: Date,
-  isActive: { type: Boolean, default: true }
+  isActive: { type: Boolean, default: true },
+
+  resetPasswordToken: String,
+  resetPasswordExpires: Date
 
 }, {
   timestamps: true,

@@ -25,8 +25,12 @@ const PAGE_METADATA: Record<string, { title: string, subtitle: string }> = {
         subtitle: "Manage user roles, permissions, and domain access"
     },
     '/admin/tasks': {
-        title: "Lattice Tasks",
+        title: "Kanban",
         subtitle: "Monitor and orchestrate organizational throughput."
+    },
+    '/admin/AllCheck': {
+        title: "All Checklists",
+        subtitle: "Manage and monitor your dynamic checklists"
     },
     '/admin/create_workflows': {
         title: "Provision Flow Schema",

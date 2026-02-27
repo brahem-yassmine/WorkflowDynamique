@@ -23,6 +23,13 @@ async function getTenantConnection(domain, dbName) {
   const uri = `${baseUri}/${dbName}`;
   console.log(`🔗 [TenantConn] URI: ${uri}`);
 
+  // Créer une nouvelle connexion
+  // Create a new connection
+  const conn = mongoose.createConnection(uri, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+    poolSize: 10
+  });
   try {
     // Créer une nouvelle connexion
     const conn = mongoose.createConnection(uri);
@@ -42,6 +49,12 @@ async function getTenantConnection(domain, dbName) {
     });
     console.log(`✅ [TenantConn] MongoDB connecté: ${dbName}`);
 
+  // ATTACH TENANT MODELS TO THIS CONNECTION
+  conn.model('User', require('../models/tenant/User')(conn).schema);
+  conn.model('Workflow', require('../models/tenant/Workflow')(conn).schema);
+  conn.model('DynamicForm', require('../models/tenant/DynamicForm')(conn).schema);
+  // Ajoute ici tous tes autres modèles tenant
+  // Add all your other tenant models here
     //  ATTACHER LES MODÈLES DU TENANT À CETTE CONNEXION
     console.log(`📦 [TenantConn] Chargement des modèles...`);
 
@@ -80,6 +93,9 @@ async function getTenantConnection(domain, dbName) {
       throw modelError;
     }
 
+  console.log(` Connexion établie pour le tenant: ${tenantSlug}`);
+  console.log(` Connection established for tenant: ${tenantSlug}`);
+  return conn;
     // Mettre en cache
     connections[domain] = conn;
 

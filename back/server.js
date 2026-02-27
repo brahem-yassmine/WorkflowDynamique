@@ -17,6 +17,17 @@ const workflowInstanceRoutes = require('./src/routes/WorkflowInstanceRoutes');
 const subscriptionRoutes = require('./src/routes/subscriptionRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
 const dynamicFormRoutes = require('./src/routes/dynamicFormRoutes');
+const workflowInstanceRoutes = require('./src/routes/WorkflowInstanceRoutes.js');
+const subscriptionRoutes = require('./src/routes/subscriptionRoutes.js');
+const tenantRoleRoutes = require('./src/routes/tenant/role.routes');
+const tenantDomainRoutes = require('./src/routes/tenant/domain.routes');
+const projectRoutes = require('./src/routes/projectRoutes');
+const formRoutes = require('./src/routes/formRoutes');
+const checklistRoutes = require('./src/routes/checklistRoutes');
+const taskRoutes = require('./src/routes/taskRoutes');
+
+
+
 const checklistRoutes = require('./src/routes/checklistRoutes');
 const taskRoutes = require('./src/routes/taskRoutes');
 const notificationRoutes = require('./src/routes/notificationRoutes');
@@ -24,7 +35,6 @@ const roleRoutes = require('./src/routes/tenant/role.routes');
 const domainRoutes = require('./src/routes/tenant/domain.routes');
 
 const app = express();
-
 // ========================
 // MIDDLEWARES
 // ========================
@@ -96,6 +106,7 @@ app.use((req, res, next) => {
     return res.status(503).json({
       success: false,
       message: 'Base de données en cours de connexion, veuillez réessayer'
+      message: 'Database connecting, please try again'
     });
   }
   req.masterDb = app.locals.masterDb;
@@ -117,6 +128,17 @@ app.use('/api/admin', adminRoutes);
 // TENANT MIDDLEWARE
 // ========================
 const { tenantResolver } = require('./src/middleware/tenantMiddleware');
+let tenantResolver;
+try {
+  tenantResolver = require('./src/middleware/tenantMiddleware.js').tenantResolver;
+} catch (error) {
+  console.log('⚠️ Tenant middleware not found, creating default middleware');
+  tenantResolver = (req, res, next) => {
+    req.tenantConnection = app.locals.masterDb; // Fallback
+    next();
+  };
+}
+
 app.use('/api', tenantResolver);
 
 // ========================
@@ -129,6 +151,15 @@ app.use('/api/workflows', workflowRoutes);
 app.use('/api/workflow-instances', workflowInstanceRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/forms', dynamicFormRoutes);
+app.use('/api/tenant/roles', tenantRoleRoutes);
+app.use('/api/tenant/domains', tenantDomainRoutes);
+app.use('/api/projects', projectRoutes);
+app.use('/api/forms', formRoutes);
+app.use('/api/checklists', checklistRoutes);
+app.use('/api/tasks', taskRoutes);
+
+
+
 app.use('/api/checklists', checklistRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/notifications', notificationRoutes);
@@ -141,6 +172,7 @@ app.use('/api/tenant/domains', domainRoutes);
 app.get('/', (req, res) => {
   res.json({
     message: '🚀 API Workflow Dynamique',
+    message: '🚀 Dynamic Workflow API',
     status: app.locals.masterDb ? 'connected' : 'connecting',
     timestamp: new Date().toISOString()
   });
@@ -152,6 +184,7 @@ app.get('/', (req, res) => {
 app.use('*', (req, res) => {
   res.status(404).json({
     error: 'Route non trouvée',
+    error: 'Route not found',
     path: req.originalUrl
   });
 });

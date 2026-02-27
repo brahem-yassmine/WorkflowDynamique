@@ -96,22 +96,26 @@ function SortableField({ field, onUpdate, onRemove, isAlone }: any) {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2 flex-1">
               <div className="p-1.5 bg-indigo-50 rounded-lg"><Icon className="w-3.5 h-3.5 text-indigo-600" /></div>
-              <span className="text-sm font-bold text-gray-800 truncate">{field.label || 'Unnamed Field'}</span>
+              <input 
+                type="text"
+                className="text-sm font-bold text-gray-800 bg-transparent border-none outline-none focus:ring-0 w-full p-0"
+                value={field.label || ''}
+                onChange={(e) => onUpdate(field.id, { label: e.target.value })}
+                placeholder="Unnamed Field"
+              />
             </div>
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button onClick={() => onUpdate(field.id, { width: isWidthHalf ? 'full' : 'half' })} className="p-1.5 text-gray-400 hover:bg-gray-100 hover:text-indigo-600 rounded-lg">{isWidthHalf ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}</button>
               {['select', 'checkbox'].includes(field.type) && (
-                <>
-                  <button 
-                    onClick={() => onUpdate(field.id, { options: [...(field.options || []), `Option ${(field.options?.length || 0) + 1}`] })}
-                    className="p-1.5 text-gray-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-colors"
-                    title="Add Option"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                  </button>
-                  <button onClick={() => setShowSettings(!showSettings)} className={`p-1.5 rounded-lg ${showSettings ? 'bg-indigo-100 text-indigo-600' : 'text-gray-400 hover:bg-gray-100'}`}><Settings className="w-3.5 h-3.5" /></button>
-                </>
+                <button 
+                  onClick={() => onUpdate(field.id, { options: [...(field.options || []), `Option ${(field.options?.length || 0) + 1}`] })}
+                  className="p-1.5 text-gray-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-colors"
+                  title="Add Option"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
               )}
+              <button onClick={() => setShowSettings(!showSettings)} className={`p-1.5 rounded-lg ${showSettings ? 'bg-indigo-100 text-indigo-600' : 'text-gray-400 hover:bg-gray-100'}`}><Settings className="w-3.5 h-3.5" /></button>
               <button onClick={() => onRemove(field.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-3.5 h-3.5" /></button>
             </div>
           </div>
@@ -132,7 +136,7 @@ function SortableField({ field, onUpdate, onRemove, isAlone }: any) {
             </div>
           )}
 
-          {showSettings && ['select', 'checkbox'].includes(field.type) && (
+          {showSettings && (
             <div className="mt-4 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 space-y-4 animate-in fade-in duration-200">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>

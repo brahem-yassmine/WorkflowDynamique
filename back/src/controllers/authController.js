@@ -410,8 +410,167 @@ const registerSuperAdmin = async (req, res) => {
   }
 };
 
+const crypto = require('crypto');
+const { sendResetPasswordEmail } = require('../services/mailService');
+
+// ====================================
+// FORGOT PASSWORD
+// ====================================
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ success: false, message: 'Email required' });
+
+    console.log('🔍 Forgot password request for:', email);
+
+    // 1. Search in master models first
+    const SuperAdmin = getSuperAdminModel(req);
+    const TenantModel = getTenantModel(req);
+
+    let user = await SuperAdmin.findOne({ email: email.toLowerCase() });
+    let modelType = 'SuperAdmin';
+    let targetTenantId = null;
+
+    if (!user) {
+      user = await TenantModel.findOne({ email: email.toLowerCase() });
+      if (user) {
+        modelType = 'Tenant';
+      }
+    }
+
+    // 2. Search in tenant databases
+    if (!user) {
+      const allTenants = await TenantModel.find({ status: 'active' });
+      for (const t of allTenants) {
+        try {
+          const conn = mongoose.createConnection(t.databaseUri);
+          const TenantUser = require('../models/tenant/User')(conn);
+          const foundUser = await TenantUser.findOne({ email: email.toLowerCase() });
+          if (foundUser) {
+            user = foundUser;
+            modelType = 'User';
+            targetTenantId = t._id.toString();
+            await conn.close();
+            break;
+          }
+          await conn.close();
+        } catch (err) { }
+      }
+    }
+
+    if (!user) {
+      // For security, don't reveal if user exists
+      return res.json({ success: true, message: 'Si un compte existe, un email a été envoyé.' });
+    }
+
+    // 3. Generate reset token
+    const resetToken = crypto.randomBytes(20).toString('hex');
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
+
+    // 4. Save user (handling tenant DB connection if needed)
+    if (modelType === 'User') {
+      const tenant = await TenantModel.findById(targetTenantId);
+      const conn = mongoose.createConnection(tenant.databaseUri);
+      const TenantUser = require('../models/tenant/User')(conn);
+      await TenantUser.findByIdAndUpdate(user._id, {
+        resetPasswordToken: user.resetPasswordToken,
+        resetPasswordExpires: user.resetPasswordExpires
+      });
+      await conn.close();
+    } else {
+      await user.save();
+    }
+
+    // 5. Send email
+    const resetLink = `http://localhost:3000/reset-password?token=${resetToken}`;
+    await sendResetPasswordEmail(email, resetLink);
+
+    res.json({ success: true, message: 'Email de réinitialisation envoyé.' });
+
+  } catch (error) {
+    console.error('❌ forgotPassword Error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// ====================================
+// RESET PASSWORD
+// ====================================
+const resetPassword = async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) return res.status(400).json({ success: false, message: 'Token and password required' });
+
+    console.log('🔄 Reset password attempt with token:', token);
+
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // 1. Check Master DB
+    const SuperAdmin = getSuperAdminModel(req);
+    const TenantModel = getTenantModel(req);
+
+    let user = await SuperAdmin.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      user = await TenantModel.findOne({
+        resetPasswordToken: token,
+        resetPasswordExpires: { $gt: Date.now() }
+      });
+    }
+
+    // 2. Check Tenant DBs if not found
+    if (!user) {
+      const allTenants = await TenantModel.find({ status: 'active' });
+      for (const t of allTenants) {
+        try {
+          const conn = mongoose.createConnection(t.databaseUri);
+          const TenantUser = require('../models/tenant/User')(conn);
+          const foundUser = await TenantUser.findOne({
+            resetPasswordToken: token,
+            resetPasswordExpires: { $gt: Date.now() }
+          });
+          if (foundUser) {
+            await TenantUser.findByIdAndUpdate(foundUser._id, {
+              password: hashedPassword,
+              resetPasswordToken: undefined,
+              resetPasswordExpires: undefined
+            });
+            await conn.close();
+            return res.json({ success: true, message: 'Mot de passe réinitialisé avec succès.' });
+          }
+          await conn.close();
+        } catch (err) { }
+      }
+    }
+
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'Token invalide ou expiré.' });
+    }
+
+    // 3. Update Master DB user
+    user.password = hashedPassword;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    res.json({ success: true, message: 'Mot de passe réinitialisé avec succès.' });
+
+  } catch (error) {
+    console.error('❌ resetPassword Error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 module.exports = {
   login,
   registerTenant,
-  registerSuperAdmin
+  registerSuperAdmin,
+  forgotPassword,
+  resetPassword
 };

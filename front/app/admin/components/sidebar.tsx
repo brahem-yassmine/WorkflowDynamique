@@ -16,7 +16,8 @@ import {
   UserCircle,
   LogOut,
   Zap,
-  ChevronRight
+  ChevronRight,
+  ListTodo
 } from 'lucide-react';
 
 const menuItems = [
@@ -27,7 +28,8 @@ const menuItems = [
   { icon: FolderKanban, label: "Project ", href: "/admin/projects" },
   { icon: GitBranch, label: "All Workflows", href: "/admin/workflows" },
   { icon: PlusSquare, label: "create Workflow", href: "/admin/create_workflows" },
-  { icon: CheckSquare, label: "Task Monitor", href: "/admin/tasks" },
+  { icon: CheckSquare, label: "Kanban", href: "/admin/tasks" },
+  { icon: ListTodo, label: "All Checklists", href: "/admin/AllCheck" },
   { icon: CreditCard, label: "Fiscal / Billing", href: "/admin/billing" },
   { icon: FileText, label: "System Logs", href: "/admin/logs" },
   { icon: FileText, label: "Forms", href: "/admin/AllForms" },

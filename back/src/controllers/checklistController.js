@@ -32,6 +32,7 @@ exports.createChecklist = async (req, res) => {
         const checklist = new Checklist({
             name: name || 'Nouvelle Checklist',
             tasks: tasks || [],
+            status: req.body.status || 'draft',
             createdBy: req.user.id
         });
 
@@ -82,6 +83,7 @@ exports.cloneChecklist = async (req, res) => {
         const newChecklist = new Checklist({
             name: `${originalChecklist.name} (copy)`,
             tasks: originalChecklist.tasks,
+            status: originalChecklist.status || 'draft',
             createdBy: req.user.id
         });
 

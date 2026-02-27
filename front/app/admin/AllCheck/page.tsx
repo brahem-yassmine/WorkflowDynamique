@@ -22,6 +22,7 @@ interface Checklist {
   _id: string;
   name: string;
   tasks: any[];
+  status: 'draft' | 'completed';
   createdAt: string;
 }
 
@@ -203,7 +204,12 @@ export default function AllChecklistsPage() {
                 <div className="h-6 w-px bg-slate-100"></div>
                 <div className="flex flex-col">
                   <span className="text-[9px] uppercase font-black text-slate-400 tracking-[0.2em]">Status</span>
-                  <span className="text-[10px] font-black text-emerald-500 uppercase">Synchronized</span>
+                  <span className={`text-[10px] font-black uppercase ${
+                    checklist.status === 'completed' ? 'text-emerald-500' :
+                    'text-slate-400'
+                  }`}>
+                    {checklist.status || 'draft'}
+                  </span>
                 </div>
               </div>
 

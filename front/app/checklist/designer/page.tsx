@@ -96,6 +96,7 @@ export default function WorkflowChecklist() {
   const [tasks, setTasks] = useState<WorkflowTask[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [checklistName, setChecklistName] = useState('Workflow Checklist');
+  const [checklistStatus, setChecklistStatus] = useState<'draft' | 'completed'>('draft');
   const [checklistId, setChecklistId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -132,6 +133,7 @@ export default function WorkflowChecklist() {
         const checklist = res.data.data;
         setTasks(checklist.tasks || []);
         setChecklistName(checklist.name);
+        setChecklistStatus(checklist.status || 'draft');
         setChecklistId(checklist._id);
       }
     } catch (error) {
@@ -188,7 +190,8 @@ export default function WorkflowChecklist() {
 
       const response = await axios[method](url, {
         name: checklistName,
-        tasks: tasks
+        tasks: tasks,
+        status: checklistStatus
       }, {
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -198,7 +201,7 @@ export default function WorkflowChecklist() {
 
       if (response.data.success) {
         if (!checklistId) setChecklistId(response.data.data._id);
-        toast.success('Workflow logic synchronized successfully');
+        toast.success('Workflow saved successfully');
       } else {
         toast.error(response.data.message || 'Synchronization failed');
       }
@@ -234,7 +237,7 @@ export default function WorkflowChecklist() {
             <div>
               <h1 className="text-xl font-black text-slate-800 tracking-tight uppercase">Checklist Designer</h1>
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-1">
-                {isLoading ? 'Loading Knowledge Schema...' : checklistId ? 'Architecting Node' : 'Provisioning New Schema'}
+                {isLoading ? 'Loading Knowledge Schema...' : checklistId ? 'Architecture' : 'Provisioning New Schema'}
               </p>
             </div>
           </div>
@@ -266,25 +269,29 @@ export default function WorkflowChecklist() {
                   className="text-3xl font-black text-slate-800 bg-transparent border-b-2 border-transparent focus:border-indigo-500 outline-none w-full transition-all"
                   placeholder="Untitled Checklist..."
                 />
-                <div className="flex items-center gap-3 mt-4">
-                  <div className="px-3 py-1 bg-slate-100 rounded-lg text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                    {tasks.length} Logic Gates
-                  </div>
-                  <div className="px-3 py-1 bg-emerald-50 rounded-lg text-[10px] font-black text-emerald-600 uppercase tracking-widest">
-                    {completedCount} Validated
-                  </div>
-                  <div className="h-4 w-px bg-slate-100 mx-1"></div>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                    Status: {checklistId ? 'Synchronized' : 'Draft Node'}
-                  </p>
-                </div>
               </div>
-              <button 
-                onClick={addTask} 
-                className="flex items-center gap-2 px-8 py-4 bg-indigo-50 text-indigo-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-100 transition-all border border-indigo-100 shadow-sm whitespace-nowrap active:scale-95"
-              >
-                <Plus size={18} /> Add Task Node
-              </button>
+
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Status:</span>
+                <select 
+                  value={checklistStatus}
+                  onChange={(e) => setChecklistStatus(e.target.value as any)}
+                  className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl border appearance-none cursor-pointer transition-all ${
+                    checklistStatus === 'completed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                    'bg-slate-50 text-slate-600 border-slate-100'
+                  }`}
+                >
+                  <option value="draft">Draft</option>
+                  <option value="completed">Completed</option>
+                </select>
+                
+                <button 
+                  onClick={addTask} 
+                  className="flex items-center gap-2 px-8 py-4 bg-indigo-50 text-indigo-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-100 transition-all border border-indigo-100 shadow-sm whitespace-nowrap active:scale-95"
+                >
+                  <Plus size={18} /> Add new Task 
+                </button>
+              </div>
             </div>
 
             <div className="h-px bg-slate-50 mb-10"></div>

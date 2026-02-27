@@ -22,6 +22,11 @@ const checklistSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true
+    },
+    status: {
+        type: String,
+        enum: ['draft', 'completed'],
+        default: 'draft'
     }
 }, { timestamps: true });
 

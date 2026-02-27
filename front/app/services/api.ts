@@ -44,11 +44,14 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.error('❌ API Error:', {
+    const apiError = {
       status: error.response?.status,
+      message: error.response?.data?.message || error.message,
       data: error.response?.data,
-      url: error.config?.url
-    });
+      url: error.config?.url,
+      method: error.config?.method?.toUpperCase()
+    };
+    console.error('❌ API Error Detail:', apiError);
     return Promise.reject(error);
   }
 );

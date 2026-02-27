@@ -29,6 +29,7 @@ import NodeDetailsPanel from './NodeDetailsPanel';
 import { apiService } from '@/service/api.service';
 
 import { useSearchParams } from 'next/navigation';
+import { toast } from 'sonner';
 
 // Node types (defined outside the component to avoid unnecessary re-renders)
 const nodeTypes = {
@@ -173,7 +174,6 @@ function WorkflowEditorContent() {
     const handleSave = useCallback(async (meta: { name: string; domain: string; projectId?: string }) => {
         try {
             setIsSaving(true);
-            console.log('Attempting to save workflow:', meta);
 
             const payload = {
                 name: meta.name,
@@ -196,14 +196,14 @@ function WorkflowEditorContent() {
             }
 
             if (response.success) {
-                alert(currentWorkflowId ? 'Workflow updated successfully!' : 'Workflow created successfully!');
+                toast.success(currentWorkflowId ? 'Workflow updated successfully!' : 'Workflow created successfully!');
                 setWorkflowName(meta.name);
             } else {
-                alert('Save error: ' + (response.message || 'Unknown error'));
+                toast.error('Save error: ' + (response.message || 'Unknown error'));
             }
         } catch (error: any) {
             console.error('Workflow save error:', error);
-            alert('Server connection error: ' + error.message);
+            toast.error('Server connection error: ' + error.message);
             throw error;
         } finally {
             setIsSaving(false);

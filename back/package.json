@@ -26,6 +26,7 @@
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^7.8.9",
+    "nodemailer": "^8.0.1",
     "recharts": "^3.7.0"
   },
   "devDependencies": {

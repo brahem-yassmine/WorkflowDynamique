@@ -11,6 +11,7 @@ router.get('/', checklistController.getChecklists);
 router.get('/:id', checklistController.getChecklistById);
 router.post('/', checklistController.createChecklist);
 router.put('/:id', checklistController.updateChecklist);
+router.post('/:id/clone', checklistController.cloneChecklist);
 router.delete('/:id', checklistController.deleteChecklist);
 
 module.exports = router;

@@ -20,11 +20,13 @@ import '@xyflow/react/dist/style.css';
 import StartNode from './nodes/StartNode';
 import EndNode from './nodes/EndNode';
 import ActionNode from './nodes/ActionNode';
+import ConditionNode from './nodes/ConditionNode';
 
 const nodeTypes = {
     start: StartNode,
     end: EndNode,
     action: ActionNode,
+    condition: ConditionNode,
 };
 
 interface WorkflowMonitorProps {
@@ -32,9 +34,10 @@ interface WorkflowMonitorProps {
     initialEdges: Edge[];
     currentNodeIds: string[];
     executionHistory: any[];
+    onNodeClick?: (event: React.MouseEvent, node: Node) => void;
 }
 
-const WorkflowMonitor = ({ initialNodes, initialEdges, currentNodeIds, executionHistory }: WorkflowMonitorProps) => {
+const WorkflowMonitor = ({ initialNodes, initialEdges, currentNodeIds, executionHistory, onNodeClick }: WorkflowMonitorProps) => {
     const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
@@ -48,13 +51,13 @@ const WorkflowMonitor = ({ initialNodes, initialEdges, currentNodeIds, execution
 
                 let style = {};
                 if (isActive) {
-                    style = { border: '2px solid #3b82f6', boxShadow: '0 0 10px rgba(59, 130, 246, 0.5)' };
+                    style = { border: '3px solid #6366f1', boxShadow: '0 0 15px rgba(99, 102, 241, 0.4)' };
                 } else if (isCompleted) {
                     style = { opacity: 1 };
                 } else if (isRejected) {
-                    style = { border: '2px solid #ef4444' };
+                    style = { border: '3px solid #ef4444' };
                 } else {
-                    style = { opacity: 0.5 }; // Gray out unvisited nodes
+                    style = { opacity: 0.8 }; // Less transparent for unvisited nodes
                 }
 
                 return {
@@ -75,6 +78,7 @@ const WorkflowMonitor = ({ initialNodes, initialEdges, currentNodeIds, execution
                         onNodesChange={onNodesChange}
                         onEdgesChange={onEdgesChange}
                         nodeTypes={nodeTypes}
+                        onNodeClick={onNodeClick}
                         fitView
                         nodesDraggable={false}
                         nodesConnectable={false}

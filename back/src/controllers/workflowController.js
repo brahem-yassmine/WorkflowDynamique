@@ -1,5 +1,7 @@
 // back/src/controllers/workflowController.js
 const Workflow = require('../models/tenant/Workflow.js');
+const notificationController = require('./notificationController');
+const User = require('../models/tenant/User');
 const { recordActivity } = require('../services/auditLogger');
 
 // ============================================
@@ -20,8 +22,8 @@ exports.getWorkflows = async (req, res) => {
       query.projectId = projectId;
     }
 
-    // Filter by domain for normal users
-    if (req.user.role === 'user') {
+    // Filter by domain for normal users (IT domain sees everything)
+    if (req.user.role === 'user' && req.user.domain !== 'IT') {
       query.domain = req.user.domain;
     } else if (domain) {
       query.domain = domain;
@@ -144,6 +146,20 @@ exports.createWorkflow = async (req, res) => {
     });
 
     await workflow.save();
+
+    // Trigger Notification for Admins or domain users
+    const UserModel = req.tenantConn.model('User');
+    const admins = await UserModel.find({ role: 'admin' });
+
+    for (const admin of admins) {
+      await notificationController.createInternalNotification(req.tenantConn, {
+        recipient: admin._id,
+        title: 'New Workflow Created',
+        message: `A new workflow "${name}" has been drafted in domain ${workflowDomain}.`,
+        type: 'workflow_created',
+        link: `/admin/workflows?id=${workflow._id}`
+      });
+    }
 
     // Log the activity
     await recordActivity(req, 'CREATE_WORKFLOW', {
@@ -314,12 +330,15 @@ exports.executeWorkflow = async (req, res) => {
       });
     }
 
+    // Allow execution even if in draft for testing purposes
+    /*
     if (workflow.status !== 'active') {
       return res.status(400).json({
         success: false,
         message: 'Workflow must be active to be executed'
       });
     }
+    */
 
     // GRAPH INITIALIZATION
     // Find start node (type: 'start')
@@ -421,6 +440,23 @@ exports.changeWorkflowStatus = async (req, res) => {
 
     workflow.status = status;
     await workflow.save();
+
+    if (status === 'active') {
+      const UserModel = req.tenantConn.model('User');
+      const domainUsers = await UserModel.find({
+        $or: [{ domain: workflow.domain }, { role: 'admin' }]
+      });
+
+      for (const user of domainUsers) {
+        await notificationController.createInternalNotification(req.tenantConn, {
+          recipient: user._id,
+          title: 'Workflow Published',
+          message: `The workflow "${workflow.name}" is now ACTIVE for ${workflow.domain}.`,
+          type: 'workflow_created',
+          link: `/User/Workflows`
+        });
+      }
+    }
 
     res.json({
       success: true,

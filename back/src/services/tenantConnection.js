@@ -72,6 +72,8 @@ async function getTenantConnection(domain, dbName) {
       require('../models/tenant/WorkflowInstance')(conn);
       console.log(' - ActivityLog...');
       require('../models/tenant/ActivityLog')(conn);
+      console.log(' - Notification...');
+      require('../models/tenant/Notification')(conn);
       console.log('✅ [TenantConn] Modèles chargés');
     } catch (modelError) {
       console.error('❌ [TenantConn] Erreur chargement modèles:', modelError);

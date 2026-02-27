@@ -1,51 +1,85 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
-  FileText, Type, Hash, Calendar, CheckSquare, PenTool, AlignLeft, List, 
+import {
+  FileText, Type, Hash, Calendar, CheckSquare, PenTool, AlignLeft, List,
   ArrowLeft, Send, CheckCircle2, Clock, Mail, Phone, Trash2
 } from 'lucide-react';
-import { api } from '../../services/api';
 import { useSearchParams } from 'next/navigation';
 import { toast, Toaster } from 'sonner';
 import Link from 'next/link';
+import axios from 'axios';
+import TaskExecutionPanel from '../../Workflows/_components/TaskExecutionPanel';
+import { apiService } from '@/service/api.service';
+import { AnimatePresence } from 'framer-motion';
 
 const FIELD_ICONS: Record<string, any> = {
-  text: Type, email: Mail, phone: Phone, number: Hash, 
-  textarea: AlignLeft, select: List, date: Calendar, 
+  text: Type, email: Mail, phone: Phone, number: Hash,
+  textarea: AlignLeft, select: List, date: Calendar,
   signature: PenTool, checkbox: CheckSquare
 };
 
 export default function Form2Page() {
   const searchParams = useSearchParams();
-  const formId = searchParams.get('id');
-  
+  const instanceId = searchParams.get('instanceId');
+  const nodeId = searchParams.get('nodeId');
+  const formId = searchParams.get('formId') || searchParams.get('id');
+
   const [form, setForm] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    const fetchForm = async () => {
-      try {
-        const endpoint = formId ? `/api/forms/${formId}` : '/api/forms';
-        const res = await api.get(endpoint);
+  // Workflow Integration State
+  const [instance, setInstance] = useState<any>(null);
+  const [currentNode, setCurrentNode] = useState<any>(null);
 
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const tenant = JSON.parse(localStorage.getItem('tenant') || '{}');
+      const tenantId = tenant?._id || user?.tenantId;
+
+      // 1. Fetch Form
+      if (formId) {
+        const res = await axios.get(`http://localhost:5000/api/forms/${formId}`, {
+          headers: { 'Authorization': `Bearer ${token}`, 'x-tenant-id': tenantId }
+        });
         if (res.data.success) {
-          if (formId) {
-            setForm(res.data.data);
-          } else if (res.data.data.length > 0) {
-            setForm(res.data.data[0]); // Fallback to latest
-          }
+          setForm(res.data.data);
         }
-      } catch (error) {
-        toast.error("Failed to load form structure.");
-      } finally {
-        setLoading(false);
+      } else {
+        const res = await axios.get('http://localhost:5000/api/forms', {
+          headers: { 'Authorization': `Bearer ${token}`, 'x-tenant-id': tenantId }
+        });
+        if (res.data.success && res.data.data.length > 0) {
+          setForm(res.data.data[0]);
+        }
       }
-    };
-    fetchForm();
-  }, [formId]);
+
+      // 2. Fetch Workflow Instance if applicable
+      if (instanceId) {
+        const instanceRes = await apiService.getInstance(instanceId);
+        if (instanceRes.success) {
+          setInstance(instanceRes.data);
+          // Find the node
+          const nodes = instanceRes.data.workflowId?.nodes || [];
+          const node = nodes.find((n: any) => n.id === nodeId);
+          setCurrentNode(node);
+        }
+      }
+    } catch (error) {
+      toast.error("Error loading data.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [instanceId, nodeId, formId]);
 
   const handleChange = (fieldId: string, value: any) => {
     setFormData(prev => ({ ...prev, [fieldId]: value }));
@@ -53,7 +87,7 @@ export default function Form2Page() {
 
   const handleFileChange = (fieldId: string, file: File | null) => {
     if (!file) return;
-    
+
     // Check if image or PDF
     if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
       return toast.error("Only images and PDF files are allowed.");
@@ -74,10 +108,18 @@ export default function Form2Page() {
 
   const handleSubmit = async () => {
     if (!form?._id) return toast.error("Form ID missing.");
-    
+
     setIsSubmitting(true);
     try {
-      const res = await api.post(`/api/forms/${form._id}/submit`, { data: formData });
+      const token = localStorage.getItem('auth_token');
+      const tenant = JSON.parse(localStorage.getItem('tenant') || '{}');
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const tenantId = tenant?._id || user?.tenantId;
+
+      const res = await axios.post(`http://localhost:5000/api/forms/${form._id}/submit`,
+        { data: formData },
+        { headers: { 'Authorization': `Bearer ${token}`, 'x-tenant-id': tenantId } }
+      );
 
       if (res.data.success) {
         toast.success("Form submitted successfully!");
@@ -91,9 +133,17 @@ export default function Form2Page() {
 
   const handleStatusUpdate = async (status: 'approved' | 'rejected') => {
     if (!form?._id) return toast.error("Form ID missing.");
-    
+
     try {
-      const res = await api.patch(`/api/forms/${form._id}/status`, { status });
+      const token = localStorage.getItem('auth_token');
+      const tenant = JSON.parse(localStorage.getItem('tenant') || '{}');
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const tenantId = tenant?._id || user?.tenantId;
+
+      const res = await axios.patch(`http://localhost:5000/api/forms/${form._id}/status`,
+        { status },
+        { headers: { 'Authorization': `Bearer ${token}`, 'x-tenant-id': tenantId } }
+      );
 
       if (res.data.success) {
         setForm(res.data.data);
@@ -126,6 +176,18 @@ export default function Form2Page() {
   return (
     <div className="min-h-screen bg-gray-50 pb-12">
       <Toaster position="top-right" richColors />
+
+      <AnimatePresence>
+        {instanceId && currentNode && (
+          <TaskExecutionPanel
+            instance={instance}
+            node={currentNode}
+            onClose={() => { }}
+            onRefresh={fetchData}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <div className="bg-white border-b sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -137,12 +199,12 @@ export default function Form2Page() {
               <h1 className="text-xl font-bold text-gray-800">{form.name}</h1>
               <div className="flex items-center gap-2 mt-0.5">
                 <p className="text-xs text-gray-400">Interactive Mode • </p>
-                {form.steps.some((s: any) => s.status === 'approved') ? (
+                {form.steps?.some((s: any) => s.status === 'approved') ? (
                   <span className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-200 uppercase tracking-wider">
                     <CheckCircle2 className="w-2.5 h-2.5" /> Approved
                   </span>
-                ) : form.steps.some((s: any) => s.status === 'rejected') ? (
-                   <span className="flex items-center gap-1 text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-200 uppercase tracking-wider">
+                ) : form.steps?.some((s: any) => s.status === 'rejected') ? (
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-200 uppercase tracking-wider">
                     <Clock className="w-2.5 h-2.5" /> Rejected
                   </span>
                 ) : (
@@ -154,21 +216,21 @@ export default function Form2Page() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <button 
+            <button
               onClick={() => handleStatusUpdate('approved')}
               className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700 transition-all shadow-sm"
             >
               Approve
             </button>
-            <button 
+            <button
               onClick={() => handleStatusUpdate('rejected')}
               className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-bold hover:bg-red-700 transition-all shadow-sm"
             >
               Reject
             </button>
             <div className="w-px h-6 bg-gray-200 mx-1"></div>
-            <button 
-              onClick={handleSubmit} 
+            <button
+              onClick={handleSubmit}
               disabled={isSubmitting}
               className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 disabled:opacity-70"
             >
@@ -181,7 +243,7 @@ export default function Form2Page() {
 
       {/* Form Content */}
       <div className="max-w-4xl mx-auto px-4 mt-8">
-        {form.steps.map((step: any, sIdx: number) => (
+        {form.steps?.map((step: any, sIdx: number) => (
           <div key={step.id} className="mb-10 animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${sIdx * 100}ms` }}>
             <div className="flex items-center gap-3 mb-6">
               <div className="w-8 h-8 bg-indigo-600 text-white rounded-lg flex items-center justify-center font-bold text-sm shadow-md shadow-indigo-100">
@@ -192,7 +254,7 @@ export default function Form2Page() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {step.fields.map((field: any) => {
+              {step.fields?.map((field: any) => {
                 const Icon = FIELD_ICONS[field.type] || Type;
                 const isFull = field.width !== 'half';
 
@@ -205,7 +267,7 @@ export default function Form2Page() {
                     </label>
 
                     {field.type === 'textarea' ? (
-                      <textarea 
+                      <textarea
                         className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all text-sm min-h-[120px]"
                         placeholder={field.placeholder}
                         value={formData[field.id] || ''}
@@ -213,7 +275,7 @@ export default function Form2Page() {
                       />
                     ) : field.type === 'select' ? (
                       <div className="relative group">
-                        <select 
+                        <select
                           className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all text-sm appearance-none bg-white cursor-pointer"
                           value={formData[field.id] || ''}
                           onChange={(e) => handleChange(field.id, e.target.value)}
@@ -229,7 +291,7 @@ export default function Form2Page() {
                       <div className="p-4 bg-white border-2 border-gray-100 rounded-2xl space-y-3">
                         {field.options?.map((opt: string, i: number) => (
                           <label key={i} className="flex items-center gap-3 cursor-pointer group">
-                            <input 
+                            <input
                               type="checkbox"
                               className="w-5 h-5 rounded border-2 border-gray-200 text-indigo-600 focus:ring-indigo-500 transition-all cursor-pointer"
                               checked={(formData[field.id] || []).includes(opt)}
@@ -245,7 +307,7 @@ export default function Form2Page() {
                       </div>
                     ) : field.type === 'signature' ? (
                       <div className="space-y-3">
-                        <label 
+                        <label
                           htmlFor={`file-${field.id}`}
                           className="w-full aspect-video md:aspect-auto md:h-40 border-2 border-gray-100 border-dashed rounded-2xl bg-white flex flex-col items-center justify-center group hover:border-indigo-200 hover:bg-indigo-50/30 transition-all cursor-pointer relative overflow-hidden block"
                         >
@@ -259,7 +321,7 @@ export default function Form2Page() {
                               ) : (
                                 <img src={formData[field.id].data} alt="Signature Preview" className="max-h-full object-contain pointer-events-none" />
                               )}
-                              <button 
+                              <button
                                 type="button"
                                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleChange(field.id, null); }}
                                 className="absolute top-2 right-2 p-1.5 bg-red-50 text-red-500 rounded-full hover:bg-red-100 transition-colors z-20"
@@ -273,7 +335,7 @@ export default function Form2Page() {
                               <div className="flex flex-col items-center animate-in fade-in zoom-in duration-300">
                                 <PenTool className="w-8 h-8 text-indigo-400 mb-2 group-hover:scale-110 transition-transform" />
                                 <p className="text-xs text-gray-400 font-medium text-center px-4 leading-relaxed group-hover:text-indigo-500 transition-colors">
-                                  Click to upload your signature<br/>
+                                  Click to upload your signature<br />
                                   <span className="text-[10px] text-gray-300 font-normal mt-1 block">(PNG, JPG or PDF)</span>
                                 </p>
                               </div>
@@ -285,16 +347,16 @@ export default function Form2Page() {
                             </>
                           )}
                         </label>
-                        <input 
+                        <input
                           id={`file-${field.id}`}
-                          type="file" 
-                          className="hidden" 
+                          type="file"
+                          className="hidden"
                           accept="image/*,.pdf"
                           onChange={(e) => handleFileChange(field.id, e.target.files?.[0] || null)}
                         />
                       </div>
                     ) : (
-                      <input 
+                      <input
                         type={field.type}
                         className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all text-sm"
                         placeholder={field.placeholder}
@@ -311,19 +373,19 @@ export default function Form2Page() {
 
         {/* Success Footer */}
         <div className="bg-indigo-50 border border-indigo-100 rounded-3xl p-8 text-center mt-12 flex flex-col items-center gap-4">
-           <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-100">
-             <CheckCircle2 className="w-6 h-6" />
-           </div>
-           <div>
-             <h3 className="text-lg font-bold text-indigo-900">Ready to submit?</h3>
-             <p className="text-sm text-indigo-600 mt-1">Make sure all required fields are filled correctly before sending.</p>
-           </div>
-           <button 
-             onClick={handleSubmit}
-             className="mt-2 w-full max-w-xs py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 flex items-center justify-center gap-2"
-           >
-             <Send className="w-4 h-4" /> Final Submission
-           </button>
+          <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-100">
+            <CheckCircle2 className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-indigo-900">Ready to submit?</h3>
+            <p className="text-sm text-indigo-600 mt-1">Make sure all required fields are filled correctly before sending.</p>
+          </div>
+          <button
+            onClick={handleSubmit}
+            className="mt-2 w-full max-w-xs py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 flex items-center justify-center gap-2"
+          >
+            <Send className="w-4 h-4" /> Final Submission
+          </button>
         </div>
       </div>
     </div>

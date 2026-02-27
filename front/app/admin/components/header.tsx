@@ -3,6 +3,7 @@
 import React from 'react';
 import useUser from '@/hooks/useUser';
 import { UserCircle, Bell } from 'lucide-react';
+import NotificationBell from '@/components/NotificationBell';
 
 interface HeaderProps {
     title: string;
@@ -32,10 +33,7 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle, icon, rightContent }) 
                 {rightContent || (
                     <div className="flex items-center gap-6">
                         {/* Notifications */}
-                        <button className="relative p-2.5 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-xl transition-all active:scale-95">
-                            <Bell size={24} />
-                            <span className="absolute top-2.5 right-2.5 h-2.5 w-2.5 bg-rose-500 rounded-full border-2 border-white"></span>
-                        </button>
+                        <NotificationBell />
 
                         {/* Profile Info */}
                         <div className="flex items-center gap-3 pl-6 border-l border-slate-100">

@@ -223,6 +223,64 @@ class ApiService {
       method: 'DELETE',
     });
   }
+
+  // Form Management
+  getForms() {
+    return this.request('/forms');
+  }
+
+  // Checklist Management
+  getChecklists() {
+    return this.request('/checklists');
+  }
+
+  // Notification Management
+  getNotifications() {
+    return this.request('/notifications');
+  }
+
+  markNotificationAsRead(id: string) {
+    return this.request(`/notifications/${id}/read`, { method: 'PUT' });
+  }
+
+  markAllNotificationsAsRead() {
+    return this.request('/notifications/read-all', { method: 'POST' });
+  }
+
+  // Workflow Instance Management
+  createInstance(data: any) {
+    return this.request('/workflow-instances', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  getInstances(params?: any) {
+    const query = params ? `?${new URLSearchParams(params).toString()}` : '';
+    return this.request(`/workflow-instances${query}`);
+  }
+
+  getInstance(id: string) {
+    return this.request(`/workflow-instances/${id}`);
+  }
+
+  approveNode(instanceId: string, nodeId: string, data?: any) {
+    return this.request(`/workflow-instances/${instanceId}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({
+        nodeId,
+        comments: data?.comment || '',
+        data: data?.variables || {}
+      })
+    });
+  }
+
+  rejectNode(instanceId: string, nodeId: string) {
+    return this.request(`/workflow-instances/${instanceId}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ nodeId })
+    });
+  }
 }
 
 export const apiService = new ApiService();

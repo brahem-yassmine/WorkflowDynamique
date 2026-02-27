@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const { getTenantConnection } = require('../services/tenantConnection');
 
 // ✅ Middleware pour résoudre le tenant à partir des headers
+
 const tenantResolver = async (req, res, next) => {
   try {
     // Extraire tenantId du header ou de la query

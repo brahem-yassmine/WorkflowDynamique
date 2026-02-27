@@ -182,6 +182,7 @@ const login = async (req, res) => {
         email: user.email,
         role: role,
         tenantId: tenantId,
+        domain: user.domain || 'HR',
         permissions: permissions
       },
       process.env.JWT_SECRET || 'your_jwt_secret',
@@ -239,7 +240,9 @@ const login = async (req, res) => {
           email: user.email,
           role: role,
           name: user.name || user.firstName || (role === 'admin' ? user.name : 'Admin'),
-          tenantId: tenantId
+          hasSelectedPlan: role === 'admin' ? true : true,
+          tenantId: tenantId,
+          domain: user.domain || 'HR'
         },
         tenantId: tenantId
       }

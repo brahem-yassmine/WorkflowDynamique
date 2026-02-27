@@ -15,40 +15,35 @@ import { useRouter } from 'next/navigation'; // ✅ CORRECT: using next/navigati
 
 const UserComp = () => {
   const router = useRouter(); // Using the App Router hook
-  
+
   const menuItems = [
     {
+      icon: <IoMdContact className="text-indigo-500" size={22} />,
+      label: "My Profile",
+      href: "/User",
+    },
+    {
       icon: <GoWorkflow className="text-blue-500" size={22} />,
-      label: "Create Workflow",
+      label: "New Workflow",
       href: "/User/create_workflows",
     },
     {
-      icon: <IoNotifications className="text-yellow-500" size={22} />,
-      label: "Notifications",
-      href: "/User/Notifications",
-    },
-    {
       icon: <FcWorkflow size={22} />,
-      label: "Workflows",
-      href: "/Workflows",
-    },
-    {
-      icon: <FcInvite size={22} />,
-      label: "Invite Team",
-      href: "/User/InviteTeam",
-    },
-    {
-      icon: <IoMdHelpCircleOutline className="text-green-500" size={22} />,
-      label: "Help & First Steps",
-      href: "/User/Help&FirstSteps",
+      label: "My Workflows",
+      href: "/User/Workflows",
     },
     {
       icon: <FaMagic className="text-purple-500" size={22} />,
-      label: "AI Generate",
+      label: "AI Autopilot",
       href: "/User/AIGenerate",
+    },
+    {
+      icon: <IoMdHelpCircleOutline className="text-green-500" size={22} />,
+      label: "Help Center",
+      href: "/User/Help&FirstSteps",
     }
   ];
-  
+
   // ✅ LOGOUT FUNCTION - Now using App Router's router.refresh()
   const handleLogout = () => {
     try {
@@ -77,17 +72,17 @@ const UserComp = () => {
       {/* Logo/Header Section */}
       <div className="mb-8 px-3">
         <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 bg-linear-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+          <div className="w-10 h-10 bg-indigo-700 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200">
             <GoWorkflow className="text-white" size={24} />
           </div>
           <div>
-            <h1 className="text-lg font-semibold text-gray-800">Workflow Pro</h1>
-            <p className="text-sm text-gray-500">Dashboard</p>
+            <h1 className="text-xl font-black text-slate-800 tracking-tighter">Axia Solutions</h1>
+            <p className="text-[10px] text-indigo-600 font-black uppercase tracking-widest opacity-80">User Workspace</p>
           </div>
         </div>
-        <div className="mt-4 p-3 bg-linear-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
-          <p className="text-sm font-medium text-gray-700">Welcome back!</p>
-          <p className="text-xs text-gray-500">Manage your workflows efficiently</p>
+        <div className="mt-4 p-3 bg-indigo-50/50 rounded-2xl border border-indigo-100/50">
+          <p className="text-[11px] font-black text-slate-700 uppercase tracking-widest mb-1">Status Report</p>
+          <p className="text-xs text-slate-500 font-medium">Lattice Monitoring Active</p>
         </div>
       </div>
 
@@ -96,7 +91,7 @@ const UserComp = () => {
         <ul className="space-y-1">
           {menuItems.map((item, index) => (
             <li key={index}>
-              <Link 
+              <Link
                 href={item.href}
                 className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 transition-all duration-200 group hover:shadow-sm border border-transparent hover:border-gray-200"
               >
@@ -120,9 +115,9 @@ const UserComp = () => {
           onClick={handleLogout}
           className="flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-500/10 w-full rounded-lg transition-colors group"
         >
-          <LogOut 
-            size={20} 
-            className="group-hover:translate-x-1 transition-transform" 
+          <LogOut
+            size={20}
+            className="group-hover:translate-x-1 transition-transform"
           />
           <span className="font-medium text-sm">
             Logout

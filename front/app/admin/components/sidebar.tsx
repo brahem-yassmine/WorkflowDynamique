@@ -32,7 +32,7 @@ const menuItems = [
   { icon: ListTodo, label: "All Checklists", href: "/admin/AllCheck" },
   { icon: CreditCard, label: "Fiscal / Billing", href: "/admin/billing" },
   { icon: FileText, label: "System Logs", href: "/admin/logs" },
-  { icon: FileText, label: "Forms", href: "/AllForms" },
+  { icon: FileText, label: "Forms", href: "/admin/AllForms" },
   { icon: UserCircle, label: "Personal Node", href: "/admin/profile" },
 ];
 

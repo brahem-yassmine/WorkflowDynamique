@@ -1,4 +1,5 @@
 // back/src/controllers/workflowInstanceController.js
+const notificationController = require('./notificationController');
 
 
 // back/src/controllers/workflowInstanceController.js
@@ -12,56 +13,36 @@ exports.createInstance = async (req, res) => {
   try {
     const { workflowId, title, description, data, priority, dueDate, tags } = req.body;
 
-    // Get models from tenant connection
     const Workflow = req.tenantConn.model('Workflow');
     const WorkflowInstance = req.tenantConn.model('WorkflowInstance');
 
     if (!workflowId || !title) {
-      return res.status(400).json({
-        success: false,
-        message: 'Workflow ID and title are required'
-      });
+      return res.status(400).json({ success: false, message: 'Workflow ID and title are required' });
     }
 
-    // No longer need to filter by tenantId
-    const workflow = await Workflow.findOne({
-      _id: workflowId,
-      status: 'active'
-    });
-
+    const workflow = await Workflow.findById(workflowId);
     if (!workflow) {
-      return res.status(404).json({
-        success: false,
-        message: 'Active workflow not found'
-      });
+      return res.status(404).json({ success: false, message: 'Workflow not found' });
     }
 
-    // GRAPH INITIALIZATION
-    // Find start node
     const startNode = workflow.nodes.find(n => n.type === 'start');
-
     if (!startNode) {
-      return res.status(400).json({
-        success: false,
-        message: 'Workflow has no start node'
-      });
+      return res.status(400).json({ success: false, message: 'Workflow has no start node' });
     }
 
-    // No more tenantId, use createdBy
     const instance = new WorkflowInstance({
       workflowId: workflow._id,
       createdBy: req.user.id,
       title,
       description: description || workflow.description,
-
-      // Graph initialization
       currentNodes: [{
         nodeId: startNode.id,
         status: 'in_progress',
         startedAt: new Date(),
-        responsibleUser: null
+        responsibleUser: startNode.data?.assignedUser || null,
+        responsibleDomain: startNode.data?.domain || null
       }],
-      variables: data || {}, // Initial variables
+      variables: data || {},
       executionPath: [{
         nodeId: startNode.id,
         nodeType: 'start',
@@ -70,13 +51,11 @@ exports.createInstance = async (req, res) => {
         comments: 'Workflow démarré',
         timestamp: new Date()
       }],
-
       status: 'in_progress',
       priority: priority || 'medium',
       dueDate: dueDate || null,
       tags: tags || [],
       timeStarted: new Date(),
-
       history: [{
         action: 'instance_created',
         title: 'Démarrage',
@@ -87,46 +66,52 @@ exports.createInstance = async (req, res) => {
 
     await instance.save();
 
-    // Populate references
+    // Notification logic
+    try {
+      // 1. Notify Assignee of start node if exists
+      if (instance.currentNodes[0].responsibleUser) {
+        await notificationController.createInternalNotification(req.tenantConn, {
+          recipient: instance.currentNodes[0].responsibleUser,
+          title: 'New Task Assigned',
+          message: `You have a new task in "${instance.title}".`,
+          type: 'task_assigned',
+          link: `/Workflows/instances/${instance._id}`
+        });
+      }
+
+      // 2. Notify Admins
+      const UserModel = req.tenantConn.model('User');
+      const admins = await UserModel.find({ role: 'admin' });
+      for (const admin of admins) {
+        await notificationController.createInternalNotification(req.tenantConn, {
+          recipient: admin._id,
+          title: 'New Workflow Instance',
+          message: `An instance of "${workflow.name}" has been started by ${req.user.email}.`,
+          type: 'system',
+          link: `/Workflows/instances/${instance._id}`
+        });
+      }
+    } catch (err) {
+      console.error('Notification Error:', err);
+    }
+
     await instance.populate([
       { path: 'workflowId', select: 'name description' },
       { path: 'createdBy', select: 'email firstName lastName' }
     ]);
 
-    res.status(201).json({
-      success: true,
-      message: 'Workflow instance created',
-      data: instance
-    });
-
+    res.status(201).json({ success: true, message: 'Workflow instance created', data: instance });
   } catch (error) {
     console.error('❌ createInstance Error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
 
-// ============================================
 // 2. LIST INSTANCES
-// ============================================
 exports.getInstances = async (req, res) => {
   try {
-    const {
-      status,
-      workflowId,
-      priority,
-      createdBy,
-      responsibleDomain,
-      page = 1,
-      limit = 10
-    } = req.query;
-
+    const { status, workflowId, priority, createdBy, responsibleUser, responsibleDomain, page = 1, limit = 50 } = req.query;
     const WorkflowInstance = req.tenantConn.model('WorkflowInstance');
-
-    // REMOVE tenantId from query
     const query = {};
 
     if (status) query.status = status;
@@ -134,14 +119,15 @@ exports.getInstances = async (req, res) => {
     if (priority) query.priority = priority;
     if (createdBy) query.createdBy = createdBy;
 
+    // Filter by currently active responsible user or domain
+    if (responsibleUser) {
+      query['currentNodes.responsibleUser'] = responsibleUser;
+    }
     if (responsibleDomain) {
-      // TODO: Adapt for Graph (need to check active nodes responsibleDomain)
-      // query['steps.responsibleDomain'] = responsibleDomain;
-      // query['steps.status'] = 'in_progress';
+      query['currentNodes.responsibleDomain'] = responsibleDomain;
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
-
     const [instances, total] = await Promise.all([
       WorkflowInstance.find(query)
         .sort({ createdAt: -1 })
@@ -160,56 +146,32 @@ exports.getInstances = async (req, res) => {
       pages: Math.ceil(total / parseInt(limit)),
       data: instances
     });
-
   } catch (error) {
     console.error('❌ getInstances Error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
-// ============================================
 // 3. GET INSTANCE BY ID
-// ============================================
 exports.getInstanceById = async (req, res) => {
   try {
     const { instanceId } = req.params;
-
     const WorkflowInstance = req.tenantConn.model('WorkflowInstance');
 
-    // REMOVE tenantId from filter
     const instance = await WorkflowInstance.findById(instanceId)
       .populate('workflowId')
       .populate('createdBy', 'email firstName lastName')
-      // .populate('steps.processedBy', 'email firstName lastName') // Removed
       .populate('history.performedBy', 'email firstName lastName');
 
-    if (!instance) {
-      return res.status(404).json({
-        success: false,
-        message: 'Instance not found'
-      });
-    }
-
-    res.json({
-      success: true,
-      data: instance
-    });
-
+    if (!instance) return res.status(404).json({ success: false, message: 'Instance not found' });
+    res.json({ success: true, data: instance });
   } catch (error) {
     console.error('❌ getInstanceById Error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
-// ============================================
 // 4. APPROVE STEP (NODE TRANSITION)
-// ============================================
 exports.approveNode = async (req, res) => {
   try {
     const { instanceId } = req.params;
@@ -219,41 +181,23 @@ exports.approveNode = async (req, res) => {
     const Workflow = req.tenantConn.model('Workflow');
 
     const instance = await WorkflowInstance.findById(instanceId);
+    if (!instance) return res.status(404).json({ success: false, message: 'Instance not found' });
+    if (instance.status !== 'in_progress') return res.status(400).json({ success: false, message: 'Instance not active' });
 
-    if (!instance) {
-      return res.status(404).json({ success: false, message: 'Instance not found' });
-    }
-
-    if (instance.status !== 'in_progress') {
-      return res.status(400).json({ success: false, message: 'Instance not active' });
-    }
-
-    // Find corresponding active node
     const currentNodeIndex = instance.currentNodes.findIndex(n => n.nodeId === nodeId && n.status === 'in_progress');
+    if (currentNodeIndex === -1) return res.status(400).json({ success: false, message: 'This node is not active' });
 
-    if (currentNodeIndex === -1) {
-      return res.status(400).json({ success: false, message: 'This node is not active or does not exist' });
-    }
+    instance.currentNodes.splice(currentNodeIndex, 1);
 
-    const currentNode = instance.currentNodes[currentNodeIndex];
-
-    // --- Rights Validation (TODO: Check responsibleDomain from Workflow definition) ---
-    // For now we assume it's good if admin or user is there
-
-    // 1. Mark node as completed
-    instance.currentNodes.splice(currentNodeIndex, 1); // Remove from active nodes
-
-    // Variables update
     if (data) {
       for (const [key, value] of Object.entries(data)) {
         instance.variables.set(key, value);
       }
     }
 
-    // Add to execution history
     instance.executionPath.push({
       nodeId: nodeId,
-      nodeType: 'action', // Retrieve from workflow if possible
+      nodeType: 'action',
       action: 'approved',
       performedBy: req.user.id,
       comments: comments || '',
@@ -268,24 +212,15 @@ exports.approveNode = async (req, res) => {
       comments: comments || `Action validée sur le noeud ${nodeId}`
     });
 
-    // 2. Calculate next nodes (Transition)
     const workflow = await Workflow.findById(instance.workflowId);
     if (!workflow) throw new Error('Workflow definition not found');
 
     const outgoingEdges = workflow.edges.filter(edge => edge.source === nodeId);
     const nextNodes = [];
 
-    // Simple transition logic (supports basic conditions)
     for (const edge of outgoingEdges) {
       let conditionMet = true;
-
-      // Summary conditional check
-      if (edge.data && edge.data.condition) {
-        // Ex: edge.data.conditionValue === instance.variables.get('foo')
-        // For now take all by default
-        conditionMet = true;
-      }
-
+      // Simple condition check if needed
       if (conditionMet) {
         const targetNode = workflow.nodes.find(n => n.id === edge.target);
         if (targetNode) nextNodes.push(targetNode);
@@ -293,24 +228,19 @@ exports.approveNode = async (req, res) => {
     }
 
     let isFlowFinished = false;
-
     if (nextNodes.length === 0) {
-      // Branch end
-      if (instance.currentNodes.length === 0) {
-        isFlowFinished = true;
-      }
+      if (instance.currentNodes.length === 0) isFlowFinished = true;
     } else {
-      // Add next nodes
       for (const node of nextNodes) {
         if (node.type === 'end') {
           isFlowFinished = true;
-          // We don't add it to currentNodes, just finish
         } else {
           instance.currentNodes.push({
             nodeId: node.id,
             status: 'in_progress',
             startedAt: new Date(),
-            responsibleUser: null
+            responsibleUser: node.data?.assignedUser || null,
+            responsibleDomain: node.data?.domain || null
           });
         }
       }
@@ -329,17 +259,40 @@ exports.approveNode = async (req, res) => {
 
     await instance.save();
 
-    res.json({
-      success: true,
-      message: 'Step validated',
-      data: instance
-    });
+    // Notifications
+    try {
+      if (isFlowFinished) {
+        await notificationController.createInternalNotification(req.tenantConn, {
+          recipient: instance.createdBy,
+          title: 'Workflow Completed',
+          message: `Your process "${instance.title}" finished successfully.`,
+          type: 'workflow_completed',
+          link: `/Workflows/instances/${instance._id}`
+        });
+      } else {
+        for (const newNode of instance.currentNodes) {
+          if (newNode.responsibleUser) {
+            await notificationController.createInternalNotification(req.tenantConn, {
+              recipient: newNode.responsibleUser,
+              title: 'New Task Assigned',
+              message: `A new task in "${instance.title}" requires your validation.`,
+              type: 'task_assigned',
+              link: `/Workflows/instances/${instance._id}`
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Notification Error:', err);
+    }
 
+    res.json({ success: true, message: 'Step validated', data: instance });
   } catch (error) {
     console.error('❌ approveNode Error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
+
 
 // ============================================
 // 5. REJECT STEP
@@ -387,6 +340,19 @@ exports.rejectNode = async (req, res) => {
     });
 
     await instance.save();
+
+    // 2. Notify Creator of Rejection
+    try {
+      await notificationController.createInternalNotification(req.tenantConn, {
+        recipient: instance.createdBy,
+        title: 'Step Rejected',
+        message: `Your process "${instance.title}" has been REJECTED at step ${nodeId}.`,
+        type: 'workflow_completed',
+        link: `/Workflows/instances/${instance._id}`
+      });
+    } catch (err) {
+      console.error('Notification Error:', err);
+    }
 
     res.json({
       success: true,

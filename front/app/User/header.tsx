@@ -1,7 +1,8 @@
 'use client';
 
-import { Search, HelpCircle, User } from 'lucide-react';
+import { Search, HelpCircle, User, Bell } from 'lucide-react';
 import useUser from '@/hooks/useUser';
+import NotificationBell from '@/components/NotificationBell';
 
 export default function Header() {
   const { user, tenant } = useUser();
@@ -26,6 +27,7 @@ export default function Header() {
         </div>
 
         <div className="h-8 w-px bg-slate-100 mx-2"></div>
+        <NotificationBell />
 
         <div className="flex items-center gap-3">
           <div className="text-right hidden sm:block">

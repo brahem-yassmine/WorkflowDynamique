@@ -12,6 +12,8 @@ router.use(auth, checkTenantActive);
 // Admin seulement pour la liste, création et suppression
 // Admin only for listing and creation
 router.get('/', requireRole('admin'), getUsers);
+// Publicly accessible to tenant members for lookups
+router.get('/', getUsers);
 router.post('/', requireRole('admin'), checkPlanLimits('users'), createUser);
 router.delete('/:userId', requireRole('admin'), deleteUser);
 

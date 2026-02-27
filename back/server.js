@@ -30,6 +30,8 @@ const taskRoutes = require('./src/routes/taskRoutes');
 
 const checklistRoutes = require('./src/routes/checklistRoutes');
 const taskRoutes = require('./src/routes/taskRoutes');
+const notificationRoutes = require('./src/routes/notificationRoutes');
+const roleRoutes = require('./src/routes/tenant/role.routes');
 const domainRoutes = require('./src/routes/tenant/domain.routes');
 
 const app = express();
@@ -160,6 +162,7 @@ app.use('/api/tasks', taskRoutes);
 
 app.use('/api/checklists', checklistRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/notifications', notificationRoutes);
 app.use('/api/tenant/roles', roleRoutes);
 app.use('/api/tenant/domains', domainRoutes);
 

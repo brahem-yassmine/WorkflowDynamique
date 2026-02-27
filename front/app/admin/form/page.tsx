@@ -1,5 +1,7 @@
 'use client';
 
+const API_URL = 'http://localhost:5000/api';
+
 import React, { useState, useEffect } from 'react';
 import { DndContext, closestCenter, DragEndEvent, useSensor, useSensors, PointerSensor, KeyboardSensor } from '@dnd-kit/core';
 import { arrayMove, SortableContext, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
@@ -7,7 +9,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { 
   FileText, Type, Hash, Calendar, CheckSquare, PenTool, AlignLeft, List, 
   GripVertical, Trash2, Mail, Phone, Settings, Move, 
-  Clock, ThumbsUp, ThumbsDown, Maximize2, Minimize2, Save, Plus, ArrowRight
+  Clock, ThumbsUp, ThumbsDown, Maximize2, Minimize2, Save, Plus, ArrowRight, ArrowLeft
 } from 'lucide-react';
 import axios from 'axios';
 import { toast, Toaster } from 'sonner';
@@ -185,7 +187,16 @@ export default function FormBuilder() {
       const tenantId = tenant?._id || user?.tenantId || user?._id;
       if (!tenantId) return toast.error("Tenant ID missing.");
       
-      const res = await axios.post('http://localhost:5000/api/forms', { name: steps[0].title || "Untitled Form", steps, description: "Form created with Form Builder" }, { headers: { 'Authorization': `Bearer ${token}`, 'x-tenant-id': tenantId }});
+      const res = await axios.post('http://localhost:5000/api/forms', { 
+        name: steps[0].title || "Untitled Form", 
+        steps, 
+        description: "Form created with Form Builder" 
+      }, { 
+        headers: { 
+          'Authorization': `Bearer ${token}`, 
+          'x-tenant-id': tenantId 
+        }
+      });
       if (res.data.success) toast.success('Form saved!');
     } catch (e: any) { toast.error('Save failed: ' + (e.response?.data?.message || e.message)); }
     finally { setIsSaving(false); }
@@ -223,7 +234,19 @@ export default function FormBuilder() {
       <Toaster position="top-right" richColors />
       <div className="bg-indigo-600 text-white p-4 shadow-md">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2"><FileText className="w-5 h-5" /><h1 className="text-xl font-bold">Form Builder</h1></div>
+          <div className="flex items-center gap-4">
+            <Link 
+              href="/admin/AllForms" 
+              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              title="Back to All Forms"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Link>
+            <div className="flex items-center gap-2">
+              <FileText className="w-5 h-5" />
+              <h1 className="text-xl font-bold">Form Builder</h1>
+            </div>
+          </div>
           <div className="flex items-center gap-3">
             <Link href="/admin/form/form2" className="flex items-center gap-2 px-4 py-2 bg-indigo-500 text-white rounded-lg font-semibold hover:bg-indigo-400 transition-all shadow-sm">
               Next <ArrowRight className="w-4 h-4" />

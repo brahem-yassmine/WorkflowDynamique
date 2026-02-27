@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { ILog, LogFilters, LogsResponse, LogStats } from '@/types/log.types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_URL = 'http://localhost:5000/api';
 
 class LogService {
   private baseUrl = `${API_URL}/admin/logs`;
@@ -13,7 +13,7 @@ class LogService {
   ): Promise<LogsResponse> {
     try {
       const params = new URLSearchParams();
-      
+
       params.append('page', page.toString());
       params.append('limit', limit.toString());
 
@@ -83,7 +83,7 @@ class LogService {
       const response = await axios.get(`${this.baseUrl}/export?${params.toString()}`, {
         responseType: 'blob'
       });
-      
+
       return response.data;
     } catch (error) {
       console.error('Erreur lors de l\'export des logs:', error);

@@ -1,5 +1,7 @@
 'use client';
 
+const API_URL = 'http://localhost:5000/api';
+
 import React, { useState, useEffect } from 'react';
 import { 
   DndContext, closestCenter, DragEndEvent, useSensor, useSensors, PointerSensor, KeyboardSensor
@@ -186,7 +188,7 @@ export default function WorkflowChecklist() {
       const method = checklistId ? 'put' : 'post';
       const url = checklistId 
         ? `http://localhost:5000/api/checklists/${checklistId}` 
-        : 'http://localhost:5000/api/checklists';
+        : `http://localhost:5000/api/checklists`;
 
       const response = await axios[method](url, {
         name: checklistName,

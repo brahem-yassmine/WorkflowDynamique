@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 
+const API_URL = 'http://localhost:5000/api';
+
 export const useAuth = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -11,7 +13,7 @@ export const useAuth = () => {
   useEffect(() => {
     const checkAuth = async () => {
       const token = localStorage.getItem('auth_token');
-      
+
       if (!token) {
         setLoading(false);
         return;
@@ -20,7 +22,7 @@ export const useAuth = () => {
       try {
         // Vérifier si le token est valide
         const response = await axios.get('http://localhost:5000/api/auth/profile', {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token} ` }
         });
 
         if (response.data.success) {

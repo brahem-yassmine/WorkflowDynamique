@@ -1,5 +1,7 @@
 'use client';
 
+const API_URL = 'http://localhost:5000/api';
+
 import React, { useState, useEffect } from 'react';
 import { DndContext, closestCenter, DragEndEvent, useSensor, useSensors, PointerSensor, KeyboardSensor } from '@dnd-kit/core';
 import { arrayMove, SortableContext, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
@@ -258,7 +260,7 @@ export default function FormBuilder() {
         });
       } else {
         // Create new form
-        res = await axios.post('http://localhost:5000/api/forms', payload, {
+        res = await axios.post(`http://localhost:5000/api/forms`, payload, {
           headers: { 
             'Authorization': `Bearer ${token}`, 
             'x-tenant-id': tenantId 
@@ -313,7 +315,7 @@ export default function FormBuilder() {
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link 
-              href="/AllForms" 
+              href="/admin/AllForms" 
               className="p-2 hover:bg-white/10 rounded-lg transition-colors"
               title="Back to All Forms"
             >

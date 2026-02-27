@@ -10,29 +10,19 @@ require('dotenv').config();
 const userRoutes = require('./src/routes/userRoutes');
 const authRoutes = require('./src/routes/authRoutes');
 const tenantRoutes = require('./src/routes/tenantRoutes');
-const planRoutes = require('./src/routes/planRoutes.js');
+const planRoutes = require('./src/routes/planRoutes');
 const workflowRoutes = require('./src/routes/workflowRoutes');
 const projectRoutes = require('./src/routes/projectRoutes');
 const workflowInstanceRoutes = require('./src/routes/WorkflowInstanceRoutes');
 const subscriptionRoutes = require('./src/routes/subscriptionRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
 const dynamicFormRoutes = require('./src/routes/dynamicFormRoutes');
-const workflowInstanceRoutes = require('./src/routes/WorkflowInstanceRoutes.js');
-const subscriptionRoutes = require('./src/routes/subscriptionRoutes.js');
-const tenantRoleRoutes = require('./src/routes/tenant/role.routes');
-const tenantDomainRoutes = require('./src/routes/tenant/domain.routes');
-const projectRoutes = require('./src/routes/projectRoutes');
 const formRoutes = require('./src/routes/formRoutes');
 const checklistRoutes = require('./src/routes/checklistRoutes');
 const taskRoutes = require('./src/routes/taskRoutes');
-
-
-
-const checklistRoutes = require('./src/routes/checklistRoutes');
-const taskRoutes = require('./src/routes/taskRoutes');
 const notificationRoutes = require('./src/routes/notificationRoutes');
-const roleRoutes = require('./src/routes/tenant/role.routes');
-const domainRoutes = require('./src/routes/tenant/domain.routes');
+const tenantRoleRoutes = require('./src/routes/tenant/role.routes');
+const tenantDomainRoutes = require('./src/routes/tenant/domain.routes');
 
 const app = express();
 // ========================
@@ -74,15 +64,13 @@ masterConnection.on('connected', () => {
 
     // Démarrer le serveur SEULEMENT après la connexion
     const PORT = process.env.PORT || 5000;
-    const HOST = process.env.HOST || 'localhost';
-
-    app.listen(PORT, HOST, () => {
+    app.listen(PORT, () => {
       console.log(`
   ╔════════════════════════════════════════════════╗
   ║     🚀  DYNAMIC WORKFLOW - SERVER READY       ║
   ╚════════════════════════════════════════════════╝
   
-  📡 URL: http://${HOST}:${PORT}
+  📡 URL: http://localhost:${PORT}
   📊 DB: workflow_master
   ✅ Status: Connected
       `);
@@ -105,7 +93,6 @@ app.use((req, res, next) => {
   if (!app.locals.masterDb) {
     return res.status(503).json({
       success: false,
-      message: 'Base de données en cours de connexion, veuillez réessayer'
       message: 'Database connecting, please try again'
     });
   }
@@ -127,14 +114,13 @@ app.use('/api/admin', adminRoutes);
 // ========================
 // TENANT MIDDLEWARE
 // ========================
-const { tenantResolver } = require('./src/middleware/tenantMiddleware');
 let tenantResolver;
 try {
-  tenantResolver = require('./src/middleware/tenantMiddleware.js').tenantResolver;
+  tenantResolver = require('./src/middleware/tenantMiddleware').tenantResolver;
 } catch (error) {
-  console.log('⚠️ Tenant middleware not found, creating default middleware');
+  console.log('⚠️ Tenant middleware error:', error.message);
   tenantResolver = (req, res, next) => {
-    req.tenantConnection = app.locals.masterDb; // Fallback
+    req.tenantConn = app.locals.masterDb; // Fallback
     next();
   };
 }
@@ -151,27 +137,17 @@ app.use('/api/workflows', workflowRoutes);
 app.use('/api/workflow-instances', workflowInstanceRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/forms', dynamicFormRoutes);
-app.use('/api/tenant/roles', tenantRoleRoutes);
-app.use('/api/tenant/domains', tenantDomainRoutes);
-app.use('/api/projects', projectRoutes);
-app.use('/api/forms', formRoutes);
-app.use('/api/checklists', checklistRoutes);
-app.use('/api/tasks', taskRoutes);
-
-
-
 app.use('/api/checklists', checklistRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/notifications', notificationRoutes);
-app.use('/api/tenant/roles', roleRoutes);
-app.use('/api/tenant/domains', domainRoutes);
+app.use('/api/tenant/roles', tenantRoleRoutes);
+app.use('/api/tenant/domains', tenantDomainRoutes);
 
 // ========================
 // ROOT ROUTE
 // ========================
 app.get('/', (req, res) => {
   res.json({
-    message: '🚀 API Workflow Dynamique',
     message: '🚀 Dynamic Workflow API',
     status: app.locals.masterDb ? 'connected' : 'connecting',
     timestamp: new Date().toISOString()
@@ -183,7 +159,6 @@ app.get('/', (req, res) => {
 // ========================
 app.use('*', (req, res) => {
   res.status(404).json({
-    error: 'Route non trouvée',
     error: 'Route not found',
     path: req.originalUrl
   });

@@ -1,5 +1,7 @@
 'use client';
 
+const API_URL = 'http://localhost:5000/api';
+
 import React, { useState, useEffect } from 'react';
 import {
   FileText, Type, Hash, Calendar, CheckSquare, PenTool, AlignLeft, List,
@@ -51,7 +53,7 @@ export default function Form2Page() {
           setForm(res.data.data);
         }
       } else {
-        const res = await axios.get('http://localhost:5000/api/forms', {
+        const res = await axios.get(`http://localhost:5000/api/forms`, {
           headers: { 'Authorization': `Bearer ${token}`, 'x-tenant-id': tenantId }
         });
         if (res.data.success && res.data.data.length > 0) {
@@ -192,7 +194,7 @@ export default function Form2Page() {
       <div className="bg-white border-b sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href="/form" className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500">
+            <Link href="/admin/AllForms" className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500">
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <div>

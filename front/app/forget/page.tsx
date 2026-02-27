@@ -1,5 +1,7 @@
 'use client';
 
+const API_URL = 'http://localhost:5000/api';
+
 import { useState } from 'react';
 import Link from 'next/link';
 import axios from 'axios';

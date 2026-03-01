@@ -64,7 +64,7 @@ masterConnection.once('connected', () => {
     app.locals.masterDb = masterConnection;
 
     // Démarrer le serveur SEULEMENT après la connexion
-    const PORT = process.env.PORT || 5001;
+    const PORT = process.env.PORT || 5000;
     const HOST = process.env.HOST || 'localhost';
 
     app.listen(PORT, () => {

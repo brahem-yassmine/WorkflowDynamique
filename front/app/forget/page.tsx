@@ -1,6 +1,6 @@
 'use client';
 
-const API_URL = 'http://localhost:5001/api';
+const API_URL = 'http://localhost:5000/api';
 
 import { useState } from 'react';
 import Link from 'next/link';
@@ -19,7 +19,7 @@ export default function ForgetPasswordPage() {
         setLoading(true);
 
         try {
-            const response = await axios.post('http://localhost:5001/api/auth/forgot-password', { email });
+            const response = await axios.post('http://localhost:5000/api/auth/forgot-password', { email });
             if (response.data.success) {
                 setSubmitted(true);
                 toast.success('Lien de réinitialisation envoyé !');

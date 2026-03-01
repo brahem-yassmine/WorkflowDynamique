@@ -1,6 +1,6 @@
 'use client';
 
-const API_URL = 'http://localhost:5001/api';
+const API_URL = 'http://localhost:5000/api';
 
 import { useState, FormEvent, ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
@@ -107,7 +107,7 @@ export default function SigninPage() {
       console.log(' Login attempt for:', formData.email);
 
       // Call backend API
-      const response = await axios.post<LoginResponse>('http://localhost:5001/api/auth/login', {
+      const response = await axios.post<LoginResponse>('http://localhost:5000/api/auth/login', {
         email: formData.email,
         password: formData.password
       }, {
@@ -195,7 +195,7 @@ export default function SigninPage() {
             setError(error.response.data?.message || 'Login error');
         }
       } else if (error.code === 'ECONNREFUSED') {
-        setError('Cannot connect to server. Please check if backend is running on port 5001');
+        setError('Cannot connect to server. Please check if backend is running on port 5000');
       } else if (error.request) {
         setError('Unable to reach server. Check your connection');
       } else {

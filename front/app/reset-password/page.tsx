@@ -1,6 +1,6 @@
 'use client';
 
-const API_URL = 'http://localhost:5001/api';
+const API_URL = 'http://localhost:5000/api';
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -41,7 +41,7 @@ export default function ResetPasswordPage() {
         setLoading(true);
 
         try {
-            const response = await axios.post('http://localhost:5001/api/auth/reset-password', {
+            const response = await axios.post('http://localhost:5000/api/auth/reset-password', {
                 token,
                 password
             });

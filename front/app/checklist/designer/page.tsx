@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 
-const API_URL = 'http://localhost:5001/api';
+const API_URL = 'http://localhost:5000/api';
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -128,7 +128,7 @@ export default function WorkflowChecklist() {
 
       if (!tenantId || !token) return;
 
-      const res = await axios.get(`http://localhost:5001/api/checklists/${targetId}`, {
+      const res = await axios.get(`http://localhost:5000/api/checklists/${targetId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'x-tenant-id': tenantId
@@ -201,8 +201,8 @@ export default function WorkflowChecklist() {
 
       const method = checklistId ? 'put' : 'post';
       const url = checklistId
-        ? `http://localhost:5001/api/checklists/${checklistId}`
-        : 'http://localhost:5001/api/checklists';
+        ? `http://localhost:5000/api/checklists/${checklistId}`
+        : 'http://localhost:5000/api/checklists';
 
       const response = await (axios as any)[method](url, {
         name: checklistName,

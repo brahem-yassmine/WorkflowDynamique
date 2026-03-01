@@ -1,6 +1,6 @@
 "use client";
 
-const API_URL = 'http://localhost:5001/api';
+const API_URL = 'http://localhost:5000/api';
 
 import { useState, useEffect } from "react";
 import {
@@ -65,7 +65,7 @@ export default function CompanyManagement() {
       const token = localStorage.getItem('auth_token');
       if (!token) return;
 
-      const response = await fetch('http://localhost:5001/api/admin/tenants', {
+      const response = await fetch('http://localhost:5000/api/admin/tenants', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -97,7 +97,7 @@ export default function CompanyManagement() {
     try {
       setUpdating(true);
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`http://localhost:5001/api/admin/tenants/${selectedCompany.id}`, {
+      const response = await fetch(`http://localhost:5000/api/admin/tenants/${selectedCompany.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -120,7 +120,7 @@ export default function CompanyManagement() {
     try {
       const token = localStorage.getItem('auth_token');
       const newStatus = currentStatus === 'active' ? 'suspended' : 'active';
-      const response = await fetch(`http://localhost:5001/api/admin/tenants/${companyId}/status`, {
+      const response = await fetch(`http://localhost:5000/api/admin/tenants/${companyId}/status`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,

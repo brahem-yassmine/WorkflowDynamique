@@ -1,6 +1,6 @@
 'use client';
 
-const API_URL = 'http://localhost:5001/api';
+const API_URL = 'http://localhost:5000/api';
 
 import React, { useState, useEffect } from 'react';
 import { DndContext, closestCenter, DragEndEvent, useSensor, useSensors, PointerSensor, KeyboardSensor } from '@dnd-kit/core';
@@ -187,7 +187,7 @@ export default function FormBuilder() {
       const tenantId = tenant?._id || user?.tenantId || user?._id;
       if (!tenantId) return toast.error("Tenant ID missing.");
 
-      const res = await axios.post('http://localhost:5001/api/forms', {
+      const res = await axios.post('http://localhost:5000/api/forms', {
         name: steps[0].title || "Untitled Form",
         steps,
         description: "Form created with Form Builder"

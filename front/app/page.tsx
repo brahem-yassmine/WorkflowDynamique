@@ -1,6 +1,6 @@
 "use client";
 
-const API_URL = 'http://localhost:5001/api';
+const API_URL = 'http://localhost:5000/api';
 import React, { useState, useEffect } from "react";
 import {
   CheckCircle2,
@@ -135,7 +135,7 @@ export default function LandingPage() {
       try {
         setLoading(true);
         console.log("📦 Loading plans...");
-        const response = await axios.get("http://localhost:5001/api/plans");
+        const response = await axios.get("http://localhost:5000/api/plans");
         console.log("✅ Plans received:", response.data);
 
         let plansData = [];

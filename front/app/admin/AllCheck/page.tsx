@@ -1,6 +1,6 @@
 "use client";
 
-const API_URL = 'http://localhost:5001/api';
+const API_URL = 'http://localhost:5000/api';
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -41,7 +41,7 @@ export default function AllChecklistsPage() {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       const tenantId = localStorage.getItem('tenantId') || tenant?._id || user?.tenantId;
 
-      const response = await axios.get('http://localhost:5001/api/checklists', {
+      const response = await axios.get('http://localhost:5000/api/checklists', {
         headers: {
           Authorization: `Bearer ${token}`,
           'x-tenant-id': tenantId
@@ -71,7 +71,7 @@ export default function AllChecklistsPage() {
 
       // Check if clone endpoint exists, if not do it manually
       try {
-        const response = await axios.post(`http://localhost:5001/api/checklists/${id}/clone`, {}, {
+        const response = await axios.post(`http://localhost:5000/api/checklists/${id}/clone`, {}, {
           headers: {
             Authorization: `Bearer ${token}`,
             'x-tenant-id': tenantId
@@ -86,7 +86,7 @@ export default function AllChecklistsPage() {
         // Fallback to manual clone if endpoint fails
         const checklistToClone = checklists.find(c => c._id === id);
         if (checklistToClone) {
-          await axios.post('http://localhost:5001/api/checklists', {
+          await axios.post('http://localhost:5000/api/checklists', {
             name: `${checklistToClone.name} (copy)`,
             tasks: checklistToClone.tasks
           }, {
@@ -111,7 +111,7 @@ export default function AllChecklistsPage() {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       const tenantId = localStorage.getItem('tenantId') || tenant?._id || user?.tenantId;
 
-      const response = await axios.delete(`http://localhost:5001/api/checklists/${id}`, {
+      const response = await axios.delete(`http://localhost:5000/api/checklists/${id}`, {
         headers: {
           Authorization: `Bearer ${token}`,
           'x-tenant-id': tenantId
@@ -207,7 +207,7 @@ export default function AllChecklistsPage() {
                 <div className="flex flex-col">
                   <span className="text-[9px] uppercase font-black text-slate-400 tracking-[0.2em]">Status</span>
                   <span className={`text-[10px] font-black uppercase ${checklist.status === 'completed' ? 'text-emerald-500' :
-                      'text-slate-400'
+                    'text-slate-400'
                     }`}>
                     {checklist.status || 'draft'}
                   </span>

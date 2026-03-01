@@ -1,6 +1,6 @@
 'use client';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'http://localhost:5001/api';
 
 import React, { useState, useEffect } from 'react';
 import { DndContext, closestCenter, DragEndEvent, useSensor, useSensors, PointerSensor, KeyboardSensor } from '@dnd-kit/core';
@@ -342,8 +342,8 @@ export default function FormBuilder() {
               key={s.id}
               onClick={() => setCurrentStepIndex(i)}
               className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${currentStepIndex === i
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100'
-                  : 'bg-white border border-slate-100 text-slate-400 hover:text-slate-600'
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100'
+                : 'bg-white border border-slate-100 text-slate-400 hover:text-slate-600'
                 }`}
             >
               Step {i + 1}

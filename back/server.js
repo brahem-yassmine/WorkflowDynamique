@@ -22,6 +22,7 @@ const tenantDomainRoutes = require('./src/routes/tenant/domain.routes');
 const formRoutes = require('./src/routes/formRoutes');
 const checklistRoutes = require('./src/routes/checklistRoutes');
 const taskRoutes = require('./src/routes/taskRoutes');
+const boardRoutes = require('./src/routes/boardRoutes');
 const notificationRoutes = require('./src/routes/notificationRoutes');
 
 const app = express();
@@ -72,7 +73,7 @@ masterConnection.once('connected', () => {
   ║     🚀  DYNAMIC WORKFLOW - SERVER READY       ║
   ╚════════════════════════════════════════════════╝
   
-  📡 URL: http://${HOST}:${PORT}
+  📡 URL: http://localhost:${PORT}
   📊 DB: workflow_master
   ✅ Status: Connected
       `);
@@ -116,18 +117,18 @@ app.use('/api/admin', adminRoutes);
 // ========================
 // TENANT MIDDLEWARE
 // ========================
-let resolvedTenantResolver;
+let tenantResolver;
 try {
-  resolvedTenantResolver = require('./src/middleware/tenantMiddleware').tenantResolver;
+  tenantResolver = require('./src/middleware/tenantMiddleware').tenantResolver;
 } catch (error) {
-  console.log('⚠️ Tenant middleware not found, creating default middleware');
-  resolvedTenantResolver = (req, res, next) => {
-    req.tenantConnection = app.locals.masterDb; // Fallback
+  console.log('⚠️ Tenant middleware error:', error.message);
+  tenantResolver = (req, res, next) => {
+    req.tenantConn = app.locals.masterDb; // Fallback
     next();
   };
 }
 
-app.use('/api', resolvedTenantResolver);
+app.use('/api', tenantResolver);
 
 // ========================
 // TENANT PROTECTED ROUTES
@@ -139,12 +140,13 @@ app.use('/api/workflows', workflowRoutes);
 app.use('/api/workflow-instances', workflowInstanceRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/forms', dynamicFormRoutes);
+app.use('/api/checklists', checklistRoutes);
+app.use('/api/tasks', taskRoutes);
+app.use('/api/boards', boardRoutes);
+app.use('/api/notifications', notificationRoutes);
 app.use('/api/tenant/roles', tenantRoleRoutes);
 app.use('/api/tenant/domains', tenantDomainRoutes);
 app.use('/api/form-responses', formRoutes);
-app.use('/api/checklists', checklistRoutes);
-app.use('/api/tasks', taskRoutes);
-app.use('/api/notifications', notificationRoutes);
 
 // ========================
 // ROOT ROUTE
@@ -162,7 +164,6 @@ app.get('/', (req, res) => {
 // ========================
 app.use('*', (req, res) => {
   res.status(404).json({
-    error: 'Route non trouvée',
     error: 'Route not found',
     path: req.originalUrl
   });

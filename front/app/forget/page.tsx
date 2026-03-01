@@ -1,5 +1,7 @@
 'use client';
 
+const API_URL = 'http://localhost:5000/api';
+
 import { useState } from 'react';
 import Link from 'next/link';
 import axios from 'axios';
@@ -44,13 +46,13 @@ export default function ForgetPasswordPage() {
             <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="w-full max-w-md bg-white rounded-[40px] shadow-2xl shadow-indigo-100/50 p-10 relative z-10 border border-slate-100"
+                className="w-full max-w-xl bg-white rounded-[40px] shadow-2xl shadow-indigo-100/50 p-14 relative z-10 border border-slate-100"
             >
                 <Link 
                     href="/signin" 
                     className="group flex items-center gap-2 text-slate-400 hover:text-indigo-600 transition-colors mb-10 text-xs font-black uppercase tracking-widest"
                 >
-                    <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center group-hover:bg-indigo-50 transition-colors border border-transparent group-hover:border-indigo-100">
+                    <div className="w-9 h-9 rounded-xl bg-slate-50 flex items-center justify-center group-hover:bg-indigo-50 transition-colors border border-transparent group-hover:border-indigo-100">
                         <ArrowLeft size={16} />
                     </div>
                     Retour à la connexion
@@ -69,7 +71,7 @@ export default function ForgetPasswordPage() {
                             </div>
 
                             <h1 className="text-3xl font-black text-slate-800 tracking-tight uppercase leading-tight mb-4">
-                                Mot de passe <br /> <span className="text-indigo-600">oublié ?</span>
+                                Mot de passe <br /> <span className="text-indigo-600 font-black">oublié ?</span>
                             </h1>
                             
                             <p className="text-slate-500 text-sm font-medium leading-relaxed mb-8">
@@ -89,7 +91,7 @@ export default function ForgetPasswordPage() {
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
                                             placeholder="exemple@boite.com"
-                                            className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:bg-white transition-all font-bold text-slate-700 placeholder:text-slate-300"
+                                            className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:bg-white transition-all font-bold text-slate-700 placeholder:text-slate-300 text-sm"
                                         />
                                     </div>
                                 </div>
@@ -113,9 +115,9 @@ export default function ForgetPasswordPage() {
                     ) : (
                         <motion.div
                             key="success"
-                            initial={{ opacity: 0, scale: 0.9 }}
+                            initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            className="text-center py-6"
+                            className="text-center py-2"
                         >
                             <div className="w-20 h-20 bg-emerald-50 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-inner border border-emerald-100">
                                 <CheckCircle2 className="text-emerald-500 w-10 h-10" />
@@ -125,13 +127,13 @@ export default function ForgetPasswordPage() {
                                 E-mail <span className="text-emerald-500 text-6xl block mt-[-10px]">Envoyé</span>
                             </h1>
                             
-                            <p className="text-slate-500 text-sm font-medium leading-relaxed mb-10">
-                                Nous avons envoyé des instructions à <br /> <strong className="text-slate-800 underline decoration-indigo-200 decoration-4">{email}</strong>. <br /> Veuillez vérifier votre boîte de réception.
+                            <p className="text-slate-500 text-sm font-medium leading-relaxed mb-8">
+                                Nous avons envoyé des instructions à <br /> <strong className="text-slate-800 underline decoration-indigo-200 decoration-[4px] underline-offset-4">{email}</strong>. <br /> Veuillez vérifier votre boîte de réception.
                             </p>
 
                             <button 
                                 onClick={() => setSubmitted(false)}
-                                className="text-[11px] font-black text-indigo-600 uppercase tracking-widest hover:text-indigo-800 transition-colors underline underline-offset-8"
+                                className="text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:text-indigo-800 transition-colors underline underline-offset-8"
                             >
                                 Je n'ai pas reçu l'e-mail
                             </button>

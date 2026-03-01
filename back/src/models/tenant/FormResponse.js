@@ -7,6 +7,13 @@ const formResponseSchema = new mongoose.Schema({
         ref: 'DynamicForm',
         required: true
     },
+    name: {
+        type: String,
+        default: 'Form Submission'
+    },
+    description: {
+        type: String
+    },
     data: {
         type: mongoose.Schema.Types.Mixed,
         required: true

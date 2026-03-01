@@ -17,6 +17,10 @@ const checklistSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
+    description: {
+        type: String,
+        trim: true
+    },
     tasks: [checklistTaskSchema],
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,

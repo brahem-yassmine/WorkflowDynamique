@@ -1,5 +1,7 @@
 "use client";
 
+const API_URL = 'http://localhost:5000/api';
+
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, 
@@ -16,7 +18,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
-import { toast } from 'sonner';
+import { toast, Toaster } from 'sonner';
 
 interface Checklist {
   _id: string;

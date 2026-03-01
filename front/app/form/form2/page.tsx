@@ -1,17 +1,17 @@
 'use client';
 
+
 import React, { useState, useEffect } from 'react';
 import {
   FileText, Type, Hash, Calendar, CheckSquare, PenTool, AlignLeft, List,
   ArrowLeft, Send, CheckCircle2, Clock, Mail, Phone, Trash2
 } from 'lucide-react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { toast, Toaster } from 'sonner';
 import Link from 'next/link';
-import axios from 'axios';
 import TaskExecutionPanel from '../../Workflows/_components/TaskExecutionPanel';
 import { apiService } from '@/service/api.service';
-import { AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const FIELD_ICONS: Record<string, any> = {
   text: Type, email: Mail, phone: Phone, number: Hash,
@@ -21,6 +21,7 @@ const FIELD_ICONS: Record<string, any> = {
 
 export default function Form2Page() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const instanceId = searchParams.get('instanceId');
   const nodeId = searchParams.get('nodeId');
   const formId = searchParams.get('formId') || searchParams.get('id');
@@ -30,6 +31,10 @@ export default function Form2Page() {
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
+  const [submissionName, setSubmissionName] = useState('New Response');
+  const [submissionDescription, setSubmissionDescription] = useState('');
+
   // Workflow Integration State
   const [instance, setInstance] = useState<any>(null);
   const [currentNode, setCurrentNode] = useState<any>(null);
@@ -37,25 +42,17 @@ export default function Form2Page() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('auth_token');
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const tenant = JSON.parse(localStorage.getItem('tenant') || '{}');
-      const tenantId = tenant?._id || user?.tenantId;
-
       // 1. Fetch Form
       if (formId) {
-        const res = await axios.get(`http://localhost:5001/api/forms/${formId}`, {
-          headers: { 'Authorization': `Bearer ${token}`, 'x-tenant-id': tenantId }
-        });
-        if (res.data.success) {
-          setForm(res.data.data);
+        // Use a generic request if specific getFormById doesn't exist or just to stay flexible
+        const res = await apiService.request(`/forms/${formId}`);
+        if (res.success) {
+          setForm(res.data);
         }
       } else {
-        const res = await axios.get('http://localhost:5001/api/forms', {
-          headers: { 'Authorization': `Bearer ${token}`, 'x-tenant-id': tenantId }
-        });
-        if (res.data.success && res.data.data.length > 0) {
-          setForm(res.data.data[0]);
+        const res = await apiService.getForms();
+        if (res.success && res.data.length > 0) {
+          setForm(res.data[0]);
         }
       }
 
@@ -70,8 +67,12 @@ export default function Form2Page() {
           setCurrentNode(node);
         }
       }
-    } catch (error) {
-      toast.error("Error loading data.");
+    } catch (error: any) {
+      console.error("Fetch Data Error:", error);
+      // Only toast if it's not a expected 404 or empty
+      if (error.message !== 'Not authenticated') {
+        toast.error("Error loading data: " + error.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -106,26 +107,33 @@ export default function Form2Page() {
     reader.readAsDataURL(file);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!form?._id) return toast.error("Form ID missing.");
+    setIsSubmitModalOpen(true);
+  };
+
+  const confirmSubmit = async () => {
+    if (!form?._id) return toast.error("Form ID missing.");
+    if (!submissionName.trim()) return toast.error("Veuillez saisir un nom pour cette soumission.");
 
     setIsSubmitting(true);
     try {
-      const token = localStorage.getItem('auth_token');
-      const tenant = JSON.parse(localStorage.getItem('tenant') || '{}');
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const tenantId = tenant?._id || user?.tenantId;
+      const res = await apiService.request(`/forms/${form._id}/submit`, {
+        method: 'POST',
+        body: JSON.stringify({
+          data: formData,
+          name: submissionName,
+          description: submissionDescription
+        })
+      });
 
-      const res = await axios.post(`http://localhost:5001/api/forms/${form._id}/submit`,
-        { data: formData },
-        { headers: { 'Authorization': `Bearer ${token}`, 'x-tenant-id': tenantId } }
-      );
-
-      if (res.data.success) {
+      if (res.success) {
         toast.success("Form submitted successfully!");
+        setIsSubmitModalOpen(false);
+        router.push('/admin/AllForms');
       }
     } catch (error: any) {
-      toast.error("Submission failed: " + (error.response?.data?.message || error.message));
+      toast.error("Submission failed: " + error.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -135,22 +143,17 @@ export default function Form2Page() {
     if (!form?._id) return toast.error("Form ID missing.");
 
     try {
-      const token = localStorage.getItem('auth_token');
-      const tenant = JSON.parse(localStorage.getItem('tenant') || '{}');
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const tenantId = tenant?._id || user?.tenantId;
+      const res = await apiService.request(`/forms/${form._id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status })
+      });
 
-      const res = await axios.patch(`http://localhost:5001/api/forms/${form._id}/status`,
-        { status },
-        { headers: { 'Authorization': `Bearer ${token}`, 'x-tenant-id': tenantId } }
-      );
-
-      if (res.data.success) {
-        setForm(res.data.data);
+      if (res.success) {
+        setForm(res.data);
         toast.success(`Form ${status === 'approved' ? 'Approved' : 'Rejected'}!`);
       }
     } catch (error: any) {
-      toast.error("Status update failed: " + (error.response?.data?.message || error.message));
+      toast.error("Status update failed: " + error.message);
     }
   };
 
@@ -178,6 +181,62 @@ export default function Form2Page() {
       <Toaster position="top-right" richColors />
 
       <AnimatePresence>
+        {isSubmitModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white w-full max-w-lg rounded-[32px] overflow-hidden shadow-2xl border border-slate-100"
+            >
+              {/* Modal Header */}
+              <div className="bg-indigo-600 p-8 text-white">
+                <h2 className="text-2xl font-black tracking-tight uppercase">Workflow Identification</h2>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80 mt-1">Lattice Persistence</p>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-8 space-y-8">
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Submission Title</label>
+                  <input
+                    value={submissionName}
+                    onChange={(e) => setSubmissionName(e.target.value)}
+                    placeholder="E.g., Quarterly Report, Maintenance Request..."
+                    className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-700 font-bold focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Notes / Context</label>
+                  <textarea
+                    value={submissionDescription}
+                    onChange={(e) => setSubmissionDescription(e.target.value)}
+                    placeholder="Add any additional context for this submission..."
+                    className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-700 font-bold focus:border-indigo-500 focus:bg-white outline-none transition-all min-h-[120px] resize-none"
+                  />
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-8 pt-0 flex items-center justify-between">
+                <button
+                  onClick={() => setIsSubmitModalOpen(false)}
+                  className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors"
+                >
+                  Discard
+                </button>
+                <button
+                  onClick={confirmSubmit}
+                  disabled={isSubmitting}
+                  className="px-10 py-4 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-indigo-700 active:scale-95 transition-all shadow-xl shadow-indigo-100 disabled:opacity-50"
+                >
+                  {isSubmitting ? 'Synchronizing...' : 'Commit Submission'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
         {instanceId && currentNode && (
           <TaskExecutionPanel
             instance={instance}
@@ -192,24 +251,20 @@ export default function Form2Page() {
       <div className="bg-white border-b sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href="/form" className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500">
+            <Link href="/admin/AllForms" className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500">
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <div>
-              <h1 className="text-xl font-bold text-gray-800">{form.name}</h1>
+              <h1 className="text-lg font-black text-slate-800 uppercase tracking-tight">Interactive Workflow</h1>
               <div className="flex items-center gap-2 mt-0.5">
-                <p className="text-xs text-gray-400">Interactive Mode • </p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Fillable Protocol • </p>
                 {form.steps?.some((s: any) => s.status === 'approved') ? (
                   <span className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-200 uppercase tracking-wider">
-                    <CheckCircle2 className="w-2.5 h-2.5" /> Approved
-                  </span>
-                ) : form.steps?.some((s: any) => s.status === 'rejected') ? (
-                  <span className="flex items-center gap-1 text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-200 uppercase tracking-wider">
-                    <Clock className="w-2.5 h-2.5" /> Rejected
+                    <CheckCircle2 className="w-2.5 h-2.5" /> Validated
                   </span>
                 ) : (
                   <span className="flex items-center gap-1 text-[10px] font-bold text-yellow-600 bg-yellow-50 px-1.5 py-0.5 rounded border border-yellow-200 uppercase tracking-wider">
-                    <Clock className="w-2.5 h-2.5" /> Pending
+                    <Clock className="w-2.5 h-2.5" /> In Progress
                   </span>
                 )}
               </div>
@@ -246,11 +301,11 @@ export default function Form2Page() {
         {form.steps?.map((step: any, sIdx: number) => (
           <div key={step.id} className="mb-10 animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${sIdx * 100}ms` }}>
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-8 h-8 bg-indigo-600 text-white rounded-lg flex items-center justify-center font-bold text-sm shadow-md shadow-indigo-100">
+              <div className="w-8 h-8 bg-indigo-600 text-white rounded-lg flex items-center justify-center font-black text-xs shadow-md shadow-indigo-100">
                 {sIdx + 1}
               </div>
-              <h2 className="text-lg font-bold text-gray-800">{step.title}</h2>
-              <div className="flex-1 h-px bg-gray-100 ml-4"></div>
+              <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest">Partie {sIdx + 1}</h2>
+              <div className="flex-1 h-[2px] bg-slate-100 ml-4"></div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

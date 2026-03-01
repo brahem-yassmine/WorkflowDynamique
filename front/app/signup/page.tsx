@@ -1,5 +1,7 @@
 "use client";
 
+const API_URL = 'http://localhost:5000/api';
+
 import { useState, FormEvent, ChangeEvent, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -569,8 +571,8 @@ export default function SignupPage() {
                           key={plan._id}
                           onClick={() => handlePlanSelection(plan._id)}
                           className={`block p-4 border-2 rounded-lg cursor-pointer transition-all ${formData.planId === plan._id
-                              ? 'border-indigo-700 bg-blue-50'
-                              : 'border-gray-200 hover:border-indigo-500'
+                            ? 'border-indigo-700 bg-blue-50'
+                            : 'border-gray-200 hover:border-indigo-500'
                             }`}
                         >
                           <input
@@ -672,8 +674,8 @@ export default function SignupPage() {
                   type="submit"
                   disabled={loading || loadingPlans}
                   className={`w-full text-white font-semibold py-3 px-4 rounded-lg transition-colors ${loading || loadingPlans
-                      ? 'bg-indigo-500 cursor-not-allowed'
-                      : 'bg-indigo-700 hover:bg-indigo-800'
+                    ? 'bg-indigo-500 cursor-not-allowed'
+                    : 'bg-indigo-700 hover:bg-indigo-800'
                     }`}
                 >
                   {loading ? (

@@ -20,6 +20,12 @@ const activityLogSchema = new mongoose.Schema({
             'INVITE_USER', 'PROCESS_INVITATION'
         ]
     },
+    category: {
+        type: String,
+        required: true,
+        enum: ['LOG', 'HISTORY', 'AUDIT'],
+        default: 'LOG'
+    },
     resource: {
         type: { type: String, required: true }, // e.g., 'Form', 'User', 'Workflow'
         id: { type: mongoose.Schema.Types.ObjectId },

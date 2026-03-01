@@ -30,6 +30,10 @@ const taskSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true
+    },
+    boardId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Board'
     }
 }, { timestamps: true });
 

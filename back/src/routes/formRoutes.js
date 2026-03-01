@@ -22,7 +22,7 @@ router.use(auth, checkTenantActive);
 router.get('/', getForms);
 router.get('/:id', getFormById);
 router.post('/', createForm);
-router.put('/:id', updateForm);
+router.patch('/:id', updateForm);
 router.delete('/:id', deleteForm);
 router.post('/:id/submit', submitResponse);
 router.patch('/:id/status', updateFormStatus);

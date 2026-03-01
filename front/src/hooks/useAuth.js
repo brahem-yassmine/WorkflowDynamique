@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 
+const API_URL = 'http://localhost:5001/api';
+
 export const useAuth = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -11,7 +13,7 @@ export const useAuth = () => {
   useEffect(() => {
     const checkAuth = async () => {
       const token = localStorage.getItem('auth_token');
-      
+
       if (!token) {
         setLoading(false);
         return;

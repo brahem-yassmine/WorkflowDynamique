@@ -1,13 +1,15 @@
 'use client';
 
+const API_URL = 'http://localhost:5000/api';
+
 import React, { useState, useEffect } from 'react';
 import { DndContext, closestCenter, DragEndEvent, useSensor, useSensors, PointerSensor, KeyboardSensor } from '@dnd-kit/core';
 import { arrayMove, SortableContext, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { 
-  FileText, Type, Hash, Calendar, CheckSquare, PenTool, AlignLeft, List, 
-  GripVertical, Trash2, Mail, Phone, Settings, Move, 
-  Clock, ThumbsUp, ThumbsDown, Maximize2, Minimize2, Save, Plus, ArrowRight
+import {
+  FileText, Type, Hash, Calendar, CheckSquare, PenTool, AlignLeft, List,
+  GripVertical, Trash2, Mail, Phone, Settings, Move,
+  Clock, ThumbsUp, ThumbsDown, Maximize2, Minimize2, Save, Plus, ArrowRight, ArrowLeft
 } from 'lucide-react';
 import axios from 'axios';
 import { toast, Toaster } from 'sonner';
@@ -72,8 +74,8 @@ function SortableField({ field, onUpdate, onRemove, isAlone }: any) {
   const isWidthHalf = field.width === 'half';
 
   return (
-    <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1, zIndex: isDragging ? 50 : 1 }} 
-         className={`bg-white border rounded-2xl p-4 hover:shadow-lg transition-all relative group ${isAlone ? 'md:col-span-2' : ''} ${isDragging ? 'ring-2 ring-indigo-500 shadow-xl' : ''}`}>
+    <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1, zIndex: isDragging ? 50 : 1 }}
+      className={`bg-white border rounded-2xl p-4 hover:shadow-lg transition-all relative group ${isAlone ? 'md:col-span-2' : ''} ${isDragging ? 'ring-2 ring-indigo-500 shadow-xl' : ''}`}>
       <div className="flex items-start gap-3">
         <button {...attributes} {...listeners} className="mt-1 text-gray-300 hover:text-indigo-600 transition-colors cursor-grab active:cursor-grabbing"><GripVertical className="w-4 h-4" /></button>
         <div className="flex-1 min-w-0">
@@ -86,7 +88,7 @@ function SortableField({ field, onUpdate, onRemove, isAlone }: any) {
               <button onClick={() => onUpdate(field.id, { width: isWidthHalf ? 'full' : 'half' })} className="p-1.5 text-gray-400 hover:bg-gray-100 hover:text-indigo-600 rounded-lg">{isWidthHalf ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}</button>
               {['select', 'checkbox'].includes(field.type) && (
                 <>
-                  <button 
+                  <button
                     onClick={() => onUpdate(field.id, { options: [...(field.options || []), `Option ${(field.options?.length || 0) + 1}`] })}
                     className="p-1.5 text-gray-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-colors"
                     title="Add Option"
@@ -99,7 +101,7 @@ function SortableField({ field, onUpdate, onRemove, isAlone }: any) {
               <button onClick={() => onRemove(field.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-3.5 h-3.5" /></button>
             </div>
           </div>
-          
+
           <div className="mb-3">{(PREVIEWS[field.type] || PREVIEWS.default)(field)}</div>
 
           {['select', 'checkbox'].includes(field.type) && (
@@ -184,8 +186,17 @@ export default function FormBuilder() {
       const tenant = JSON.parse(localStorage.getItem('tenant') || 'null');
       const tenantId = tenant?._id || user?.tenantId || user?._id;
       if (!tenantId) return toast.error("Tenant ID missing.");
-      
-      const res = await axios.post('http://localhost:5001/api/forms', { name: steps[0].title || "Untitled Form", steps, description: "Form created with Form Builder" }, { headers: { 'Authorization': `Bearer ${token}`, 'x-tenant-id': tenantId }});
+
+      const res = await axios.post('http://localhost:5001/api/forms', {
+        name: steps[0].title || "Untitled Form",
+        steps,
+        description: "Form created with Form Builder"
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'x-tenant-id': tenantId
+        }
+      });
       if (res.data.success) toast.success('Form saved!');
     } catch (e: any) { toast.error('Save failed: ' + (e.response?.data?.message || e.message)); }
     finally { setIsSaving(false); }
@@ -206,11 +217,11 @@ export default function FormBuilder() {
       const f: any = currentStep.fields[i];
       const next: any = currentStep.fields[i + 1];
       const paired = f.width === 'half' && next?.width === 'half';
-      
+
       res.push(<SortableField key={f.id} field={f} isAlone={!paired} onUpdate={handleUpdateField} onRemove={handleRemoveField} />);
-      if (paired) { 
-        res.push(<SortableField key={next.id} field={next} isAlone={false} onUpdate={handleUpdateField} onRemove={handleRemoveField} />); 
-        i += 2; 
+      if (paired) {
+        res.push(<SortableField key={next.id} field={next} isAlone={false} onUpdate={handleUpdateField} onRemove={handleRemoveField} />);
+        i += 2;
       } else {
         i++;
       }
@@ -223,7 +234,19 @@ export default function FormBuilder() {
       <Toaster position="top-right" richColors />
       <div className="bg-indigo-600 text-white p-4 shadow-md">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2"><FileText className="w-5 h-5" /><h1 className="text-xl font-bold">Form Builder</h1></div>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/admin/AllForms"
+              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              title="Back to All Forms"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Link>
+            <div className="flex items-center gap-2">
+              <FileText className="w-5 h-5" />
+              <h1 className="text-xl font-bold">Form Builder</h1>
+            </div>
+          </div>
           <div className="flex items-center gap-3">
             <Link href="/admin/form/form2" className="flex items-center gap-2 px-4 py-2 bg-indigo-500 text-white rounded-lg font-semibold hover:bg-indigo-400 transition-all shadow-sm">
               Next <ArrowRight className="w-4 h-4" />
@@ -246,7 +269,7 @@ export default function FormBuilder() {
               <h2 className="font-semibold text-gray-800 mb-3 text-sm flex items-center gap-1"><Settings className="w-3 h-3" /> Fields</h2>
               <div className="space-y-1.5">
                 {FIELD_TYPES.map(t => <div key={t.id} draggable onDragStart={(e) => e.dataTransfer.setData('text', t.id)} className="flex items-center gap-2 p-2 border rounded-lg cursor-move hover:border-indigo-300 hover:shadow-sm text-sm group transition-all">
-                  <t.icon className="w-4 h-4 text-gray-400 group-hover:text-indigo-600 transition-colors" /> 
+                  <t.icon className="w-4 h-4 text-gray-400 group-hover:text-indigo-600 transition-colors" />
                   <span className="font-medium text-gray-600 group-hover:text-gray-900 transition-colors">{t.label}</span>
                 </div>)}
               </div>

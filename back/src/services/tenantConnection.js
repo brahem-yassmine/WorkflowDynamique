@@ -4,92 +4,94 @@ const mongoose = require('mongoose');
 // Connection cache
 const connections = {};
 
+/**
+ * Get or create a connection for a specific tenant
+ * @param {string} domain - Tenant domain/slug
+ * @param {string} dbName - Tenant database name
+ */
 async function getTenantConnection(domain, dbName) {
-  console.log(`🔌 [TenantConn] Tentative pour: ${domain} (${dbName})`);
-
-  // Vérifier le cache
+  // Check cache
   if (connections[domain]) {
-    if (connections[domain].readyState === 1) {
-      console.log(`✅ [TenantConn] Utilisation cache pour: ${domain}`);
+    if (connections[domain].readyState === 1 || connections[domain].readyState === 2) {
       return connections[domain];
     } else {
-      console.log(`🔄 [TenantConn] Cache expiré/fermé pour: ${domain}`);
+      console.log(`🔄 [TenantConn] Cache expired/closed for: ${domain}`);
       delete connections[domain];
     }
   }
 
-  // Connection URI - to be adapted according to your config
+  // Connection URI
   const baseUri = process.env.MONGO_URI || 'mongodb://localhost:27017';
   const uri = `${baseUri}/${dbName}`;
-  console.log(`🔗 [TenantConn] URI: ${uri}`);
+  console.log(`🔌 [TenantConn] Opening connection to: ${uri}`);
 
   try {
-    // Créer une nouvelle connexion - Remove poolSize (not supported in newer Mongo drivers)
-    const conn = mongoose.createConnection(uri);
+    // Create new connection with modern options
+    const conn = mongoose.createConnection(uri, {
+      serverSelectionTimeoutMS: 10000, // Timeout after 10s if can't connect
+    });
 
-    // Attendre que la connexion soit prête
-    console.log(`⏳ [TenantConn] Attente connexion...`);
+    // Cache the connection immediately (as it's in connecting state)
+    connections[domain] = conn;
+
+    // Wait for connection to be open
     await new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error('Timeout connection tenant')), 15000);
+      const timeout = setTimeout(() => reject(new Error(`Timeout connecting to tenant DB: ${dbName}`)), 15000);
+
       conn.once('open', () => {
         clearTimeout(timeout);
+        console.log(`✅ [TenantConn] MongoDB connected: ${dbName}`);
         resolve();
       });
+
       conn.once('error', (err) => {
         clearTimeout(timeout);
+        console.error(`❌ [TenantConn] MongoDB connection error for ${dbName}:`, err.message);
+        delete connections[domain]; // Remove from cache on failure
         reject(err);
       });
     });
-    console.log(`✅ [TenantConn] MongoDB connecté: ${dbName}`);
 
-    // ATTACHER LES MODÈLES DU TENANT À CETTE CONNEXION
-    console.log(`📦 [TenantConn] Chargement des modèles...`);
+    // ATTACH MODELS
+    console.log(`📦 [TenantConn] Loading models for: ${dbName}`);
 
-    const tenantModels = [
-      'User',
-      'Workflow',
-      'WorkflowInstance',
-      'DynamicForm',
-      'Form',
-      'Checklist',
-      'FormResponse',
-      'Task',
-      'Project',
-      'role.model',
-      'domain.model',
-      'department.model',
-      'Subscription',
-      'ActivityLog',
-      'Notification'
-    ];
+    // Core Tenant Models
+    require('../models/tenant/User')(conn);
+    require('../models/tenant/Workflow')(conn);
+    require('../models/tenant/WorkflowInstance')(conn); // Added from version 1/2
+    require('../models/tenant/DynamicForm')(conn);
+    require('../models/tenant/Form')(conn); // Added from version 1
+    require('../models/tenant/Checklist')(conn);
+    require('../models/tenant/FormResponse')(conn);
+    require('../models/tenant/Task')(conn);
+    require('../models/tenant/Project')(conn);
+    require('../models/tenant/role.model')(conn);
+    require('../models/tenant/domain.model')(conn);
+    require('../models/tenant/department.model')(conn);
+    require('../models/tenant/Subscription')(conn);
+    require('../models/tenant/ActivityLog')(conn);
+    require('../models/tenant/Notification')(conn);
+    require('../models/tenant/Board')(conn); // Added from version 2
 
-    for (const modelName of tenantModels) {
-      try {
-        const modelFactory = require(`../models/tenant/${modelName}`);
-        modelFactory(conn);
-      } catch (err) {
-        console.warn(`⚠️ [TenantConn] Impossible de charger le modèle ${modelName}: ${err.message}`);
-      }
-    }
-
-    console.log(`✅ [TenantConn] Modèles chargés pour ${domain}`);
-
-    // Mettre en cache
-    connections[domain] = conn;
-
-    console.log(`🚀 [TenantConn] Session prête pour: ${domain}`);
     return conn;
-  } catch (dbError) {
-    console.error('❌ [TenantConn] Erreur DB:', dbError);
-    throw dbError;
+  } catch (error) {
+    console.error(`❌ [TenantConn] Critical error for ${domain}:`, error.message);
+    delete connections[domain];
+    throw error;
   }
 }
 
-// Function to close all connections (useful for tests)
+/**
+ * Close all active connections
+ */
 async function closeAllConnections() {
-  for (const domain in connections) {
-    await connections[domain].close();
-  }
+  const connectionPromises = Object.keys(connections).map(async (domain) => {
+    if (connections[domain]) {
+      await connections[domain].close();
+      delete connections[domain];
+    }
+  });
+  await Promise.all(connectionPromises);
 }
 
 module.exports = { getTenantConnection, closeAllConnections };

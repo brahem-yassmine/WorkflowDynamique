@@ -2,129 +2,84 @@ const mongoose = require('mongoose');
 const { getTenantConnection } = require('../services/tenantConnection');
 
 // ✅ Middleware pour résoudre le tenant à partir des headers
-
 const tenantResolver = async (req, res, next) => {
   try {
-    // Extraire tenantId du header ou de la query
     let tenantId = req.headers['x-tenant-id'] || req.query.tenantId;
 
-    console.log('🔍 [TenantResolver] tenantId reçue:', tenantId);
-
     if (!tenantId) {
-      // Si pas de tenantId, on laisse passer (les middlewares suivants bloqueront si nécessaire)
       return next();
     }
 
-    // S'assurer que le tenantId est une chaîne
     tenantId = String(tenantId);
     req.tenantId = tenantId;
 
-    // Si on a accès à la base master, on récupère les infos du tenant
     if (req.masterDb) {
       const TenantModel = req.masterDb.model('Tenant');
-
-      // Validation du format ObjectId pour éviter un crash findById
       if (!mongoose.Types.ObjectId.isValid(tenantId)) {
-        console.error('❌ [TenantResolver] format tenantId invalide:', tenantId);
         return res.status(400).json({ success: false, message: 'Format de Tenant ID invalide' });
       }
 
       const tenant = await TenantModel.findById(tenantId);
-
       if (!tenant) {
-        console.error('❌ [TenantResolver] Tenant non trouvé pour ID:', tenantId);
-        return res.status(404).json({
-          success: false,
-          message: 'Tenant non trouvé dans la base master'
-        });
+        return res.status(404).json({ success: false, message: 'Tenant non trouvé' });
       }
 
       req.tenant = tenant;
-      console.log('✅ [TenantResolver] Tenant résolu:', tenant.domain);
-
-      // Établir la connexion à la base spécifique du tenant
       const tenantConn = await getTenantConnection(tenant.domain, tenant.databaseName);
       req.tenantConn = tenantConn;
-    } else {
-      console.warn('⚠️ [TenantResolver] req.masterDb est manquant !');
     }
 
     next();
   } catch (error) {
-    console.error('❌ [TenantResolver] CRASH:', error);
-    res.status(500).json({
-      success: false,
-      message: `Erreur résolution tenant: ${error.message}`,
-      error: error.stack // Ajout du stack pour plus de détails
-    });
+    console.error('❌ [TenantResolver] Error:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
+
 // ✅ Vérifie que le tenant est actif
 const checkTenantActive = async (req, res, next) => {
   try {
-    // Si on a déjà le tenant via tenantResolver
     if (req.tenant) {
       if (req.tenant.status !== 'active') {
-        return res.status(403).json({
-          success: false,
-          message: 'Tenant inactif ou suspendu'
-        });
+        return res.status(403).json({ success: false, message: 'Tenant inactif' });
       }
       return next();
     }
 
-    // Sinon, vérifier via la base master
     if (!req.user || !req.user.tenantId) {
       return next();
     }
 
-    const TenantModel = req.masterDb?.model('Tenant') || Tenant;
+    const TenantModel = req.masterDb?.model('Tenant');
     const tenant = await TenantModel.findById(req.user.tenantId);
 
     if (tenant && tenant.status !== 'active') {
-      return res.status(403).json({
-        success: false,
-        message: 'Tenant inactif'
-      });
+      return res.status(403).json({ success: false, message: 'Tenant inactif' });
     }
 
     next();
   } catch (error) {
-    console.error('❌ tenantResolver Error:', error.message);
-    res.status(500).json({
-      success: false,
-      message: 'Technical error accessing domain: ' + error.message
-    });
+    console.error('❌ checkTenantActive Error:', error.message);
+    res.status(500).json({ success: false, message: 'Technical error' });
   }
 };
 
-// Checks plan limits
+// ✅ Checks plan limits
 const checkPlanLimits = (resourceType) => {
   return async (req, res, next) => {
     try {
-      if (!req.tenant) {
-        return next();
-      }
+      if (!req.tenant) return next();
 
-      // Default limits if planDetails or features are missing
-      const defaultLimits = {
-        maxUsers: 10,
-        maxWorkflows: 5
-      };
-
+      const defaultLimits = { maxUsers: 10, maxWorkflows: 5 };
       const limits = req.tenant.planDetails?.features || defaultLimits;
 
       if (resourceType === 'users') {
         const User = req.tenantConn?.model('User');
         if (User) {
           const count = await User.countDocuments();
-          // Use limit from plan or default
           const maxUsers = limits.maxUsers || defaultLimits.maxUsers;
           if (count >= maxUsers) {
-            return res.status(403).json({
-              success: false,
-              message: `Limite de ${maxUsers} utilisateurs atteinte`
-            });
+            return res.status(403).json({ success: false, message: `Limite de ${maxUsers} utilisateurs atteinte` });
           }
         }
       }
@@ -135,10 +90,7 @@ const checkPlanLimits = (resourceType) => {
           const count = await Workflow.countDocuments();
           const maxWorkflows = limits.maxWorkflows || defaultLimits.maxWorkflows;
           if (count >= maxWorkflows) {
-            return res.status(403).json({
-              success: false,
-              message: `Limite de ${maxWorkflows} workflows atteinte`
-            });
+            return res.status(403).json({ success: false, message: `Limite de ${maxWorkflows} workflows atteinte` });
           }
         }
       }
@@ -146,38 +98,45 @@ const checkPlanLimits = (resourceType) => {
       next();
     } catch (error) {
       console.error('❌ checkPlanLimits Error:', error);
-      next(); // Don't block the request if limit check fails technically
+      next();
     }
   };
 };
 
-// Middleware for requirePlan (if needed)
-const requirePlan = (requiredPlan) => {
+function requirePlan(requiredPlan) {
+  // If used as a direct middleware (e.g., router.get('/logs', requirePlan, ...))
+  if (arguments.length >= 3 && typeof arguments[2] === 'function') {
+    const req = arguments[0];
+    const res = arguments[1];
+    const next = arguments[2];
+
+    if (!req.tenant || !req.tenant.selectedPlan) {
+      return res.status(403).json({ success: false, message: 'Plan non défini ou inactif' });
+    }
+    return next();
+  }
+
+  // If used as a factory (e.g., requirePlan('pro'))
   return (req, res, next) => {
     try {
-      if (!req.tenant || !req.tenant.plan) {
-        return res.status(403).json({
-          success: false,
-          message: 'Plan non défini pour ce tenant'
-        });
+      const tenantPlan = req.tenant?.selectedPlan?.code || req.tenant?.selectedPlan;
+
+      if (!req.tenant || !tenantPlan) {
+        return res.status(403).json({ success: false, message: 'Plan non défini' });
       }
 
-      if (req.tenant.plan !== requiredPlan) {
-        return res.status(403).json({
-          success: false,
-          message: `Ce plan (${requiredPlan}) est requis pour cette action`
-        });
+      // If a specific plan code is required, check for it
+      if (typeof requiredPlan === 'string' && tenantPlan !== requiredPlan) {
+        return res.status(403).json({ success: false, message: `Plan ${requiredPlan} requis` });
       }
 
       next();
     } catch (error) {
-      console.error('requirePlan Error:', error);
       next(error);
     }
   };
-};
+}
 
-// COHERENT EXPORTS
 module.exports = {
   tenantResolver,
   checkTenantActive,

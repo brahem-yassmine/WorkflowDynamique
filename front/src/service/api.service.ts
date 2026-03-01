@@ -1,4 +1,3 @@
-// front/src/services/api.service.ts
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 
 class ApiService {
@@ -279,6 +278,24 @@ class ApiService {
     return this.request(`/workflow-instances/${instanceId}/reject`, {
       method: 'POST',
       body: JSON.stringify({ nodeId })
+    });
+  }
+
+  // Board Management
+  getBoards() {
+    return this.request('/boards');
+  }
+
+  createBoard(data: any) {
+    return this.request('/boards', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  deleteBoard(id: string) {
+    return this.request(`/boards/${id}`, {
+      method: 'DELETE',
     });
   }
 }

@@ -1,5 +1,7 @@
 'use client';
 
+const API_URL = 'http://localhost:5000/api';
+
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import axios from 'axios';

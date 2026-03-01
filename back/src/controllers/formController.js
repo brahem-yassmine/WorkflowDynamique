@@ -113,7 +113,7 @@ exports.getFormById = async (req, res) => {
 exports.submitResponse = async (req, res) => {
     try {
         const { id } = req.params;
-        const { data } = req.body;
+        const { data, name, description } = req.body;
         const Form = req.tenantConn.model('Form');
         const FormResponse = req.tenantConn.model('FormResponse');
 
@@ -127,6 +127,8 @@ exports.submitResponse = async (req, res) => {
 
         const response = new FormResponse({
             formId: id,
+            name: name || 'Form Submission',
+            description,
             data,
             submittedBy: req.user ? req.user.userId : null
         });

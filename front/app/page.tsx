@@ -1,4 +1,6 @@
 "use client";
+
+const API_URL = 'http://localhost:5000/api';
 import React, { useState, useEffect } from "react";
 import {
   CheckCircle2,

@@ -1,15 +1,19 @@
 'use client';
 
+const API_URL = 'http://localhost:5000/api';
+
 import React, { useState, useEffect } from 'react';
 import { DndContext, closestCenter, DragEndEvent, useSensor, useSensors, PointerSensor, KeyboardSensor } from '@dnd-kit/core';
 import { arrayMove, SortableContext, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { 
-  FileText, Type, Hash, Calendar, CheckSquare, PenTool, AlignLeft, List, 
-  GripVertical, Trash2, Mail, Phone, Settings, Move, 
+import {
+  FileText, Type, Hash, Calendar, CheckSquare, PenTool, AlignLeft, List,
+  GripVertical, Trash2, Mail, Phone, Settings, Move,
   Clock, ThumbsUp, ThumbsDown, Maximize2, Minimize2, Save, Plus, ArrowRight, ArrowLeft
 } from 'lucide-react';
 import axios from 'axios';
+import { apiService } from '@/service/api.service';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -55,7 +59,7 @@ const PREVIEWS: Record<string, (f: any) => React.ReactNode> = {
   ),
   signature: () => (
     <div className="space-y-2">
-      <label 
+      <label
         htmlFor="builder-sig-test"
         className="w-full h-24 border-2 border-gray-100 border-dashed rounded-xl flex flex-col items-center justify-center bg-gray-50 group/sig hover:bg-indigo-50/30 transition-all relative overflow-hidden cursor-pointer block"
       >
@@ -69,11 +73,11 @@ const PREVIEWS: Record<string, (f: any) => React.ReactNode> = {
           </div>
         </div>
       </label>
-      <input 
-        id="builder-sig-test" 
-        type="file" 
-        className="hidden" 
-        accept="image/*,.pdf" 
+      <input
+        id="builder-sig-test"
+        type="file"
+        className="hidden"
+        accept="image/*,.pdf"
         onChange={() => toast.info("File selector triggered successfully!", { description: "Testing trigger only. Upload works in Preview mode." })}
       />
     </div>
@@ -88,15 +92,15 @@ function SortableField({ field, onUpdate, onRemove, isAlone }: any) {
   const isWidthHalf = field.width === 'half';
 
   return (
-    <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1, zIndex: isDragging ? 50 : 1 }} 
-         className={`bg-white border rounded-2xl p-4 hover:shadow-lg transition-all relative group ${isAlone ? 'md:col-span-2' : ''} ${isDragging ? 'ring-2 ring-indigo-500 shadow-xl' : ''}`}>
+    <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1, zIndex: isDragging ? 50 : 1 }}
+      className={`bg-white border rounded-2xl p-4 hover:shadow-lg transition-all relative group ${isAlone ? 'md:col-span-2' : ''} ${isDragging ? 'ring-2 ring-indigo-500 shadow-xl' : ''}`}>
       <div className="flex items-start gap-3">
         <button {...attributes} {...listeners} className="mt-1 text-gray-300 hover:text-indigo-600 transition-colors cursor-grab active:cursor-grabbing"><GripVertical className="w-4 h-4" /></button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2 flex-1">
               <div className="p-1.5 bg-indigo-50 rounded-lg"><Icon className="w-3.5 h-3.5 text-indigo-600" /></div>
-              <input 
+              <input
                 type="text"
                 className="text-sm font-bold text-gray-800 bg-transparent border-none outline-none focus:ring-0 w-full p-0"
                 value={field.label || ''}
@@ -107,7 +111,7 @@ function SortableField({ field, onUpdate, onRemove, isAlone }: any) {
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button onClick={() => onUpdate(field.id, { width: isWidthHalf ? 'full' : 'half' })} className="p-1.5 text-gray-400 hover:bg-gray-100 hover:text-indigo-600 rounded-lg">{isWidthHalf ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}</button>
               {['select', 'checkbox'].includes(field.type) && (
-                <button 
+                <button
                   onClick={() => onUpdate(field.id, { options: [...(field.options || []), `Option ${(field.options?.length || 0) + 1}`] })}
                   className="p-1.5 text-gray-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-colors"
                   title="Add Option"
@@ -119,7 +123,7 @@ function SortableField({ field, onUpdate, onRemove, isAlone }: any) {
               <button onClick={() => onRemove(field.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-3.5 h-3.5" /></button>
             </div>
           </div>
-          
+
           <div className="mb-3">{(PREVIEWS[field.type] || PREVIEWS.default)(field)}</div>
 
           {['select', 'checkbox'].includes(field.type) && (
@@ -183,7 +187,10 @@ export default function FormBuilder() {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [formId, setFormId] = useState<string | null>(null);
-  
+
+  const [formName, setFormName] = useState('New Form');
+  const [formDescription, setFormDescription] = useState('');
+
   const searchParams = useSearchParams();
   const router = useRouter();
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
@@ -201,15 +208,17 @@ export default function FormBuilder() {
     try {
       const token = localStorage.getItem('auth_token');
       const tenantId = localStorage.getItem('tenantId');
-      
+
       const res = await axios.get(`http://localhost:5001/api/forms/${id}`, {
-        headers: { 
+        headers: {
           Authorization: `Bearer ${token}`,
           'x-tenant-id': tenantId
         }
       });
       if (res.data.success) {
         setSteps(res.data.data.steps || []);
+        setFormName(res.data.data.name || 'New Form');
+        setFormDescription(res.data.data.description || '');
       }
     } catch (error) {
       console.error("Error fetching form:", error);
@@ -231,53 +240,37 @@ export default function FormBuilder() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const token = localStorage.getItem('auth_token');
-      const user = JSON.parse(localStorage.getItem('user') || 'null');
-      const tenant = JSON.parse(localStorage.getItem('tenant') || 'null');
-      const tenantId = localStorage.getItem('tenantId') || tenant?._id || user?.tenantId;
-      
-      if (!tenantId) {
-        console.error("DEBUG: Tenant ID missing", { user, tenant });
-        return toast.error("Tenant ID missing. Please log in again.");
-      }
-      
-      const payload = { 
-        name: steps[0]?.title || "Untitled Form", 
-        steps, 
-        description: "Form created with Form Builder" 
+      const payload = {
+        name: formName || `Form Template ${new Date().toLocaleDateString()}`,
+        description: formDescription,
+        steps: steps.map((s, i) => ({
+          ...s,
+          order: i,
+          fields: s.fields.map((f, fi) => ({ ...f, order: fi }))
+        }))
       };
 
-      let res;
-      if (formId) {
-        // Update existing form
-        res = await axios.put(`http://localhost:5001/api/forms/${formId}`, payload, {
-          headers: { 
-            'Authorization': `Bearer ${token}`, 
-            'x-tenant-id': tenantId 
-          }
-        });
-      } else {
-        // Create new form
-        res = await axios.post('http://localhost:5001/api/forms', payload, {
-          headers: { 
-            'Authorization': `Bearer ${token}`, 
-            'x-tenant-id': tenantId 
-          }
-        });
-      }
+      const method = formId ? 'PATCH' : 'POST';
+      const url = formId ? `/forms/${formId}` : '/forms';
 
-      if (res.data.success) {
-        toast.success(formId ? 'Form updated!' : 'Form saved!');
-        if (!formId && res.data.data?._id) {
-           router.push(`/form?id=${res.data.data._id}`);
+      const res = await apiService.request(url, {
+        method,
+        body: JSON.stringify(payload)
+      });
+
+      if (res.success) {
+        toast.success(formId ? "Architecture updated!" : "Architecture saved!");
+        if (!formId && res.data?._id) {
+          router.push(`/form?id=${res.data._id}`);
         }
       }
-    } catch (e: any) { 
-      toast.error('Save failed: ' + (e.response?.data?.message || e.message)); 
-    } finally { 
-      setIsSaving(false); 
+    } catch (error: any) {
+      toast.error("Failed to save: " + error.message);
+    } finally {
+      setIsSaving(false);
     }
   };
+
 
   const handleUpdateField = (id: string, updates: any) => {
     setSteps(prev => prev.map((s, i) => i === currentStepIndex ? { ...s, fields: s.fields.map((f: any) => f.id === id ? { ...f, ...updates } : f) } : s));
@@ -294,11 +287,11 @@ export default function FormBuilder() {
       const f: any = currentStep.fields[i];
       const next: any = currentStep.fields[i + 1];
       const paired = f.width === 'half' && next?.width === 'half';
-      
+
       res.push(<SortableField key={f.id} field={f} isAlone={!paired} onUpdate={handleUpdateField} onRemove={handleRemoveField} />);
-      if (paired) { 
-        res.push(<SortableField key={next.id} field={next} isAlone={false} onUpdate={handleUpdateField} onRemove={handleRemoveField} />); 
-        i += 2; 
+      if (paired) {
+        res.push(<SortableField key={next.id} field={next} isAlone={false} onUpdate={handleUpdateField} onRemove={handleRemoveField} />);
+        i += 2;
       } else {
         i++;
       }
@@ -309,11 +302,13 @@ export default function FormBuilder() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Toaster position="top-right" richColors />
+      <AnimatePresence>
+      </AnimatePresence>
       <div className="bg-indigo-600 text-white p-4 shadow-md">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link 
-              href="/AllForms" 
+            <Link
+              href="/admin/AllForms"
               className="p-2 hover:bg-white/10 rounded-lg transition-colors"
               title="Back to All Forms"
             >
@@ -325,9 +320,14 @@ export default function FormBuilder() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/form/form2" className="flex items-center gap-2 px-4 py-2 bg-indigo-500 text-white rounded-lg font-semibold hover:bg-indigo-400 transition-all shadow-sm">
-              Next <ArrowRight className="w-4 h-4" />
-            </Link>
+            {formId && (
+              <Link
+                href={`/form/form2?id=${formId}`}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-500 text-white rounded-lg font-semibold hover:bg-indigo-400 transition-all shadow-sm"
+              >
+                Next <ArrowRight className="w-4 h-4" />
+              </Link>
+            )}
             <button onClick={handleSave} disabled={isSaving} className={`flex items-center gap-2 px-4 py-2 bg-white text-indigo-600 rounded-lg font-semibold hover:bg-indigo-50 ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}>
               {isSaving ? <Clock className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}{isSaving ? 'Saving...' : 'Save Form'}
             </button>
@@ -337,7 +337,18 @@ export default function FormBuilder() {
 
       <div className="max-w-7xl mx-auto p-4 w-full flex-1">
         <div className="mb-4 flex gap-2 overflow-x-auto p-1">
-          {steps.map((s, i) => <button key={s.id} onClick={() => setCurrentStepIndex(i)} className={`px-4 py-2 rounded-lg text-sm ${currentStepIndex === i ? 'bg-indigo-600 text-white shadow-md' : 'bg-white border'}`}>{i + 1}. {s.title}</button>)}
+          {steps.map((s, i) => (
+            <button
+              key={s.id}
+              onClick={() => setCurrentStepIndex(i)}
+              className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${currentStepIndex === i
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100'
+                  : 'bg-white border border-slate-100 text-slate-400 hover:text-slate-600'
+                }`}
+            >
+              Step {i + 1}
+            </button>
+          ))}
         </div>
 
         <div className="grid grid-cols-12 gap-4">
@@ -346,15 +357,15 @@ export default function FormBuilder() {
               <h2 className="font-semibold text-gray-800 mb-3 text-sm flex items-center gap-1"><Settings className="w-3 h-3" /> Fields</h2>
               <div className="space-y-1.5">
                 {FIELD_TYPES.map(t => (
-                  <div 
-                    key={t.id} 
-                    draggable 
-                    onDragStart={(e) => e.dataTransfer.setData('text', t.id)} 
+                  <div
+                    key={t.id}
+                    draggable
+                    onDragStart={(e) => e.dataTransfer.setData('text', t.id)}
                     className="flex flex-col gap-1 p-3 border rounded-xl cursor-move hover:border-indigo-300 hover:shadow-md text-sm group transition-all bg-white"
                   >
                     <div className="flex items-center gap-2">
-                       <t.icon className="w-4 h-4 text-gray-400 group-hover:text-indigo-600 transition-colors" /> 
-                       <span className="font-bold text-gray-700 group-hover:text-gray-900 transition-colors">{t.label}</span>
+                      <t.icon className="w-4 h-4 text-gray-400 group-hover:text-indigo-600 transition-colors" />
+                      <span className="font-bold text-gray-700 group-hover:text-gray-900 transition-colors">{t.label}</span>
                     </div>
                     <p className="text-[10px] text-gray-400 leading-tight group-hover:text-gray-500">{t.description}</p>
                   </div>
@@ -364,10 +375,15 @@ export default function FormBuilder() {
           </div>
 
           <div className="col-span-12 md:col-span-9 bg-white rounded-lg shadow-sm">
-            <div className="p-4 border-b flex flex-wrap items-center justify-between gap-4">
-              <input value={currentStep.title} onChange={(e) => setSteps(p => p.map((s, i) => i === currentStepIndex ? { ...s, title: e.target.value } : s))} className="text-lg font-semibold bg-transparent border-b border-transparent focus:border-indigo-500 outline-none flex-1" />
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-yellow-50 text-yellow-500 border border-yellow-200">
-                <Clock className="w-3.5 h-3.5" /> Pending
+            <div className="p-4 border-b flex flex-wrap items-center justify-between gap-4 bg-slate-50/50">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center font-black text-xs">
+                  {currentStepIndex + 1}
+                </div>
+                <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Phasage Active</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest bg-yellow-50 text-yellow-500 border border-yellow-200">
+                <Clock className="w-3.5 h-3.5" /> Drafting
               </div>
             </div>
 

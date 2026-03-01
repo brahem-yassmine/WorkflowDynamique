@@ -1,5 +1,7 @@
 'use client';
 
+const API_URL = 'http://localhost:5000/api';
+
 import React, { useState, useEffect, useRef } from 'react';
 import {
   DndContext,

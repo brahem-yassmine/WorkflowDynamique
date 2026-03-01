@@ -17,15 +17,15 @@ const workflowInstanceRoutes = require('./src/routes/WorkflowInstanceRoutes');
 const subscriptionRoutes = require('./src/routes/subscriptionRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
 const dynamicFormRoutes = require('./src/routes/dynamicFormRoutes');
-const tenantRoleRoutes = require('./src/routes/tenant/role.routes');
-const tenantDomainRoutes = require('./src/routes/tenant/domain.routes');
 const formRoutes = require('./src/routes/formRoutes');
 const checklistRoutes = require('./src/routes/checklistRoutes');
 const taskRoutes = require('./src/routes/taskRoutes');
-const boardRoutes = require('./src/routes/boardRoutes');
 const notificationRoutes = require('./src/routes/notificationRoutes');
+const tenantRoleRoutes = require('./src/routes/tenant/role.routes');
+const tenantDomainRoutes = require('./src/routes/tenant/domain.routes');
 
 const app = express();
+
 // ========================
 // MIDDLEWARES
 // ========================
@@ -64,7 +64,7 @@ masterConnection.once('connected', () => {
     app.locals.masterDb = masterConnection;
 
     // Démarrer le serveur SEULEMENT après la connexion
-    const PORT = process.env.PORT || 5000;
+    const PORT = process.env.PORT || 5001;
     const HOST = process.env.HOST || 'localhost';
 
     app.listen(PORT, () => {
@@ -142,7 +142,6 @@ app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/forms', dynamicFormRoutes);
 app.use('/api/checklists', checklistRoutes);
 app.use('/api/tasks', taskRoutes);
-app.use('/api/boards', boardRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/tenant/roles', tenantRoleRoutes);
 app.use('/api/tenant/domains', tenantDomainRoutes);

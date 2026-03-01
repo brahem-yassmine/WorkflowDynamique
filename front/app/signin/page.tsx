@@ -1,6 +1,6 @@
 'use client';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'http://localhost:5001/api';
 
 import { useState, FormEvent, ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
@@ -195,7 +195,7 @@ export default function SigninPage() {
             setError(error.response.data?.message || 'Login error');
         }
       } else if (error.code === 'ECONNREFUSED') {
-        setError('Cannot connect to server. Please check if backend is running on port 5000');
+        setError('Cannot connect to server. Please check if backend is running on port 5001');
       } else if (error.request) {
         setError('Unable to reach server. Check your connection');
       } else {

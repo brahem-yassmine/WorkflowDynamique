@@ -1,15 +1,15 @@
 "use client";
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'http://localhost:5001/api';
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Plus, 
-  ListTodo, 
-  Copy, 
-  Edit3, 
-  Trash2, 
-  Search, 
+import {
+  Plus,
+  ListTodo,
+  Copy,
+  Edit3,
+  Trash2,
+  Search,
   Calendar,
   Layers,
   CheckCircle2,
@@ -42,7 +42,7 @@ export default function AllChecklistsPage() {
       const tenantId = localStorage.getItem('tenantId') || tenant?._id || user?.tenantId;
 
       const response = await axios.get('http://localhost:5001/api/checklists', {
-        headers: { 
+        headers: {
           Authorization: `Bearer ${token}`,
           'x-tenant-id': tenantId
         }
@@ -72,7 +72,7 @@ export default function AllChecklistsPage() {
       // Check if clone endpoint exists, if not do it manually
       try {
         const response = await axios.post(`http://localhost:5001/api/checklists/${id}/clone`, {}, {
-          headers: { 
+          headers: {
             Authorization: `Bearer ${token}`,
             'x-tenant-id': tenantId
           }
@@ -86,17 +86,17 @@ export default function AllChecklistsPage() {
         // Fallback to manual clone if endpoint fails
         const checklistToClone = checklists.find(c => c._id === id);
         if (checklistToClone) {
-           await axios.post('http://localhost:5001/api/checklists', {
-             name: `${checklistToClone.name} (copy)`,
-             tasks: checklistToClone.tasks
-           }, {
-             headers: { 
-               Authorization: `Bearer ${token}`,
-               'x-tenant-id': tenantId
-             }
-           });
-           toast.success("Checklist cloned (manual fallback)");
-           fetchChecklists();
+          await axios.post('http://localhost:5001/api/checklists', {
+            name: `${checklistToClone.name} (copy)`,
+            tasks: checklistToClone.tasks
+          }, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'x-tenant-id': tenantId
+            }
+          });
+          toast.success("Checklist cloned (manual fallback)");
+          fetchChecklists();
         }
       }
     } catch (error) {
@@ -112,7 +112,7 @@ export default function AllChecklistsPage() {
       const tenantId = localStorage.getItem('tenantId') || tenant?._id || user?.tenantId;
 
       const response = await axios.delete(`http://localhost:5001/api/checklists/${id}`, {
-        headers: { 
+        headers: {
           Authorization: `Bearer ${token}`,
           'x-tenant-id': tenantId
         }
@@ -126,18 +126,18 @@ export default function AllChecklistsPage() {
     }
   };
 
-  const filteredChecklists = checklists.filter(c => 
+  const filteredChecklists = checklists.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      
+
       {/* Search and Action Bar */}
       <div className="flex flex-col md:flex-row items-center justify-between gap-6 px-2">
         <div className="relative w-full md:max-w-md group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
-          <input 
+          <input
             type="text"
             placeholder="Search checklists..."
             className="w-full pl-12 pr-4 py-3 bg-white border border-slate-100 rounded-2xl shadow-sm focus:outline-none focus:ring-4 focus:ring-indigo-50 transition-all font-medium text-slate-700"
@@ -146,7 +146,7 @@ export default function AllChecklistsPage() {
           />
         </div>
 
-        <button 
+        <button
           onClick={() => router.push('/checklist/designer')}
           className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-indigo-100 active:scale-95 whitespace-nowrap"
         >
@@ -157,7 +157,7 @@ export default function AllChecklistsPage() {
 
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1,2,3].map(i => (
+          {[1, 2, 3].map(i => (
             <div key={i} className="h-48 bg-white rounded-[32px] border border-slate-100 animate-pulse shadow-sm" />
           ))}
         </div>
@@ -168,7 +168,7 @@ export default function AllChecklistsPage() {
           </div>
           <h2 className="text-xl font-black text-slate-800 tracking-tight uppercase">No checklists found</h2>
           <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-2 mb-8">Start by architecting your first dynamic workflow checklist.</p>
-          <button 
+          <button
             onClick={() => router.push('/checklist/designer')}
             className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 flex items-center gap-2 active:scale-95"
           >
@@ -178,15 +178,15 @@ export default function AllChecklistsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredChecklists.map((checklist) => (
-            <div 
-              key={checklist._id} 
+            <div
+              key={checklist._id}
               className="group bg-white rounded-[32px] border border-slate-100 p-6 hover:shadow-2xl hover:shadow-indigo-500/10 hover:border-indigo-100 transition-all relative overflow-hidden flex flex-col"
             >
               <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              
+
               <div className="flex items-center justify-between mb-6">
                 <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-sm border border-indigo-100 group-hover:bg-indigo-600 group-hover:text-white transition-all">
-                   <Layers size={18} />
+                  <Layers size={18} />
                 </div>
                 <div className="text-[10px] font-black text-slate-400 flex items-center gap-1.5 uppercase tracking-widest">
                   <Calendar size={12} />
@@ -197,7 +197,7 @@ export default function AllChecklistsPage() {
               <h3 className="text-lg font-black text-slate-800 mb-2 truncate group-hover:text-indigo-600 transition-colors">
                 {checklist.name}
               </h3>
-              
+
               <div className="flex items-center gap-4 mb-8">
                 <div className="flex flex-col">
                   <span className="text-[9px] uppercase font-black text-slate-400 tracking-[0.2em]">Tasks</span>
@@ -206,10 +206,9 @@ export default function AllChecklistsPage() {
                 <div className="h-6 w-px bg-slate-100"></div>
                 <div className="flex flex-col">
                   <span className="text-[9px] uppercase font-black text-slate-400 tracking-[0.2em]">Status</span>
-                  <span className={`text-[10px] font-black uppercase ${
-                    checklist.status === 'completed' ? 'text-emerald-500' :
-                    'text-slate-400'
-                  }`}>
+                  <span className={`text-[10px] font-black uppercase ${checklist.status === 'completed' ? 'text-emerald-500' :
+                      'text-slate-400'
+                    }`}>
                     {checklist.status || 'draft'}
                   </span>
                 </div>
@@ -217,21 +216,21 @@ export default function AllChecklistsPage() {
 
               <div className="flex items-center justify-between mt-auto pt-5 border-t border-slate-50">
                 <div className="flex items-center gap-1">
-                  <button 
+                  <button
                     onClick={() => handleClone(checklist._id)}
                     className="p-2.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
                     title="Clone Checklist"
                   >
                     <Copy size={18} />
                   </button>
-                  <button 
+                  <button
                     onClick={() => router.push(`/checklist/designer?id=${checklist._id}`)}
                     className="p-2.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
                     title="Edit Checklist"
                   >
                     <Edit3 size={18} />
                   </button>
-                  <button 
+                  <button
                     onClick={() => handleDelete(checklist._id)}
                     className="p-2.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
                     title="Delete Checklist"
@@ -239,8 +238,8 @@ export default function AllChecklistsPage() {
                     <Trash2 size={18} />
                   </button>
                 </div>
-                
-                <button 
+
+                <button
                   onClick={() => router.push(`/checklist/designer?id=${checklist._id}`)}
                   className="w-10 h-10 bg-slate-50 text-slate-300 group-hover:bg-indigo-600 group-hover:text-white rounded-2xl flex items-center justify-center transition-all shadow-sm border border-transparent group-hover:shadow-lg group-hover:shadow-indigo-100 active:scale-90"
                 >

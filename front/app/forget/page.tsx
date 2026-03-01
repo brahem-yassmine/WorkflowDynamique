@@ -1,6 +1,6 @@
 'use client';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'http://localhost:5001/api';
 
 import { useState } from 'react';
 import Link from 'next/link';
@@ -36,20 +36,20 @@ export default function ForgetPasswordPage() {
     return (
         <div className="min-h-screen bg-[#f8fafc] flex flex-col items-center justify-center p-6 relative overflow-hidden">
             <Toaster position="top-right" richColors />
-            
+
             {/* Background Decorative Elements */}
             <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 opacity-10 pointer-events-none">
                 <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-500 rounded-full blur-[120px]"></div>
                 <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-500 rounded-full blur-[120px]"></div>
             </div>
 
-            <motion.div 
+            <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="w-full max-w-xl bg-white rounded-[40px] shadow-2xl shadow-indigo-100/50 p-14 relative z-10 border border-slate-100"
             >
-                <Link 
-                    href="/signin" 
+                <Link
+                    href="/signin"
                     className="group flex items-center gap-2 text-slate-400 hover:text-indigo-600 transition-colors mb-10 text-xs font-black uppercase tracking-widest"
                 >
                     <div className="w-9 h-9 rounded-xl bg-slate-50 flex items-center justify-center group-hover:bg-indigo-50 transition-colors border border-transparent group-hover:border-indigo-100">
@@ -73,7 +73,7 @@ export default function ForgetPasswordPage() {
                             <h1 className="text-3xl font-black text-slate-800 tracking-tight uppercase leading-tight mb-4">
                                 Mot de passe <br /> <span className="text-indigo-600 font-black">oublié ?</span>
                             </h1>
-                            
+
                             <p className="text-slate-500 text-sm font-medium leading-relaxed mb-8">
                                 Entrez l'adresse e-mail associée à votre compte et nous vous enverrons un lien pour réinitialiser votre mot de passe.
                             </p>
@@ -85,8 +85,8 @@ export default function ForgetPasswordPage() {
                                     </label>
                                     <div className="relative group">
                                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={18} />
-                                        <input 
-                                            type="email" 
+                                        <input
+                                            type="email"
                                             required
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
@@ -96,7 +96,7 @@ export default function ForgetPasswordPage() {
                                     </div>
                                 </div>
 
-                                <button 
+                                <button
                                     type="submit"
                                     disabled={loading}
                                     className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-200 hover:bg-indigo-700 active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50"
@@ -126,12 +126,12 @@ export default function ForgetPasswordPage() {
                             <h1 className="text-3xl font-black text-slate-800 tracking-tight uppercase mb-4">
                                 E-mail <span className="text-emerald-500 text-6xl block mt-[-10px]">Envoyé</span>
                             </h1>
-                            
+
                             <p className="text-slate-500 text-sm font-medium leading-relaxed mb-8">
                                 Nous avons envoyé des instructions à <br /> <strong className="text-slate-800 underline decoration-indigo-200 decoration-[4px] underline-offset-4">{email}</strong>. <br /> Veuillez vérifier votre boîte de réception.
                             </p>
 
-                            <button 
+                            <button
                                 onClick={() => setSubmitted(false)}
                                 className="text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:text-indigo-800 transition-colors underline underline-offset-8"
                             >
@@ -141,7 +141,7 @@ export default function ForgetPasswordPage() {
                     )}
                 </AnimatePresence>
             </motion.div>
-            
+
             <p className="mt-10 text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] relative z-10">
                 Axia Workflow System v2.0
             </p>

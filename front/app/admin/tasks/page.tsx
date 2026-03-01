@@ -1,6 +1,6 @@
 'use client';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'http://localhost:5001/api';
 
 import React, { useState, useEffect, useRef } from 'react';
 import {
@@ -48,9 +48,9 @@ interface Task {
 }
 
 const COLUMNS: { id: 'todo' | 'doing' | 'done'; title: string; bg: string; headerBg: string; edgeColor: string }[] = [
-  { id: 'todo',  title: 'To Do', bg: 'bg-rose-50/50',    headerBg: 'bg-rose-100/50', edgeColor: 'bg-rose-500' },
+  { id: 'todo', title: 'To Do', bg: 'bg-rose-50/50', headerBg: 'bg-rose-100/50', edgeColor: 'bg-rose-500' },
   { id: 'doing', title: 'Doing', bg: 'bg-amber-50/50', headerBg: 'bg-amber-100/50', edgeColor: 'bg-amber-500' },
-  { id: 'done',  title: 'Done',  bg: 'bg-emerald-50/50',  headerBg: 'bg-emerald-100/50', edgeColor: 'bg-emerald-500' },
+  { id: 'done', title: 'Done', bg: 'bg-emerald-50/50', headerBg: 'bg-emerald-100/50', edgeColor: 'bg-emerald-500' },
 ];
 
 // --- Inline Editable Task ---
@@ -233,9 +233,9 @@ export default function TasksPage() {
 
   const fetchTasks = async () => {
     const { tenantId, token } = getAuthInfo();
-    if (!tenantId || !token) { 
-      setIsLoading(false); 
-      return; 
+    if (!tenantId || !token) {
+      setIsLoading(false);
+      return;
     }
     try {
       const res = await axios.get('http://localhost:5001/api/tasks', {
@@ -250,8 +250,8 @@ export default function TasksPage() {
     }
   };
 
-  useEffect(() => { 
-    fetchTasks(); 
+  useEffect(() => {
+    fetchTasks();
   }, []);
 
   const sensors = useSensors(
@@ -283,7 +283,7 @@ export default function TasksPage() {
       if (isOverATask) {
         const overIndex = updated.findIndex((t) => t._id === over.id);
         if (overIndex === -1) return prev;
-        
+
         // Only update if they are different so we don't trigger unnecessary re-renders
         if (updated[activeIndex].status !== updated[overIndex].status) {
           updated[activeIndex] = { ...updated[activeIndex], status: updated[overIndex].status };
@@ -294,7 +294,7 @@ export default function TasksPage() {
       if (isOverAColumn) {
         const newStatus = over.id as 'todo' | 'doing' | 'done';
         if (updated[activeIndex].status !== newStatus) {
-            updated[activeIndex] = { ...updated[activeIndex], status: newStatus };
+          updated[activeIndex] = { ...updated[activeIndex], status: newStatus };
         }
         return arrayMove(updated, activeIndex, activeIndex);
       }

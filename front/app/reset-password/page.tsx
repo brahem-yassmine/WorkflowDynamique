@@ -1,6 +1,6 @@
 'use client';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'http://localhost:5001/api';
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -27,7 +27,7 @@ export default function ResetPasswordPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         if (password !== confirmPassword) {
             toast.error('Les mots de passe ne correspondent pas.');
             return;
@@ -41,11 +41,11 @@ export default function ResetPasswordPage() {
         setLoading(true);
 
         try {
-            const response = await axios.post('http://localhost:5001/api/auth/reset-password', { 
-                token, 
-                password 
+            const response = await axios.post('http://localhost:5001/api/auth/reset-password', {
+                token,
+                password
             });
-            
+
             if (response.data.success) {
                 setSubmitted(true);
                 toast.success('Mot de passe mis à jour !');
@@ -71,7 +71,7 @@ export default function ResetPasswordPage() {
                     </div>
                     <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight mb-2">Token Manquant</h2>
                     <p className="text-slate-500 text-sm font-medium mb-8">Ce lien de réinitialisation semble invalide. Veuillez recommencer la procédure.</p>
-                    <button 
+                    <button
                         onClick={() => router.push('/forget')}
                         className="w-full bg-slate-800 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-900 transition-all"
                     >
@@ -85,13 +85,13 @@ export default function ResetPasswordPage() {
     return (
         <div className="min-h-screen bg-[#f8fafc] flex flex-col items-center justify-center p-6 relative overflow-hidden">
             <Toaster position="top-right" richColors />
-            
+
             <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 opacity-10 pointer-events-none">
                 <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-500 rounded-full blur-[120px]"></div>
                 <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500 rounded-full blur-[120px]"></div>
             </div>
 
-            <motion.div 
+            <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="w-full max-w-md bg-white rounded-[40px] shadow-2xl shadow-indigo-100/50 p-10 relative z-10 border border-slate-100"
@@ -111,7 +111,7 @@ export default function ResetPasswordPage() {
                             <h1 className="text-3xl font-black text-slate-800 tracking-tight uppercase leading-tight mb-4">
                                 Nouveau <br /> <span className="text-indigo-600">Mot de passe</span>
                             </h1>
-                            
+
                             <p className="text-slate-500 text-sm font-medium leading-relaxed mb-8">
                                 Veuillez choisir un mot de passe fort et sécurisé pour protéger votre compte.
                             </p>
@@ -123,15 +123,15 @@ export default function ResetPasswordPage() {
                                     </label>
                                     <div className="relative group">
                                         <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={18} />
-                                        <input 
-                                            type={showPassword ? "text" : "password"} 
+                                        <input
+                                            type={showPassword ? "text" : "password"}
                                             required
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
                                             placeholder="••••••••"
                                             className="w-full pl-12 pr-12 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:bg-white transition-all font-bold text-slate-700 placeholder:text-slate-300"
                                         />
-                                        <button 
+                                        <button
                                             type="button"
                                             onClick={() => setShowPassword(!showPassword)}
                                             className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-indigo-600 transition-colors"
@@ -147,8 +147,8 @@ export default function ResetPasswordPage() {
                                     </label>
                                     <div className="relative group">
                                         <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={18} />
-                                        <input 
-                                            type={showPassword ? "text" : "password"} 
+                                        <input
+                                            type={showPassword ? "text" : "password"}
                                             required
                                             value={confirmPassword}
                                             onChange={(e) => setConfirmPassword(e.target.value)}
@@ -158,7 +158,7 @@ export default function ResetPasswordPage() {
                                     </div>
                                 </div>
 
-                                <button 
+                                <button
                                     type="submit"
                                     disabled={loading}
                                     className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-200 hover:bg-indigo-700 active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50"
@@ -188,13 +188,13 @@ export default function ResetPasswordPage() {
                             <h1 className="text-3xl font-black text-slate-800 tracking-tight uppercase mb-4">
                                 Succès <span className="text-emerald-500 text-6xl block mt-[-10px]">Mis à jour</span>
                             </h1>
-                            
+
                             <p className="text-slate-500 text-sm font-medium leading-relaxed mb-6">
                                 Votre mot de passe a été réinitialisé avec succès. Vous allez être redirigé vers la page de connexion.
                             </p>
 
                             <div className="w-full h-1 bg-slate-50 rounded-full overflow-hidden">
-                                <motion.div 
+                                <motion.div
                                     initial={{ width: 0 }}
                                     animate={{ width: "100%" }}
                                     transition={{ duration: 3 }}
@@ -205,7 +205,7 @@ export default function ResetPasswordPage() {
                     )}
                 </AnimatePresence>
             </motion.div>
-            
+
             <p className="mt-10 text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] relative z-10">
                 Sécurité Système Activée
             </p>

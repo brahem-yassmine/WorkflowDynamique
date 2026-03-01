@@ -1,6 +1,6 @@
 "use client";
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'http://localhost:5001/api';
 
 import { useState, useEffect } from "react";
 import {
@@ -235,8 +235,8 @@ export default function CompanyManagement() {
                   </td>
                   <td className="px-6 py-5">
                     <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase border ${company.status === 'active'
-                        ? 'bg-emerald-50 text-emerald-600 border-emerald-100/50'
-                        : 'bg-rose-50 text-rose-600 border-rose-100/50'
+                      ? 'bg-emerald-50 text-emerald-600 border-emerald-100/50'
+                      : 'bg-rose-50 text-rose-600 border-rose-100/50'
                       }`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${company.status === 'active' ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></span>
                       {company.status}
@@ -253,8 +253,8 @@ export default function CompanyManagement() {
                       <button
                         onClick={() => toggleCompanyStatus(company.id, company.status)}
                         className={`p-2 rounded-lg transition-all ${company.status === 'active'
-                            ? 'text-rose-400 hover:bg-rose-50 hover:text-rose-600'
-                            : 'text-emerald-400 hover:bg-emerald-50 hover:text-emerald-600'
+                          ? 'text-rose-400 hover:bg-rose-50 hover:text-rose-600'
+                          : 'text-emerald-400 hover:bg-emerald-50 hover:text-emerald-600'
                           }`}
                         title={company.status === 'active' ? 'Suspend Cluster' : 'Authorize Cluster'}
                       >

@@ -53,6 +53,7 @@ class ApiService {
     const response = await fetch(`http://localhost:5000/api${endpoint}`, {
       ...options,
       headers,
+      cache: 'no-store',
     });
 
     const data = await response.json();
@@ -227,6 +228,13 @@ class ApiService {
   // Form Management
   getForms() {
     return this.request('/forms');
+  }
+
+  updateForm(id: string, data: any) {
+    return this.request(`/forms/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
   }
 
   // Checklist Management

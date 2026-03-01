@@ -64,6 +64,15 @@ function WorkflowEditorContent() {
     const [currentWorkflowId, setCurrentWorkflowId] = useState<string | null>(workflowId);
     const [isSaving, setIsSaving] = useState(false);
 
+    // Default domain from user if available
+    useEffect(() => {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+            const parsedUser = JSON.parse(storedUser);
+            if (parsedUser.domain) setWorkflowDomain(parsedUser.domain);
+        }
+    }, []);
+
     // Initial load
     useEffect(() => {
         if (workflowId) {

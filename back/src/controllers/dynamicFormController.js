@@ -176,7 +176,7 @@ exports.updateFormStatus = async (req, res) => {
 exports.submitForm = async (req, res) => {
     try {
         const { formId } = req.params;
-        const { data } = req.body;
+        const { data, name, description } = req.body;
         const DynamicForm = req.tenantConn.model('DynamicForm');
         const FormResponse = req.tenantConn.model('FormResponse');
 
@@ -188,12 +188,18 @@ exports.submitForm = async (req, res) => {
         const response = new FormResponse({
             formId: formId,
             data,
+            name: name || 'Form Submission',
+            description: description || '',
             submittedBy: req.user ? req.user.id : null
         });
 
         await response.save();
 
-        // Incrémenter le compteur de soumissions
+        // Sync the parent form's name and description if provided
+        if (name) form.name = name;
+        if (description) form.description = description;
+
+        // Increment submission count
         form.submissionCount = (form.submissionCount || 0) + 1;
         await form.save();
 

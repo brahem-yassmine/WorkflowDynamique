@@ -71,9 +71,7 @@ export default function InstancePage({ params }: { params: Promise<{ instanceId:
         <div className="flex flex-col h-full w-full space-y-6 relative overflow-hidden">
             <div className="flex items-center justify-between bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
                 <div className="flex items-center gap-6">
-                    <Link href="/User/Workflows" className="p-3 bg-slate-50 text-slate-500 rounded-2xl hover:bg-slate-900 hover:text-white transition-all">
-                        <ChevronLeft size={20} />
-                    </Link>
+                    
                     <div>
                         <div className="flex items-center gap-3 mb-1">
                             <h1 className="text-xl font-black text-slate-800 tracking-tight">

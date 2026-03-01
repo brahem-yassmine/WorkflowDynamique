@@ -25,6 +25,7 @@ export default function Form2Page() {
   const instanceId = searchParams.get('instanceId');
   const nodeId = searchParams.get('nodeId');
   const formId = searchParams.get('formId') || searchParams.get('id');
+  const workflowId = searchParams.get('workflowId');
 
   const [form, setForm] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -130,7 +131,7 @@ export default function Form2Page() {
       if (res.success) {
         toast.success("Form submitted successfully!");
         setIsSubmitModalOpen(false);
-        router.push('/admin/AllForms');
+        router.push('/User/Allforms');
       }
     } catch (error: any) {
       toast.error("Submission failed: " + error.message);
@@ -251,11 +252,16 @@ export default function Form2Page() {
       <div className="bg-white border-b sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href="/admin/AllForms" className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500">
+            <Link
+              href="/User/Allforms"
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500"
+            >
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <div>
-              <h1 className="text-lg font-black text-slate-800 uppercase tracking-tight">Interactive Workflow</h1>
+              <h1 className="text-lg font-black text-slate-800 uppercase tracking-tight">
+                {form?.name || "Interactive Workflow"}
+              </h1>
               <div className="flex items-center gap-2 mt-0.5">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Fillable Protocol • </p>
                 {form.steps?.some((s: any) => s.status === 'approved') ? (

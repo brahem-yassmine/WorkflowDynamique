@@ -163,9 +163,44 @@ interface Step {
 export default function FormBuilder() {
   const [steps, setSteps] = useState<Step[]>([{ id: 'step-1', title: 'New Step', fields: [], status: 'pending' }]);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [formName, setFormName] = useState('New Form');
+  const [formDescription, setFormDescription] = useState('Form created with Form Builder');
+  const [formId, setFormId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
   const currentStep = steps[currentStepIndex];
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id');
+    if (id) {
+      setFormId(id);
+      fetchFormData(id);
+    }
+  }, []);
+
+  const fetchFormData = async (id: string) => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const tenant = JSON.parse(localStorage.getItem('tenant') || 'null');
+      const tenantId = tenant?._id;
+      
+      const res = await axios.get(`http://localhost:5000/api/forms/${id}`, {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'x-tenant-id': tenantId
+        }
+      });
+      if (res.data.success) {
+        setSteps(res.data.data.steps || []);
+        setFormName(res.data.data.name || 'New Form');
+        setFormDescription(res.data.data.description || '');
+      }
+    } catch (e) {
+      toast.error("Failed to load form data");
+    }
+  };
 
   const handleDragEnd = ({ active, over }: DragEndEvent) => {
     if (active.id !== over?.id) {
@@ -187,19 +222,37 @@ export default function FormBuilder() {
       const tenantId = tenant?._id || user?.tenantId || user?._id;
       if (!tenantId) return toast.error("Tenant ID missing.");
       
-      const res = await axios.post('http://localhost:5000/api/forms', { 
-        name: steps[0].title || "Untitled Form", 
+      const payload = { 
+        name: formName || "Untitled Form", 
         steps, 
-        description: "Form created with Form Builder" 
-      }, { 
+        description: formDescription 
+      };
+
+      const method = formId ? 'PATCH' : 'POST';
+      const url = formId ? `http://localhost:5000/api/forms/${formId}` : 'http://localhost:5000/api/forms';
+
+      const res = await axios({
+        method,
+        url,
+        data: payload,
         headers: { 
           'Authorization': `Bearer ${token}`, 
           'x-tenant-id': tenantId 
         }
       });
-      if (res.data.success) toast.success('Form saved!');
-    } catch (e: any) { toast.error('Save failed: ' + (e.response?.data?.message || e.message)); }
-    finally { setIsSaving(false); }
+
+      if (res.data.success) {
+        toast.success(formId ? 'Update successful!' : 'Form saved!');
+        if (!formId && res.data.data?._id) {
+          setFormId(res.data.data._id);
+          window.history.replaceState(null, '', `/admin/form?id=${res.data.data._id}`);
+        }
+      }
+    } catch (e: any) { 
+      toast.error('Save failed: ' + (e.response?.data?.message || e.message)); 
+    } finally { 
+      setIsSaving(false); 
+    }
   };
 
   const handleUpdateField = (id: string, updates: any) => {
@@ -242,9 +295,20 @@ export default function FormBuilder() {
             >
               <ArrowLeft className="w-5 h-5" />
             </Link>
-            <div className="flex items-center gap-2">
-              <FileText className="w-5 h-5" />
-              <h1 className="text-xl font-bold">Form Builder</h1>
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-white/10 rounded-xl">
+                <FileText className="w-5 h-5 text-indigo-100" />
+              </div>
+              <div className="flex flex-col">
+                <input 
+                  type="text" 
+                  value={formName} 
+                  onChange={(e) => setFormName(e.target.value)}
+                  className="bg-transparent border-none outline-none text-xl font-black text-white placeholder:text-indigo-300 w-full p-0 focus:ring-0 leading-tight"
+                  placeholder="Untitled Protocol"
+                />
+                <p className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest opacity-70">Interactive Form Blueprint</p>
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-3">

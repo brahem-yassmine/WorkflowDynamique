@@ -14,7 +14,7 @@ interface SaveButtonProps {
   initialProjectId?: string;
 }
 
-const domains = ['HR', 'Finance', 'IT', 'Sales', 'Management'];
+// Removed hardcoded domains, using apiService.getDomains() instead
 
 const SaveButton = ({ onSave, isSaving, initialName = '', initialDomain = 'HR', initialProjectId = '' }: SaveButtonProps) => {
   const searchParams = useSearchParams();
@@ -25,6 +25,7 @@ const SaveButton = ({ onSave, isSaving, initialName = '', initialDomain = 'HR', 
   const [projectId, setProjectId] = useState(initialProjectId || urlProjectId || '');
   const [showModal, setShowModal] = useState(false);
   const [projects, setProjects] = useState<any[]>([]);
+  const [availableDomains, setAvailableDomains] = useState<any[]>([]);
 
   // Update name if initialName changes (e.g. after loading)
   React.useEffect(() => {
@@ -42,8 +43,20 @@ const SaveButton = ({ onSave, isSaving, initialName = '', initialDomain = 'HR', 
   React.useEffect(() => {
     if (showModal) {
       fetchProjects();
+      fetchDomains();
     }
   }, [showModal]);
+
+  const fetchDomains = async () => {
+    try {
+      const response = await apiService.getDomains();
+      if (response.success) {
+        setAvailableDomains(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching domains:', error);
+    }
+  };
 
   const fetchProjects = async () => {
     try {
@@ -135,9 +148,13 @@ const SaveButton = ({ onSave, isSaving, initialName = '', initialDomain = 'HR', 
                     onChange={(e) => setDomain(e.target.value)}
                     className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-indigo-50 font-bold text-slate-700 outline-none transition-all"
                   >
-                    {domains.map(d => (
-                      <option key={d} value={d}>{d}</option>
+                    <option value="">Select Domain</option>
+                    {availableDomains.map(d => (
+                      <option key={d._id} value={d.name}>{d.name}</option>
                     ))}
+                    {!availableDomains.find(d => d.name === domain) && domain && (
+                      <option value={domain}>{domain}</option>
+                    )}
                   </select>
                 </div>
 

@@ -147,6 +147,9 @@ exports.createWorkflow = async (req, res) => {
 
     await workflow.save();
 
+    // 🚀 AUTOMATIC CHECKLIST GENERATION
+    await _triggerAutomaticChecklist(req, workflow);
+
     // Trigger Notification for Admins or domain users
     const UserModel = req.tenantConn.model('User');
     const admins = await UserModel.find({ role: 'admin' });
@@ -225,6 +228,9 @@ exports.updateWorkflow = async (req, res) => {
     });
 
     await workflow.save();
+
+    // 🚀 AUTOMATIC CHECKLIST SYNC
+    await _triggerAutomaticChecklist(req, workflow);
 
     // Log the activity
     await recordActivity(req, 'UPDATE_WORKFLOW', {
@@ -504,6 +510,9 @@ exports.duplicateWorkflow = async (req, res) => {
 
     await duplicate.save();
 
+    // 🚀 AUTOMATIC CHECKLIST GENERATION
+    await _triggerAutomaticChecklist(req, duplicate);
+
     // Log the activity
     await recordActivity(req, 'CLONE_WORKFLOW', {
       type: 'Workflow',
@@ -525,3 +534,60 @@ exports.duplicateWorkflow = async (req, res) => {
     });
   }
 };
+
+/**
+ * PRIVATE HELPER: Automatically generates a checklist based on workflow nodes
+ * @param {Object} req - Request object with tenantConn and user
+ * @param {Object} workflow - Saved workflow document
+ */
+async function _triggerAutomaticChecklist(req, workflow) {
+  try {
+    // SECURITY: Only trigger automation for Admin/SuperAdmin accounts
+    if (req.user?.role !== 'admin' && req.user?.role !== 'super_admin') {
+      return;
+    }
+
+    const nodesToInclude = (workflow.nodes || []).filter(n => n.type === 'action' || n.type === 'condition');
+    if (nodesToInclude.length === 0) return;
+
+    const Checklist = req.tenantConn.model('Checklist');
+    const checklistName = `Workflow: ${workflow.name}`;
+
+    const checklistTasks = nodesToInclude.map(n => {
+      let title = n.data?.label || (n.type === 'action' ? 'New Task' : 'New Condition');
+      if (n.type === 'condition' && n.data?.condition) {
+        title = `${title} (${n.data.condition})`;
+      }
+      return {
+        id: n.id,
+        title: title,
+        completed: false,
+        priority: (n.data?.priority === 'critical' ? 'high' : n.data?.priority) || 'medium'
+      };
+    });
+
+    // Check if checklist already exists for this workflow
+    let checklist = await Checklist.findOne({ name: checklistName });
+
+    if (checklist) {
+      // Update existing checklist
+      checklist.tasks = checklistTasks;
+      checklist.description = `Automatically updated checklist for workflow ${workflow.name}`;
+      await checklist.save();
+      console.log(`✅ [Automation] Checklist "${checklistName}" updated.`);
+    } else {
+      // Create new checklist
+      checklist = new Checklist({
+        name: checklistName,
+        description: `Automatically generated checklist for workflow ${workflow.name}`,
+        tasks: checklistTasks,
+        createdBy: req.user.id,
+        status: 'draft'
+      });
+      await checklist.save();
+      console.log(`✅ [Automation] Checklist "${checklistName}" created.`);
+    }
+  } catch (error) {
+    console.error('⚠️ [Automation] Checklist Generation Error:', error.message);
+  }
+}

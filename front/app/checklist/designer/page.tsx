@@ -2,8 +2,6 @@
 
 import { useRouter } from 'next/navigation';
 
-const API_URL = 'http://localhost:5000/api';
-
 import React, { useState, useEffect } from 'react';
 import { 
   DndContext, closestCenter, DragEndEvent, useSensor, useSensors, PointerSensor, KeyboardSensor
@@ -15,7 +13,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
-import axios from 'axios';
+import { apiService } from '@/service/api.service';
 
 interface WorkflowTask {
   id: string;
@@ -123,22 +121,10 @@ export default function WorkflowChecklist() {
 
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('auth_token');
-      const tenant = JSON.parse(localStorage.getItem('tenant') || '{}');
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const tenantId = localStorage.getItem('tenantId') || tenant?._id || user?.tenantId;
+      const response = await apiService.request(`/checklists/${targetId}`);
 
-      if (!tenantId || !token) return;
-
-      const res = await axios.get(`http://localhost:5000/api/checklists/${targetId}`, {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'x-tenant-id': tenantId 
-        }
-      });
-
-      if (res.data.success && res.data.data) {
-        const checklist = res.data.data;
+      if (response.success && response.data) {
+        const checklist = response.data;
         setTasks(checklist.tasks || []);
         setChecklistName(checklist.name);
         setChecklistDescription(checklist.description || '');
@@ -191,45 +177,30 @@ export default function WorkflowChecklist() {
 
     setIsSaving(true);
     try {
-      const token = localStorage.getItem('auth_token');
-      const tenant = JSON.parse(localStorage.getItem('tenant') || '{}');
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const tenantId = localStorage.getItem('tenantId') || tenant?._id || user?.tenantId;
-
-      if (!tenantId || !token) {
-        toast.error("Auth session expired. Please sign in again.");
-        return;
-      }
-
-      const method = checklistId ? 'put' : 'post';
-      const url = checklistId 
-        ? `http://localhost:5000/api/checklists/${checklistId}` 
-        : `http://localhost:5000/api/checklists`;
-
-      const response = await axios[method](url, {
+      const payload = {
         name: checklistName,
         description: checklistDescription,
         tasks: tasks,
         status: checklistStatus
-      }, {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'x-tenant-id': tenantId 
-        }
-      });
+      };
 
-      if (response.data.success) {
-        if (!checklistId) setChecklistId(response.data.data._id);
+      const response = checklistId 
+        ? await apiService.request(`/checklists/${checklistId}`, { method: 'PUT', body: JSON.stringify(payload) })
+        : await apiService.request(`/checklists`, { method: 'POST', body: JSON.stringify(payload) });
+
+      if (response.success) {
+        const savedId = response.data._id || checklistId;
+        if (!checklistId) setChecklistId(savedId);
         toast.success('Workflow saved successfully');
         setIsSaveModalOpen(false);
-        router.push('/admin/AllCheck');
+        // Redirect to the designer with the ID to stay in edit mode
+        router.push(`/checklist/designer?id=${savedId}`);
       } else {
-        toast.error(response.data.message || 'Synchronization failed');
+        toast.error(response.message || 'Synchronization failed');
       }
     } catch (error: any) {
       console.error('Error saving checklist:', error);
-      const errorMsg = error.response?.data?.message || error.message || 'Network error';
-      toast.error(`Failed to save: ${errorMsg}`);
+      toast.error(`Failed to save: ${error.message}`);
     } finally {
       setIsSaving(false);
     }
@@ -383,7 +354,7 @@ export default function WorkflowChecklist() {
                       <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm mx-auto mb-6">
                          <AlertCircle className="w-8 h-8 text-slate-200" />
                       </div>
-                      <p className="text-sm font-black text-slate-400 uppercase tracking-[0.2em]">No logic gates defined for this checklist</p>
+                      <p className="text-sm font-black text-slate-400 uppercase tracking-[0.2em]">No ongoing tasks defined for this checklist</p>
                       <button 
                         onClick={addTask}
                         className="mt-8 text-[11px] font-black text-indigo-600 uppercase tracking-widest hover:text-indigo-700 underline underline-offset-8"

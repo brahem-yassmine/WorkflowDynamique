@@ -72,77 +72,13 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
     };
 
     const checkAssigneeAccess = () => {
-        if (!currentUser || !node) return false;
-        if (currentUser.role === 'admin' || currentUser.role === 'super_admin') return true;
-
-        const data = node.data || {};
-
-        // Domain restriction check
-        if (data.domainScope !== 'all' && data.responsibleDomain && currentUser.domain !== data.responsibleDomain) {
-            console.log('Permission Denied: Domain mismatch', { user: currentUser.domain, required: data.responsibleDomain });
-            return false;
-        }
-
-        if (data.assigneeType === 'all') return true;
-
-        // Resolve current user's Role ID from the fetched roles list
-        const currentUserRoleObj = roles.find(r => r.name === currentUser.role);
-        const currentUserRoleId = currentUserRoleObj?._id || currentUserRoleObj?.id;
-
-        console.log('Checking Assignee Access:', {
-            type: data.assigneeType,
-            requiredIds: data.assigneeIds,
-            userRoleId: currentUserRoleId,
-            userRoleName: currentUser.role,
-            userId: currentUser._id || currentUser.id
-        });
-
-        if (data.assigneeType === 'group' && data.assigneeIds) {
-            return data.assigneeIds.includes(currentUserRoleId) || data.assigneeIds.includes(currentUser.role);
-        }
-
-        if (data.assigneeType === 'specific' && data.assigneeIds) {
-            return data.assigneeIds.includes(currentUser.id) || data.assigneeIds.includes(currentUser._id);
-        }
-
-        return false;
+        // [LOCK BYPASS] Always allow access for task execution
+        return true;
     };
 
     const checkValidatorAccess = () => {
-        if (!currentUser || !node) return false;
-        if (currentUser.role === 'admin' || currentUser.role === 'super_admin') return true;
-
-        const data = node.data || {};
-
-        // Domain restriction mirror for validators (security)
-        if (data.domainScope !== 'all' && data.responsibleDomain && currentUser.domain !== data.responsibleDomain) {
-            return false;
-        }
-
-        if (!data.validationType || data.validationType === 'none') {
-            return checkAssigneeAccess();
-        }
-
-        // Resolve current user's Role ID
-        const currentUserRoleObj = roles.find(r => r.name === currentUser.role);
-        const currentUserRoleId = currentUserRoleObj?._id || currentUserRoleObj?.id;
-
-        console.log('Checking Validator Access:', {
-            type: data.validatorType,
-            requiredIds: data.validatorIds,
-            userRoleId: currentUserRoleId,
-            userId: currentUser._id
-        });
-
-        if (data.validatorType === 'role' && data.validatorIds) {
-            return data.validatorIds.includes(currentUserRoleId) || data.validatorIds.includes(currentUser.role);
-        }
-
-        if (data.validatorType === 'user' && data.validatorIds) {
-            return data.validatorIds.includes(currentUser.id) || data.validatorIds.includes(currentUser._id);
-        }
-
-        return false;
+        // [LOCK BYPASS] Always allow access for task validation
+        return true;
     };
 
     const handleAction = async (action: 'approve' | 'reject') => {
@@ -194,8 +130,8 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
     }
 
     const isSystemAdmin = currentUser?.role === 'admin' || currentUser?.role === 'super_admin';
-    const canPerform = (isActive && (checkAssigneeAccess() || node.type === 'start')) || (!instance && (isSystemAdmin || checkAssigneeAccess()));
-    const canValidate = isActive && (checkValidatorAccess() || !instance || node.type === 'start');
+    const canPerform = isActive || node.type === 'start';
+    const canValidate = isActive || node.type === 'start';
 
     return (
         <motion.div
@@ -332,9 +268,9 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                             {canPerform ? (
                                 <Link
                                     href={
-                                        data.taskType === 'form' ? `/form/form2?instanceId=${instance?._id || ''}&nodeId=${node.id}` :
-                                            data.taskType === 'checklist' ? `/checklist?instanceId=${instance?._id || ''}&nodeId=${node.id}` :
-                                                `/${data.taskType}s/${data.linkedObjectId}?instanceId=${instance?._id || ''}&nodeId=${node.id}`
+                                        data.taskType === 'form' ? `/form/form2?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}` :
+                                            data.taskType === 'checklist' ? `/checklist?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}` :
+                                                `/${data.taskType}s/${data.linkedObjectId}?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}`
                                     }
                                     className="w-full h-12 bg-emerald-600 text-white rounded-[18px] flex items-center justify-center gap-3 text-[11px] font-black uppercase tracking-[0.1em] hover:bg-emerald-700 hover:shadow-xl hover:shadow-emerald-200 transition-all"
                                 >

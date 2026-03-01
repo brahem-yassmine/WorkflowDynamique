@@ -1,7 +1,5 @@
 "use client";
 
-const API_URL = 'http://localhost:5000/api';
-
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, 
@@ -17,7 +15,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import axios from 'axios';
+import { apiService } from '@/service/api.service';
 import { toast, Toaster } from 'sonner';
 
 interface Checklist {
@@ -36,19 +34,9 @@ export default function AllChecklistsPage() {
 
   const fetchChecklists = async () => {
     try {
-      const token = localStorage.getItem('auth_token');
-      const tenant = JSON.parse(localStorage.getItem('tenant') || '{}');
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const tenantId = localStorage.getItem('tenantId') || tenant?._id || user?.tenantId;
-
-      const response = await axios.get('http://localhost:5000/api/checklists', {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'x-tenant-id': tenantId
-        }
-      });
-      if (response.data.success) {
-        setChecklists(response.data.data);
+      const response = await apiService.request('/checklists');
+      if (response.success) {
+        setChecklists(response.data);
       }
     } catch (error) {
       console.error("Fetch checklists error:", error);
@@ -64,40 +52,12 @@ export default function AllChecklistsPage() {
 
   const handleClone = async (id: string) => {
     try {
-      const token = localStorage.getItem('auth_token');
-      const tenant = JSON.parse(localStorage.getItem('tenant') || '{}');
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const tenantId = localStorage.getItem('tenantId') || tenant?._id || user?.tenantId;
-
-      // Check if clone endpoint exists, if not do it manually
-      try {
-        const response = await axios.post(`http://localhost:5000/api/checklists/${id}/clone`, {}, {
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'x-tenant-id': tenantId
-          }
-        });
-        if (response.data.success) {
-          toast.success("Checklist cloned successfully!");
-          fetchChecklists();
-          return;
-        }
-      } catch (e) {
-        // Fallback to manual clone if endpoint fails
-        const checklistToClone = checklists.find(c => c._id === id);
-        if (checklistToClone) {
-           await axios.post('http://localhost:5000/api/checklists', {
-             name: `${checklistToClone.name} (copy)`,
-             tasks: checklistToClone.tasks
-           }, {
-             headers: { 
-               Authorization: `Bearer ${token}`,
-               'x-tenant-id': tenantId
-             }
-           });
-           toast.success("Checklist cloned (manual fallback)");
-           fetchChecklists();
-        }
+      const response = await apiService.request(`/checklists/${id}/clone`, {
+        method: 'POST'
+      });
+      if (response.success) {
+        toast.success("Checklist cloned successfully!");
+        fetchChecklists();
       }
     } catch (error) {
       toast.error("Failed to clone checklist");
@@ -106,18 +66,10 @@ export default function AllChecklistsPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      const token = localStorage.getItem('auth_token');
-      const tenant = JSON.parse(localStorage.getItem('tenant') || '{}');
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const tenantId = localStorage.getItem('tenantId') || tenant?._id || user?.tenantId;
-
-      const response = await axios.delete(`http://localhost:5000/api/checklists/${id}`, {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'x-tenant-id': tenantId
-        }
+      const response = await apiService.request(`/checklists/${id}`, {
+        method: 'DELETE'
       });
-      if (response.data.success) {
+      if (response.success) {
         toast.success("Checklist deleted");
         setChecklists(checklists.filter(c => c._id !== id));
       }
@@ -132,6 +84,7 @@ export default function AllChecklistsPage() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
+      <Toaster position="top-right" richColors />
       
       {/* Search and Action Bar */}
       <div className="flex flex-col md:flex-row items-center justify-between gap-6 px-2">
@@ -157,7 +110,7 @@ export default function AllChecklistsPage() {
 
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1,2,3].map(i => (
+          {[1,2,3,4,5,6].map(i => (
             <div key={i} className="h-48 bg-white rounded-[32px] border border-slate-100 animate-pulse shadow-sm" />
           ))}
         </div>
@@ -166,13 +119,13 @@ export default function AllChecklistsPage() {
           <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center mb-6 shadow-inner">
             <ListTodo className="w-10 h-10 text-slate-300" />
           </div>
-          <h2 className="text-xl font-black text-slate-800 tracking-tight uppercase">No checklists found</h2>
-          <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-2 mb-8">Start by architecting your first dynamic workflow checklist.</p>
+          <h2 className="text-xl font-black text-slate-800 tracking-tight uppercase">Registry Empty</h2>
+          <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-2 mb-8">No dynamic checklists or automated schemas identified in this lattice.</p>
           <button 
             onClick={() => router.push('/checklist/designer')}
             className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 flex items-center gap-2 active:scale-95"
           >
-            <Plus size={18} /> Start Designing
+            <Plus size={18} /> Generate Schema
           </button>
         </div>
       ) : (

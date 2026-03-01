@@ -193,6 +193,7 @@ export default function FormBuilder() {
   
   const searchParams = useSearchParams();
   const router = useRouter();
+  const from = searchParams.get('from');
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
   const currentStep = steps[currentStepIndex];
 
@@ -206,23 +207,15 @@ export default function FormBuilder() {
 
   const fetchFormData = async (id: string) => {
     try {
-      const token = localStorage.getItem('auth_token');
-      const tenantId = localStorage.getItem('tenantId');
-      
-      const res = await axios.get(`http://localhost:5000/api/forms/${id}`, {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'x-tenant-id': tenantId
-        }
-      });
-      if (res.data.success) {
-        setSteps(res.data.data.steps || []);
-        setFormName(res.data.data.name || 'New Form');
-        setFormDescription(res.data.data.description || '');
+      const res = await apiService.request(`/forms/${id}`);
+      if (res.success) {
+        setSteps(res.data.steps || []);
+        setFormName(res.data.name || 'New Form');
+        setFormDescription(res.data.description || '');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching form:", error);
-      toast.error("Failed to load form data");
+      toast.error("Failed to load form data: " + error.message);
     }
   };
 
@@ -237,7 +230,7 @@ export default function FormBuilder() {
     setSteps(prev => prev.map((s, i) => i === currentStepIndex ? { ...s, fields: [...s.fields, f] } : s));
   };
 
-  const handleSave = async () => {
+  const handleSave = async (shouldNavigate: boolean = false) => {
     setIsSaving(true);
     try {
       const payload = {
@@ -260,8 +253,17 @@ export default function FormBuilder() {
 
       if (res.success) {
         toast.success(formId ? "Architecture updated!" : "Architecture saved!");
+        const newId = formId || res.data?._id;
+        
         if (!formId && res.data?._id) {
-          router.push(`/form?id=${res.data._id}`);
+          setFormId(res.data._id);
+        }
+
+        if (shouldNavigate && newId) {
+          router.push(`/form/form2?id=${newId}`);
+        } else if (!formId && res.data?._id) {
+          // If just saving new form without Next, update URL
+          router.push(`/form?id=${res.data._id}${from === 'user' ? '&from=user' : ''}`, { scroll: false });
         }
       }
     } catch (error: any) {
@@ -308,27 +310,46 @@ export default function FormBuilder() {
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link 
-              href="/admin/AllForms" 
+              href={from === 'user' ? "/User/Allforms" : "/admin/AllForms"} 
               className="p-2 hover:bg-white/10 rounded-lg transition-colors"
               title="Back to All Forms"
             >
               <ArrowLeft className="w-5 h-5" />
             </Link>
-            <div className="flex items-center gap-2">
-              <FileText className="w-5 h-5" />
-              <h1 className="text-xl font-bold">Form Builder</h1>
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-white/10 rounded-xl">
+                <FileText className="w-5 h-5 text-indigo-100" />
+              </div>
+              <div className="flex flex-col">
+                <input 
+                  type="text" 
+                  value={formName} 
+                  onChange={(e) => setFormName(e.target.value)}
+                  className="bg-transparent border-none outline-none text-xl font-black text-white placeholder:text-indigo-300 w-full p-0 focus:ring-0 leading-tight"
+                  placeholder="Untitled Protocol"
+                />
+                <input 
+                  type="text" 
+                  value={formDescription} 
+                  onChange={(e) => setFormDescription(e.target.value)}
+                  className="bg-transparent border-none outline-none text-[10px] font-bold text-indigo-200 uppercase tracking-widest opacity-70 w-full p-0 focus:ring-0"
+                  placeholder="Add form description..."
+                />
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {formId && (
-              <Link 
-                href={`/form/form2?id=${formId}`} 
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-500 text-white rounded-lg font-semibold hover:bg-indigo-400 transition-all shadow-sm"
-              >
-                Next <ArrowRight className="w-4 h-4" />
-              </Link>
-            )}
-            <button onClick={handleSave} disabled={isSaving} className={`flex items-center gap-2 px-4 py-2 bg-white text-indigo-600 rounded-lg font-semibold hover:bg-indigo-50 ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}>
+            <button 
+              onClick={() => handleSave(true)} 
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-500 text-white rounded-lg font-semibold hover:bg-indigo-400 transition-all shadow-sm"
+            >
+              Next <ArrowRight className="w-4 h-4" />
+            </button>
+            <button 
+              onClick={() => handleSave(false)} 
+              disabled={isSaving} 
+              className={`flex items-center gap-2 px-4 py-2 bg-white text-indigo-600 rounded-lg font-semibold hover:bg-indigo-50 ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
+            >
               {isSaving ? <Clock className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}{isSaving ? 'Saving...' : 'Save Form'}
             </button>
           </div>
@@ -377,11 +398,16 @@ export default function FormBuilder() {
 
           <div className="col-span-12 md:col-span-9 bg-white rounded-lg shadow-sm">
             <div className="p-4 border-b flex flex-wrap items-center justify-between gap-4 bg-slate-50/50">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center font-black text-xs">
+              <div className="flex items-center gap-2 flex-1">
+                <div className="w-8 h-8 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center font-black text-xs shrink-0">
                   {currentStepIndex + 1}
                 </div>
-                <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Phasage Active</span>
+                <input 
+                  value={currentStep.title} 
+                  onChange={(e) => setSteps(p => p.map((s, i) => i === currentStepIndex ? { ...s, title: e.target.value } : s))} 
+                  className="text-xs font-black text-slate-700 uppercase tracking-widest bg-transparent border-none outline-none focus:ring-0 p-0 flex-1"
+                  placeholder="STEP TITLE"
+                />
               </div>
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest bg-yellow-50 text-yellow-500 border border-yellow-200">
                 <Clock className="w-3.5 h-3.5" /> Drafting

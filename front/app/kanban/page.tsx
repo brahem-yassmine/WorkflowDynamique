@@ -205,7 +205,7 @@ function KanbanColumn({
           <div>
             <h3 className={`font-black uppercase text-[12px] tracking-[0.25em] ${accent}`}>{title}</h3>
             <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5 opacity-60">
-              {tasks.length} {tasks.length === 1 ? 'Logic Gate' : 'Logic Gates'}
+              {tasks.length} {tasks.length === 1 ? 'Ongoing Task' : 'Ongoing Tasks'}
             </p>
           </div>
         </div>
@@ -230,7 +230,7 @@ function KanbanColumn({
                <Check size={24} />
             </div>
             <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest px-8 leading-loose">
-              No logic gates assigned to this domain
+              No ongoing tasks assigned to this domain
             </p>
           </div>
         )}
@@ -517,9 +517,9 @@ export default function TasksPage() {
               <LayoutDashboard className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-black text-slate-800 tracking-tight uppercase">Throughput Designer</h1>
+              <h1 className="text-xl font-black text-slate-800 tracking-tight uppercase">KanBan</h1>
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-1">
-                {isLoading ? 'Loading Neural Lattice...' : boardId ? `Architecture Board` : 'Provisioning Master Schema'}
+                {isLoading ? 'Loading Neural Lattice...' : boardId ? `Architecture Board` : 'manage your tasks'}
               </p>
             </div>
           </div>
@@ -555,12 +555,7 @@ export default function TasksPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl border border-slate-100">
-                   <div className={`w-2 h-2 rounded-full bg-emerald-500 animate-pulse`}></div>
-                   <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Active Link</span>
-                </div>
-              </div>
+             
             </div>
 
             <div className="h-px bg-slate-50 mb-12"></div>

@@ -8,7 +8,7 @@ router.use(auth);
 
 // Routes
 router.post('/', requireRole('admin'), DomainController.create);
-router.get('/', requireRole('admin'), DomainController.getAll);
+router.get('/', DomainController.getAll);
 router.get('/active', DomainController.getActive);
 router.get('/:id', requireRole('admin'), DomainController.getById);
 router.put('/:id', requireRole('admin'), DomainController.update);

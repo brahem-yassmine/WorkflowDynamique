@@ -12,6 +12,8 @@ import {
   Clock, ThumbsUp, ThumbsDown, Maximize2, Minimize2, Save, Plus, ArrowRight, ArrowLeft
 } from 'lucide-react';
 import axios from 'axios';
+import { apiService } from '@/service/api.service';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -186,6 +188,9 @@ export default function FormBuilder() {
   const [isSaving, setIsSaving] = useState(false);
   const [formId, setFormId] = useState<string | null>(null);
   
+  const [formName, setFormName] = useState('New Form');
+  const [formDescription, setFormDescription] = useState('');
+  
   const searchParams = useSearchParams();
   const router = useRouter();
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
@@ -212,6 +217,8 @@ export default function FormBuilder() {
       });
       if (res.data.success) {
         setSteps(res.data.data.steps || []);
+        setFormName(res.data.data.name || 'New Form');
+        setFormDescription(res.data.data.description || '');
       }
     } catch (error) {
       console.error("Error fetching form:", error);
@@ -233,53 +240,37 @@ export default function FormBuilder() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const token = localStorage.getItem('auth_token');
-      const user = JSON.parse(localStorage.getItem('user') || 'null');
-      const tenant = JSON.parse(localStorage.getItem('tenant') || 'null');
-      const tenantId = localStorage.getItem('tenantId') || tenant?._id || user?.tenantId;
-      
-      if (!tenantId) {
-        console.error("DEBUG: Tenant ID missing", { user, tenant });
-        return toast.error("Tenant ID missing. Please log in again.");
-      }
-      
-      const payload = { 
-        name: steps[0]?.title || "Untitled Form", 
-        steps, 
-        description: "Form created with Form Builder" 
+      const payload = {
+        name: formName || `Form Template ${new Date().toLocaleDateString()}`,
+        description: formDescription,
+        steps: steps.map((s, i) => ({
+          ...s,
+          order: i,
+          fields: s.fields.map((f, fi) => ({ ...f, order: fi }))
+        }))
       };
 
-      let res;
-      if (formId) {
-        // Update existing form
-        res = await axios.put(`http://localhost:5000/api/forms/${formId}`, payload, {
-          headers: { 
-            'Authorization': `Bearer ${token}`, 
-            'x-tenant-id': tenantId 
-          }
-        });
-      } else {
-        // Create new form
-        res = await axios.post(`http://localhost:5000/api/forms`, payload, {
-          headers: { 
-            'Authorization': `Bearer ${token}`, 
-            'x-tenant-id': tenantId 
-          }
-        });
-      }
+      const method = formId ? 'PATCH' : 'POST';
+      const url = formId ? `/forms/${formId}` : '/forms';
 
-      if (res.data.success) {
-        toast.success(formId ? 'Form updated!' : 'Form saved!');
-        if (!formId && res.data.data?._id) {
-           router.push(`/form?id=${res.data.data._id}`);
+      const res = await apiService.request(url, {
+        method,
+        body: JSON.stringify(payload)
+      });
+
+      if (res.success) {
+        toast.success(formId ? "Architecture updated!" : "Architecture saved!");
+        if (!formId && res.data?._id) {
+          router.push(`/form?id=${res.data._id}`);
         }
       }
-    } catch (e: any) { 
-      toast.error('Save failed: ' + (e.response?.data?.message || e.message)); 
-    } finally { 
-      setIsSaving(false); 
+    } catch (error: any) {
+      toast.error("Failed to save: " + error.message);
+    } finally {
+      setIsSaving(false);
     }
   };
+
 
   const handleUpdateField = (id: string, updates: any) => {
     setSteps(prev => prev.map((s, i) => i === currentStepIndex ? { ...s, fields: s.fields.map((f: any) => f.id === id ? { ...f, ...updates } : f) } : s));
@@ -311,6 +302,8 @@ export default function FormBuilder() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Toaster position="top-right" richColors />
+      <AnimatePresence>
+      </AnimatePresence>
       <div className="bg-indigo-600 text-white p-4 shadow-md">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -327,9 +320,14 @@ export default function FormBuilder() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/form/form2" className="flex items-center gap-2 px-4 py-2 bg-indigo-500 text-white rounded-lg font-semibold hover:bg-indigo-400 transition-all shadow-sm">
-              Next <ArrowRight className="w-4 h-4" />
-            </Link>
+            {formId && (
+              <Link 
+                href={`/form/form2?id=${formId}`} 
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-500 text-white rounded-lg font-semibold hover:bg-indigo-400 transition-all shadow-sm"
+              >
+                Next <ArrowRight className="w-4 h-4" />
+              </Link>
+            )}
             <button onClick={handleSave} disabled={isSaving} className={`flex items-center gap-2 px-4 py-2 bg-white text-indigo-600 rounded-lg font-semibold hover:bg-indigo-50 ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}>
               {isSaving ? <Clock className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}{isSaving ? 'Saving...' : 'Save Form'}
             </button>
@@ -339,7 +337,19 @@ export default function FormBuilder() {
 
       <div className="max-w-7xl mx-auto p-4 w-full flex-1">
         <div className="mb-4 flex gap-2 overflow-x-auto p-1">
-          {steps.map((s, i) => <button key={s.id} onClick={() => setCurrentStepIndex(i)} className={`px-4 py-2 rounded-lg text-sm ${currentStepIndex === i ? 'bg-indigo-600 text-white shadow-md' : 'bg-white border'}`}>{i + 1}. {s.title}</button>)}
+          {steps.map((s, i) => (
+            <button 
+              key={s.id} 
+              onClick={() => setCurrentStepIndex(i)} 
+              className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                currentStepIndex === i 
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' 
+                  : 'bg-white border border-slate-100 text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              Step {i + 1}
+            </button>
+          ))}
         </div>
 
         <div className="grid grid-cols-12 gap-4">
@@ -366,10 +376,15 @@ export default function FormBuilder() {
           </div>
 
           <div className="col-span-12 md:col-span-9 bg-white rounded-lg shadow-sm">
-            <div className="p-4 border-b flex flex-wrap items-center justify-between gap-4">
-              <input value={currentStep.title} onChange={(e) => setSteps(p => p.map((s, i) => i === currentStepIndex ? { ...s, title: e.target.value } : s))} className="text-lg font-semibold bg-transparent border-b border-transparent focus:border-indigo-500 outline-none flex-1" />
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-yellow-50 text-yellow-500 border border-yellow-200">
-                <Clock className="w-3.5 h-3.5" /> Pending
+            <div className="p-4 border-b flex flex-wrap items-center justify-between gap-4 bg-slate-50/50">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center font-black text-xs">
+                  {currentStepIndex + 1}
+                </div>
+                <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Phasage Active</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest bg-yellow-50 text-yellow-500 border border-yellow-200">
+                <Clock className="w-3.5 h-3.5" /> Drafting
               </div>
             </div>
 

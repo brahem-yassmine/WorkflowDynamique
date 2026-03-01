@@ -218,15 +218,33 @@ exports.cloneForm = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Formulaire non trouvé' });
         }
 
-        const clonedFields = JSON.parse(JSON.stringify(originalForm.steps)); // Deep copy steps
+        // Convert to plain object and remove _id to prevent conflicts
+        const formObj = originalForm.toObject();
+
+        // Remove MongoDB internal fields
+        delete formObj._id;
+        delete formObj.createdAt;
+        delete formObj.updatedAt;
+        delete formObj.__v;
+
+        // Strip _id from steps and fields to let Mongoose generate new ones
+        if (formObj.steps) {
+            formObj.steps.forEach(step => {
+                delete step._id;
+                if (step.fields) {
+                    step.fields.forEach(field => {
+                        delete field._id;
+                    });
+                }
+            });
+        }
 
         const clonedForm = new DynamicForm({
-            name: originalForm.name,
-            description: originalForm.description,
-            steps: clonedFields,
+            ...formObj,
+            name: `${formObj.name} (Copie)`,
             createdBy: req.user.id,
-            status: 'draft',
-            submissionCount: 0
+            submissionCount: formObj.submissionCount || 0,
+            publishedAt: null
         });
 
         await clonedForm.save();

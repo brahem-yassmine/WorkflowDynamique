@@ -70,6 +70,7 @@ async function getTenantConnection(domain, dbName) {
     require('../models/tenant/WorkflowInstance')(conn);
     require('../models/tenant/ActivityLog')(conn);
     require('../models/tenant/Notification')(conn);
+    require('../models/tenant/Board')(conn);
 
     return conn;
   } catch (error) {

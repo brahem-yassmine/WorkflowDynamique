@@ -28,7 +28,7 @@ const menuItems = [
   { icon: FolderKanban, label: "Project ", href: "/admin/projects" },
   { icon: GitBranch, label: "All Workflows", href: "/admin/workflows" },
   { icon: PlusSquare, label: "create Workflow", href: "/admin/create_workflows" },
-  { icon: CheckSquare, label: "Kanban", href: "/admin/tasks" },
+  { icon: FolderKanban, label: "Kanban Boards", href: "/admin/AllKanban" },
   { icon: ListTodo, label: "All Checklists", href: "/admin/AllCheck" },
   { icon: CreditCard, label: "Fiscal / Billing", href: "/admin/billing" },
   { icon: FileText, label: "System Logs", href: "/admin/logs" },

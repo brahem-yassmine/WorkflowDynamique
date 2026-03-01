@@ -20,6 +20,16 @@ const recordActivity = async (req, action, resource, details = {}) => {
         // Extract user info from request (assuming auth middleware is used)
         const user = req.user || {};
 
+        // Infer category based on action
+        let category = 'LOG';
+        if (action.includes('CREATE') || action.includes('DELETE') || action.includes('CLONE') || action.includes('INVITE') || action.includes('PROCESS')) {
+            category = 'HISTORY';
+        } else if (action.includes('UPDATE') || action.includes('REORDER')) {
+            category = 'AUDIT';
+        } else if (action === 'SIGN_IN' || action === 'SIGN_OUT') {
+            category = 'LOG';
+        }
+
         const logData = {
             user: {
                 id: user.id || user._id,
@@ -28,6 +38,7 @@ const recordActivity = async (req, action, resource, details = {}) => {
                 role: user.role
             },
             action,
+            category,
             resource: {
                 type: resource.type,
                 id: resource.id,
@@ -40,7 +51,6 @@ const recordActivity = async (req, action, resource, details = {}) => {
 
         const log = new ActivityLog(logData);
         await log.save();
-        console.log(`📝 Activity Logged: ${action} on ${resource.type} ${resource.name || ''}`);
     } catch (error) {
         console.error('AuditLogger Error:', error.message);
     }

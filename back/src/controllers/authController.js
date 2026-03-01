@@ -192,39 +192,31 @@ const login = async (req, res) => {
     // 4. Record Activity (if not super_admin)
     if (role !== 'super_admin' && tenantId) {
       try {
+        const { getTenantConnection } = require('../services/tenantConnection');
         const TenantModel = getTenantModel(req);
         const tenant = await TenantModel.findById(tenantId);
-        if (tenant && tenant.databaseUri) {
-          const conn = mongoose.createConnection(tenant.databaseUri);
-          await new Promise((resolve, reject) => {
-            conn.once('open', resolve);
-            conn.once('error', reject);
-          });
 
-          // Create the model and record
-          require('../models/tenant/ActivityLog')(conn);
-          const ActivityLog = conn.model('ActivityLog');
+        if (tenant) {
+          // Get connection for recordActivity
+          const tenantConn = await getTenantConnection(tenant.domain, tenant.databaseName);
 
-          const logData = {
+          // Mimic request object parts for recordActivity
+          const mockReq = {
+            tenantConn,
             user: {
               id: user._id,
               email: user.email,
               name: user.name || user.firstName || (role === 'admin' ? user.name : 'User'),
               role: role
             },
-            action: 'SIGN_IN',
-            resource: {
-              type: 'Session',
-              id: user._id,
-              name: 'User Login'
-            },
-            ip: req.ip || req.connection.remoteAddress,
-            timestamp: new Date()
+            ip: req.ip || req.connection.remoteAddress
           };
 
-          await ActivityLog.create(logData);
-          await conn.close();
-          console.log(`✅ SIGN_IN Logged for tenant ${tenantId}`);
+          await recordActivity(mockReq, 'SIGN_IN', {
+            type: 'Session',
+            id: user._id,
+            name: 'User Login'
+          });
         }
       } catch (logErr) {
         console.error('❌ Failed to log SIGN_IN:', logErr.message);

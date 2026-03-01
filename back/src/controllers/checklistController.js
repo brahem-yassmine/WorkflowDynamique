@@ -26,11 +26,12 @@ exports.getChecklistById = async (req, res) => {
 
 exports.createChecklist = async (req, res) => {
     try {
-        const { name, tasks } = req.body;
+        const { name, tasks, description } = req.body;
         const Checklist = req.tenantConn.model('Checklist');
 
         const checklist = new Checklist({
             name: name || 'Nouvelle Checklist',
+            description: description || '',
             tasks: tasks || [],
             status: req.body.status || 'draft',
             createdBy: req.user.id
@@ -82,6 +83,7 @@ exports.cloneChecklist = async (req, res) => {
 
         const newChecklist = new Checklist({
             name: `${originalChecklist.name} (copy)`,
+            description: originalChecklist.description || '',
             tasks: originalChecklist.tasks,
             status: originalChecklist.status || 'draft',
             createdBy: req.user.id

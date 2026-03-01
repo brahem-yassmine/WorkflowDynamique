@@ -32,6 +32,10 @@ const PAGE_METADATA: Record<string, { title: string, subtitle: string }> = {
         title: "All Checklists",
         subtitle: "Manage and monitor your dynamic checklists"
     },
+    '/admin/AllKanban': {
+        title: "All Kanbans",
+        subtitle: "Manage and monitor your organizational throughput boards"
+    },
     '/admin/create_workflows': {
         title: "Provision Flow Schema",
         subtitle: "Design and architect complex organizational throughput with node-based logic."

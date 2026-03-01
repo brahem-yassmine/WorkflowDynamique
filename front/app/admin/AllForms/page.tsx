@@ -1,7 +1,5 @@
 "use client";
 
-const API_URL = 'http://localhost:5000/api';
-
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, 
@@ -10,18 +8,16 @@ import {
   Edit3, 
   Trash2, 
   Search, 
-  MoreVertical,
   Calendar,
   Layers,
   CheckCircle2,
   Clock,
-  ArrowRight,
-  ChevronLeft
+  ArrowRight
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import axios from 'axios';
 import { toast, Toaster } from 'sonner';
+import { apiService } from '@/service/api.service';
 
 interface Form {
   _id: string;
@@ -40,23 +36,13 @@ export default function AllFormsPage() {
 
   const fetchForms = async () => {
     try {
-      const token = localStorage.getItem('auth_token');
-      const user = JSON.parse(localStorage.getItem('user') || 'null');
-      const tenant = localStorage.getItem('tenant') ? JSON.parse(localStorage.getItem('tenant') || 'null') : null;
-      const tenantId = localStorage.getItem('tenantId') || tenant?._id || user?.tenantId;
-
-      const response = await axios.get('http://localhost:5000/api/forms', {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'x-tenant-id': tenantId
-        }
-      });
-      if (response.data.success) {
-        setForms(response.data.data);
+      const response = await apiService.getForms();
+      if (response.success) {
+        setForms(response.data);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Fetch forms error:", error);
-      toast.error("Failed to load forms");
+      toast.error("Failed to load forms: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -68,45 +54,29 @@ export default function AllFormsPage() {
 
   const handleClone = async (id: string) => {
     try {
-      const token = localStorage.getItem('auth_token');
-      const user = JSON.parse(localStorage.getItem('user') || 'null');
-      const tenant = JSON.parse(localStorage.getItem('tenant') || 'null');
-      const tenantId = localStorage.getItem('tenantId') || tenant?._id || user?.tenantId;
-
-      const response = await axios.post(`http://localhost:5000/api/forms/${id}/clone`, {}, {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'x-tenant-id': tenantId
-        }
+      const response = await apiService.request(`/forms/${id}/clone`, {
+        method: 'POST'
       });
-      if (response.data.success) {
+      if (response.success) {
         toast.success("Form cloned successfully!");
         fetchForms();
       }
-    } catch (error) {
-      toast.error("Failed to clone form");
+    } catch (error: any) {
+      toast.error("Failed to clone form: " + error.message);
     }
   };
 
   const handleDelete = async (id: string) => {
     try {
-      const token = localStorage.getItem('auth_token');
-      const user = JSON.parse(localStorage.getItem('user') || 'null');
-      const tenant = JSON.parse(localStorage.getItem('tenant') || 'null');
-      const tenantId = localStorage.getItem('tenantId') || tenant?._id || user?.tenantId;
-
-      const response = await axios.delete(`http://localhost:5000/api/forms/${id}`, {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'x-tenant-id': tenantId
-        }
+      const response = await apiService.request(`/forms/${id}`, {
+        method: 'DELETE'
       });
-      if (response.data.success) {
+      if (response.success) {
         toast.success("Form deleted");
         setForms(forms.filter(f => f._id !== id));
       }
-    } catch (error) {
-      toast.error("Failed to delete form");
+    } catch (error: any) {
+      toast.error("Failed to delete form: " + error.message);
     }
   };
 
@@ -120,47 +90,43 @@ export default function AllFormsPage() {
       <Toaster position="top-right" richColors />
       
       {/* Header Section */}
-      <div className="bg-white border-b border-gray-100 sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => router.push('/admin')}
-              className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-400 hover:text-indigo-600"
-              title="Back to Dashboard"
-            >
-              <ChevronLeft className="w-6 h-6" />
-            </button>
-            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-100">
-              <Layers className="w-5 h-5 text-white" />
+      <div className="max-w-7xl mx-auto px-4 md:px-8 mt-6">
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-100 flex-shrink-0">
+                <Layers className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-gray-900 tracking-tight leading-tight">All Forms</h1>
+                <p className="text-xs text-gray-500 font-medium">Manage and monitor dynamic workflows</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900 tracking-tight">All Forms</h1>
-              <p className="text-xs text-gray-500 font-medium">Manage and monitor your dynamic workflows</p>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <div className="relative flex-1 min-w-[280px]">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input 
+                  type="text"
+                  placeholder="Search forms..."
+                  className="w-full pl-11 pr-4 py-2.5 bg-gray-50/50 border border-gray-100 rounded-xl text-sm outline-none focus:ring-4 focus:ring-indigo-50 focus:border-indigo-400 transition-all font-medium"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+              <Link 
+                href="/form"
+                className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg shadow-indigo-100 group whitespace-nowrap"
+              >
+                <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
+                Create Form
+              </Link>
             </div>
           </div>
-
-          <Link 
-            href="/form"
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg shadow-indigo-100 group"
-          >
-            <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
-            Create New Form
-          </Link>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Search and Filters */}
-        <div className="mb-8 relative max-w-md">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input 
-            type="text"
-            placeholder="Search forms by name or description..."
-            className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm outline-none focus:ring-4 focus:ring-indigo-50 focus:border-indigo-400 transition-all font-medium"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
+      <div className="max-w-7xl mx-auto px-4 md:px-8 py-8">
 
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

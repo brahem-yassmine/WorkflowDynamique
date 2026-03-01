@@ -7,7 +7,9 @@ const getTaskModel = (req) => req.tenantConn.model('Task');
 exports.getTasks = async (req, res) => {
     try {
         const Task = getTaskModel(req);
-        const tasks = await Task.find().sort({ position: 1 });
+        const { boardId } = req.query;
+        const filter = boardId ? { boardId } : {};
+        const tasks = await Task.find(filter).sort({ position: 1 });
         res.json({ success: true, data: tasks });
     } catch (error) {
         console.error('❌ getTasks Error:', error);
@@ -18,7 +20,7 @@ exports.getTasks = async (req, res) => {
 exports.createTask = async (req, res) => {
     try {
         const Task = getTaskModel(req);
-        const { title, description, status, position } = req.body;
+        const { title, description, status, position, boardId } = req.body;
 
         const userId = req.user?.userId || req.user?.id || req.user?._id;
 
@@ -27,7 +29,8 @@ exports.createTask = async (req, res) => {
             description,
             status: status || 'todo',
             position: position || 0,
-            createdBy: userId
+            createdBy: userId,
+            boardId
         });
 
         await task.save();

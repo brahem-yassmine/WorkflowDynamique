@@ -281,6 +281,24 @@ class ApiService {
       body: JSON.stringify({ nodeId })
     });
   }
+
+  // Board Management
+  getBoards() {
+    return this.request('/boards');
+  }
+
+  createBoard(data: any) {
+    return this.request('/boards', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  deleteBoard(id: string) {
+    return this.request(`/boards/${id}`, {
+      method: 'DELETE',
+    });
+  }
 }
 
 export const apiService = new ApiService();

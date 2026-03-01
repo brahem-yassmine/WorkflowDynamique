@@ -103,21 +103,39 @@ const checkPlanLimits = (resourceType) => {
   };
 };
 
-const requirePlan = (requiredPlan) => {
+function requirePlan(requiredPlan) {
+  // If used as a direct middleware (e.g., router.get('/logs', requirePlan, ...))
+  if (arguments.length >= 3 && typeof arguments[2] === 'function') {
+    const req = arguments[0];
+    const res = arguments[1];
+    const next = arguments[2];
+
+    if (!req.tenant || !req.tenant.selectedPlan) {
+      return res.status(403).json({ success: false, message: 'Plan non défini ou inactif' });
+    }
+    return next();
+  }
+
+  // If used as a factory (e.g., requirePlan('pro'))
   return (req, res, next) => {
     try {
-      if (!req.tenant || !req.tenant.plan) {
+      const tenantPlan = req.tenant?.selectedPlan?.code || req.tenant?.selectedPlan;
+
+      if (!req.tenant || !tenantPlan) {
         return res.status(403).json({ success: false, message: 'Plan non défini' });
       }
-      if (req.tenant.plan !== requiredPlan) {
+
+      // If a specific plan code is required, check for it
+      if (typeof requiredPlan === 'string' && tenantPlan !== requiredPlan) {
         return res.status(403).json({ success: false, message: `Plan ${requiredPlan} requis` });
       }
+
       next();
     } catch (error) {
       next(error);
     }
   };
-};
+}
 
 module.exports = {
   tenantResolver,

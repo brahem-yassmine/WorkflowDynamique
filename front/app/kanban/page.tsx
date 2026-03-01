@@ -1,7 +1,5 @@
 'use client';
 
-const API_URL = 'http://localhost:5000/api';
-
 import React, { useState, useEffect, useRef } from 'react';
 import {
   DndContext,
@@ -33,10 +31,14 @@ import {
   Check,
   X,
   LayoutDashboard,
+  ChevronLeft,
+  ListTodo,
+  Clock,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import axios from 'axios';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { apiService } from '@/service/api.service';
 
 // --- Types ---
 interface Task {
@@ -47,10 +49,10 @@ interface Task {
   position: number;
 }
 
-const COLUMNS: { id: 'todo' | 'doing' | 'done'; title: string; bg: string; headerBg: string; edgeColor: string }[] = [
-  { id: 'todo',  title: 'To Do', bg: 'bg-rose-50/50',    headerBg: 'bg-rose-100/50', edgeColor: 'bg-rose-500' },
-  { id: 'doing', title: 'Doing', bg: 'bg-amber-50/50', headerBg: 'bg-amber-100/50', edgeColor: 'bg-amber-500' },
-  { id: 'done',  title: 'Done',  bg: 'bg-emerald-50/50',  headerBg: 'bg-emerald-100/50', edgeColor: 'bg-emerald-500' },
+const COLUMNS: { id: 'todo' | 'doing' | 'done'; title: string; accent: string; bar: string }[] = [
+  { id: 'todo',  title: 'To Do', accent: 'text-blue-500', bar: 'bg-blue-500' },
+  { id: 'doing', title: 'Doing', accent: 'text-amber-500', bar: 'bg-amber-500' },
+  { id: 'done',  title: 'Done', accent: 'text-emerald-500', bar: 'bg-emerald-500' },
 ];
 
 // --- Inline Editable Task ---
@@ -90,20 +92,30 @@ function SortableTask({
   const style = {
     transform: CSS.Translate.toString(transform),
     transition,
-    opacity: isDragging ? 0.3 : 1,
   };
+
+  const statusColor = task.status === 'todo' ? 'bg-blue-500' : task.status === 'doing' ? 'bg-amber-500' : 'bg-emerald-500';
 
   return (
     <motion.div
       ref={setNodeRef}
       style={style}
       layout
-      className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all group mb-3 relative overflow-hidden"
+      className="bg-white p-5 rounded-[24px] border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 transition-all group mb-4 relative overflow-hidden flex gap-4"
     >
-      <div className="absolute top-0 left-0 w-1 h-full bg-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-      <div className="flex items-start justify-between gap-2">
+      <div className={`absolute top-0 left-0 w-1.5 h-full ${statusColor} opacity-0 group-hover:opacity-100 transition-opacity`}></div>
+      
+      <button 
+        {...attributes} 
+        {...listeners} 
+        className="p-1.5 hover:bg-slate-50 rounded-xl text-slate-300 hover:text-indigo-600 cursor-grab active:cursor-grabbing transition-all"
+      >
+        <GripVertical size={18} />
+      </button>
+
+      <div className="flex-1 min-w-0">
         {editing ? (
-          <div className="flex-1 flex items-center gap-2">
+          <div className="flex flex-col gap-3">
             <input
               ref={inputRef}
               value={draftTitle}
@@ -112,43 +124,50 @@ function SortableTask({
                 if (e.key === 'Enter') commitEdit();
                 if (e.key === 'Escape') cancelEdit();
               }}
-              className="flex-1 text-sm font-bold text-slate-700 border-b-2 border-indigo-400 outline-none bg-transparent"
+              className="w-full text-sm font-black text-slate-700 border-b-2 border-indigo-400 outline-none bg-transparent py-1"
             />
-            <button onClick={commitEdit} className="text-emerald-500 hover:text-emerald-600 p-1">
-              <Check className="w-4 h-4" />
-            </button>
-            <button onClick={cancelEdit} className="text-rose-400 hover:text-rose-500 p-1">
-              <X className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={commitEdit} 
+                className="w-8 h-8 flex items-center justify-center bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors shadow-sm shadow-emerald-100"
+                title="Oui (Enregistrer)"
+              >
+                <Check className="w-4 h-4" />
+              </button>
+              <button 
+                onClick={() => onDelete(task._id)}
+                className="w-8 h-8 flex items-center justify-center bg-rose-50 text-rose-500 rounded-lg hover:bg-rose-100 transition-colors border border-rose-100"
+                title="Supprimer"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+              <button 
+                onClick={cancelEdit} 
+                className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors border border-transparent"
+                title="Non (Annuler)"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         ) : (
           <h4
-            className="flex-1 text-sm font-bold text-slate-700 cursor-pointer hover:text-indigo-600 transition-colors leading-tight"
+            className="text-sm font-black text-slate-700 cursor-pointer hover:text-indigo-600 transition-colors leading-relaxed line-clamp-2"
             onClick={() => setEditing(true)}
-            title="Click to edit"
           >
             {task.title}
           </h4>
         )}
-
-        {!editing && (
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button
-              {...attributes}
-              {...listeners}
-              className="p-1.5 hover:bg-slate-50 rounded-lg text-slate-400 cursor-grab active:cursor-grabbing"
-            >
-              <GripVertical className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => onDelete(task._id)}
-              className="p-1.5 hover:bg-rose-50 rounded-lg text-slate-400 hover:text-rose-500"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
       </div>
+
+      {!editing && (
+        <button
+          onClick={() => onDelete(task._id)}
+          className="p-2.5 hover:bg-rose-50 rounded-xl text-slate-300 hover:text-rose-500 transition-all opacity-0 group-hover:opacity-100"
+        >
+          <Trash2 size={18} />
+        </button>
+      )}
     </motion.div>
   );
 }
@@ -161,9 +180,8 @@ function KanbanColumn({
   onAdd,
   onDelete,
   onRename,
-  bg,
-  headerBg,
-  edgeColor,
+  accent,
+  bar,
 }: {
   id: 'todo' | 'doing' | 'done';
   title: string;
@@ -171,36 +189,51 @@ function KanbanColumn({
   onAdd: (status: 'todo' | 'doing' | 'done') => void;
   onDelete: (id: string) => void;
   onRename: (id: string, newTitle: string) => void;
-  bg: string;
-  headerBg: string;
-  edgeColor: string;
+  accent: string;
+  bar: string;
 }) {
   const { setNodeRef } = useDroppable({ id, data: { type: 'Column' } });
 
   return (
-    <div ref={setNodeRef} className={`flex flex-col ${bg} rounded-[32px] p-5 border border-slate-100 h-full`}>
-      <div className={`flex items-center justify-between mb-6 px-3 py-2.5 rounded-2xl ${headerBg} border border-white/50 backdrop-blur-sm`}>
-        <div className="flex items-center gap-3">
-          <div className={`w-2 h-2 rounded-full ${edgeColor}`}></div>
-          <h3 className="font-black text-slate-700 uppercase text-[10px] tracking-[0.15em]">{title}</h3>
-          <span className="bg-white/80 text-slate-500 text-[10px] font-black px-2 py-0.5 rounded-lg border border-white shadow-sm">
-            {tasks.length}
-          </span>
+    <div 
+      ref={setNodeRef} 
+      className="flex flex-col h-full group/column border-2 border-slate-100/80 rounded-[40px] p-7 bg-slate-50/10 hover:bg-slate-50/30 transition-all duration-500 hover:border-indigo-100 shadow-sm"
+    >
+      <div className="flex items-center justify-between mb-10 px-2">
+        <div className="flex items-center gap-4">
+          <div className={`w-3 h-3 rounded-full ${bar} shadow-lg shadow-current opacity-60 animate-pulse`}></div>
+          <div>
+            <h3 className={`font-black uppercase text-[12px] tracking-[0.25em] ${accent}`}>{title}</h3>
+            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5 opacity-60">
+              {tasks.length} {tasks.length === 1 ? 'Logic Gate' : 'Logic Gates'}
+            </p>
+          </div>
         </div>
         <button
           onClick={() => onAdd(id)}
-          className="p-1.5 bg-white/50 hover:bg-white rounded-xl text-slate-400 hover:text-indigo-600 transition-all border border-transparent hover:border-white shadow-sm"
+          className="w-10 h-10 bg-white text-indigo-600 rounded-2xl flex items-center justify-center transition-all border border-slate-100 shadow-sm hover:bg-indigo-600 hover:text-white active:scale-90"
         >
-          <Plus className="w-4 h-4" />
+          <Plus size={20} />
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto min-h-[200px] pr-1 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto min-h-[300px] pr-2 custom-scrollbar space-y-1">
         <SortableContext items={tasks.map((t) => t._id)} strategy={verticalListSortingStrategy}>
           {tasks.map((task) => (
             <SortableTask key={task._id} task={task} onDelete={onDelete} onRename={onRename} />
           ))}
         </SortableContext>
+        
+        {tasks.length === 0 && (
+          <div className="text-center py-20 border-2 border-dashed border-slate-100 rounded-[40px] bg-slate-50/20 group-hover/column:bg-slate-50/50 transition-all">
+            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm mx-auto mb-4 border border-slate-50 text-slate-200">
+               <Check size={24} />
+            </div>
+            <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest px-8 leading-loose">
+              No logic gates assigned to this domain
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -212,47 +245,52 @@ export default function TasksPage() {
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [boardName, setBoardName] = useState('New Board');
+  const [boardDescription, setBoardDescription] = useState('');
 
-  const getAuthInfo = () => {
-    if (typeof window === 'undefined') return { tenantId: null, token: null };
-    const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
-    const tenantId =
-      localStorage.getItem('tenantId') ||
-      (() => {
-        try {
-          return JSON.parse(localStorage.getItem('tenant') || '{}')?._id;
-        } catch { return null; }
-      })() ||
-      (() => {
-        try {
-          return JSON.parse(localStorage.getItem('user') || '{}')?.tenantId;
-        } catch { return null; }
-      })();
-    return { tenantId, token };
-  };
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const boardId = searchParams.get('boardId');
 
-  const fetchTasks = async () => {
-    const { tenantId, token } = getAuthInfo();
-    if (!tenantId || !token) { 
-      setIsLoading(false); 
-      return; 
-    }
+  const fetchBoardData = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/tasks', {
-        headers: { Authorization: `Bearer ${token}`, 'x-tenant-id': tenantId },
-      });
-      if (res.data.success) setTasks(res.data.data);
+      setIsLoading(true);
+      if (!boardId) {
+        setTasks([]);
+        setBoardName('New Board');
+        setBoardDescription('');
+        setIsLoading(false);
+        return;
+      }
+
+      // Fetch Tasks
+      const tasksUrl = `/tasks?boardId=${boardId}`;
+      const tasksRes = await apiService.request(tasksUrl);
+      if (tasksRes.success) setTasks(tasksRes.data);
+
+      // Fetch Board Details
+      try {
+        const boardRes = await apiService.request(`/boards/${boardId}`);
+        if (boardRes.success && boardRes.data) {
+          setBoardName(boardRes.data.name || 'New Board');
+          setBoardDescription(boardRes.data.description || '');
+        }
+      } catch (e) {
+        console.error('Board fetch error:', e);
+      }
     } catch (error) {
       console.error('Fetch error:', error);
-      toast.error('Failed to load tasks');
+      toast.error('Failed to load board data');
     } finally {
       setIsLoading(false);
     }
   };
 
-  useEffect(() => { 
-    fetchTasks(); 
-  }, []);
+  useEffect(() => {
+    fetchBoardData();
+  }, [boardId]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -307,64 +345,97 @@ export default function TasksPage() {
     setActiveTask(null);
   };
 
-  const saveBoard = async () => {
-    const { tenantId, token } = getAuthInfo();
-    if (!tenantId || !token) return;
+  const saveBoard = () => {
+    setIsSaveModalOpen(true);
+  };
+
+  const confirmSaveBoard = async () => {
+    if (!boardName.trim()) {
+      toast.error("Please enter a board name");
+      return;
+    }
+
     setIsSaving(true);
     try {
-      await axios.post(
-        'http://localhost:5000/api/tasks/reorder',
-        { tasks: tasks.map((t, i) => ({ id: t._id, position: i, status: t.status })) },
-        { headers: { Authorization: `Bearer ${token}`, 'x-tenant-id': tenantId } }
-      );
-      toast.success('Kanban saved!');
-    } catch {
-      toast.error('Failed to sync board state');
+      // 1. Save Board Info
+      let currentBoardId = boardId;
+      const boardPayload = {
+        name: boardName,
+        description: boardDescription,
+      };
+
+      if (currentBoardId) {
+        await apiService.request(`/boards/${currentBoardId}`, {
+          method: 'PATCH', // backend usually uses PATCH/PUT for updates
+          body: JSON.stringify(boardPayload)
+        });
+      } else {
+         const boardRes = await apiService.request('/boards', {
+          method: 'POST',
+          body: JSON.stringify(boardPayload)
+        });
+        if (boardRes.success) {
+          currentBoardId = boardRes.data._id;
+        }
+      }
+
+      // 2. Save Tasks (Reorder/Update status)
+      await apiService.request('/tasks/reorder', {
+        method: 'POST',
+        body: JSON.stringify({ 
+          tasks: tasks.map((t, i) => ({ 
+            id: t._id, 
+            position: i, 
+            status: t.status,
+            boardId: currentBoardId
+          })),
+          boardId: currentBoardId
+        }),
+      });
+
+      toast.success(boardId ? 'Architecture Board updated' : 'Architecture Board created successfully');
+      setIsSaveModalOpen(false);
+      router.push('/admin/AllKanban');
+    } catch (error) {
+      console.error('Save error:', error);
+      toast.error('Failed to save architecture');
     } finally {
       setIsSaving(false);
     }
   };
 
   const createTask = async (status: 'todo' | 'doing' | 'done') => {
-    const { tenantId, token } = getAuthInfo();
-    if (!tenantId || !token) return;
     try {
-      const res = await axios.post(
-        'http://localhost:5000/api/tasks',
-        { title: 'New Node', status, position: tasks.length },
-        { headers: { Authorization: `Bearer ${token}`, 'x-tenant-id': tenantId } }
-      );
-      if (res.data.success) setTasks((prev) => [...prev, res.data.data]);
-    } catch {
-      toast.error('Failed to provision new node');
+      const res = await apiService.request('/tasks', {
+        method: 'POST',
+        body: JSON.stringify({ title: 'New Task', status, position: tasks.length, boardId }),
+      });
+      if (res.success) setTasks((prev) => [...prev, res.data]);
+    } catch (error) {
+      toast.error('Failed to provision new task');
     }
   };
 
   const deleteTask = async (id: string) => {
-    const { tenantId, token } = getAuthInfo();
-    if (!tenantId || !token) return;
     setTasks((prev) => prev.filter((t) => t._id !== id));
     try {
-      await axios.delete(`http://localhost:5000/api/tasks/${id}`, {
-        headers: { Authorization: `Bearer ${token}`, 'x-tenant-id': tenantId },
+      await apiService.request(`/tasks/${id}`, {
+        method: 'DELETE',
       });
     } catch {
-      toast.error('Failed to terminate node');
+      toast.error('Failed to terminate task');
     }
   };
 
   const renameTask = async (id: string, newTitle: string) => {
-    const { tenantId, token } = getAuthInfo();
-    if (!tenantId || !token) return;
     setTasks((prev) => prev.map((t) => (t._id === id ? { ...t, title: newTitle } : t)));
     try {
-      await axios.patch(
-        `http://localhost:5000/api/tasks/${id}`,
-        { title: newTitle },
-        { headers: { Authorization: `Bearer ${token}`, 'x-tenant-id': tenantId } }
-      );
+      await apiService.request(`/tasks/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ title: newTitle }),
+      });
     } catch {
-      toast.error('Failed to update node title');
+      toast.error('Failed to update task title');
     }
   };
 
@@ -372,76 +443,172 @@ export default function TasksPage() {
     tasks.filter((t) => t.status === status);
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      {/* Sub-Header with Action Button */}
-      <div className="flex flex-col md:flex-row items-center justify-between gap-6 px-2">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-indigo-600 text-white rounded-2xl shadow-lg shadow-indigo-100">
-            <LayoutDashboard size={20} />
-          </div>
-          <div>
-            <p className="text-sm font-black text-slate-800 tracking-tight uppercase">Kanban</p>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none">Status: {isLoading ? 'Syncing...' : 'Kanban Online'}</p>
-          </div>
-        </div>
+    <div className="min-h-screen bg-gray-50/50 pb-20 -m-8">
+      <AnimatePresence>
+        {isSaveModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white w-full max-w-lg rounded-[32px] overflow-hidden shadow-2xl border border-slate-100"
+            >
+              {/* Modal Header */}
+              <div className="bg-indigo-600 p-8 text-white">
+                <h2 className="text-2xl font-black tracking-tight uppercase">Board Identification</h2>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80 mt-1">Lattice Persistence</p>
+              </div>
 
-        <button
-          onClick={saveBoard}
-          disabled={isSaving || isLoading}
-          className="flex items-center gap-2 px-8 py-3 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-indigo-700 active:scale-95 transition-all shadow-xl shadow-indigo-100 disabled:opacity-50"
-        >
-          <Save size={16} />
-          {isSaving ? 'Synchronizing...' : 'Save Kanban'}
-        </button>
+              {/* Modal Body */}
+              <div className="p-8 space-y-8">
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Board Name</label>
+                  <input 
+                    value={boardName}
+                    onChange={(e) => setBoardName(e.target.value)}
+                    placeholder="Enter board name..."
+                    className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-700 font-bold focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Description (Architecture Details)</label>
+                  <textarea 
+                    value={boardDescription}
+                    onChange={(e) => setBoardDescription(e.target.value)}
+                    placeholder="Describe this architecture..."
+                    className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-700 font-bold focus:border-indigo-500 focus:bg-white outline-none transition-all min-h-[120px] resize-none"
+                  />
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-8 pt-0 flex items-center justify-between">
+                <button 
+                  onClick={() => setIsSaveModalOpen(false)}
+                  className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors"
+                >
+                  Discard
+                </button>
+                <button 
+                  onClick={confirmSaveBoard}
+                  disabled={isSaving}
+                  className="px-10 py-4 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-indigo-700 active:scale-95 transition-all shadow-xl shadow-indigo-100 disabled:opacity-50"
+                >
+                  {isSaving ? 'Synchronizing...' : 'Commit Save'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      {/* Sticky Header */}
+      <div className="bg-white border-b border-gray-100 sticky top-0 z-30 mb-10 shadow-sm">
+        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => window.location.href = '/admin/AllKanban'}
+              className="p-2.5 bg-slate-50 text-slate-400 hover:text-indigo-600 rounded-xl hover:bg-indigo-50 transition-all border border-transparent hover:border-indigo-100"
+              title="Return to Management"
+            >
+              <ChevronLeft size={24} />
+            </button>
+            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-100">
+              <LayoutDashboard className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-black text-slate-800 tracking-tight uppercase">Throughput Designer</h1>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-1">
+                {isLoading ? 'Loading Neural Lattice...' : boardId ? `Architecture Board` : 'Provisioning Master Schema'}
+              </p>
+            </div>
+          </div>
+
+          <button 
+            onClick={saveBoard}
+            disabled={isSaving || isLoading} 
+            className="flex items-center gap-3 px-8 py-3 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-indigo-700 active:scale-95 transition-all shadow-xl shadow-indigo-100 disabled:opacity-50"
+          >
+            {isSaving ? <Clock className="w-4 h-4 animate-spin" /> : <Save size={18} />}
+            {isSaving ? 'Synchronizing...' : 'Save Lattice State'}
+          </button>
+        </div>
       </div>
 
       {/* Board Canvas */}
-      <div className="h-[calc(100vh-280px)] min-h-[500px]">
+      <div className="max-w-7xl mx-auto px-6">
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center h-full bg-white rounded-[40px] border border-slate-100 shadow-sm">
-            <div className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
-            <p className="text-sm font-black text-slate-400 uppercase tracking-widest">Accessing Kanban...</p>
+          <div className="flex flex-col items-center justify-center min-h-[600px] bg-white rounded-[40px] border border-slate-100 shadow-sm">
+            <div className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-6"></div>
+            <p className="text-sm font-black text-slate-400 uppercase tracking-widest">Accessing Schema...</p>
           </div>
         ) : (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCorners}
-            onDragStart={handleDragStart}
-            onDragOver={handleDragOver}
-            onDragEnd={handleDragEnd}
-          >
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 h-full">
-              {COLUMNS.map((col) => (
-                <KanbanColumn
-                  key={col.id}
-                  id={col.id}
-                  title={col.title}
-                  tasks={columnTasks(col.id)}
-                  onAdd={createTask}
-                  onDelete={deleteTask}
-                  onRename={renameTask}
-                  bg={col.bg}
-                  headerBg={col.headerBg}
-                  edgeColor={col.edgeColor}
-                />
-              ))}
+          <div className="bg-white rounded-[40px] border border-slate-100 p-10 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="flex items-center justify-between mb-10 gap-8">
+              <div className="flex-1">
+                <div className="flex items-center gap-4">
+                  <div className="w-1.5 h-8 bg-indigo-600 rounded-full"></div>
+                  <div>
+                    <h2 className="text-3xl font-black text-slate-800 tracking-tight">Workflow Architecture</h2>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-1">Logic Distribution Monitor</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl border border-slate-100">
+                   <div className={`w-2 h-2 rounded-full bg-emerald-500 animate-pulse`}></div>
+                   <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Active Link</span>
+                </div>
+              </div>
             </div>
 
-            <DragOverlay
-              dropAnimation={{
-                sideEffects: defaultDropAnimationSideEffects({
-                  styles: { active: { opacity: '0.5' } },
-                }),
-              }}
+            <div className="h-px bg-slate-50 mb-12"></div>
+
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCorners}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDragEnd={handleDragEnd}
             >
-              {activeTask ? (
-                <div className="bg-white p-5 rounded-2xl border-2 border-indigo-500 shadow-2xl scale-105 cursor-grabbing w-[320px] relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-1 h-full bg-indigo-600"></div>
-                  <h4 className="text-sm font-black text-slate-800">{activeTask.title}</h4>
-                </div>
-              ) : null}
-            </DragOverlay>
-          </DndContext>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-12 min-h-[600px]">
+                {COLUMNS.map((col) => (
+                  <KanbanColumn
+                    key={col.id}
+                    id={col.id}
+                    title={col.title}
+                    tasks={columnTasks(col.id)}
+                    onAdd={createTask}
+                    onDelete={deleteTask}
+                    onRename={renameTask}
+                    accent={col.accent}
+                    bar={col.bar}
+                  />
+                ))}
+              </div>
+
+              <DragOverlay
+                dropAnimation={{
+                  sideEffects: defaultDropAnimationSideEffects({
+                    styles: { active: { opacity: '1' } },
+                  }),
+                }}
+              >
+                {activeTask ? (
+                  <div className="bg-white p-6 rounded-[32px] border-2 border-indigo-500 shadow-[0_30px_60px_-15px_rgba(79,70,229,0.3)] scale-105 cursor-grabbing w-[350px] relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-2 h-full bg-indigo-600"></div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest bg-indigo-50 px-1.5 py-0.5 rounded">
+                        Moving Task
+                      </span>
+                    </div>
+                    <h4 className="text-sm font-black text-slate-800 leading-relaxed">{activeTask.title}</h4>
+                  </div>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
+          </div>
         )}
       </div>
     </div>

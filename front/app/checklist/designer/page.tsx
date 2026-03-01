@@ -1,5 +1,7 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
+
 const API_URL = 'http://localhost:5000/api';
 
 import React, { useState, useEffect } from 'react';
@@ -11,7 +13,7 @@ import { CSS } from '@dnd-kit/utilities';
 import {  
   CheckSquare, Plus, Trash2, GripVertical, ListTodo, AlertCircle, Save, Clock, ChevronLeft, Check, X
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
 import axios from 'axios';
 
@@ -95,12 +97,16 @@ function SortableTask({ task, onUpdate, onDelete }: any) {
 }
 
 export default function WorkflowChecklist() {
+  const router = useRouter();
   const [tasks, setTasks] = useState<WorkflowTask[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [checklistName, setChecklistName] = useState('Workflow Checklist');
   const [checklistStatus, setChecklistStatus] = useState<'draft' | 'completed'>('draft');
   const [checklistId, setChecklistId] = useState<string | null>(null);
+  const [checklistDescription, setChecklistDescription] = useState('');
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -135,6 +141,7 @@ export default function WorkflowChecklist() {
         const checklist = res.data.data;
         setTasks(checklist.tasks || []);
         setChecklistName(checklist.name);
+        setChecklistDescription(checklist.description || '');
         setChecklistStatus(checklist.status || 'draft');
         setChecklistId(checklist._id);
       }
@@ -172,7 +179,16 @@ export default function WorkflowChecklist() {
     toast.error('Task removed');
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
+    setIsSaveModalOpen(true);
+  };
+
+  const confirmSave = async () => {
+    if (!checklistName.trim()) {
+      toast.error("Veuillez saisir un nom pour la checklist.");
+      return;
+    }
+
     setIsSaving(true);
     try {
       const token = localStorage.getItem('auth_token');
@@ -192,6 +208,7 @@ export default function WorkflowChecklist() {
 
       const response = await axios[method](url, {
         name: checklistName,
+        description: checklistDescription,
         tasks: tasks,
         status: checklistStatus
       }, {
@@ -204,6 +221,8 @@ export default function WorkflowChecklist() {
       if (response.data.success) {
         if (!checklistId) setChecklistId(response.data.data._id);
         toast.success('Workflow saved successfully');
+        setIsSaveModalOpen(false);
+        router.push('/admin/AllCheck');
       } else {
         toast.error(response.data.message || 'Synchronization failed');
       }
@@ -221,13 +240,68 @@ export default function WorkflowChecklist() {
   return (
     <div className="min-h-screen bg-gray-50/50 pb-20">
       <Toaster position="top-right" richColors />
+      <AnimatePresence>
+        {isSaveModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white w-full max-w-lg rounded-[32px] overflow-hidden shadow-2xl border border-slate-100"
+            >
+              <div className="bg-indigo-600 p-8 text-white">
+                <h2 className="text-2xl font-black tracking-tight uppercase">Checklist Identification</h2>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80 mt-1">Lattice Persistence</p>
+              </div>
+
+              <div className="p-8 space-y-8">
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Checklist Name</label>
+                  <input 
+                    value={checklistName}
+                    onChange={(e) => setChecklistName(e.target.value)}
+                    placeholder="Enter checklist name..."
+                    className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-700 font-bold focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Description (What is this for?)</label>
+                  <textarea 
+                    value={checklistDescription}
+                    onChange={(e) => setChecklistDescription(e.target.value)}
+                    placeholder="Describe the purpose of this checklist..."
+                    className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-700 font-bold focus:border-indigo-500 focus:bg-white outline-none transition-all min-h-[120px] resize-none"
+                  />
+                </div>
+              </div>
+
+              <div className="p-8 pt-0 flex items-center justify-between">
+                <button 
+                  onClick={() => setIsSaveModalOpen(false)}
+                  className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors"
+                >
+                  Discard
+                </button>
+                <button 
+                  onClick={confirmSave}
+                  disabled={isSaving}
+                  className="px-10 py-4 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-indigo-700 active:scale-95 transition-all shadow-xl shadow-indigo-100 disabled:opacity-50"
+                >
+                  {isSaving ? 'Synchronizing...' : 'Commit Save'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
       
       {/* Standalone Header */}
       <div className="bg-white border-b border-gray-100 sticky top-0 z-30 mb-10 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button 
-              onClick={() => window.location.href = '/admin/AllCheck'}
+              onClick={() => router.push('/admin/AllCheck')}
               className="p-2.5 bg-slate-50 text-slate-400 hover:text-indigo-600 rounded-xl hover:bg-indigo-50 transition-all border border-transparent hover:border-indigo-100"
               title="Back to Management"
             >

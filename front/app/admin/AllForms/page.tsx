@@ -43,7 +43,7 @@ export default function AllFormsPage() {
       const tenant = localStorage.getItem('tenant') ? JSON.parse(localStorage.getItem('tenant') || 'null') : null;
       const tenantId = localStorage.getItem('tenantId') || tenant?._id || user?.tenantId;
 
-      const response = await axios.get('http://localhost:5000/api/forms', {
+      const response = await axios.get('http://localhost:5001/api/forms', {
         headers: { 
           Authorization: `Bearer ${token}`,
           'x-tenant-id': tenantId
@@ -71,7 +71,7 @@ export default function AllFormsPage() {
       const tenant = JSON.parse(localStorage.getItem('tenant') || 'null');
       const tenantId = localStorage.getItem('tenantId') || tenant?._id || user?.tenantId;
 
-      const response = await axios.post(`http://localhost:5000/api/forms/${id}/clone`, {}, {
+      const response = await axios.post(`http://localhost:5001/api/forms/${id}/clone`, {}, {
         headers: { 
           Authorization: `Bearer ${token}`,
           'x-tenant-id': tenantId
@@ -93,7 +93,7 @@ export default function AllFormsPage() {
       const tenant = JSON.parse(localStorage.getItem('tenant') || 'null');
       const tenantId = localStorage.getItem('tenantId') || tenant?._id || user?.tenantId;
 
-      const response = await axios.delete(`http://localhost:5000/api/forms/${id}`, {
+      const response = await axios.delete(`http://localhost:5001/api/forms/${id}`, {
         headers: { 
           Authorization: `Bearer ${token}`,
           'x-tenant-id': tenantId

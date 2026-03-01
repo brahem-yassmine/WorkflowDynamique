@@ -23,21 +23,14 @@ async function getTenantConnection(domain, dbName) {
   const uri = `${baseUri}/${dbName}`;
   console.log(`🔗 [TenantConn] URI: ${uri}`);
 
-  // Créer une nouvelle connexion
-  // Create a new connection
-  const conn = mongoose.createConnection(uri, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-    poolSize: 10
-  });
   try {
-    // Créer une nouvelle connexion
+    // Créer une nouvelle connexion - Remove poolSize (not supported in newer Mongo drivers)
     const conn = mongoose.createConnection(uri);
 
     // Attendre que la connexion soit prête
     console.log(`⏳ [TenantConn] Attente connexion...`);
     await new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error('Timeout connection tenant')), 10000);
+      const timeout = setTimeout(() => reject(new Error('Timeout connection tenant')), 15000);
       conn.once('open', () => {
         clearTimeout(timeout);
         resolve();
@@ -49,53 +42,38 @@ async function getTenantConnection(domain, dbName) {
     });
     console.log(`✅ [TenantConn] MongoDB connecté: ${dbName}`);
 
-  // ATTACH TENANT MODELS TO THIS CONNECTION
-  conn.model('User', require('../models/tenant/User')(conn).schema);
-  conn.model('Workflow', require('../models/tenant/Workflow')(conn).schema);
-  conn.model('DynamicForm', require('../models/tenant/DynamicForm')(conn).schema);
-  // Ajoute ici tous tes autres modèles tenant
-  // Add all your other tenant models here
-    //  ATTACHER LES MODÈLES DU TENANT À CETTE CONNEXION
+    // ATTACHER LES MODÈLES DU TENANT À CETTE CONNEXION
     console.log(`📦 [TenantConn] Chargement des modèles...`);
 
-    try {
-      console.log(' - User...');
-      require('../models/tenant/User')(conn);
-      console.log(' - Workflow...');
-      require('../models/tenant/Workflow')(conn);
-      console.log(' - DynamicForm...');
-      require('../models/tenant/DynamicForm')(conn);
-      console.log(' - Checklist...');
-      require('../models/tenant/Checklist')(conn);
-      console.log(' - FormResponse...');
-      require('../models/tenant/FormResponse')(conn);
-      console.log(' - Task...');
-      require('../models/tenant/Task')(conn);
-      console.log(' - Project...');
-      require('../models/tenant/Project')(conn);
-      console.log(' - Role...');
-      require('../models/tenant/role.model')(conn);
-      console.log(' - Domain...');
-      require('../models/tenant/domain.model')(conn);
-      console.log(' - Department...');
-      require('../models/tenant/department.model')(conn);
-      console.log(' - Subscription...');
-      require('../models/tenant/Subscription')(conn);
-      console.log(' - WorkflowInstance...');
-      require('../models/tenant/WorkflowInstance')(conn);
-      console.log(' - ActivityLog...');
-      require('../models/tenant/ActivityLog')(conn);
-      console.log(' - Notification...');
-      require('../models/tenant/Notification')(conn);
-      console.log('✅ [TenantConn] Modèles chargés');
-    } catch (modelError) {
-      console.error('❌ [TenantConn] Erreur chargement modèles:', modelError);
-      throw modelError;
+    const tenantModels = [
+      'User',
+      'Workflow',
+      'WorkflowInstance',
+      'DynamicForm',
+      'Form',
+      'Checklist',
+      'FormResponse',
+      'Task',
+      'Project',
+      'role.model',
+      'domain.model',
+      'department.model',
+      'Subscription',
+      'ActivityLog',
+      'Notification'
+    ];
+
+    for (const modelName of tenantModels) {
+      try {
+        const modelFactory = require(`../models/tenant/${modelName}`);
+        modelFactory(conn);
+      } catch (err) {
+        console.warn(`⚠️ [TenantConn] Impossible de charger le modèle ${modelName}: ${err.message}`);
+      }
     }
 
-  console.log(` Connexion établie pour le tenant: ${tenantSlug}`);
-  console.log(` Connection established for tenant: ${tenantSlug}`);
-  return conn;
+    console.log(`✅ [TenantConn] Modèles chargés pour ${domain}`);
+
     // Mettre en cache
     connections[domain] = conn;
 
@@ -109,8 +87,8 @@ async function getTenantConnection(domain, dbName) {
 
 // Function to close all connections (useful for tests)
 async function closeAllConnections() {
-  for (const slug in connections) {
-    await connections[slug].close();
+  for (const domain in connections) {
+    await connections[domain].close();
   }
 }
 

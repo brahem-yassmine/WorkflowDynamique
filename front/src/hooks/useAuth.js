@@ -19,7 +19,7 @@ export const useAuth = () => {
 
       try {
         // Vérifier si le token est valide
-        const response = await axios.get('http://localhost:5000/api/auth/profile', {
+        const response = await axios.get('http://localhost:5001/api/auth/profile', {
           headers: { Authorization: `Bearer ${token}` }
         });
 

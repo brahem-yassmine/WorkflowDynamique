@@ -185,7 +185,7 @@ export default function FormBuilder() {
       const tenantId = tenant?._id || user?.tenantId || user?._id;
       if (!tenantId) return toast.error("Tenant ID missing.");
       
-      const res = await axios.post('http://localhost:5000/api/forms', { name: steps[0].title || "Untitled Form", steps, description: "Form created with Form Builder" }, { headers: { 'Authorization': `Bearer ${token}`, 'x-tenant-id': tenantId }});
+      const res = await axios.post('http://localhost:5001/api/forms', { name: steps[0].title || "Untitled Form", steps, description: "Form created with Form Builder" }, { headers: { 'Authorization': `Bearer ${token}`, 'x-tenant-id': tenantId }});
       if (res.data.success) toast.success('Form saved!');
     } catch (e: any) { toast.error('Save failed: ' + (e.response?.data?.message || e.message)); }
     finally { setIsSaving(false); }

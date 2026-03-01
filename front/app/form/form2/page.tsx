@@ -44,14 +44,14 @@ export default function Form2Page() {
 
       // 1. Fetch Form
       if (formId) {
-        const res = await axios.get(`http://localhost:5000/api/forms/${formId}`, {
+        const res = await axios.get(`http://localhost:5001/api/forms/${formId}`, {
           headers: { 'Authorization': `Bearer ${token}`, 'x-tenant-id': tenantId }
         });
         if (res.data.success) {
           setForm(res.data.data);
         }
       } else {
-        const res = await axios.get('http://localhost:5000/api/forms', {
+        const res = await axios.get('http://localhost:5001/api/forms', {
           headers: { 'Authorization': `Bearer ${token}`, 'x-tenant-id': tenantId }
         });
         if (res.data.success && res.data.data.length > 0) {
@@ -116,7 +116,7 @@ export default function Form2Page() {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       const tenantId = tenant?._id || user?.tenantId;
 
-      const res = await axios.post(`http://localhost:5000/api/forms/${form._id}/submit`,
+      const res = await axios.post(`http://localhost:5001/api/forms/${form._id}/submit`,
         { data: formData },
         { headers: { 'Authorization': `Bearer ${token}`, 'x-tenant-id': tenantId } }
       );
@@ -140,7 +140,7 @@ export default function Form2Page() {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       const tenantId = tenant?._id || user?.tenantId;
 
-      const res = await axios.patch(`http://localhost:5000/api/forms/${form._id}/status`,
+      const res = await axios.patch(`http://localhost:5001/api/forms/${form._id}/status`,
         { status },
         { headers: { 'Authorization': `Bearer ${token}`, 'x-tenant-id': tenantId } }
       );

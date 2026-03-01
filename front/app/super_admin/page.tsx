@@ -77,7 +77,7 @@ export default function SuperAdminDashboard() {
         return;
       }
 
-      const tenantsResponse = await fetch('http://localhost:5000/api/admin/tenants', {
+      const tenantsResponse = await fetch('http://localhost:5001/api/admin/tenants', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 

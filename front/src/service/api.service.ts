@@ -1,5 +1,5 @@
 // front/src/services/api.service.ts
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 
 class ApiService {
   private getToken(): string | null {

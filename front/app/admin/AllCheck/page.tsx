@@ -39,7 +39,7 @@ export default function AllChecklistsPage() {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       const tenantId = localStorage.getItem('tenantId') || tenant?._id || user?.tenantId;
 
-      const response = await axios.get('http://localhost:5000/api/checklists', {
+      const response = await axios.get('http://localhost:5001/api/checklists', {
         headers: { 
           Authorization: `Bearer ${token}`,
           'x-tenant-id': tenantId
@@ -69,7 +69,7 @@ export default function AllChecklistsPage() {
 
       // Check if clone endpoint exists, if not do it manually
       try {
-        const response = await axios.post(`http://localhost:5000/api/checklists/${id}/clone`, {}, {
+        const response = await axios.post(`http://localhost:5001/api/checklists/${id}/clone`, {}, {
           headers: { 
             Authorization: `Bearer ${token}`,
             'x-tenant-id': tenantId
@@ -84,7 +84,7 @@ export default function AllChecklistsPage() {
         // Fallback to manual clone if endpoint fails
         const checklistToClone = checklists.find(c => c._id === id);
         if (checklistToClone) {
-           await axios.post('http://localhost:5000/api/checklists', {
+           await axios.post('http://localhost:5001/api/checklists', {
              name: `${checklistToClone.name} (copy)`,
              tasks: checklistToClone.tasks
            }, {
@@ -109,7 +109,7 @@ export default function AllChecklistsPage() {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       const tenantId = localStorage.getItem('tenantId') || tenant?._id || user?.tenantId;
 
-      const response = await axios.delete(`http://localhost:5000/api/checklists/${id}`, {
+      const response = await axios.delete(`http://localhost:5001/api/checklists/${id}`, {
         headers: { 
           Authorization: `Bearer ${token}`,
           'x-tenant-id': tenantId

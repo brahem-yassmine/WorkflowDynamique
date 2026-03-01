@@ -536,7 +536,7 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
                                                         <Button
                                                             variant="ghost"
                                                             size="sm"
-                                                            onClick={() => router.push(`/checklist/${linkedObjectId}`)}
+                                                            onClick={() => router.push(`/checklist/designer?id=${linkedObjectId}`)}
                                                             className="text-indigo-600 font-black text-[10px] uppercase tracking-widest gap-2"
                                                         >
                                                             Open <ExternalLink size={14} />
@@ -621,7 +621,7 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
                                                         <Button
                                                             variant="ghost"
                                                             size="sm"
-                                                            onClick={() => router.push(`/form/${linkedObjectId}`)}
+                                                            onClick={() => router.push(`/form?id=${linkedObjectId}`)}
                                                             className="text-emerald-600 font-black text-[10px] uppercase tracking-widest gap-2"
                                                         >
                                                             Edit Form <ExternalLink size={14} />
@@ -672,7 +672,7 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
                                                         <Button
                                                             variant="ghost"
                                                             size="sm"
-                                                            onClick={() => router.push(`/kanban/${linkedObjectId}`)}
+                                                            onClick={() => router.push(`/kanban`)}
                                                             className="text-blue-600 font-black text-[10px] uppercase tracking-widest gap-2"
                                                         >
                                                             View Board <ExternalLink size={14} />

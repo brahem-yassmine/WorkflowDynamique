@@ -122,7 +122,7 @@ export default function WorkflowChecklist() {
 
       if (!tenantId || !token) return;
 
-      const res = await axios.get(`http://localhost:5000/api/checklists/${targetId}`, {
+      const res = await axios.get(`http://localhost:5001/api/checklists/${targetId}`, {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'x-tenant-id': tenantId 
@@ -185,8 +185,8 @@ export default function WorkflowChecklist() {
 
       const method = checklistId ? 'put' : 'post';
       const url = checklistId 
-        ? `http://localhost:5000/api/checklists/${checklistId}` 
-        : 'http://localhost:5000/api/checklists';
+        ? `http://localhost:5001/api/checklists/${checklistId}` 
+        : 'http://localhost:5001/api/checklists';
 
       const response = await axios[method](url, {
         name: checklistName,

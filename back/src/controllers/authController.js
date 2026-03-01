@@ -567,10 +567,37 @@ const resetPassword = async (req, res) => {
   }
 };
 
+// ====================================
+// GET PROFILE
+// ====================================
+const getProfile = async (req, res) => {
+  try {
+    // req.user is populated by the auth middleware
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Not authenticated'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: req.user
+    });
+  } catch (error) {
+    console.error('❌ getProfile Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error: ' + error.message
+    });
+  }
+};
+
 module.exports = {
   login,
   registerTenant,
   registerSuperAdmin,
   forgotPassword,
-  resetPassword
+  resetPassword,
+  getProfile
 };

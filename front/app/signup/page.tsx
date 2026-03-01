@@ -88,7 +88,7 @@ export default function SignupPage() {
     const fetchPlans = async () => {
       try {
         console.log("📦 Loading plans...");
-        const response = await axios.get("http://localhost:5000/api/plans");
+        const response = await axios.get("http://localhost:5001/api/plans");
         console.log("✅ Plans received:", response.data);
 
         if (response.data.success && response.data.data) {
@@ -257,7 +257,7 @@ export default function SignupPage() {
       console.log("📤 Sending registration with plan:", formData.planId);
 
       const response = await axios.post(
-        "http://localhost:5000/api/auth/register",
+        "http://localhost:5001/api/auth/register",
         {
           companyName: formData.companyName,
           adminEmail: formData.adminEmail,

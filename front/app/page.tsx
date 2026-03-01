@@ -133,7 +133,7 @@ export default function LandingPage() {
       try {
         setLoading(true);
         console.log("📦 Loading plans...");
-        const response = await axios.get("http://localhost:5000/api/plans");
+        const response = await axios.get("http://localhost:5001/api/plans");
         console.log("✅ Plans received:", response.data);
 
         let plansData = [];

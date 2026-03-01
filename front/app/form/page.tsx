@@ -202,7 +202,7 @@ export default function FormBuilder() {
       const token = localStorage.getItem('auth_token');
       const tenantId = localStorage.getItem('tenantId');
       
-      const res = await axios.get(`http://localhost:5000/api/forms/${id}`, {
+      const res = await axios.get(`http://localhost:5001/api/forms/${id}`, {
         headers: { 
           Authorization: `Bearer ${token}`,
           'x-tenant-id': tenantId
@@ -250,7 +250,7 @@ export default function FormBuilder() {
       let res;
       if (formId) {
         // Update existing form
-        res = await axios.put(`http://localhost:5000/api/forms/${formId}`, payload, {
+        res = await axios.put(`http://localhost:5001/api/forms/${formId}`, payload, {
           headers: { 
             'Authorization': `Bearer ${token}`, 
             'x-tenant-id': tenantId 
@@ -258,7 +258,7 @@ export default function FormBuilder() {
         });
       } else {
         // Create new form
-        res = await axios.post('http://localhost:5000/api/forms', payload, {
+        res = await axios.post('http://localhost:5001/api/forms', payload, {
           headers: { 
             'Authorization': `Bearer ${token}`, 
             'x-tenant-id': tenantId 

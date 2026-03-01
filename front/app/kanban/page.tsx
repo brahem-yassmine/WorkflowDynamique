@@ -236,7 +236,7 @@ export default function TasksPage() {
       return; 
     }
     try {
-      const res = await axios.get('http://localhost:5000/api/tasks', {
+      const res = await axios.get('http://localhost:5001/api/tasks', {
         headers: { Authorization: `Bearer ${token}`, 'x-tenant-id': tenantId },
       });
       if (res.data.success) setTasks(res.data.data);
@@ -311,7 +311,7 @@ export default function TasksPage() {
     setIsSaving(true);
     try {
       await axios.post(
-        'http://localhost:5000/api/tasks/reorder',
+        'http://localhost:5001/api/tasks/reorder',
         { tasks: tasks.map((t, i) => ({ id: t._id, position: i, status: t.status })) },
         { headers: { Authorization: `Bearer ${token}`, 'x-tenant-id': tenantId } }
       );
@@ -328,7 +328,7 @@ export default function TasksPage() {
     if (!tenantId || !token) return;
     try {
       const res = await axios.post(
-        'http://localhost:5000/api/tasks',
+        'http://localhost:5001/api/tasks',
         { title: 'New Node', status, position: tasks.length },
         { headers: { Authorization: `Bearer ${token}`, 'x-tenant-id': tenantId } }
       );
@@ -343,7 +343,7 @@ export default function TasksPage() {
     if (!tenantId || !token) return;
     setTasks((prev) => prev.filter((t) => t._id !== id));
     try {
-      await axios.delete(`http://localhost:5000/api/tasks/${id}`, {
+      await axios.delete(`http://localhost:5001/api/tasks/${id}`, {
         headers: { Authorization: `Bearer ${token}`, 'x-tenant-id': tenantId },
       });
     } catch {
@@ -357,7 +357,7 @@ export default function TasksPage() {
     setTasks((prev) => prev.map((t) => (t._id === id ? { ...t, title: newTitle } : t)));
     try {
       await axios.patch(
-        `http://localhost:5000/api/tasks/${id}`,
+        `http://localhost:5001/api/tasks/${id}`,
         { title: newTitle },
         { headers: { Authorization: `Bearer ${token}`, 'x-tenant-id': tenantId } }
       );

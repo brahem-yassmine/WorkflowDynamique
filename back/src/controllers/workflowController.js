@@ -53,8 +53,7 @@ exports.getWorkflows = async (req, res) => {
             domain: { $in: domainsToMatch },
             $or: [
               { projectId: { $exists: false } },
-              { projectId: null },
-              { projectId: '' }
+              { projectId: null }
             ]
           }
         ];
@@ -86,7 +85,7 @@ exports.getWorkflows = async (req, res) => {
     console.error('❌ getWorkflows Error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: 'Server error: ' + error.message
     });
   }
 };

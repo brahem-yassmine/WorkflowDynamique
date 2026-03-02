@@ -1,27 +1,50 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import UserSidebar from "../User/comp";
-import Header from "../User/header";
+import UserHeader from "../User/header";
+import AdminSidebar from "../admin/components/sidebar";
+import AdminHeader from "../admin/components/header";
 
 export default function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const [role, setRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      setRole(user.role);
+    }
+  }, []);
+
+  const isAdmin = role === 'admin' || role === 'super_admin';
+
   return (
     <div className="flex h-screen bg-slate-50 text-slate-900 overflow-hidden">
 
       {/* Sidebar Section */}
-      <div className="w-72 flex-none">
+      <div className="w-64 flex-none">
         <div className="h-full bg-white border-r border-slate-200">
-          <UserSidebar />
+          {isAdmin ? <AdminSidebar /> : <UserSidebar />}
         </div>
       </div>
 
       {/* Content Vertical Area */}
       <div className="flex-1 flex flex-col min-w-0">
 
-        {/* Existing Dynamic Header */}
+        {/* Dynamic Header */}
         <div className="flex-none">
-          <Header />
+          {isAdmin ? (
+            <AdminHeader
+              title="Execution Monitor"
+              subtitle="Real-time flow forensic and node synchronization audit."
+            />
+          ) : (
+            <UserHeader />
+          )}
         </div>
 
         {/* Main Fluid Content */}

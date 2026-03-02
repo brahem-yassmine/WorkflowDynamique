@@ -42,9 +42,9 @@ function UserSidebar() {
             <span className="text-sm font-bold">My Profile</span>
           </Link>
 
-          <Link href="/User/create_workflows" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-xl transition-all group">
+          <Link href="/User/Workflows?tab=registry" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-xl transition-all group">
             <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform duration-300" />
-            <span className="text-sm font-bold">New Workflow</span>
+            <span className="text-sm font-bold">Start Process</span>
           </Link>
 
           <Link href="/User/Notifications" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-xl transition-all group">

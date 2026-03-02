@@ -19,9 +19,14 @@ export default function InstancePage({ params }: { params: Promise<{ instanceId:
     const [workflow, setWorkflow] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [selectedNode, setSelectedNode] = useState<any>(null);
+    const [userRole, setUserRole] = useState<string | null>(null);
 
     const fetchData = async () => {
         try {
+            if (typeof window !== 'undefined') {
+                const user = JSON.parse(localStorage.getItem('user') || '{}');
+                setUserRole(user.role);
+            }
             if (instanceId === 'new') {
                 if (workflowId) {
                     const res = await apiService.getWorkflowById(workflowId);
@@ -66,12 +71,13 @@ export default function InstancePage({ params }: { params: Promise<{ instanceId:
     const displayEdges = instance?.workflowId?.edges || workflow?.edges || [];
     const currentNodes = instance?.currentNodes?.map((n: any) => n.nodeId) || (instanceId === 'new' ? [displayNodes.find((n: any) => n.type === 'start')?.id].filter(Boolean) : []);
     const history = instance?.executionPath || [];
+    const backPath = userRole === 'admin' || userRole === 'super_admin' ? '/admin/operations' : '/User/Workflows';
 
     return (
         <div className="flex flex-col h-full w-full space-y-6 relative overflow-hidden">
             <div className="flex items-center justify-between bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
                 <div className="flex items-center gap-6">
-                    <Link href="/User/Workflows" className="p-3 bg-slate-50 text-slate-500 rounded-2xl hover:bg-slate-900 hover:text-white transition-all">
+                    <Link href={backPath} className="p-3 bg-slate-50 text-slate-500 rounded-2xl hover:bg-slate-900 hover:text-white transition-all">
                         <ChevronLeft size={20} />
                     </Link>
                     <div>

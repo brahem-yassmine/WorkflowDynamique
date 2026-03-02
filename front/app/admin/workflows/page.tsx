@@ -17,12 +17,13 @@ import {
   Archive,
   ArrowRight,
   Copy,
-  Briefcase
+  Briefcase,
+  Play
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiService } from '@/service/api.service';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 interface Workflow {
   _id: string;
@@ -55,10 +56,29 @@ export default function WorkflowsPage() {
 
   const searchParams = useSearchParams();
   const projectIdFilter = searchParams.get('projectId');
+  const router = useRouter();
 
   useEffect(() => {
     fetchData();
   }, [projectIdFilter]);
+
+  const handleInitialize = async (id: string | undefined) => {
+    if (!id) return;
+    try {
+      const res = await apiService.request(`/workflows/${id}/execute`, {
+        method: 'POST',
+        body: JSON.stringify({ title: `Admin Initialization: ${new Date().toLocaleString()}` })
+      });
+      if (res.success) {
+        alert('Workflow initialized successfully!');
+        router.push(`/Workflows/instances/${res.data._id}`);
+      } else {
+        alert(res.message || 'Initialization failed');
+      }
+    } catch (error: any) {
+      alert('Execution error: ' + error.message);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -213,9 +233,9 @@ export default function WorkflowsPage() {
               <div className="w-20 h-20 bg-slate-50 rounded-2xl flex items-center justify-center mb-6 text-slate-300">
                 <GitBranch size={40} />
               </div>
-              <h3 className="text-xl font-black text-slate-800 tracking-tight">No Flow Found</h3>
-              <p className="text-slate-500 mt-2 max-w-xs">Start architecting your organization logic by creating your first workflow.</p>
-              <Link href="/admin/create_workflows" className="mt-8">
+              <h3 className="text-xl font-black text-slate-800 tracking-tight">No Schema Found</h3>
+              <p className="text-slate-500 mt-2 max-w-xs text-sm">Browse our inspiration library or start architecting your first organizational logic schema.</p>
+              <Link href="/create-workflow" className="mt-8">
                 <button className="px-8 py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-all">
                   Get Started
                 </button>
@@ -341,12 +361,21 @@ export default function WorkflowsPage() {
                 </div>
 
                 <div className="pt-8 border-t border-slate-50 space-y-3">
-                  <Link href={`/create-workflow?id=${selectedWorkflow._id}`} className="block">
-                    <button className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all active:scale-95 shadow-lg shadow-indigo-100">
-                      <Layers size={16} />
-                      Edit Visual Flow
+                  <div className="flex gap-3">
+                    <Link href={`/create-workflow?id=${selectedWorkflow._id}`} className="flex-1">
+                      <button className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all active:scale-95 shadow-lg shadow-indigo-100">
+                        <Layers size={16} />
+                        Edit Visual Flow
+                      </button>
+                    </Link>
+                    <button
+                      onClick={() => handleInitialize(selectedWorkflow._id)}
+                      className="px-6 py-4 bg-emerald-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all active:scale-95 shadow-lg shadow-emerald-100"
+                    >
+                      <Play size={16} fill="white" />
+                      Run
                     </button>
-                  </Link>
+                  </div>
                   <div className="flex gap-3">
                     <button
                       onClick={() => handleDuplicate(selectedWorkflow._id)}

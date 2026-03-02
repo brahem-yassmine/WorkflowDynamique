@@ -15,7 +15,8 @@ import {
   TrendingUp,
   Activity,
   AlertCircle,
-  ChevronRight
+  ChevronRight,
+  Copy
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiService } from '@/service/api.service';
@@ -50,7 +51,9 @@ export default function UserWorkflowsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [user, setUser] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'tasks' | 'registry'>('tasks');
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const initialTab = searchParams?.get('tab') === 'registry' ? 'registry' : 'tasks';
+  const [activeTab, setActiveTab] = useState<'tasks' | 'registry'>(initialTab);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -101,9 +104,11 @@ export default function UserWorkflowsPage() {
 
       setInstances(combinedInstances);
 
-      // Auto switch tab if there are tasks
-      if (combinedInstances.length > 0) setActiveTab('tasks');
-      else setActiveTab('registry');
+      // Only auto-switch if no specific tab was requested
+      if (!searchParams?.get('tab')) {
+        if (combinedInstances.length > 0) setActiveTab('tasks');
+        else setActiveTab('registry');
+      }
 
     } catch (error) {
       console.error('Error fetching page data:', error);
@@ -306,6 +311,18 @@ export default function UserWorkflowsPage() {
                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Domain</p>
                         <p className="text-xs font-black text-indigo-600">{workflow.domain}</p>
                       </div>
+                    </div>
+
+                    <div className="flex gap-2 mb-3">
+                      <Link href={`/create-workflow?id=${workflow._id}`} className="flex-1">
+                        <button className="w-full py-3 bg-white border border-slate-100 text-slate-600 rounded-xl font-black text-[9px] uppercase tracking-widest flex items-center justify-center gap-1.5 hover:bg-slate-50 transition-all">
+                          <Layers size={12} />
+                          Architect
+                        </button>
+                      </Link>
+                      <button className="px-4 py-3 bg-white border border-slate-100 text-slate-400 rounded-xl hover:text-indigo-600 transition-all">
+                        <Copy size={12} />
+                      </button>
                     </div>
 
                     <Link href={`/Workflows/instances/new?workflowId=${workflow._id}`}>

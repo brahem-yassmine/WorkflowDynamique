@@ -12,6 +12,10 @@ const PAGE_METADATA: Record<string, { title: string, subtitle: string }> = {
         title: "Command Center",
         subtitle: "Manage your organization's workflows and talent."
     },
+    '/admin/operations': {
+        title: "Operational Control",
+        subtitle: "Monitor active processes, validate global tasks, and analyze organizational throughput."
+    },
     '/admin/projects': {
         title: "Project Portfolios",
         subtitle: "Organize and group your workflows into strategic projects."
@@ -37,8 +41,8 @@ const PAGE_METADATA: Record<string, { title: string, subtitle: string }> = {
         subtitle: "Manage and monitor your organizational throughput boards"
     },
     '/admin/workflows': {
-        title: "Flow Orchestration",
-        subtitle: "Architect business logic, manage phase alerts, and monitor execution cycles."
+        title: "Workflow Design Studio",
+        subtitle: "Architect business logic, browse process inspirations, and orchestrate organizational flow."
     },
     '/admin/billing': {
         title: "Fiscal Intelligence",

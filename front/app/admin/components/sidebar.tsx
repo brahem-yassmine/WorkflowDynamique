@@ -17,11 +17,13 @@ import {
   LogOut,
   Zap,
   ChevronRight,
-  ListTodo
+  ListTodo,
+  Activity
 } from 'lucide-react';
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Command Center", href: "/admin" },
+  { icon: Activity, label: "Live Operations", href: "/admin/operations" },
   { icon: Users, label: "User Network", href: "/admin/userManagement" },
   { icon: LayoutGrid, label: "Structural Domains", href: "/admin/domains" },
   { icon: ShieldCheck, label: "Authority Roles", href: "/admin/roles" },

@@ -7,7 +7,27 @@ const { recordActivity } = require('../services/auditLogger');
 exports.getProjects = async (req, res) => {
     try {
         const Project = req.tenantConn.model('Project');
-        const projects = await Project.find().sort({ createdAt: -1 });
+        const user = req.user;
+
+        let query = {};
+
+        // If not admin, filter by domain visibility or ownership
+        if (user.role !== 'admin' && user.role !== 'super_admin') {
+            const domainsToMatch = [user.domain];
+            if (user.domain === 'HR' || user.domain === 'RH') {
+                domainsToMatch.push(user.domain === 'HR' ? 'RH' : 'HR');
+            }
+
+            query = {
+                $or: [
+                    { isAllDomains: true },
+                    { allowedDomains: { $in: domainsToMatch } },
+                    { createdBy: user.userId }
+                ]
+            };
+        }
+
+        const projects = await Project.find(query).sort({ createdAt: -1 });
 
         res.json({
             success: true,
@@ -57,7 +77,7 @@ exports.getProjectById = async (req, res) => {
 // ============================================
 exports.createProject = async (req, res) => {
     try {
-        const { name, description, status } = req.body;
+        const { name, description, status, allowedDomains, isAllDomains } = req.body;
         const Project = req.tenantConn.model('Project');
 
         if (!name) {
@@ -71,6 +91,8 @@ exports.createProject = async (req, res) => {
             name,
             description: description || '',
             status: status || 'planning',
+            allowedDomains: allowedDomains || [],
+            isAllDomains: isAllDomains !== undefined ? isAllDomains : true,
             createdBy: req.user.userId
         });
 

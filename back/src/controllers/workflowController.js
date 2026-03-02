@@ -13,22 +13,61 @@ exports.getWorkflows = async (req, res) => {
   try {
     const { domain, status } = req.query;
 
-    // Get Workflow model from tenant connection
+    // Get models from tenant connection
     const Workflow = req.tenantConn.model('Workflow');
+    const Project = req.tenantConn.model('Project');
+    const user = req.user;
 
-    // REMOVE tenantId from query
-    const query = {};
     const { projectId } = req.query;
+    let query = {};
 
-    if (projectId) {
-      query.projectId = projectId;
-    }
+    // 1. Handle Project Visibility
+    if (user.role !== 'admin' && user.role !== 'super_admin') {
+      // Domain aliases for HR/RH
+      const domainsToMatch = [user.domain];
+      if (user.domain === 'HR' || user.domain === 'RH') {
+        domainsToMatch.push(user.domain === 'HR' ? 'RH' : 'HR');
+      }
 
-    // Filter by domain for normal users (IT domain sees everything)
-    if (req.user.role === 'user' && req.user.domain !== 'IT') {
-      query.domain = req.user.domain;
-    } else if (domain) {
-      query.domain = domain;
+      // Find accessible projects
+      const accessibleProjects = await Project.find({
+        $or: [
+          { isAllDomains: true },
+          { allowedDomains: { $in: domainsToMatch } },
+          { createdBy: user.userId }
+        ]
+      }).select('_id');
+      const accessibleProjectIds = accessibleProjects.map(p => p._id.toString());
+
+      if (projectId) {
+        // Specific project requested: check if user has access
+        if (!accessibleProjectIds.includes(projectId)) {
+          return res.json({ success: true, count: 0, data: [] });
+        }
+        query.projectId = projectId;
+      } else {
+        // No specific project: show workflows from accessible projects OR workflows matching domain (if no project linked)
+        query.$or = [
+          { projectId: { $in: accessibleProjectIds } },
+          {
+            domain: { $in: domainsToMatch },
+            $or: [
+              { projectId: { $exists: false } },
+              { projectId: null },
+              { projectId: '' }
+            ]
+          }
+        ];
+
+        // Special bypass for IT domain as per legacy comment
+        if (user.domain === 'IT') {
+          delete query.$or;
+        }
+      }
+    } else {
+      // Admin/SuperAdmin sees everything, but can filter by projectId
+      if (projectId) query.projectId = projectId;
+      if (domain) query.domain = domain;
     }
 
     if (status) {

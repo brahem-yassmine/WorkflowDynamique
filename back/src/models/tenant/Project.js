@@ -15,6 +15,14 @@ const projectSchema = new mongoose.Schema({
         enum: ['planning', 'active', 'completed', 'on-hold'],
         default: 'planning'
     },
+    allowedDomains: {
+        type: [String], // Array of domain names/codes
+        default: []
+    },
+    isAllDomains: {
+        type: Boolean,
+        default: true
+    },
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',

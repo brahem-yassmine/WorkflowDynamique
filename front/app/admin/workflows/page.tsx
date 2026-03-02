@@ -196,7 +196,7 @@ export default function WorkflowsPage() {
           <button onClick={fetchData} className="p-3 bg-white border border-slate-100 rounded-xl text-slate-400 hover:text-indigo-600 transition-colors shadow-sm">
             <Clock size={20} />
           </button>
-          <Link href="/admin/create_workflows">
+          <Link href="/create-workflow">
             <button className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95">
               <Plus size={18} />
               Create Flow
@@ -341,7 +341,7 @@ export default function WorkflowsPage() {
                 </div>
 
                 <div className="pt-8 border-t border-slate-50 space-y-3">
-                  <Link href={`/admin/create_workflows?id=${selectedWorkflow._id}`} className="block">
+                  <Link href={`/create-workflow?id=${selectedWorkflow._id}`} className="block">
                     <button className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all active:scale-95 shadow-lg shadow-indigo-100">
                       <Layers size={16} />
                       Edit Visual Flow
@@ -495,7 +495,7 @@ function WorkflowCard({ workflow, projectName, isSelected, onClick }: { workflow
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Link href={`/admin/create_workflows?id=${workflow._id}`} onClick={(e) => e.stopPropagation()}>
+          <Link href={`/create-workflow?id=${workflow._id}`} onClick={(e) => e.stopPropagation()}>
             <div className="p-2 hover:bg-indigo-50 text-slate-300 hover:text-indigo-600 rounded-lg transition-all">
               <Edit size={14} />
             </div>

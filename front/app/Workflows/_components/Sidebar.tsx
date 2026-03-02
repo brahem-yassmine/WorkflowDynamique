@@ -34,7 +34,7 @@ export default function Sidebar() {
                 <span className="font-medium">Task</span>
             </div>
 
-            {/* Condition - NOUVEAU */}
+            {/* Condition Node */}
             <div
                 className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded cursor-grab hover:bg-amber-100"
                 onDragStart={(e) => onDragStart(e, 'condition')}
@@ -44,7 +44,7 @@ export default function Sidebar() {
                 <span className="font-medium">Condition (Yes/No)</span>
             </div>
 
-            {/* Fin */}
+            {/* End Node */}
             <div
                 className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded cursor-grab hover:bg-red-100"
                 onDragStart={(e) => onDragStart(e, 'end')}

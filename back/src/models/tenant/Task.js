@@ -26,6 +26,10 @@ const taskSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
     },
+    assignedDomain: {
+        type: String,
+        description: 'Department assigned to this task'
+    },
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
@@ -34,7 +38,21 @@ const taskSchema = new mongoose.Schema({
     boardId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Board'
-    }
+    },
+    type: {
+        type: String,
+        enum: ['normal', 'form'],
+        default: 'normal'
+    },
+    linkedFormId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Form'
+    },
+    attachments: [{
+        filename: String,
+        url: String,
+        uploadedAt: { type: Date, default: Date.now }
+    }]
 }, { timestamps: true });
 
 // Index for performance on status and position

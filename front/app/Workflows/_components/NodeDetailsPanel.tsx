@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Node } from '@xyflow/react';
-import { X, Plus, Trash2, ListChecks, Clock, ShieldAlert, GraduationCap, LayoutGrid, ClipboardType, FilePlus, CheckSquare, ExternalLink } from 'lucide-react';
+import { X, Plus, Trash2, ListChecks, Clock, ShieldAlert, GraduationCap, LayoutGrid, ClipboardType, FilePlus, CheckSquare, ExternalLink, Paperclip, Image as ImageIcon } from 'lucide-react';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -38,18 +38,18 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
     const [label, setLabel] = useState('');
     const [description, setDescription] = useState('');
     const [responsibleDomain, setResponsibleDomain] = useState('');
-    const [taskType, setTaskType] = useState('checklist');
+    const [taskType, setTaskType] = useState('normal');
     const [priority, setPriority] = useState('medium');
     const [estimatedDuration, setEstimatedDuration] = useState('');
     const [condition, setCondition] = useState('');
-    const [checklist, setChecklist] = useState<string[]>([]);
     const [domains, setDomains] = useState<any[]>([]);
     const [users, setUsers] = useState<any[]>([]);
     const [roles, setRoles] = useState<any[]>([]);
     const [availableForms, setAvailableForms] = useState<any[]>([]);
-    const [availableChecklists, setAvailableChecklists] = useState<any[]>([]);
     const [availableProjects, setAvailableProjects] = useState<any[]>([]);
     const [linkedObjectId, setLinkedObjectId] = useState('');
+    const [attachments, setAttachments] = useState<any[]>([]);
+    const [isUploading, setIsUploading] = useState(false);
 
     const [activeTab, setActiveTab] = useState('general');
 
@@ -62,23 +62,28 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
     const [assigneeSelectionType, setAssigneeSelectionType] = useState<'user' | 'role'>('role');
     const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
 
+    // Board integration state
+    const [attachKanban, setAttachKanban] = useState(false);
+    const [kanbanBoardId, setKanbanBoardId] = useState('');
+    const [kanbanBoards, setKanbanBoards] = useState<any[]>([]);
+
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [domainsRes, usersRes, rolesRes, formsRes, checklistsRes, projectsRes] = await Promise.all([
+                const [domainsRes, usersRes, rolesRes, formsRes, projectsRes, boardsRes] = await Promise.all([
                     apiService.getDomains(),
                     apiService.getUsers(),
                     apiService.getRoles(),
                     apiService.getForms(),
-                    apiService.getChecklists(),
-                    apiService.getProjects()
+                    apiService.getProjects(),
+                    apiService.getBoards()
                 ]);
                 if (domainsRes.success) setDomains(domainsRes.data);
                 if (usersRes.success) setUsers(usersRes.data);
                 if (rolesRes.success) setRoles(rolesRes.data);
                 if (formsRes.success) setAvailableForms(formsRes.data);
-                if (checklistsRes.success) setAvailableChecklists(checklistsRes.data);
                 if (projectsRes.success) setAvailableProjects(projectsRes.data);
+                if (boardsRes.success) setKanbanBoards(boardsRes.data);
             } catch (err) {
                 console.error('Error fetching data:', err);
             }
@@ -91,11 +96,10 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
             setLabel(selectedNode.data.label as string || '');
             setDescription(selectedNode.data.description as string || '');
             setResponsibleDomain(selectedNode.data.responsibleDomain as string || '');
-            setTaskType(selectedNode.data.taskType as string || 'checklist');
+            setTaskType(selectedNode.data.taskType as string || 'normal');
             setPriority(selectedNode.data.priority as string || 'medium');
             setEstimatedDuration(selectedNode.data.estimatedDuration as string || '');
             setCondition(selectedNode.data.condition as string || '');
-            setChecklist(Array.isArray(selectedNode.data.checklist) ? selectedNode.data.checklist : []);
 
             // Set new fields from data or defaults with type safety
             setDomainScope((selectedNode.data.domainScope as 'all' | 'specific') || 'specific');
@@ -106,8 +110,63 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
             setAssigneeSelectionType((selectedNode.data.assigneeSelectionType as 'user' | 'role') || 'role');
             setAssigneeIds((selectedNode.data.assigneeIds as string[]) || []);
             setLinkedObjectId(selectedNode.data.linkedObjectId as string || '');
+            setAttachKanban(!!selectedNode.data.attachKanban);
+            setKanbanBoardId(selectedNode.data.kanbanBoardId as string || '');
+            setAttachments(Array.isArray(selectedNode.data.attachments) ? selectedNode.data.attachments : []);
         }
     }, [selectedNode]);
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsUploading(true);
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = async () => {
+            const base64 = reader.result as string;
+            setAttachments(prev => [...prev, {
+                filename: file.name,
+                url: base64,
+                previewUrl: URL.createObjectURL(file), // For reliable opening in new tab before save
+                uploadedAt: new Date().toISOString()
+            }]);
+            setIsUploading(false);
+        };
+    };
+
+    // Auto-select kanban board if possible
+    useEffect(() => {
+        if (attachKanban && !kanbanBoardId && label && kanbanBoards.length > 0) {
+            const matchingBoard = kanbanBoards.find(b =>
+                b.name?.toLowerCase().trim() === label.toLowerCase().trim()
+            );
+            if (matchingBoard) setKanbanBoardId(matchingBoard._id);
+        }
+    }, [attachKanban, label, kanbanBoards]);
+
+    const handleCreateBoard = async () => {
+        if (!label) {
+            alert('Please enter a task name first');
+            return;
+        }
+        try {
+            const res = await apiService.request('/boards', {
+                method: 'POST',
+                body: JSON.stringify({
+                    name: label,
+                    description: `Automatically created for workflow step: ${label}`
+                })
+            });
+            if (res.success) {
+                const newBoard = res.data;
+                setKanbanBoards([...kanbanBoards, newBoard]);
+                setKanbanBoardId(newBoard._id);
+            }
+        } catch (err) {
+            console.error('Error creating board:', err);
+        }
+    };
 
     const handleSave = () => {
         if (selectedNode) {
@@ -120,7 +179,6 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
                 priority,
                 estimatedDuration,
                 condition,
-                checklist,
                 domainScope,
                 validationType,
                 validatorType,
@@ -128,24 +186,13 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
                 assigneeType,
                 assigneeSelectionType,
                 assigneeIds,
-                linkedObjectId
+                linkedObjectId,
+                attachKanban,
+                kanbanBoardId,
+                attachments
             });
             onClose(); // Close the modal after saving
         }
-    };
-
-    const addChecklistItem = () => {
-        setChecklist([...checklist, '']);
-    };
-
-    const updateChecklistItem = (index: number, value: string) => {
-        const newChecklist = [...checklist];
-        newChecklist[index] = value;
-        setChecklist(newChecklist);
-    };
-
-    const removeChecklistItem = (index: number) => {
-        setChecklist(checklist.filter((_, i) => i !== index));
     };
 
     const handleDelete = () => {
@@ -204,21 +251,6 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
                                     title="Validation"
                                     subtitle="Approval Logic"
                                 />
-                                <TabButton
-                                    active={activeTab === 'execution_detail'}
-                                    onClick={() => setActiveTab('execution_detail')}
-                                    icon={
-                                        taskType === 'checklist' ? <ListChecks size={18} /> :
-                                            taskType === 'form' ? <ClipboardType size={18} /> :
-                                                taskType === 'kanban' ? <LayoutGrid size={18} /> : <FilePlus size={18} />
-                                    }
-                                    title={
-                                        taskType === 'checklist' ? 'Checklist' :
-                                            taskType === 'form' ? 'Form Schema' :
-                                                taskType === 'kanban' ? 'Kanban Data' : 'Attachments'
-                                    }
-                                    subtitle="Task Output"
-                                />
                             </>
                         )}
 
@@ -259,55 +291,178 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
 
                             {/* TAB: GENERAL */}
                             {activeTab === 'general' && (
-                                <section className="space-y-8">
+                                <section className="space-y-12">
                                     <div className="space-y-2">
-                                        <h2 className="text-3xl font-black text-slate-800 tracking-tight">System Identification</h2>
-                                        <p className="text-slate-400 font-medium">Define how this node appears in the process map.</p>
+                                        <h2 className="text-3xl font-black text-slate-800 tracking-tight">Tactical Configuration</h2>
+                                        <p className="text-slate-400 font-medium">Define the identity and resources for this stage.</p>
                                     </div>
 
-                                    <div className="grid gap-6">
-                                        <div className="space-y-3">
-                                            <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Task Model</Label>
-                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                                {[
-                                                    { id: 'normal', label: 'Normal', icon: <CheckSquare size={16} /> },
-                                                    { id: 'checklist', label: 'Checklist', icon: <ListChecks size={16} /> },
-                                                    { id: 'kanban', label: 'Kanban', icon: <LayoutGrid size={16} /> },
-                                                    { id: 'form', label: 'Form', icon: <ClipboardType size={16} /> }
-                                                ].map((t) => (
-                                                    <button
-                                                        key={t.id}
-                                                        onClick={() => setTaskType(t.id as any)}
-                                                        className={`flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all gap-2 ${taskType === t.id ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'}`}
-                                                    >
-                                                        {t.icon}
-                                                        <span className="text-[10px] font-black uppercase tracking-widest">{t.label}</span>
-                                                    </button>
-                                                ))}
+                                    <div className="grid gap-10">
+                                        {/* Task Identity */}
+                                        <div className="space-y-6">
+                                            <div className="space-y-3">
+                                                <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Task Designation</Label>
+                                                <Input
+                                                    value={label}
+                                                    onChange={(e) => setLabel(e.target.value)}
+                                                    placeholder="ex: HR Validation"
+                                                    className="h-14 bg-white border-2 border-slate-100 rounded-2xl font-bold text-lg text-slate-700 focus:ring-indigo-100 shadow-sm"
+                                                />
                                             </div>
-                                        </div>
 
-                                        <div className="space-y-3">
-                                            <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Descriptive Label</Label>
-                                            <Input
-                                                value={label}
-                                                onChange={(e) => setLabel(e.target.value)}
-                                                placeholder="e.g., Quality Assurance"
-                                                className="h-14 bg-white border-2 border-slate-100 rounded-2xl font-bold text-lg text-slate-700 focus-visible:ring-indigo-100 focus:border-indigo-200 transition-all shadow-sm"
-                                            />
-                                        </div>
-
-                                        {selectedNode.type !== 'condition' && (
                                             <div className="space-y-3">
                                                 <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Operational Instructions</Label>
                                                 <Textarea
                                                     value={description}
                                                     onChange={(e) => setDescription(e.target.value)}
-                                                    placeholder="Detail the steps required..."
-                                                    className="bg-white border-2 border-slate-100 rounded-2xl font-medium text-slate-600 focus-visible:ring-indigo-100 focus:border-indigo-200 min-h-[180px] text-lg shadow-sm"
+                                                    placeholder="Detail the steps to follow..."
+                                                    className="bg-white border-2 border-slate-100 rounded-2xl font-medium text-slate-600 focus:ring-indigo-100 min-h-[120px] text-base shadow-sm"
                                                 />
                                             </div>
-                                        )}
+                                        </div>
+
+                                        {/* Task Type Selection */}
+                                        <div className="space-y-6 pt-6 border-t border-slate-100">
+                                            <div className="flex items-center justify-between">
+                                                <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Work Model (Type)</Label>
+                                                <div className="flex bg-slate-100/50 p-1.5 rounded-2xl gap-2">
+                                                    <button
+                                                        onClick={() => setTaskType('normal')}
+                                                        className={`px-6 py-2.5 text-[10px] font-black uppercase rounded-xl transition-all ${taskType === 'normal' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}
+                                                    >
+                                                        1. Normal
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setTaskType('form')}
+                                                        className={`px-6 py-2.5 text-[10px] font-black uppercase rounded-xl transition-all ${taskType === 'form' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}
+                                                    >
+                                                        2. Form
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {taskType === 'normal' && (
+                                                <div className="p-8 bg-slate-50 border-2 border-slate-100 rounded-[32px] space-y-6 animate-in slide-in-from-top-4">
+                                                    <div className="flex items-center justify-between">
+                                                        <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Attachments & Media</Label>
+                                                        {isUploading && <Clock className="animate-spin text-indigo-500" size={14} />}
+                                                    </div>
+
+                                                    {attachments.length > 0 && (
+                                                        <div className="grid grid-cols-1 gap-2">
+                                                            {attachments.map((att, idx) => (
+                                                                <div key={idx} className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl shadow-sm group">
+                                                                    <div className="flex items-center gap-3">
+                                                                        <Paperclip size={14} className="text-indigo-500" />
+                                                                        <span className="text-xs font-bold text-slate-700 truncate max-w-[200px] font-medium">{att.filename}</span>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <a
+                                                                            href={att.previewUrl || att.url}
+                                                                            target="_blank"
+                                                                            rel="noreferrer"
+                                                                            className="p-1 text-slate-300 hover:text-indigo-500 transition-colors outline-none h-fit w-fit bg-transparent border-0"
+                                                                        >
+                                                                            <ExternalLink size={14} />
+                                                                        </a>
+                                                                        <button
+                                                                            onClick={() => setAttachments(attachments.filter((_, i) => i !== idx))}
+                                                                            className="p-1 text-slate-300 hover:text-rose-500 transition-colors outline-none h-fit w-fit bg-transparent border-0"
+                                                                        >
+                                                                            <Trash2 size={14} />
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+
+                                                    <div className="flex gap-4">
+                                                        <input
+                                                            type="file"
+                                                            id="node-file-upload"
+                                                            className="hidden"
+                                                            onChange={handleFileUpload}
+                                                        />
+                                                        <button
+                                                            onClick={() => document.getElementById('node-file-upload')?.click()}
+                                                            className="flex-1 h-16 bg-white border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center gap-1 hover:border-indigo-400 hover:bg-indigo-50 transition-all text-slate-400 hover:text-indigo-600 outline-none border-0"
+                                                        >
+                                                            <ImageIcon size={18} />
+                                                            <span className="text-[9px] font-black uppercase tracking-widest">Add Media</span>
+                                                        </button>
+                                                        <button
+                                                            onClick={() => document.getElementById('node-file-upload')?.click()}
+                                                            className="flex-1 h-16 bg-white border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center gap-1 hover:border-indigo-400 hover:bg-indigo-50 transition-all text-slate-400 hover:text-indigo-600 outline-none border-0"
+                                                        >
+                                                            <FilePlus size={18} />
+                                                            <span className="text-[9px] font-black uppercase tracking-widest">Add Document</span>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {taskType === 'form' && (
+                                                <div className="space-y-6 animate-in slide-in-from-top-4">
+                                                    <div className="flex items-center justify-between">
+                                                        <Label className="text-[11px] font-black text-slate-500 uppercase">Connect a Form</Label>
+                                                        <Button
+                                                            onClick={() => router.push('/form')}
+                                                            variant="link"
+                                                            className="text-[10px] font-black text-indigo-600 uppercase"
+                                                        >
+                                                            <Plus size={14} className="mr-1" /> Create New Form
+                                                        </Button>
+                                                    </div>
+                                                    <select
+                                                        className="w-full h-14 px-4 bg-white border-2 border-indigo-100 rounded-2xl font-bold text-slate-700 focus:ring-2 focus:ring-indigo-200 outline-none"
+                                                        value={linkedObjectId}
+                                                        onChange={(e) => setLinkedObjectId(e.target.value)}
+                                                    >
+                                                        <option value="">-- Select a form --</option>
+                                                        {availableForms.map(f => <option key={f._id} value={f._id}>{f.name}</option>)}
+                                                    </select>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* External Kanban Link */}
+                                        <div className="space-y-6 pt-6 border-t border-slate-100">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex flex-col">
+                                                    <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Kanban Integration (Optional)</Label>
+                                                    <span className="text-[10px] text-slate-400 font-medium">Link a specific board to this stage</span>
+                                                </div>
+                                                <button
+                                                    onClick={() => setAttachKanban(!attachKanban)}
+                                                    className={`w-14 h-8 rounded-full transition-all relative ${attachKanban ? 'bg-emerald-500 shadow-lg shadow-emerald-200' : 'bg-slate-200'}`}
+                                                >
+                                                    <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all ${attachKanban ? 'left-7 shadow-sm' : 'left-1'}`} />
+                                                </button>
+                                            </div>
+
+                                            {attachKanban && (
+                                                <div className="animate-in fade-in slide-in-from-top-2 space-y-4">
+                                                    <div className="flex items-center justify-between px-1">
+                                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Select Board</span>
+                                                        <button
+                                                            onClick={handleCreateBoard}
+                                                            className="text-[10px] font-black text-emerald-600 uppercase hover:text-emerald-700 flex items-center gap-1"
+                                                        >
+                                                            <Plus size={12} /> Auto-Generate Board
+                                                        </button>
+                                                    </div>
+                                                    <select
+                                                        className="w-full h-14 px-4 bg-white border-2 border-emerald-100 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-200"
+                                                        value={kanbanBoardId}
+                                                        onChange={(e) => setKanbanBoardId(e.target.value)}
+                                                    >
+                                                        <option value="">-- Choose a Kanban board --</option>
+                                                        {kanbanBoards.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
+                                                    </select>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </section>
                             )}
@@ -361,7 +516,12 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
                                                 <select
                                                     className="w-full h-14 px-4 bg-slate-50 rounded-2xl font-bold text-slate-700 border-none outline-none ring-1 ring-slate-100 focus:ring-2 focus:ring-indigo-100"
                                                     value={assigneeType}
-                                                    onChange={(e) => setAssigneeType(e.target.value as any)}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value as any;
+                                                        setAssigneeType(val);
+                                                        if (val === 'group') setAssigneeSelectionType('role');
+                                                        if (val === 'specific') setAssigneeSelectionType('user');
+                                                    }}
                                                 >
                                                     <option value="all">Everyone in selected domain</option>
                                                     <option value="group">Specific Roles</option>
@@ -490,198 +650,6 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
                                             </div>
                                         )}
                                     </div>
-                                </section>
-                            )}
-
-                            {/* TAB: EXECUTION DETAIL (DYNAMIC) */}
-                            {activeTab === 'execution_detail' && selectedNode.type === 'action' && (
-                                <section className="space-y-10">
-                                    {taskType === 'checklist' && (
-                                        <div className="space-y-8">
-                                            <div className="flex items-center justify-between">
-                                                <div className="space-y-2">
-                                                    <h2 className="text-3xl font-black text-slate-800 tracking-tight">Checklist Resource</h2>
-                                                    <p className="text-slate-400 font-medium">Link an existing checklist or build a new one.</p>
-                                                </div>
-                                                <Button
-                                                    onClick={() => router.push('/checklist')}
-                                                    className="px-6 py-3 bg-white border-2 border-slate-100 text-slate-900 rounded-2xl flex items-center gap-2 hover:bg-slate-50 transition-all font-black uppercase text-[10px] tracking-widest"
-                                                >
-                                                    <Plus size={16} />
-                                                    Create New
-                                                </Button>
-                                            </div>
-
-                                            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm space-y-6">
-                                                <Label className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Select Library Item</Label>
-                                                <select
-                                                    className="w-full h-14 px-4 bg-slate-50 rounded-2xl font-bold text-slate-700 outline-none ring-1 ring-slate-100 focus:ring-2 focus:ring-indigo-100"
-                                                    value={linkedObjectId}
-                                                    onChange={(e) => setLinkedObjectId(e.target.value)}
-                                                >
-                                                    <option value="">-- Choose Checklist --</option>
-                                                    {availableChecklists.map(c => (
-                                                        <option key={c._id} value={c._id}>{c.name || 'Unnamed Checklist'}</option>
-                                                    ))}
-                                                </select>
-
-                                                {linkedObjectId && (
-                                                    <div className="p-6 bg-indigo-50 rounded-2xl flex items-center justify-between">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="p-2 bg-white rounded-xl text-indigo-500 shadow-sm">
-                                                                <ListChecks size={18} />
-                                                            </div>
-                                                            <span className="text-sm font-bold text-indigo-900 text-left">Checklist Linked Successfully</span>
-                                                        </div>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={() => router.push(`/checklist/designer?id=${linkedObjectId}`)}
-                                                            className="text-indigo-600 font-black text-[10px] uppercase tracking-widest gap-2"
-                                                        >
-                                                            Open <ExternalLink size={14} />
-                                                        </Button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {taskType === 'normal' && (
-                                        <div className="space-y-8">
-                                            <div className="space-y-2 text-left">
-                                                <h2 className="text-3xl font-black text-slate-800 tracking-tight">Media & Assets</h2>
-                                                <p className="text-slate-400 font-medium">Attach files or images required for this task.</p>
-                                            </div>
-
-                                            <div className="grid gap-6">
-                                                <div className="p-12 border-2 border-dashed border-slate-200 rounded-[40px] bg-slate-50/50 flex flex-col items-center justify-center text-center space-y-6 hover:bg-white hover:border-indigo-300 transition-all cursor-pointer group">
-                                                    <div className="p-6 bg-white rounded-3xl shadow-xl shadow-slate-200/50 text-indigo-500 group-hover:scale-110 transition-transform">
-                                                        <FilePlus size={32} />
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-xl font-black text-slate-800 tracking-tight">Drop resources here</p>
-                                                        <p className="text-slate-400 font-medium mt-1">Images, PDF or Documentation (Max 20MB)</p>
-                                                    </div>
-                                                    <Button className="h-12 px-8 bg-slate-900 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-slate-200">
-                                                        Browse System
-                                                    </Button>
-                                                </div>
-
-                                                <div className="p-6 bg-amber-50 rounded-3xl border border-amber-100 flex items-start gap-4">
-                                                    <div className="p-2 bg-white rounded-xl text-amber-500 shadow-sm">
-                                                        <ShieldAlert size={18} />
-                                                    </div>
-                                                    <div className="space-y-1 text-left">
-                                                        <p className="text-amber-800 font-black text-xs uppercase tracking-widest">Publicity Note</p>
-                                                        <p className="text-amber-700/70 text-sm font-medium">Uploaded files will be visible to all users assigned to this task.</p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {taskType === 'form' && (
-                                        <div className="space-y-8">
-                                            <div className="flex items-center justify-between">
-                                                <div className="space-y-2 text-left">
-                                                    <h2 className="text-3xl font-black text-slate-800 tracking-tight">Data Capture</h2>
-                                                    <p className="text-slate-400 font-medium">Connect a form to this workflow step.</p>
-                                                </div>
-                                                <Button
-                                                    onClick={() => router.push('/form')}
-                                                    className="px-6 py-3 bg-white border-2 border-slate-100 text-slate-900 rounded-2xl flex items-center gap-2 hover:bg-slate-50 transition-all font-black uppercase text-[10px] tracking-widest"
-                                                >
-                                                    <Plus size={16} />
-                                                    Design New Form
-                                                </Button>
-                                            </div>
-
-                                            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm space-y-6">
-                                                <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Available Forms</Label>
-                                                <select
-                                                    className="w-full h-14 px-4 bg-slate-50 rounded-2xl font-bold text-slate-700 outline-none ring-1 ring-slate-100 focus:ring-2 focus:ring-indigo-100"
-                                                    value={linkedObjectId}
-                                                    onChange={(e) => setLinkedObjectId(e.target.value)}
-                                                >
-                                                    <option value="">-- Select Existing Form --</option>
-                                                    {availableForms.map(f => (
-                                                        <option key={f._id} value={f._id}>{f.title || f.name || 'Unnamed Form'}</option>
-                                                    ))}
-                                                </select>
-
-                                                {linkedObjectId && (
-                                                    <div className="p-6 bg-emerald-50 rounded-2xl flex items-center justify-between">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="p-2 bg-white rounded-xl text-emerald-500 shadow-sm">
-                                                                <ClipboardType size={18} />
-                                                            </div>
-                                                            <span className="text-sm font-bold text-emerald-900">Form Connected</span>
-                                                        </div>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={() => router.push(`/form?id=${linkedObjectId}`)}
-                                                            className="text-emerald-600 font-black text-[10px] uppercase tracking-widest gap-2"
-                                                        >
-                                                            Edit Form <ExternalLink size={14} />
-                                                        </Button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {taskType === 'kanban' && (
-                                        <div className="space-y-8">
-                                            <div className="flex items-center justify-between">
-                                                <div className="space-y-2 text-left">
-                                                    <h2 className="text-3xl font-black text-slate-800 tracking-tight">Board Mapping</h2>
-                                                    <p className="text-slate-400 font-medium">Link this step to a project board or Kanban view.</p>
-                                                </div>
-                                                <Button
-                                                    onClick={() => router.push('/kanban')}
-                                                    className="px-6 py-3 bg-white border-2 border-slate-100 text-slate-900 rounded-2xl flex items-center gap-2 hover:bg-slate-50 transition-all font-black uppercase text-[10px] tracking-widest"
-                                                >
-                                                    <Plus size={16} />
-                                                    New Kanban
-                                                </Button>
-                                            </div>
-
-                                            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm space-y-6">
-                                                <Label className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Select Target Board</Label>
-                                                <select
-                                                    className="w-full h-14 px-4 bg-slate-50 rounded-2xl font-bold text-slate-700 outline-none ring-1 ring-slate-100 focus:ring-2 focus:ring-indigo-100"
-                                                    value={linkedObjectId}
-                                                    onChange={(e) => setLinkedObjectId(e.target.value)}
-                                                >
-                                                    <option value="">-- Choose Project/Board --</option>
-                                                    {availableProjects.map(p => (
-                                                        <option key={p._id} value={p._id}>{p.name || 'Unnamed Project'}</option>
-                                                    ))}
-                                                </select>
-
-                                                {linkedObjectId && (
-                                                    <div className="p-6 bg-blue-50 rounded-2xl flex items-center justify-between">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="p-2 bg-white rounded-xl text-blue-500 shadow-sm">
-                                                                <LayoutGrid size={18} />
-                                                            </div>
-                                                            <span className="text-sm font-bold text-blue-900">Board Linked</span>
-                                                        </div>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={() => router.push(`/kanban`)}
-                                                            className="text-blue-600 font-black text-[10px] uppercase tracking-widest gap-2"
-                                                        >
-                                                            View Board <ExternalLink size={14} />
-                                                        </Button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
                                 </section>
                             )}
 

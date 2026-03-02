@@ -1,5 +1,6 @@
-// back/src/controllers/workflowInstanceController.js
 const notificationController = require('./notificationController');
+const fs = require('fs');
+const path = require('path');
 
 
 // back/src/controllers/workflowInstanceController.js
@@ -39,8 +40,9 @@ exports.createInstance = async (req, res) => {
         nodeId: startNode.id,
         status: 'in_progress',
         startedAt: new Date(),
-        responsibleUser: startNode.data?.assignedUser || null,
-        responsibleDomain: startNode.data?.domain || null
+        responsibleUser: startNode.data?.assignedUser || (startNode.data?.assigneeSelectionType === 'user' ? (startNode.data.assigneeIds?.[0]) : null),
+        responsibleDomain: startNode.data?.responsibleDomain || startNode.data?.domain || null,
+        assignees: startNode.data?.assigneeIds || []
       }],
       variables: data || {},
       executionPath: [{
@@ -68,19 +70,62 @@ exports.createInstance = async (req, res) => {
 
     // Notification logic
     try {
-      // 1. Notify Assignee of start node if exists
-      if (instance.currentNodes[0].responsibleUser) {
+      const currentNode = instance.currentNodes[0];
+      const UserModel = req.tenantConn.model('User');
+
+      // 1. Collect target users (direct and by role)
+      const targetUsers = new Set();
+      if (currentNode.responsibleUser) targetUsers.add(currentNode.responsibleUser.toString());
+      if (currentNode.assignees && startNode.data?.assigneeSelectionType === 'user') {
+        currentNode.assignees.forEach(id => targetUsers.add(id.toString()));
+      }
+
+      // If assigned by ROLE
+      if (startNode.data?.assigneeSelectionType === 'role' && currentNode.assignees?.length > 0) {
+        const RoleModel = req.tenantConn.model('Role');
+        const rolesMatching = await RoleModel.find({ _id: { $in: currentNode.assignees } });
+        const roleNames = rolesMatching.map(r => r.name);
+
+        const roleUsers = await UserModel.find({
+          $or: [
+            { role: { $in: roleNames } }, // Match by role name string
+            { role: { $in: currentNode.assignees.map(id => id.toString()) } } // Match by direct role ID string if applicable
+          ]
+        });
+        roleUsers.forEach(u => targetUsers.add(u._id.toString()));
+      }
+
+      for (const userId of targetUsers) {
         await notificationController.createInternalNotification(req.tenantConn, {
-          recipient: instance.currentNodes[0].responsibleUser,
+          recipient: userId,
           title: 'New Task Assigned',
-          message: `You have a new task in "${instance.title}".`,
+          message: `You have a new task "${startNode.data?.label || 'Step'}" in workflow "${instance.title}".`,
           type: 'task_assigned',
           link: `/Workflows/instances/${instance._id}`
         });
       }
 
-      // 2. Notify Admins
-      const UserModel = req.tenantConn.model('User');
+      // 2. Notify by Domain/Department
+      if (currentNode.responsibleDomain) {
+        const domain = currentNode.responsibleDomain;
+        const searchDomains = [domain];
+        if (domain === 'HR' || domain === 'RH') searchDomains.push(domain === 'HR' ? 'RH' : 'HR');
+
+        const domainUsers = await UserModel.find({ domain: { $in: searchDomains } });
+        for (const user of domainUsers) {
+          if (targetUsers.has(user._id.toString())) continue;
+
+          await notificationController.createInternalNotification(req.tenantConn, {
+            recipient: user._id,
+            title: 'New Department Task',
+            message: `A new task for the ${domain} department is available in "${instance.title}".`,
+            type: 'task_assigned',
+            link: `/Workflows/instances/${instance._id}`
+          });
+        }
+      }
+
+      // 3. Notify Admins
       const admins = await UserModel.find({ role: 'admin' });
       for (const admin of admins) {
         await notificationController.createInternalNotification(req.tenantConn, {
@@ -239,8 +284,9 @@ exports.approveNode = async (req, res) => {
             nodeId: node.id,
             status: 'in_progress',
             startedAt: new Date(),
-            responsibleUser: node.data?.assignedUser || null,
-            responsibleDomain: node.data?.domain || null
+            responsibleUser: node.data?.assignedUser || (node.data?.assigneeSelectionType === 'user' ? (node.data.assigneeIds?.[0]) : null),
+            responsibleDomain: node.data?.responsibleDomain || node.data?.domain || null,
+            assignees: node.data?.assigneeIds || []
           });
         }
       }
@@ -270,15 +316,61 @@ exports.approveNode = async (req, res) => {
           link: `/Workflows/instances/${instance._id}`
         });
       } else {
+        const UserModel = req.tenantConn.model('User');
         for (const newNode of instance.currentNodes) {
-          if (newNode.responsibleUser) {
+          if (newNode.status !== 'in_progress') continue;
+
+          // Find node data from workflow
+          const nodeData = workflow.nodes.find(n => n.id === newNode.nodeId)?.data || {};
+
+          // Identify all users to notify
+          const targetUsers = new Set();
+          if (newNode.responsibleUser) targetUsers.add(newNode.responsibleUser.toString());
+          if (newNode.assignees && nodeData.assigneeSelectionType === 'user') {
+            newNode.assignees.forEach(id => targetUsers.add(id.toString()));
+          }
+
+          if (nodeData.assigneeSelectionType === 'role' && newNode.assignees?.length > 0) {
+            const RoleModel = req.tenantConn.model('Role');
+            const rolesMatching = await RoleModel.find({ _id: { $in: newNode.assignees } });
+            const roleNames = rolesMatching.map(r => r.name);
+
+            const roleUsers = await UserModel.find({
+              $or: [
+                { role: { $in: roleNames } },
+                { role: { $in: newNode.assignees.map(id => id.toString()) } }
+              ]
+            });
+            roleUsers.forEach(u => targetUsers.add(u._id.toString()));
+          }
+
+          for (const userId of targetUsers) {
             await notificationController.createInternalNotification(req.tenantConn, {
-              recipient: newNode.responsibleUser,
+              recipient: userId,
               title: 'New Task Assigned',
-              message: `A new task in "${instance.title}" requires your validation.`,
+              message: `Task "${nodeData.label || 'Step'}" requires your attention in "${instance.title}".`,
               type: 'task_assigned',
               link: `/Workflows/instances/${instance._id}`
             });
+          }
+
+          if (newNode.responsibleDomain) {
+            const domain = newNode.responsibleDomain;
+            const searchDomains = [domain];
+            if (domain === 'HR' || domain === 'RH') searchDomains.push(domain === 'HR' ? 'RH' : 'HR');
+
+            const domainUsers = await UserModel.find({ domain: { $in: searchDomains } });
+            for (const user of domainUsers) {
+              if (targetUsers.has(user._id.toString())) continue;
+
+              await notificationController.createInternalNotification(req.tenantConn, {
+                recipient: user._id,
+                title: 'New Department Task',
+                message: `A new task for the ${domain} department is available in "${instance.title}".`,
+                type: 'task_assigned',
+                link: `/Workflows/instances/${instance._id}`
+              });
+            }
           }
         }
       }
@@ -434,24 +526,42 @@ exports.cancelInstance = async (req, res) => {
 exports.addAttachment = async (req, res) => {
   try {
     const { instanceId } = req.params;
-    const { filename, url } = req.body;
+    let { filename, url } = req.body;
 
     const WorkflowInstance = req.tenantConn.model('WorkflowInstance');
 
     if (!filename || !url) {
-      return res.status(400).json({
-        success: false,
-        message: 'Filename and URL are required'
-      });
+      return res.status(400).json({ success: false, message: 'Filename and URL/Base64 are required' });
+    }
+
+    // Check if URL is actually a base64 string
+    if (url.startsWith('data:')) {
+      const match = url.match(/^data:([^;]+);base64,(.+)$/);
+      if (match) {
+        const contentType = match[1];
+        const base64Data = match[2];
+        const buffer = Buffer.from(base64Data, 'base64');
+
+        // Generate a unique filename
+        const uniqueFilename = `${Date.now()}-${filename}`;
+        const uploadDir = path.join(__dirname, '../../uploads');
+        const filePath = path.join(uploadDir, uniqueFilename);
+
+        if (!fs.existsSync(uploadDir)) {
+          fs.mkdirSync(uploadDir, { recursive: true });
+        }
+
+        fs.writeFileSync(filePath, buffer);
+
+        // Update URL to point to our static server
+        url = `http://localhost:5000/uploads/${uniqueFilename}`;
+      }
     }
 
     const instance = await WorkflowInstance.findById(instanceId);
 
     if (!instance) {
-      return res.status(404).json({
-        success: false,
-        message: 'Instance not found'
-      });
+      return res.status(404).json({ success: false, message: 'Instance not found' });
     }
 
     instance.attachments.push({
@@ -477,10 +587,7 @@ exports.addAttachment = async (req, res) => {
 
   } catch (error) {
     console.error('❌ addAttachment Error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 

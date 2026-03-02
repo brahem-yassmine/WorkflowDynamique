@@ -17,7 +17,7 @@ const workflowSchema = new mongoose.Schema({
 
   domain: {
     type: String,
-    enum: ['HR', 'Finance', 'IT', 'Sales', 'Management'],
+    enum: ['HR', 'RH', 'Finance', 'IT', 'Sales', 'Management'],
     required: true
   },
 

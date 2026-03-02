@@ -37,6 +37,25 @@ exports.createForm = async (req, res) => {
 
         await form.save();
 
+        // Notify Admins
+        try {
+            const NotificationController = require('./notificationController');
+            const UserModel = req.tenantConn.model('User');
+            const admins = await UserModel.find({ role: 'admin' });
+
+            for (const admin of admins) {
+                await NotificationController.createInternalNotification(req.tenantConn, {
+                    recipient: admin._id,
+                    title: 'New Form Created',
+                    message: `A new form "${name}" has been created by ${req.user.email || 'a user'}.`,
+                    type: 'system',
+                    link: `/admin/form`
+                });
+            }
+        } catch (err) {
+            console.error('Form Notification Error:', err);
+        }
+
         res.status(201).json({
             success: true,
             message: 'Form created successfully',

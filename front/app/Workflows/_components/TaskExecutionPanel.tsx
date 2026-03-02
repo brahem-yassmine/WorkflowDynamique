@@ -1,10 +1,11 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import { X, CheckCircle2, XCircle, Clock, AlertCircle, ListChecks, ArrowRight, ShieldCheck, Users, ClipboardList } from 'lucide-react';
+import { X, CheckCircle2, XCircle, Clock, AlertCircle, ListChecks, ArrowRight, ShieldCheck, Users, ClipboardList, LayoutGrid, ExternalLink, FilePlus, Plus, Image as ImageIcon } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { apiService } from '@/service/api.service';
+import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -22,6 +23,46 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
     const [comment, setComment] = useState('');
     const [loading, setLoading] = useState(false);
     const [variables, setVariables] = useState<any>({});
+    const [isUploading, setIsUploading] = useState(false);
+    const [localAttachments, setLocalAttachments] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (instance?.attachments) {
+            setLocalAttachments(instance.attachments);
+        }
+    }, [instance]);
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !instance?._id) return;
+
+        setIsUploading(true);
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = async () => {
+            const base64 = reader.result as string;
+            try {
+                const res = await apiService.request(`/workflow-instances/${instance._id}/attachments`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        filename: file.name,
+                        url: base64
+                    })
+                });
+
+                if (res.success) {
+                    toast.success('Document attached successfully!');
+                    setLocalAttachments(prev => [...prev, res.data]);
+                } else {
+                    toast.error(res.message || 'Upload failed');
+                }
+            } catch (err: any) {
+                toast.error(err.message || 'Connection error');
+            } finally {
+                setIsUploading(false);
+            }
+        };
+    };
 
     // Lookup & Auth data
     const [users, setUsers] = useState<any[]>([]);
@@ -310,8 +351,41 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                         <ClipboardList size={14} /> Linked Assets & Tasks
                     </p>
 
+                    {/* Kanban Integration Board */}
+                    {data.attachKanban && data.kanbanBoardId && (
+                        <div className={`mt-4 group relative p-6 border rounded-[28px] transition-all duration-300 ${canPerform ? 'bg-indigo-50/50 border-indigo-200 shadow-lg shadow-indigo-500/5' : 'bg-slate-50 border-slate-100'}`}>
+                            <div className="flex items-center justify-between mb-5">
+                                <div className="flex items-center gap-4">
+                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm transition-transform duration-500 group-hover:scale-110 ${canPerform ? 'bg-white text-indigo-500' : 'bg-slate-100 text-slate-300'}`}>
+                                        <LayoutGrid size={22} />
+                                    </div>
+                                    <div>
+                                        <h4 className={`text-sm font-black ${canPerform ? 'text-indigo-900' : 'text-slate-400'}`}>
+                                            Kanban Board Attached
+                                        </h4>
+                                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">External Board Sync Active</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {canPerform ? (
+                                <Link
+                                    href={`/kanban/${data.kanbanBoardId}`}
+                                    className="w-full h-12 bg-indigo-600 text-white rounded-[18px] flex items-center justify-center gap-3 text-[11px] font-black uppercase tracking-[0.1em] hover:bg-indigo-700 hover:shadow-xl hover:shadow-indigo-200 transition-all font-sans"
+                                >
+                                    Open Board <ExternalLink size={14} />
+                                </Link>
+                            ) : (
+                                <div className="p-3 bg-white/60 rounded-xl border border-dashed border-slate-200 text-slate-500 italic text-[10px]">
+                                    Board access restricted until progression.
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Task type specific rendering */}
                     {data.linkedObjectId ? (
-                        <div className={`group relative p-6 border rounded-[28px] transition-all duration-300 ${canPerform ? 'bg-emerald-50/50 border-emerald-200 shadow-lg shadow-emerald-500/5' : 'bg-slate-50 border-slate-100'}`}>
+                        <div className={`group relative p-6 border rounded-[28px] transition-all duration-300 mt-4 ${canPerform ? 'bg-emerald-50/50 border-emerald-200 shadow-lg shadow-emerald-500/5' : 'bg-slate-50 border-slate-100'}`}>
                             <div className="flex items-center justify-between mb-5">
                                 <div className="flex items-center gap-4">
                                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm transition-transform duration-500 group-hover:scale-110 ${canPerform ? 'bg-white text-emerald-500' : 'bg-slate-100 text-slate-300'}`}>
@@ -324,8 +398,8 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">External Integration Bound</p>
                                     </div>
                                 </div>
-                                <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${canPerform ? 'bg-emerald-500 text-white animate-pulse' : 'bg-slate-200 text-slate-400'}`}>
-                                    {canPerform ? (isActive ? 'Active' : 'Preview') : 'Locked'}
+                                <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${isActive ? 'bg-emerald-500 text-white animate-pulse' : 'bg-slate-200 text-slate-400'}`}>
+                                    {isActive ? 'Active' : (canPerform ? 'Preview' : 'Locked')}
                                 </div>
                             </div>
 
@@ -336,7 +410,7 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                             data.taskType === 'checklist' ? `/checklist?instanceId=${instance?._id || ''}&nodeId=${node.id}` :
                                                 `/${data.taskType}s/${data.linkedObjectId}?instanceId=${instance?._id || ''}&nodeId=${node.id}`
                                     }
-                                    className="w-full h-12 bg-emerald-600 text-white rounded-[18px] flex items-center justify-center gap-3 text-[11px] font-black uppercase tracking-[0.1em] hover:bg-emerald-700 hover:shadow-xl hover:shadow-emerald-200 transition-all"
+                                    className="w-full h-12 bg-emerald-600 text-white rounded-[18px] flex items-center justify-center gap-3 text-[11px] font-black uppercase tracking-[0.1em] hover:bg-emerald-700 hover:shadow-xl hover:shadow-emerald-200 transition-all font-sans"
                                 >
                                     {isActive ? 'Execute Task Now' : 'Preview Asset Structure'} <ArrowRight size={16} strokeWidth={3} />
                                 </Link>
@@ -349,16 +423,128 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                         </div>
                     ) : (
                         (data.taskType === 'form' || data.taskType === 'checklist') ? (
-                            <div className="p-5 bg-rose-50 border border-rose-100 rounded-[24px] flex flex-col gap-2">
+                            <div className="p-5 bg-rose-50 border border-rose-100 rounded-[24px] flex flex-col gap-2 mt-4">
                                 <div className="flex items-center gap-2 text-rose-600">
                                     <XCircle size={18} />
                                     <span className="text-xs font-black uppercase">Configuration Error</span>
                                 </div>
-                                <p className="text-[11px] text-rose-800/70 font-medium">This node is set as a {data.taskType}, but no actual {data.taskType} template is bound to it.</p>
+                                <p className="text-[11px] text-rose-800/70 font-medium">This node is set as a {data.taskType}, but no template is bound.</p>
+                            </div>
+                        ) : data.taskType === 'normal' ? (
+                            <div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[28px] space-y-6 mt-4 animate-in fade-in slide-in-from-top-4 duration-500">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center text-indigo-500 shadow-sm border border-slate-100 group-hover:scale-110 transition-transform">
+                                            <FilePlus size={18} />
+                                        </div>
+                                        <div>
+                                            <p className="text-[11px] font-black text-slate-700 uppercase tracking-tight">Project Evidence</p>
+                                            <p className="text-[9px] text-slate-400 font-bold uppercase">Attachments & Media</p>
+                                        </div>
+                                    </div>
+                                    {isUploading && <Clock className="animate-spin text-indigo-500 h-4 w-4" />}
+                                </div>
+
+                                {/* Reference Materials (from Node Template) */}
+                                {data.attachments && data.attachments.length > 0 && (
+                                    <div className="space-y-3">
+                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] px-1">Reference Assets</p>
+                                        <div className="grid grid-cols-1 gap-2">
+                                            {data.attachments.map((att: any, idx: number) => (
+                                                <a
+                                                    key={`ref-${idx}`}
+                                                    href={att.url}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="flex items-center justify-between p-3.5 bg-indigo-50/30 border border-indigo-100/50 rounded-2xl hover:bg-indigo-50 transition-all group"
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="p-2 bg-indigo-500/10 rounded-xl text-indigo-500">
+                                                            <ImageIcon size={14} />
+                                                        </div>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[10px] font-bold text-slate-700 truncate max-w-[180px]">{att.filename}</span>
+                                                            <span className="text-[8px] text-indigo-400 font-black uppercase tracking-widest">Protocol Reference</span>
+                                                        </div>
+                                                    </div>
+                                                    <ExternalLink size={14} className="text-indigo-300 group-hover:text-indigo-600 transition-colors" />
+                                                </a>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Instance Uploads */}
+                                <div className="space-y-3">
+                                    {(localAttachments.length > 0 || data.attachments?.length > 0) && (
+                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] px-1">Operational Uploads</p>
+                                    )}
+
+                                    {localAttachments.length > 0 ? (
+                                        <div className="grid grid-cols-1 gap-2">
+                                            {localAttachments.map((att, idx) => (
+                                                <div
+                                                    key={`upload-${idx}`}
+                                                    className="flex items-center justify-between p-3.5 bg-white border border-slate-100 rounded-2xl shadow-sm hover:border-indigo-200 transition-all group"
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="p-2 bg-emerald-50 rounded-xl text-emerald-600">
+                                                            <ShieldCheck size={14} />
+                                                        </div>
+                                                        <div className="flex flex-col overflow-hidden">
+                                                            <span className="text-[10px] font-bold text-slate-700 truncate max-w-[180px]">{att.filename}</span>
+                                                            <span className="text-[8px] text-emerald-500 font-black uppercase tracking-widest">Evidence Sync'd</span>
+                                                        </div>
+                                                    </div>
+                                                    <a href={att.url} target="_blank" rel="noreferrer" className="p-2 text-slate-300 hover:text-indigo-600 transition-colors">
+                                                        <ExternalLink size={14} />
+                                                    </a>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        !instance && (
+                                            <div className="p-10 border-2 border-dashed border-slate-200 rounded-[28px] text-center space-y-3">
+                                                <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto text-slate-300">
+                                                    <AlertCircle size={24} />
+                                                </div>
+                                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">No evidence captured</p>
+                                            </div>
+                                        )
+                                    )}
+
+                                    {isActive && (
+                                        <div className="grid grid-cols-2 gap-3 pt-2">
+                                            <input
+                                                type="file"
+                                                id="execution-file-upload"
+                                                className="hidden"
+                                                onChange={handleFileUpload}
+                                                disabled={!instance || isUploading}
+                                            />
+                                            <button
+                                                onClick={() => document.getElementById('execution-file-upload')?.click()}
+                                                disabled={!instance || isUploading}
+                                                className="h-16 bg-white border border-slate-100 rounded-2xl flex flex-col items-center justify-center gap-1 hover:border-indigo-400 hover:bg-indigo-50 transition-all shadow-sm active:scale-95 disabled:opacity-50 group border-0 outline-none"
+                                            >
+                                                <ImageIcon size={18} className="text-slate-300 group-hover:text-indigo-500 transition-colors" />
+                                                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 group-hover:text-indigo-600 transition-colors">Add Media</span>
+                                            </button>
+                                            <button
+                                                onClick={() => document.getElementById('execution-file-upload')?.click()}
+                                                disabled={!instance || isUploading}
+                                                className="h-16 bg-white border border-slate-100 rounded-2xl flex flex-col items-center justify-center gap-1 hover:border-indigo-400 hover:bg-indigo-50 transition-all shadow-sm active:scale-95 disabled:opacity-50 group border-0 outline-none"
+                                            >
+                                                <FilePlus size={18} className="text-slate-300 group-hover:text-indigo-500 transition-colors" />
+                                                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 group-hover:text-indigo-600 transition-colors">Add Document</span>
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         ) : (
-                            <div className="p-4 bg-slate-50 border border-slate-100 rounded-[20px] text-[10px] text-slate-400 font-bold italic text-center">
-                                No external resources configured for this tactical unit.
+                            <div className="p-4 bg-white/40 border border-slate-100 rounded-[20px] text-[10px] text-slate-400 font-bold italic text-center mt-4">
+                                No external resources configured for this unit.
                             </div>
                         )
                     )}

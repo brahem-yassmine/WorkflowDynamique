@@ -5,8 +5,10 @@ const { getTenantConnection } = require('../services/tenantConnection');
 const tenantResolver = async (req, res, next) => {
   try {
     let tenantId = req.headers['x-tenant-id'] || req.query.tenantId;
+    console.log(`🔍 [TenantResolver] URL: ${req.url} | TenantID: ${tenantId}`);
 
     if (!tenantId) {
+      console.warn('⚠️ [TenantResolver] No TenantID found in headers or query');
       return next();
     }
 

@@ -17,7 +17,7 @@ exports.getForms = async (req, res) => {
         });
     } catch (error) {
         console.error('❌ Erreur getForms:', error);
-        res.status(500).json({ success: false, message: 'Erreur serveur' });
+        res.status(500).json({ success: false, message: 'Server error' });
     }
 };
 
@@ -29,7 +29,7 @@ exports.getFormById = async (req, res) => {
         const form = await DynamicForm.findById(formId);
 
         if (!form) {
-            return res.status(404).json({ success: false, message: 'Formulaire non trouvé' });
+            return res.status(404).json({ success: false, message: 'Form not found' });
         }
 
         res.json({ success: true, data: form });
@@ -46,7 +46,7 @@ exports.createForm = async (req, res) => {
         const DynamicForm = req.tenantConn.model('DynamicForm');
 
         if (!name) {
-            return res.status(400).json({ success: false, message: 'Le nom est requis' });
+            return res.status(400).json({ success: false, message: 'Name is required' });
         }
 
         const form = new DynamicForm({
@@ -68,7 +68,7 @@ exports.createForm = async (req, res) => {
 
         res.status(201).json({
             success: true,
-            message: 'Formulaire créé avec succès',
+            message: 'Form created successfully',
             data: form
         });
     } catch (error) {
@@ -99,7 +99,7 @@ exports.updateForm = async (req, res) => {
 
         res.json({
             success: true,
-            message: 'Formulaire mis à jour',
+            message: 'Form updated',
             data: form
         });
     } catch (error) {
@@ -129,7 +129,7 @@ exports.deleteForm = async (req, res) => {
 
         res.json({
             success: true,
-            message: 'Formulaire supprimé avec succès',
+            message: 'Form deleted successfully',
             data: { id: formId }
         });
     } catch (error) {
@@ -163,7 +163,7 @@ exports.updateFormStatus = async (req, res) => {
 
         res.json({
             success: true,
-            message: `Formulaire ${status === 'approved' ? 'approuvé' : 'rejeté'} avec succès`,
+            message: `Form ${status === 'approved' ? 'approved' : 'rejected'} successfully`,
             data: form
         });
     } catch (error) {
@@ -199,7 +199,7 @@ exports.submitForm = async (req, res) => {
 
         res.status(201).json({
             success: true,
-            message: 'Réponse transmise avec succès',
+            message: 'Response submitted successfully',
             data: response
         });
     } catch (error) {
@@ -258,7 +258,7 @@ exports.cloneForm = async (req, res) => {
 
         res.status(201).json({
             success: true,
-            message: 'Formulaire cloné avec succès',
+            message: 'Form cloned successfully',
             data: clonedForm
         });
     } catch (error) {

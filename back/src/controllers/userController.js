@@ -9,6 +9,13 @@ const { recordActivity } = require('../services/auditLogger');
 // List company users
 exports.getUsers = async (req, res) => {
   try {
+    if (!req.tenantConn) {
+      console.warn('⚠️ [getUsers] No tenant connection, falling back to master for tenant owners');
+      // If no tenantConn, we might still want to list tenant owners from master
+      const Tenant = req.masterDb.model('Tenant');
+      const tenants = await Tenant.find().select('-password');
+      return res.json({ success: true, data: tenants });
+    }
     const User = req.tenantConn.model('User');
 
     const users = await User.find()

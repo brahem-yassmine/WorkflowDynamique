@@ -380,7 +380,7 @@ export default function FormBuilder() {
                 <div className="w-8 h-8 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center font-black text-xs">
                   {currentStepIndex + 1}
                 </div>
-                <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Phasage Active</span>
+                <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Active Phase</span>
               </div>
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest bg-yellow-50 text-yellow-500 border border-yellow-200">
                 <Clock className="w-3.5 h-3.5" /> Drafting

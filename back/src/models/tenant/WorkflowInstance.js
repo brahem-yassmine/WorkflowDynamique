@@ -56,7 +56,11 @@ const workflowInstanceSchema = new mongoose.Schema({
     },
     responsibleDomain: {
       type: String // e.g., 'HR', 'IT', etc.
-    }
+    },
+    assignees: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    }]
   }],
 
   // Execution history (Full traceability)

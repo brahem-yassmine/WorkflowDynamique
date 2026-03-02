@@ -2,6 +2,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const path = require('path');
 require('dotenv').config();
 
 // ========================
@@ -20,6 +21,7 @@ const dynamicFormRoutes = require('./src/routes/dynamicFormRoutes');
 const formRoutes = require('./src/routes/formRoutes');
 const checklistRoutes = require('./src/routes/checklistRoutes');
 const taskRoutes = require('./src/routes/taskRoutes');
+const boardRoutes = require('./src/routes/boardRoutes');
 const notificationRoutes = require('./src/routes/notificationRoutes');
 const tenantRoleRoutes = require('./src/routes/tenant/role.routes');
 const tenantDomainRoutes = require('./src/routes/tenant/domain.routes');
@@ -32,6 +34,12 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+app.use((req, res, next) => {
+  console.log(`📡 [${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+  next();
+});
 
 // ========================
 // MASTER CONNECTION
@@ -142,6 +150,7 @@ app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/forms', dynamicFormRoutes);
 app.use('/api/checklists', checklistRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/boards', boardRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/tenant/roles', tenantRoleRoutes);
 app.use('/api/tenant/domains', tenantDomainRoutes);

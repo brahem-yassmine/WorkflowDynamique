@@ -1,4 +1,6 @@
 // back/src/controllers/workflowController.js
+const fs = require('fs');
+const path = require('path');
 const Workflow = require('../models/tenant/Workflow.js');
 const notificationController = require('./notificationController');
 const User = require('../models/tenant/User');
@@ -104,6 +106,29 @@ exports.createWorkflow = async (req, res) => {
     let workflowNodes = nodes || [];
     let workflowEdges = edges || [];
 
+    // Process base64 attachments in nodes
+    for (let node of workflowNodes) {
+      if (node.data && node.data.attachments && Array.isArray(node.data.attachments)) {
+        for (let i = 0; i < node.data.attachments.length; i++) {
+          let att = node.data.attachments[i];
+          if (att.url && att.url.startsWith('data:')) {
+            const match = att.url.match(/^data:([^;]+);base64,(.+)$/);
+            if (match) {
+              const base64Data = match[2];
+              const buffer = Buffer.from(base64Data, 'base64');
+              const uniqueFilename = `${Date.now()}-${att.filename}`;
+              const filePath = path.join(__dirname, '../../uploads', uniqueFilename);
+              if (!fs.existsSync(path.join(__dirname, '../../uploads'))) {
+                fs.mkdirSync(path.join(__dirname, '../../uploads'), { recursive: true });
+              }
+              fs.writeFileSync(filePath, buffer);
+              node.data.attachments[i].url = `http://localhost:5000/uploads/${uniqueFilename}`;
+            }
+          }
+        }
+      }
+    }
+
     // Default Graph if empty
     if (workflowNodes.length === 0) {
       const startId = 'node_start_' + Date.now();
@@ -147,7 +172,7 @@ exports.createWorkflow = async (req, res) => {
 
     await workflow.save();
 
-    // Trigger Notification for Admins or domain users
+    // Trigger Notification for Admins
     const UserModel = req.tenantConn.model('User');
     const admins = await UserModel.find({ role: 'admin' });
 
@@ -158,6 +183,30 @@ exports.createWorkflow = async (req, res) => {
         message: `A new workflow "${name}" has been drafted in domain ${workflowDomain}.`,
         type: 'workflow_created',
         link: `/admin/workflows?id=${workflow._id}`
+      });
+    }
+
+    // Trigger Notification for Users in the same domain
+    const searchDomains = [workflowDomain];
+    if (workflowDomain === 'HR' || workflowDomain === 'RH') {
+      searchDomains.push(workflowDomain === 'HR' ? 'RH' : 'HR');
+    }
+
+    const domainUsers = await UserModel.find({
+      domain: { $in: searchDomains },
+      role: { $ne: 'admin' } // admins already notified
+    });
+
+    for (const user of domainUsers) {
+      // Don't notify the creator twice
+      if (user._id.toString() === req.user.id.toString()) continue;
+
+      await notificationController.createInternalNotification(req.tenantConn, {
+        recipient: user._id,
+        title: 'New Workflow Template',
+        message: `A new template "${name}" is available in the ${workflowDomain} department.`,
+        type: 'workflow_created',
+        link: `/User/Workflows`
       });
     }
 
@@ -213,6 +262,31 @@ exports.updateWorkflow = async (req, res) => {
       });
     }
 
+    // Process base64 attachments in nodes
+    if (updates.nodes && Array.isArray(updates.nodes)) {
+      for (let node of updates.nodes) {
+        if (node.data && node.data.attachments && Array.isArray(node.data.attachments)) {
+          for (let i = 0; i < node.data.attachments.length; i++) {
+            let att = node.data.attachments[i];
+            if (att.url && att.url.startsWith('data:')) {
+              const match = att.url.match(/^data:([^;]+);base64,(.+)$/);
+              if (match) {
+                const base64Data = match[2];
+                const buffer = Buffer.from(base64Data, 'base64');
+                const uniqueFilename = `${Date.now()}-${att.filename}`;
+                const filePath = path.join(__dirname, '../../uploads', uniqueFilename);
+                if (!fs.existsSync(path.join(__dirname, '../../uploads'))) {
+                  fs.mkdirSync(path.join(__dirname, '../../uploads'), { recursive: true });
+                }
+                fs.writeFileSync(filePath, buffer);
+                node.data.attachments[i].url = `http://localhost:5000/uploads/${uniqueFilename}`;
+              }
+            }
+          }
+        }
+      }
+    }
+
     // Implicit Mongoose validation for nodes/edges if provided
     if (updates.nodes) workflow.nodes = updates.nodes;
     if (updates.edges) workflow.edges = updates.edges;
@@ -232,6 +306,49 @@ exports.updateWorkflow = async (req, res) => {
       id: workflow._id,
       name: workflow.name
     });
+
+    // Trigger Notification for Admins and Team
+    try {
+      const UserModel = req.tenantConn.model('User');
+      const workflowDomain = workflow.domain;
+
+      // 1. Notify Admins
+      const admins = await UserModel.find({ role: 'admin' });
+      for (const admin of admins) {
+        if (admin._id.toString() === req.user.id.toString()) continue;
+        await notificationController.createInternalNotification(req.tenantConn, {
+          recipient: admin._id,
+          title: 'Workflow Configuration Updated',
+          message: `The workflow "${workflow.name}" has been modified by ${req.user.email}.`,
+          type: 'system',
+          link: `/admin/workflows?id=${workflow._id}`
+        });
+      }
+
+      // 2. Notify Domain Users
+      const searchDomains = [workflowDomain];
+      if (workflowDomain === 'HR' || workflowDomain === 'RH') {
+        searchDomains.push(workflowDomain === 'HR' ? 'RH' : 'HR');
+      }
+
+      const domainUsers = await UserModel.find({
+        domain: { $in: searchDomains },
+        role: { $ne: 'admin' }
+      });
+
+      for (const user of domainUsers) {
+        if (user._id.toString() === req.user.id.toString()) continue;
+        await notificationController.createInternalNotification(req.tenantConn, {
+          recipient: user._id,
+          title: 'Workflow Template Updated',
+          message: `The template "${workflow.name}" in ${workflowDomain} has been updated.`,
+          type: 'system',
+          link: `/User/Workflows`
+        });
+      }
+    } catch (notifErr) {
+      console.warn('Notification failed:', notifErr.message);
+    }
 
     res.json({
       success: true,
@@ -287,6 +404,47 @@ exports.deleteWorkflow = async (req, res) => {
         id: workflow._id,
         name: workflow.name
       });
+
+      // Trigger Notification for Admins and Team
+      try {
+        const UserModel = req.tenantConn.model('User');
+        const workflowDomain = workflow.domain;
+
+        // 1. Notify Admins
+        const admins = await UserModel.find({ role: 'admin' });
+        for (const admin of admins) {
+          if (admin._id.toString() === req.user.id.toString()) continue;
+          await notificationController.createInternalNotification(req.tenantConn, {
+            recipient: admin._id,
+            title: 'Workflow Permanently Deleted',
+            message: `The workflow "${workflow.name}" was removed from the system.`,
+            type: 'system'
+          });
+        }
+
+        // 2. Notify Domain Users
+        const searchDomains = [workflowDomain];
+        if (workflowDomain === 'HR' || workflowDomain === 'RH') {
+          searchDomains.push(workflowDomain === 'HR' ? 'RH' : 'HR');
+        }
+
+        const domainUsers = await UserModel.find({
+          domain: { $in: searchDomains },
+          role: { $ne: 'admin' }
+        });
+
+        for (const user of domainUsers) {
+          if (user._id.toString() === req.user.id.toString()) continue;
+          await notificationController.createInternalNotification(req.tenantConn, {
+            recipient: user._id,
+            title: 'Workflow Template Removed',
+            message: `The template "${workflow.name}" is no longer available.`,
+            type: 'system'
+          });
+        }
+      } catch (notifErr) {
+        console.warn('Notification failed:', notifErr.message);
+      }
     }
 
     if (!workflow) {
@@ -362,7 +520,9 @@ exports.executeWorkflow = async (req, res) => {
         nodeId: startNode.id,
         status: 'in_progress',
         startedAt: new Date(),
-        responsibleUser: null // Could be defined in startNode.data if needed
+        responsibleUser: startNode.data?.assignedUser || (startNode.data?.assigneeSelectionType === 'user' ? (startNode.data.assigneeIds?.[0]) : null),
+        responsibleDomain: startNode.data?.responsibleDomain || startNode.data?.domain || null,
+        assignees: startNode.data?.assigneeIds || []
       }],
 
       variables: req.body.data || {}, // Initial variables
@@ -390,6 +550,77 @@ exports.executeWorkflow = async (req, res) => {
     });
 
     await instance.save();
+
+    // Trigger Notifications
+    try {
+      const currentNode = instance.currentNodes[0];
+      const UserModel = req.tenantConn.model('User');
+
+      // 1. Collect target users (direct and by role)
+      const targetUsers = new Set();
+      if (currentNode.responsibleUser) targetUsers.add(currentNode.responsibleUser.toString());
+      if (currentNode.assignees && startNode.data?.assigneeSelectionType === 'user') {
+        currentNode.assignees.forEach(id => targetUsers.add(id.toString()));
+      }
+
+      // If assigned by ROLE
+      if (startNode.data?.assigneeSelectionType === 'role' && currentNode.assignees?.length > 0) {
+        const RoleModel = req.tenantConn.model('Role');
+        const rolesMatching = await RoleModel.find({ _id: { $in: currentNode.assignees } });
+        const roleNames = rolesMatching.map(r => r.name);
+
+        const roleUsers = await UserModel.find({
+          $or: [
+            { role: { $in: roleNames } }, // Match by role name string
+            { role: { $in: currentNode.assignees.map(id => id.toString()) } } // Match by direct role ID string if applicable
+          ]
+        });
+        roleUsers.forEach(u => targetUsers.add(u._id.toString()));
+      }
+
+      for (const userId of targetUsers) {
+        await notificationController.createInternalNotification(req.tenantConn, {
+          recipient: userId,
+          title: 'New Task Assigned',
+          message: `You have a new task "${startNode.data?.label || 'Step'}" in workflow "${instance.title}".`,
+          type: 'task_assigned',
+          link: `/Workflows/instances/${instance._id}`
+        });
+      }
+
+      // 2. Notify Domain/Department
+      if (currentNode.responsibleDomain) {
+        const domain = currentNode.responsibleDomain;
+        const searchDomains = [domain];
+        if (domain === 'HR' || domain === 'RH') searchDomains.push(domain === 'HR' ? 'RH' : 'HR');
+
+        const domainUsers = await UserModel.find({ domain: { $in: searchDomains } });
+        for (const user of domainUsers) {
+          if (targetUsers.has(user._id.toString())) continue;
+          await notificationController.createInternalNotification(req.tenantConn, {
+            recipient: user._id,
+            title: 'New Department Task',
+            message: `A new task for the ${domain} department is available in "${instance.title}".`,
+            type: 'task_assigned',
+            link: `/Workflows/instances/${instance._id}`
+          });
+        }
+      }
+
+      // 3. Notify Admins
+      const admins = await UserModel.find({ role: 'admin' });
+      for (const admin of admins) {
+        await notificationController.createInternalNotification(req.tenantConn, {
+          recipient: admin._id,
+          title: 'New Workflow Instance',
+          message: `An instance of "${workflow.name}" has been started by ${req.user.email}.`,
+          type: 'system',
+          link: `/Workflows/instances/${instance._id}`
+        });
+      }
+    } catch (err) {
+      console.error('Notification Error:', err);
+    }
 
     res.status(201).json({
       success: true,
@@ -441,21 +672,51 @@ exports.changeWorkflowStatus = async (req, res) => {
     workflow.status = status;
     await workflow.save();
 
-    if (status === 'active') {
+    // Trigger Notifications for Status Change
+    try {
       const UserModel = req.tenantConn.model('User');
-      const domainUsers = await UserModel.find({
-        $or: [{ domain: workflow.domain }, { role: 'admin' }]
-      });
+      const workflowDomain = workflow.domain;
 
-      for (const user of domainUsers) {
+      // 1. Notify Admins
+      const admins = await UserModel.find({ role: 'admin' });
+      for (const admin of admins) {
+        if (admin._id.toString() === req.user.id.toString()) continue;
         await notificationController.createInternalNotification(req.tenantConn, {
-          recipient: user._id,
-          title: 'Workflow Published',
-          message: `The workflow "${workflow.name}" is now ACTIVE for ${workflow.domain}.`,
-          type: 'workflow_created',
-          link: `/User/Workflows`
+          recipient: admin._id,
+          title: `Workflow Status: ${status.toUpperCase()}`,
+          message: `The workflow "${workflow.name}" is now set to ${status}.`,
+          type: 'system',
+          link: `/admin/workflows?id=${workflow._id}`
         });
       }
+
+      // 2. Notify Domain Users (Publication or Archival)
+      if (status === 'active' || status === 'archived') {
+        const searchDomains = [workflowDomain];
+        if (workflowDomain === 'HR' || workflowDomain === 'RH') {
+          searchDomains.push(workflowDomain === 'HR' ? 'RH' : 'HR');
+        }
+
+        const domainUsers = await UserModel.find({
+          domain: { $in: searchDomains },
+          role: { $ne: 'admin' }
+        });
+
+        for (const user of domainUsers) {
+          if (user._id.toString() === req.user.id.toString()) continue;
+          await notificationController.createInternalNotification(req.tenantConn, {
+            recipient: user._id,
+            title: status === 'active' ? 'New Workflow Available' : 'Workflow Archived',
+            message: status === 'active'
+              ? `The template "${workflow.name}" is now ready for use.`
+              : `The template "${workflow.name}" has been removed from active duty.`,
+            type: 'system',
+            link: status === 'active' ? `/User/Workflows` : null
+          });
+        }
+      }
+    } catch (notifErr) {
+      console.warn('Status notification failed:', notifErr.message);
     }
 
     res.json({

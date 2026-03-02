@@ -27,6 +27,11 @@ export default function InstancePage({ params }: { params: Promise<{ instanceId:
                     const res = await apiService.getWorkflowById(workflowId);
                     if (res.success) {
                         setWorkflow(res.data);
+                        // Auto-select start node to show "Initialize Flow" button immediately
+                        const startNode = res.data.nodes?.find((n: any) => n.type === 'start');
+                        if (startNode) {
+                            setSelectedNode(startNode);
+                        }
                     }
                 }
                 setLoading(false);
@@ -55,6 +60,21 @@ export default function InstancePage({ params }: { params: Promise<{ instanceId:
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+            </div>
+        );
+    }
+
+    if (!instance && instanceId !== 'new') {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+                <div className="p-4 bg-rose-50 text-rose-500 rounded-2xl">
+                    <Activity size={48} />
+                </div>
+                <h2 className="text-xl font-black text-slate-800">Instance Not Found</h2>
+                <p className="text-slate-500">The workflow instance you are looking for does not exist or has been deleted.</p>
+                <Link href="/User/Workflows" className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold">
+                    Back to Workflows
+                </Link>
             </div>
         );
     }

@@ -26,6 +26,7 @@ export default function Form2Page() {
   const nodeId = searchParams.get('nodeId');
   const formId = searchParams.get('formId') || searchParams.get('id');
   const workflowId = searchParams.get('workflowId');
+  const designerWorkflowId = searchParams.get('designerWorkflowId');
 
   const [form, setForm] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -131,7 +132,17 @@ export default function Form2Page() {
       if (res.success) {
         toast.success("Form submitted successfully!");
         setIsSubmitModalOpen(false);
-        router.push('/User/Allforms');
+        
+        // Dynamic redirection based on context
+        if (designerWorkflowId) {
+          router.push(`/User/create_workflows?id=${designerWorkflowId}`);
+        } else if (instanceId === 'new') {
+          router.push(`/Workflows/instances/new?workflowId=${workflowId}`);
+        } else if (instanceId) {
+          router.push(`/Workflows/instances/${instanceId}`);
+        } else {
+          router.push('/User/Allforms');
+        }
       }
     } catch (error: any) {
       toast.error("Submission failed: " + error.message);
@@ -159,7 +170,7 @@ export default function Form2Page() {
   };
 
   if (loading) return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+    <div key="loading-state" className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="flex flex-col items-center gap-3">
         <Clock className="w-8 h-8 text-indigo-600 animate-spin" />
         <p className="text-gray-500 font-medium">Loading interactive form...</p>
@@ -182,8 +193,8 @@ export default function Form2Page() {
       <Toaster position="top-right" richColors />
 
       <AnimatePresence>
-        {isSubmitModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+        {!!isSubmitModalOpen && (
+          <div key="submit-modal-overlay" className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -191,14 +202,14 @@ export default function Form2Page() {
               className="bg-white w-full max-w-lg rounded-[32px] overflow-hidden shadow-2xl border border-slate-100"
             >
               {/* Modal Header */}
-              <div className="bg-indigo-600 p-8 text-white">
+              <div key="modal-header" className="bg-indigo-600 p-8 text-white">
                 <h2 className="text-2xl font-black tracking-tight uppercase">Workflow Identification</h2>
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80 mt-1">Lattice Persistence</p>
               </div>
 
               {/* Modal Body */}
-              <div className="p-8 space-y-8">
-                <div className="space-y-3">
+              <div key="modal-body" className="p-8 space-y-8">
+                <div key="name-group" className="space-y-3">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Submission Title</label>
                   <input 
                     value={submissionName}
@@ -208,7 +219,7 @@ export default function Form2Page() {
                   />
                 </div>
 
-                <div className="space-y-3">
+                <div key="desc-group" className="space-y-3">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Notes / Context</label>
                   <textarea 
                     value={submissionDescription}
@@ -220,8 +231,9 @@ export default function Form2Page() {
               </div>
 
               {/* Modal Footer */}
-              <div className="p-8 pt-0 flex items-center justify-between">
+              <div key="modal-footer" className="p-8 pt-0 flex items-center justify-between">
                 <button 
+                  key="discard-btn"
                   onClick={() => setIsSubmitModalOpen(false)}
                   className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors"
                 >
@@ -238,8 +250,9 @@ export default function Form2Page() {
             </motion.div>
           </div>
         )}
-        {instanceId && currentNode && (
+        {!!(instanceId && currentNode) && (
           <TaskExecutionPanel
+            key="workflow-instance-panel"
             instance={instance}
             node={currentNode}
             onClose={() => { }}
@@ -253,7 +266,12 @@ export default function Form2Page() {
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link
-              href="/User/Allforms"
+              href={
+                designerWorkflowId ? `/User/create_workflows?id=${designerWorkflowId}` :
+                instanceId === 'new' ? `/Workflows/instances/new?workflowId=${workflowId}` :
+                instanceId ? `/Workflows/instances/${instanceId}` :
+                "/User/Allforms"
+              }
               className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -305,7 +323,7 @@ export default function Form2Page() {
       {/* Form Content */}
       <div className="max-w-4xl mx-auto px-4 mt-8">
         {form.steps?.map((step: any, sIdx: number) => (
-          <div key={step.id} className="mb-10 animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${sIdx * 100}ms` }}>
+          <div key={step.id || `step-${sIdx}`} className="mb-10 animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${sIdx * 100}ms` }}>
             <div className="flex items-center gap-3 mb-6">
               <div className="w-8 h-8 bg-indigo-600 text-white rounded-lg flex items-center justify-center font-black text-xs shadow-md shadow-indigo-100">
                 {sIdx + 1}
@@ -315,27 +333,27 @@ export default function Form2Page() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {step.fields?.map((field: any) => {
+              {step.fields?.map((field: any, fIdx: number) => {
                 const Icon = FIELD_ICONS[field.type] || Type;
                 const isFull = field.width !== 'half';
-
                 return (
-                  <div key={field.id} className={`${isFull ? 'md:col-span-2' : ''} space-y-2`}>
+                  <div key={field.id || `field-${sIdx}-${fIdx}`} className={`${isFull ? 'md:col-span-2' : ''} space-y-2`}>
                     <label className="flex items-center gap-2 text-sm font-bold text-gray-700 px-1">
                       <Icon className="w-3.5 h-3.5 text-indigo-500" />
                       {field.label}
-                      {field.required && <span className="text-red-500">*</span>}
+                      {!!field.required && <span className="text-red-500">*</span>}
                     </label>
 
                     {field.type === 'textarea' ? (
                       <textarea
+                        key={`textarea-${field.id}`}
                         className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all text-sm min-h-[120px]"
                         placeholder={field.placeholder}
                         value={formData[field.id] || ''}
                         onChange={(e) => handleChange(field.id, e.target.value)}
                       />
                     ) : field.type === 'select' ? (
-                      <div className="relative group">
+                      <div key={`select-container-${field.id}`} className="relative group">
                         <select
                           className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all text-sm appearance-none bg-white cursor-pointer"
                           value={formData[field.id] || ''}
@@ -343,15 +361,15 @@ export default function Form2Page() {
                         >
                           <option value="">{field.placeholder || "Please select..."}</option>
                           {field.options?.map((opt: string, i: number) => (
-                            <option key={i} value={opt}>{opt}</option>
+                            <option key={`${field.id}-opt-${i}`} value={opt}>{opt}</option>
                           ))}
                         </select>
                         <List className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300 group-focus-within:text-indigo-500 pointer-events-none transition-colors" />
                       </div>
                     ) : field.type === 'checkbox' ? (
-                      <div className="p-4 bg-white border-2 border-gray-100 rounded-2xl space-y-3">
+                      <div key={`checkbox-container-${field.id}`} className="p-4 bg-white border-2 border-gray-100 rounded-2xl space-y-3">
                         {field.options?.map((opt: string, i: number) => (
-                          <label key={i} className="flex items-center gap-3 cursor-pointer group">
+                          <label key={`${field.id}-check-${i}`} className="flex items-center gap-3 cursor-pointer group">
                             <input
                               type="checkbox"
                               className="w-5 h-5 rounded border-2 border-gray-200 text-indigo-600 focus:ring-indigo-500 transition-all cursor-pointer"
@@ -367,13 +385,13 @@ export default function Form2Page() {
                         ))}
                       </div>
                     ) : field.type === 'signature' ? (
-                      <div className="space-y-3">
+                      <div key={`signature-container-${field.id}`} className="space-y-3">
                         <label
                           htmlFor={`file-${field.id}`}
                           className="w-full aspect-video md:aspect-auto md:h-40 border-2 border-gray-100 border-dashed rounded-2xl bg-white flex flex-col items-center justify-center group hover:border-indigo-200 hover:bg-indigo-50/30 transition-all cursor-pointer relative overflow-hidden block"
                         >
                           {formData[field.id]?.data ? (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white p-4">
+                            <div key="signature-preview" className="absolute inset-0 flex flex-col items-center justify-center bg-white p-4">
                               {formData[field.id].type === 'application/pdf' ? (
                                 <div className="flex flex-col items-center gap-2">
                                   <FileText className="w-12 h-12 text-red-500" />
@@ -392,7 +410,7 @@ export default function Form2Page() {
                               </button>
                             </div>
                           ) : (
-                            <>
+                            <React.Fragment key="signature-upload-ui">
                               <div className="flex flex-col items-center animate-in fade-in zoom-in duration-300">
                                 <PenTool className="w-8 h-8 text-indigo-400 mb-2 group-hover:scale-110 transition-transform" />
                                 <p className="text-xs text-gray-400 font-medium text-center px-4 leading-relaxed group-hover:text-indigo-500 transition-colors">
@@ -405,7 +423,7 @@ export default function Form2Page() {
                                   Choose Local File
                                 </div>
                               </div>
-                            </>
+                            </React.Fragment>
                           )}
                         </label>
                         <input
@@ -418,6 +436,7 @@ export default function Form2Page() {
                       </div>
                     ) : (
                       <input
+                        key={`input-generic-${field.id}`}
                         type={field.type}
                         className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all text-sm"
                         placeholder={field.placeholder}

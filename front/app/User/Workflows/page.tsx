@@ -15,7 +15,9 @@ import {
   TrendingUp,
   Activity,
   AlertCircle,
-  ChevronRight
+  ChevronRight,
+  Trash2,
+  Edit3
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiService } from '@/service/api.service';
@@ -109,6 +111,23 @@ export default function UserWorkflowsPage() {
       console.error('Error fetching page data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteWorkflow = async (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    try {
+      const res = await apiService.deleteWorkflow(id);
+      if (res.success) {
+        setWorkflows(prev => prev.filter(w => w._id !== id));
+      } else {
+        alert(res.message || 'Failed to delete workflow');
+      }
+    } catch (err: any) {
+      console.error('Delete error:', err);
+      alert(err.message || 'An error occurred during deletion');
     }
   };
 
@@ -287,6 +306,20 @@ export default function UserWorkflowsPage() {
                           }`}>
                           {workflow.status}
                         </span>
+                        
+                        <div className="flex gap-1 ml-2">
+                          <Link href={`/User/create_workflows?id=${workflow._id}`}>
+                            <button className="p-2 hover:bg-slate-100 text-slate-400 hover:text-indigo-600 rounded-xl transition-all shadow-sm bg-white border border-slate-100">
+                              <Edit3 size={14} />
+                            </button>
+                          </Link>
+                          <button 
+                            onClick={(e) => handleDeleteWorkflow(e, workflow._id)}
+                            className="p-2 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-xl transition-all shadow-sm bg-white border border-slate-100"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
                     </div>
 
@@ -309,7 +342,9 @@ export default function UserWorkflowsPage() {
                     </div>
 
                     <Link href={`/Workflows/instances/new?workflowId=${workflow._id}`}>
-                      <button className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-indigo-600 transition-all active:scale-95 shadow-lg shadow-slate-200 group-hover:shadow-indigo-200">
+                      <button 
+                        className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-indigo-600 transition-all active:scale-95 shadow-lg shadow-slate-200 group-hover:shadow-indigo-200"
+                      >
                         <Play size={14} fill="currentColor" />
                         Initialize Process
                       </button>

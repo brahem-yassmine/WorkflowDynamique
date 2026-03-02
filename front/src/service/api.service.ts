@@ -242,6 +242,12 @@ class ApiService {
     return this.request('/checklists');
   }
 
+  deleteChecklist(id: string) {
+    return this.request(`/checklists/${id}`, {
+      method: 'DELETE'
+    });
+  }
+
   // Notification Management
   getNotifications() {
     return this.request('/notifications');
@@ -287,6 +293,12 @@ class ApiService {
     return this.request(`/workflow-instances/${instanceId}/reject`, {
       method: 'POST',
       body: JSON.stringify({ nodeId })
+    });
+  }
+
+  deleteInstance(instanceId: string) {
+    return this.request(`/workflow-instances/${instanceId}`, {
+      method: 'DELETE'
     });
   }
 

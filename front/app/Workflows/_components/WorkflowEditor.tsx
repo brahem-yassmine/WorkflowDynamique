@@ -260,6 +260,7 @@ function WorkflowEditorContent() {
             {selectedNode && (
                 <NodeDetailsPanel
                     selectedNode={selectedNode}
+                    workflowId={currentWorkflowId}
                     onClose={() => setSelectedNode(null)}
                     onUpdate={onNodeUpdate}
                     onDelete={onNodeDelete}

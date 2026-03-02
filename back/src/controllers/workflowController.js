@@ -273,16 +273,11 @@ exports.deleteWorkflow = async (req, res) => {
 
     const Workflow = req.tenantConn.model('Workflow');
     const WorkflowInstance = req.tenantConn.model('WorkflowInstance');
+    const Checklist = req.tenantConn.model('Checklist');
 
-    // Check if there are linked instances
-    const instancesCount = await WorkflowInstance.countDocuments({ workflowId });
-
-    if (instancesCount > 0) {
-      return res.status(400).json({
-        success: false,
-        message: `Deletion impossible: ${instancesCount} instance(s) exist. Archive first.`
-      });
-    }
+    // Cascade delete: Remove all instances and checklists associated with this workflow
+    await WorkflowInstance.deleteMany({ workflowId });
+    await Checklist.deleteMany({ workflowId });
 
     const workflow = await Workflow.findByIdAndDelete(workflowId);
 

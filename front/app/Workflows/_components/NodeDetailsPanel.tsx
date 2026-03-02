@@ -12,6 +12,7 @@ import { apiService } from '@/service/api.service';
 
 interface NodeDetailsPanelProps {
     selectedNode: Node | null;
+    workflowId?: string | null;
     onClose: () => void;
     onUpdate: (id: string, data: any) => void;
     onDelete: (id: string) => void;
@@ -33,7 +34,7 @@ const TabButton = ({ active, onClick, icon, title, subtitle }: any) => (
     </button>
 );
 
-const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDetailsPanelProps) => {
+const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelete }: NodeDetailsPanelProps) => {
     const router = useRouter();
     const [label, setLabel] = useState('');
     const [description, setDescription] = useState('');
@@ -621,7 +622,7 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
                                                         <Button
                                                             variant="ghost"
                                                             size="sm"
-                                                            onClick={() => router.push(`/form/${linkedObjectId}`)}
+                                                            onClick={() => router.push(`/form/form2?id=${linkedObjectId}${workflowId ? `&designerWorkflowId=${workflowId}` : ''}`)}
                                                             className="text-emerald-600 font-black text-[10px] uppercase tracking-widest gap-2"
                                                         >
                                                             Edit Form <ExternalLink size={14} />

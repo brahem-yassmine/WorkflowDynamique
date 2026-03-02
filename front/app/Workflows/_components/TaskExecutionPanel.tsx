@@ -93,7 +93,7 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
             if (!instance && node.type === 'start') {
                 const res = await apiService.createInstance({
                     workflowId: workflowId || node.data.workflowId || (window.location.search.split('workflowId=')[1]?.split('&')[0]),
-                    title: `Instance: ${node.data.label || 'New Workflow'}`
+                    title: node.data.instanceTitle || `Instance: ${node.data.label || 'New Workflow'}`
                 });
                 if (res.success && res.data?._id) {
                     router.push(`/Workflows/instances/${res.data._id}`);
@@ -130,8 +130,9 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
     }
 
     const isSystemAdmin = currentUser?.role === 'admin' || currentUser?.role === 'super_admin';
-    const canPerform = isActive || node.type === 'start';
-    const canValidate = isActive || node.type === 'start';
+    const isInstanceActive = !instance || instance.status === 'in_progress';
+    const canPerform = (isActive || node.type === 'start');
+    const canValidate = canPerform && isInstanceActive;
 
     return (
         <motion.div
@@ -250,38 +251,35 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                         <div className={`group relative p-6 border rounded-[28px] transition-all duration-300 ${canPerform ? 'bg-emerald-50/50 border-emerald-200 shadow-lg shadow-emerald-500/5' : 'bg-slate-50 border-slate-100'}`}>
                             <div className="flex items-center justify-between mb-5">
                                 <div className="flex items-center gap-4">
-                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm transition-transform duration-500 group-hover:scale-110 ${canPerform ? 'bg-white text-emerald-500' : 'bg-slate-100 text-slate-300'}`}>
+                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm transition-transform duration-500 group-hover:scale-110 ${isActive ? 'bg-white text-emerald-500' : 'bg-slate-100 text-slate-400'}`}>
                                         {data.taskType === 'form' ? <ClipboardList size={22} /> : <ListChecks size={22} />}
                                     </div>
                                     <div>
-                                        <h4 className={`text-sm font-black ${canPerform ? 'text-emerald-900' : 'text-slate-400'}`}>
+                                        <h4 className={`text-sm font-black ${isActive ? 'text-emerald-900' : 'text-slate-600'}`}>
                                             Dynamic {data.taskType?.toUpperCase() || 'ASSET'}
                                         </h4>
                                         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">External Integration Bound</p>
                                     </div>
                                 </div>
-                                <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${canPerform ? 'bg-emerald-500 text-white animate-pulse' : 'bg-slate-200 text-slate-400'}`}>
-                                    {canPerform ? (isActive ? 'Active' : 'Preview') : 'Locked'}
+                                <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${isActive ? 'bg-emerald-500 text-white animate-pulse' : 'bg-indigo-50 text-indigo-600'}`}>
+                                    {isActive ? 'Active' : 'Accessible'}
                                 </div>
                             </div>
 
-                            {canPerform ? (
-                                <Link
-                                    href={
-                                        data.taskType === 'form' ? `/form/form2?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}` :
-                                            data.taskType === 'checklist' ? `/checklist?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}` :
-                                                `/${data.taskType}s/${data.linkedObjectId}?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}`
-                                    }
-                                    className="w-full h-12 bg-emerald-600 text-white rounded-[18px] flex items-center justify-center gap-3 text-[11px] font-black uppercase tracking-[0.1em] hover:bg-emerald-700 hover:shadow-xl hover:shadow-emerald-200 transition-all"
-                                >
-                                    {isActive ? 'Execute Task Now' : 'Preview Asset Structure'} <ArrowRight size={16} strokeWidth={3} />
-                                </Link>
-                            ) : (
-                                <div className="flex items-center gap-2 p-3 bg-white/60 rounded-xl border border-dashed border-slate-200 text-slate-500 italic text-[10px]">
-                                    <Clock size={14} />
-                                    <span>Locked until workflow progression reaches this unit.</span>
-                                </div>
-                            )}
+                            <Link
+                                href={
+                                    data.taskType === 'form' ? `/form/form2?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}` :
+                                        data.taskType === 'checklist' ? `/checklist?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}` :
+                                            `/${data.taskType}s/${data.linkedObjectId}?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}`
+                                }
+                                className={`w-full h-12 rounded-[18px] flex items-center justify-center gap-3 text-[11px] font-black uppercase tracking-[0.1em] transition-all ${
+                                    isActive 
+                                    ? 'bg-emerald-600 text-white hover:bg-emerald-700 hover:shadow-xl hover:shadow-emerald-200' 
+                                    : 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-xl hover:shadow-indigo-200'
+                                }`}
+                            >
+                                {isActive ? 'Execute Task Now' : 'View/Fill Asset'} <ArrowRight size={16} strokeWidth={3} />
+                            </Link>
                         </div>
                     ) : (
                         (data.taskType === 'form' || data.taskType === 'checklist') ? (
@@ -361,16 +359,27 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                 </div>
             ) : (
                 <div className="p-8 bg-slate-50/80 backdrop-blur-md border-t border-slate-100/50">
-                    <div className="p-4 bg-white rounded-2xl border border-slate-200/60 flex items-center justify-center gap-3 shadow-sm">
-                        {isActive ? (
+                    <div className={`p-4 rounded-2xl border flex items-center justify-center gap-3 shadow-sm ${
+                        instance?.status === 'rejected' ? 'bg-rose-50 border-rose-200/60 text-rose-600' :
+                        instance?.status === 'completed' || instance?.status === 'approved' ? 'bg-emerald-50 border-emerald-200/60 text-emerald-600' :
+                        'bg-white border-slate-200/60 text-slate-400'
+                    }`}>
+                        {!isInstanceActive ? (
+                            <>
+                                <AlertCircle size={18} />
+                                <span className="text-[10px] font-black uppercase tracking-widest">
+                                    Workflow {instance.status?.toUpperCase()} - Read Only
+                                </span>
+                            </>
+                        ) : isActive ? (
                             <>
                                 <AlertCircle className="text-rose-500" size={18} />
                                 <span className="text-[10px] font-black text-rose-600 uppercase tracking-widest">Awaiting Validator Review</span>
                             </>
                         ) : (
                             <>
-                                <ShieldCheck className="text-slate-400" size={18} />
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Protocol View Only</span>
+                                <ShieldCheck size={18} />
+                                <span className="text-[10px] font-black uppercase tracking-widest">Protocol View Only</span>
                             </>
                         )}
                     </div>

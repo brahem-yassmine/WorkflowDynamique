@@ -9,8 +9,11 @@ const workflowInstanceSchema = new mongoose.Schema({
     required: true
   },
 
-  // REMOVE - tenantId (useless in the tenant database)
-  // tenantId: { ... },
+  // Link to generated checklist
+  checklistId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Checklist'
+  },
 
   // We keep the reference to the user (in the same database)
   createdBy: {

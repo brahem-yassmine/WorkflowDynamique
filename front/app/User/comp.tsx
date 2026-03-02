@@ -68,6 +68,11 @@ function UserSidebar() {
             <Layers className="h-5 w-5 group-hover:scale-110 transition-transform text-indigo-300" />
             <span className="text-sm font-bold">All Forms</span>
           </Link>
+          
+          <Link href="/User/Allchecks" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-xl transition-all group">
+            <ListTodo className="h-5 w-5 group-hover:scale-110 transition-transform text-emerald-400" />
+            <span className="text-sm font-bold">All Checklists</span>
+          </Link>
 
 
 

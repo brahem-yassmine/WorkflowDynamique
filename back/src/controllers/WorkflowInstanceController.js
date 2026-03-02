@@ -64,6 +64,30 @@ exports.createInstance = async (req, res) => {
       }]
     });
 
+    // Create associated checklist
+    const Checklist = req.tenantConn.model('Checklist');
+    const checklistTasks = workflow.nodes
+      .filter(node => node.type !== 'start' && node.type !== 'end')
+      .map(node => ({
+        id: node.id,
+        title: node.data?.label || node.id,
+        completed: false,
+        priority: node.data?.priority || 'medium'
+      }));
+
+    const checklist = new Checklist({
+      name: `Checklist: ${title}`,
+      description: `Auto-generated for workflow instance: ${title}`,
+      tasks: checklistTasks,
+      createdBy: req.user.id,
+      status: 'draft',
+      instanceId: instance._id,
+      workflowId: workflow._id
+    });
+
+    await checklist.save();
+    instance.checklistId = checklist._id;
+
     await instance.save();
 
     // Notification logic
@@ -258,6 +282,26 @@ exports.approveNode = async (req, res) => {
     }
 
     await instance.save();
+
+    // Update associated checklist task
+    if (instance.checklistId) {
+      try {
+        const ChecklistModel = req.tenantConn.model('Checklist');
+        const checklist = await ChecklistModel.findById(instance.checklistId);
+        if (checklist) {
+          const taskIndex = checklist.tasks.findIndex(t => t.id === nodeId);
+          if (taskIndex !== -1) {
+            checklist.tasks[taskIndex].completed = true;
+            if (isFlowFinished) {
+              checklist.status = 'completed';
+            }
+            await checklist.save();
+          }
+        }
+      } catch (err) {
+        console.error('Checklist Sync Error:', err);
+      }
+    }
 
     // Notifications
     try {

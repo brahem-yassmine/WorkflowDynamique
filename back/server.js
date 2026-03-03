@@ -32,6 +32,14 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+// REQUEST LOGGER
+app.use((req, res, next) => {
+  console.log(`📡 [HTTP] ${req.method} ${req.originalUrl}`);
+  res.on('finish', () => {
+    console.log(`🏁 [HTTP] ${req.method} ${req.originalUrl} - ${res.statusCode}`);
+  });
+  next();
+});
 
 // ========================
 // MASTER CONNECTION

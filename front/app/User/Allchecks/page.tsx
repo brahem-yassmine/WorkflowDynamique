@@ -12,15 +12,22 @@ import {
   MoreVertical,
   ClipboardList,
   AlertCircle,
-  Trash2
+  Trash2,
+  Eye,
+  X,
+  Plus
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { apiService } from '@/service/api.service';
 import Link from 'next/link';
+import { toast, Toaster } from 'sonner';
 
 export default function AllChecklistsPage() {
   const [checklists, setChecklists] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedChecklist, setSelectedChecklist] = useState<any>(null);
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
 
   useEffect(() => {
     fetchChecklists();
@@ -57,12 +64,13 @@ export default function AllChecklistsPage() {
 
       if (res.success) {
         setChecklists(prev => prev.filter(c => c._id !== id));
+        toast.success('Checklist and tracking data deleted');
       } else {
-        alert(res.message || 'Failed to delete checklist');
+        toast.error(res.message || 'Failed to delete checklist');
       }
     } catch (err: any) {
       console.error('Delete error:', err);
-      alert(err.message || 'An error occurred during deletion');
+      toast.error(err.message || 'An error occurred during deletion');
     }
   };
 
@@ -77,8 +85,78 @@ export default function AllChecklistsPage() {
     return Math.round((completed / tasks.length) * 100);
   };
 
+  const ChecklistDetailModal = ({ checklist, isOpen, onClose }: { checklist: any, isOpen: boolean, onClose: () => void }) => {
+    if (!checklist || !isOpen) return null;
+
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          className="bg-white w-full max-w-2xl rounded-[32px] overflow-hidden shadow-2xl border border-slate-100 flex flex-col max-h-[85vh]"
+        >
+          <div className="bg-indigo-600 p-8 text-white shrink-0 relative">
+            <button 
+              onClick={onClose}
+              className="absolute top-6 right-6 p-2 hover:bg-white/10 rounded-xl transition-colors"
+            >
+              <X size={20} />
+            </button>
+            <h2 className="text-2xl font-black tracking-tight uppercase">Strategic Matrix Preview</h2>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80 mt-1">{checklist.name}</p>
+          </div>
+
+          <div className="p-8 overflow-y-auto space-y-6 flex-grow custom-scrollbar">
+            {(!checklist.tasks || checklist.tasks.length === 0) ? (
+              <div className="text-center py-12">
+                <AlertCircle className="mx-auto text-slate-200 mb-4" size={48} />
+                <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">No active tactical tasks identified</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {checklist.tasks.map((task: any, idx: number) => (
+                  <div key={idx} className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-200 transition-all">
+                    <div className={`p-2 rounded-lg ${task.completed ? 'bg-emerald-100 text-emerald-600' : 'bg-indigo-100 text-indigo-600'}`}>
+                      {task.completed ? <CheckCircle2 size={14} /> : <Clock size={14} />}
+                    </div>
+                    <div className="flex-1">
+                      <p className={`text-sm font-black tracking-tight leading-none uppercase ${task.completed ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
+                        {task.title}
+                      </p>
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">
+                        {task.completed ? 'Achieved' : 'Pending Operations'}
+                      </p>
+                    </div>
+                    <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${
+                      task.priority === 'high' ? 'bg-rose-100 text-rose-600' : 
+                      task.priority === 'medium' ? 'bg-amber-100 text-amber-600' : 
+                      'bg-emerald-100 text-emerald-600'
+                    }`}>
+                      {task.priority || 'standard'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="p-8 pt-0 shrink-0">
+            <button 
+              onClick={onClose}
+              className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-600 transition-all active:scale-95 shadow-xl shadow-slate-100"
+            >
+              Exit Overview
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-8 lg:p-12">
+      <Toaster position="top-right" richColors />
       {/* Header Section */}
       <div className="max-w-7xl mx-auto space-y-12">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -95,7 +173,7 @@ export default function AllChecklistsPage() {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="relative group">
+            <div className="relative group flex-grow md:flex-grow-0">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
               <input 
                 type="text"
@@ -105,6 +183,12 @@ export default function AllChecklistsPage() {
                 className="pl-12 pr-6 py-4 bg-white border border-slate-200 rounded-2xl w-full md:w-72 shadow-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none font-bold text-sm text-slate-900 placeholder:text-slate-400"
               />
             </div>
+            <Link href="/User/newCheck">
+              <button className="flex items-center gap-2 px-6 py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all active:scale-95 shadow-lg shadow-indigo-100 whitespace-nowrap">
+                <Plus size={18} strokeWidth={3} />
+                Create Checklist
+              </button>
+            </Link>
           </div>
         </div>
 
@@ -156,6 +240,18 @@ export default function AllChecklistsPage() {
                       <ListTodo size={24} strokeWidth={2.5} />
                     </div>
                     <div className="flex gap-2">
+                      <button 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setSelectedChecklist(checklist);
+                          setIsPreviewModalOpen(true);
+                        }}
+                        className="p-3 bg-white border border-slate-100 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all shadow-sm"
+                        title="Quick Preview"
+                      >
+                        <Eye size={20} strokeWidth={2.5} />
+                      </button>
                       <button 
                         onClick={(e) => handleDeleteChecklist(e, checklist._id, checklist.instanceId)}
                         className="p-3 bg-white border border-slate-100 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-2xl transition-all shadow-sm"
@@ -212,7 +308,7 @@ export default function AllChecklistsPage() {
 
                   <div className="mt-8 pt-6 border-t border-slate-50">
                     <Link 
-                      href={checklist.instanceId ? `/Workflows/instances/${checklist.instanceId}` : `/checklist/${checklist._id}`}
+                      href={checklist.instanceId ? `/Workflows/instances/${checklist.instanceId}` : `/User/newCheck?id=${checklist._id}`}
                       className="flex items-center justify-between w-full group/btn"
                     >
                       <span className="text-[11px] font-black uppercase tracking-widest text-slate-900 group-hover/btn:text-indigo-600 transition-colors">
@@ -239,6 +335,16 @@ export default function AllChecklistsPage() {
           </div>
         )}
       </div>
+
+      <AnimatePresence>
+        {isPreviewModalOpen && (
+          <ChecklistDetailModal 
+            checklist={selectedChecklist} 
+            isOpen={isPreviewModalOpen} 
+            onClose={() => setIsPreviewModalOpen(false)} 
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

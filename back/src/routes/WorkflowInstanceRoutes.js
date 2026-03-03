@@ -9,6 +9,7 @@ const {
   approveNode,
   rejectNode,
   cancelInstance,
+  deleteInstance,
   addAttachment,
   getInstanceStats
 } = require('../controllers/WorkflowInstanceController.js');
@@ -24,6 +25,7 @@ router.post('/', createInstance);                    // POST /api/workflow-insta
 router.get('/', getInstances);                       // GET /api/workflow-instances
 router.get('/stats', getInstanceStats);              // GET /api/workflow-instances/stats
 router.get('/:instanceId', getInstanceById);         // GET /api/workflow-instances/:id
+router.delete('/:instanceId', deleteInstance);      // DELETE /api/workflow-instances/:id
 
 // Actions on instances
 router.post('/:instanceId/approve', approveNode);    // POST /api/workflow-instances/:id/approve

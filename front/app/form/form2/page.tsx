@@ -27,6 +27,8 @@ export default function Form2Page() {
   const formId = searchParams.get('formId') || searchParams.get('id');
   const workflowId = searchParams.get('workflowId');
   const designerWorkflowId = searchParams.get('designerWorkflowId');
+  const fromWorkflow = searchParams.get('fromWorkflow');
+  const from = searchParams.get('from');
 
   const [form, setForm] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -134,14 +136,15 @@ export default function Form2Page() {
         setIsSubmitModalOpen(false);
         
         // Dynamic redirection based on context
-        if (designerWorkflowId) {
-          router.push(`/User/create_workflows?id=${designerWorkflowId}`);
+        if (designerWorkflowId || fromWorkflow) {
+          const basePath = from === 'admin' ? '/admin/create_workflows' : '/User/create_workflows';
+          router.push(`${basePath}${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}`);
         } else if (instanceId === 'new') {
           router.push(`/Workflows/instances/new?workflowId=${workflowId}`);
         } else if (instanceId) {
           router.push(`/Workflows/instances/${instanceId}`);
         } else {
-          router.push('/User/Allforms');
+          router.push(from === 'user' ? '/User/Allforms' : '/admin/AllForms');
         }
       }
     } catch (error: any) {
@@ -262,56 +265,58 @@ export default function Form2Page() {
       </AnimatePresence>
 
       {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+      <div className="bg-white border-b z-30 shadow-sm">
+        <div className="max-w-4xl mx-auto px-4 py-4 sm:h-20 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-4 w-full sm:w-auto">
             <Link
               href={
-                designerWorkflowId ? `/User/create_workflows?id=${designerWorkflowId}` :
+                (designerWorkflowId || fromWorkflow) ? `/form?id=${formId}&from=${from || 'user'}${designerWorkflowId ? `&designerWorkflowId=${designerWorkflowId}` : ''}${fromWorkflow ? '&fromWorkflow=true' : ''}` :
                 instanceId === 'new' ? `/Workflows/instances/new?workflowId=${workflowId}` :
                 instanceId ? `/Workflows/instances/${instanceId}` :
-                "/User/Allforms"
+                (from === 'user' ? "/User/Allforms" : "/admin/AllForms")
               }
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500"
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500 shrink-0"
             >
               <ArrowLeft className="w-5 h-5" />
             </Link>
-            <div>
-              <h1 className="text-lg font-black text-slate-800 uppercase tracking-tight">
+            <div className="min-w-0">
+              <h1 className="text-lg font-black text-slate-800 uppercase tracking-tight truncate">
                 {form?.name || "Interactive Workflow"}
               </h1>
               <div className="flex items-center gap-2 mt-0.5">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Fillable Protocol • </p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Fillable Protocol • </p>
                 {form.steps?.some((s: any) => s.status === 'approved') ? (
-                  <span className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-200 uppercase tracking-wider">
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-200 uppercase tracking-wider leading-none">
                     <CheckCircle2 className="w-2.5 h-2.5" /> Validated
                   </span>
                 ) : (
-                  <span className="flex items-center gap-1 text-[10px] font-bold text-yellow-600 bg-yellow-50 px-1.5 py-0.5 rounded border border-yellow-200 uppercase tracking-wider">
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-yellow-600 bg-yellow-50 px-1.5 py-0.5 rounded border border-yellow-200 uppercase tracking-wider leading-none">
                     <Clock className="w-2.5 h-2.5" /> In Progress
                   </span>
                 )}
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => handleStatusUpdate('approved')}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700 transition-all shadow-sm"
-            >
-              Approve
-            </button>
-            <button
-              onClick={() => handleStatusUpdate('rejected')}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-bold hover:bg-red-700 transition-all shadow-sm"
-            >
-              Reject
-            </button>
-            <div className="w-px h-6 bg-gray-200 mx-1"></div>
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleStatusUpdate('approved')}
+                className="px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg text-xs sm:text-sm font-bold hover:bg-green-700 transition-all shadow-sm whitespace-nowrap"
+              >
+                Approve
+              </button>
+              <button
+                onClick={() => handleStatusUpdate('rejected')}
+                className="px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg text-xs sm:text-sm font-bold hover:bg-red-700 transition-all shadow-sm whitespace-nowrap"
+              >
+                Reject
+              </button>
+            </div>
+            <div className="hidden sm:block w-px h-6 bg-gray-200 mx-1"></div>
             <button
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 disabled:opacity-70"
+              className="flex items-center gap-2 px-4 sm:px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-xs sm:text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 disabled:opacity-70 whitespace-nowrap"
             >
               {isSubmitting ? <Clock className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               {isSubmitting ? 'Submitting...' : 'Submit Form'}

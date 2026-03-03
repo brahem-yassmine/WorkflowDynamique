@@ -606,3 +606,32 @@ exports.getInstanceStats = async (req, res) => {
     });
   }
 };
+
+// 9. DELETE INSTANCE
+exports.deleteInstance = async (req, res) => {
+  try {
+    const { instanceId } = req.params;
+    const WorkflowInstance = req.tenantConn.model('WorkflowInstance');
+    const Checklist = req.tenantConn.model('Checklist');
+
+    const instance = await WorkflowInstance.findById(instanceId);
+    if (!instance) {
+      return res.status(404).json({ success: false, message: 'Instance not found' });
+    }
+
+    // Delete associated checklist if exists
+    if (instance.checklistId) {
+      await Checklist.findByIdAndDelete(instance.checklistId);
+    } else {
+      // Sometimes we delete by instanceId in checklist too
+      await Checklist.deleteMany({ instanceId: instance._id });
+    }
+
+    await WorkflowInstance.findByIdAndDelete(instanceId);
+
+    res.json({ success: true, message: 'Instance and associated data deleted' });
+  } catch (error) {
+    console.error('❌ deleteInstance Error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};

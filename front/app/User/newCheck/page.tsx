@@ -105,7 +105,7 @@ export default function WorkflowChecklist() {
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [designerWorkflowId, setDesignerWorkflowId] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<string>('admin');
+  const [userRole, setUserRole] = useState<string>('User');
   const [fromWorkflow, setFromWorkflow] = useState<boolean>(false);
 
 
@@ -206,7 +206,7 @@ export default function WorkflowChecklist() {
         if (designerWorkflowId || fromWorkflow) {
           router.push(`/${userRole}/create_workflows${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}`);
         } else {
-          router.push(`/admin/AllCheck`);
+          router.push('/User/Allchecks');
         }
       } else {
         toast.error(response.message || 'Synchronization failed');
@@ -289,7 +289,7 @@ export default function WorkflowChecklist() {
                 if (designerWorkflowId || fromWorkflow) {
                   router.push(`/${userRole}/create_workflows${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}`);
                 } else {
-                  router.push('/admin/AllCheck');
+                  router.push('/User/Allchecks');
                 }
               }}
               className="p-2.5 bg-slate-50 text-slate-400 hover:text-indigo-600 rounded-xl hover:bg-indigo-50 transition-all border border-transparent hover:border-indigo-100 shrink-0"

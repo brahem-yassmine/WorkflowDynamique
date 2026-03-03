@@ -29,8 +29,10 @@ class DomainController {
         try {
             const Domain = DomainController.getModel(req);
             const domains = await Domain.find().sort({ name: 1 });
+            console.log(`🔍 Found ${domains.length} domains for tenant:`, domains.map(d => d.name));
             res.json({ success: true, data: domains });
         } catch (error) {
+            console.error('❌ DomainController.getAll Error:', error);
             res.status(500).json({ success: false, message: error.message });
         }
     }

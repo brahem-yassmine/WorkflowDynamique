@@ -1,5 +1,5 @@
 // front/src/services/api.service.ts
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'http://127.0.0.1:5000/api';
 
 class ApiService {
   private getToken(): string | null {
@@ -50,7 +50,7 @@ class ApiService {
       headers['x-tenant-id'] = tenantId;
     }
 
-    const response = await fetch(`http://localhost:5000/api${endpoint}`, {
+    const response = await fetch(`${API_URL}${endpoint}`, {
       ...options,
       headers,
       cache: 'no-store',
@@ -303,8 +303,9 @@ class ApiService {
   }
 
   // Board Management
-  getBoards() {
-    return this.request('/boards');
+  getBoards(params?: any) {
+    const query = params ? `?${new URLSearchParams(params).toString()}` : '';
+    return this.request(`/boards${query}`);
   }
 
   createBoard(data: any) {

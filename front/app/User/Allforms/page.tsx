@@ -99,8 +99,8 @@ export default function UserAllFormsPage() {
                 <Layers className="w-7 h-7 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-black text-slate-800 tracking-tight leading-tight uppercase">Registry Ledger</h1>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Lattice Form Management & Protocol Assets</p>
+                <h1 className="text-2xl font-black text-slate-800 tracking-tight leading-tight uppercase">All Forms </h1>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1"> Form Management & Protocol Assets</p>
               </div>
             </div>
 
@@ -109,7 +109,7 @@ export default function UserAllFormsPage() {
                 <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input 
                   type="text"
-                  placeholder="Scan registry for specific protocols..."
+                  placeholder="Search for specific forms..."
                   className="w-full pl-12 pr-5 py-4 bg-slate-50 border-2 border-slate-50 rounded-2xl text-sm outline-none focus:bg-white focus:border-indigo-400 transition-all font-bold text-slate-700"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
@@ -143,7 +143,7 @@ export default function UserAllFormsPage() {
             <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Empty Registry</h2>
             <p className="text-slate-500 mt-3 font-medium max-w-sm mb-10 leading-relaxed text-sm">No protocols have been committed to this sector. Start by creating a dynamic interactive form.</p>
             <Link 
-              href="/form"
+              href="/User/form"
               className="bg-indigo-600 text-white px-10 py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 flex items-center gap-3 active:scale-95"
             >
               <Plus className="w-5 h-5" /> Start Ledger Creation
@@ -217,7 +217,7 @@ export default function UserAllFormsPage() {
                       <Trash2 className="w-5 h-5" />
                     </button>
                     <Link 
-                      href={`/form/form2?id=${form._id}`}
+                      href={`/form/form2?id=${form._id}&from=user`}
                       className="ml-2 w-12 h-12 bg-slate-50 text-slate-400 group-hover:bg-indigo-600 group-hover:text-white rounded-2xl flex items-center justify-center transition-all shadow-sm active:scale-90"
                       title="Run Interactive"
                     >

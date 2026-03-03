@@ -505,7 +505,11 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
                                                     <p className="text-slate-400 font-medium">Link an existing checklist or build a new one.</p>
                                                 </div>
                                                 <Button
-                                                    onClick={() => router.push('/checklist')}
+                                                    onClick={() => {
+                                                        const role = window.location.pathname.includes('/admin/') ? 'admin' : 'User';
+                                                        const basePath = role === 'admin' ? '/checklist/designer' : '/User/newCheck';
+                                                        router.push(`${basePath}${workflowId ? `?designerWorkflowId=${workflowId}&role=${role}` : `?role=${role}`}&fromWorkflow=true`);
+                                                    }}
                                                     className="px-6 py-3 bg-white border-2 border-slate-100 text-slate-900 rounded-2xl flex items-center gap-2 hover:bg-slate-50 transition-all font-black uppercase text-[10px] tracking-widest"
                                                 >
                                                     <Plus size={16} />
@@ -537,7 +541,11 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
                                                         <Button
                                                             variant="ghost"
                                                             size="sm"
-                                                            onClick={() => router.push(`/checklist/${linkedObjectId}`)}
+                                                            onClick={() => {
+                                                                const role = window.location.pathname.includes('/admin/') ? 'admin' : 'User';
+                                                                const basePath = role === 'admin' ? '/checklist/designer' : '/User/newCheck';
+                                                                router.push(`${basePath}?id=${linkedObjectId}${workflowId ? `&designerWorkflowId=${workflowId}&role=${role}` : `&role=${role}`}&fromWorkflow=true`);
+                                                            }}
                                                             className="text-indigo-600 font-black text-[10px] uppercase tracking-widest gap-2"
                                                         >
                                                             Open <ExternalLink size={14} />
@@ -590,7 +598,10 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
                                                     <p className="text-slate-400 font-medium">Connect a form to this workflow step.</p>
                                                 </div>
                                                 <Button
-                                                    onClick={() => router.push('/form')}
+                                                    onClick={() => {
+                                                        const role = window.location.pathname.includes('/admin/') ? 'admin' : 'User';
+                                                        router.push(`/form${workflowId ? `?designerWorkflowId=${workflowId}&from=${role.toLowerCase()}&fromWorkflow=true` : `?from=${role.toLowerCase()}&fromWorkflow=true`}`);
+                                                    }}
                                                     className="px-6 py-3 bg-white border-2 border-slate-100 text-slate-900 rounded-2xl flex items-center gap-2 hover:bg-slate-50 transition-all font-black uppercase text-[10px] tracking-widest"
                                                 >
                                                     <Plus size={16} />
@@ -622,7 +633,10 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
                                                         <Button
                                                             variant="ghost"
                                                             size="sm"
-                                                            onClick={() => router.push(`/form/form2?id=${linkedObjectId}${workflowId ? `&designerWorkflowId=${workflowId}` : ''}`)}
+                                                            onClick={() => {
+                                                                const role = window.location.pathname.includes('/admin/') ? 'admin' : 'User';
+                                                                router.push(`/form/form2?id=${linkedObjectId}${workflowId ? `&designerWorkflowId=${workflowId}&role=${role}` : `&role=${role}`}&fromWorkflow=true`);
+                                                            }}
                                                             className="text-emerald-600 font-black text-[10px] uppercase tracking-widest gap-2"
                                                         >
                                                             Edit Form <ExternalLink size={14} />
@@ -641,11 +655,14 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
                                                     <p className="text-slate-400 font-medium">Link this step to a project board or Kanban view.</p>
                                                 </div>
                                                 <Button
-                                                    onClick={() => router.push('/kanban')}
+                                                    onClick={() => {
+                                                        const role = window.location.pathname.includes('/admin/') ? 'admin' : 'User';
+                                                        router.push(`/kanban${workflowId ? `?designerWorkflowId=${workflowId}&role=${role}` : `?role=${role}`}&fromWorkflow=true`);
+                                                    }}
                                                     className="px-6 py-3 bg-white border-2 border-slate-100 text-slate-900 rounded-2xl flex items-center gap-2 hover:bg-slate-50 transition-all font-black uppercase text-[10px] tracking-widest"
                                                 >
                                                     <Plus size={16} />
-                                                    New Kanban
+                                                    Create New One
                                                 </Button>
                                             </div>
 
@@ -673,7 +690,10 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
                                                         <Button
                                                             variant="ghost"
                                                             size="sm"
-                                                            onClick={() => router.push(`/kanban/${linkedObjectId}`)}
+                                                            onClick={() => {
+                                                                const role = window.location.pathname.includes('/admin/') ? 'admin' : 'User';
+                                                                router.push(`/kanban?boardId=${linkedObjectId}${workflowId ? `&designerWorkflowId=${workflowId}&role=${role}` : `&role=${role}`}&fromWorkflow=true`);
+                                                            }}
                                                             className="text-blue-600 font-black text-[10px] uppercase tracking-widest gap-2"
                                                         >
                                                             View Board <ExternalLink size={14} />

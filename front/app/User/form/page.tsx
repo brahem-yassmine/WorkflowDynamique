@@ -194,9 +194,8 @@ export default function FormBuilder() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const from = searchParams.get('from');
-  const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
   const designerWorkflowId = searchParams.get('designerWorkflowId');
-  const fromWorkflow = searchParams.get('fromWorkflow');
+  const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
   const currentStep = steps[currentStepIndex];
 
   useEffect(() => {
@@ -262,17 +261,10 @@ export default function FormBuilder() {
         }
 
         if (shouldNavigate && newId) {
-          const targetPage = from === 'user' ? '/form/form2' : '/form/form3';
-          let redirectUrl = `${targetPage}?id=${newId}${from === 'user' ? '&from=user' : ''}`;
-          if (designerWorkflowId) redirectUrl += `&designerWorkflowId=${designerWorkflowId}`;
-          if (fromWorkflow) redirectUrl += `&fromWorkflow=true`;
-          router.push(redirectUrl);
+          router.push(`/form/form2?id=${newId}&from=user${designerWorkflowId ? `&designerWorkflowId=${designerWorkflowId}` : ''}`);
         } else if (!formId && res.data?._id) {
           // If just saving new form without Next, update URL
-          let redirectUrl = `/form?id=${res.data._id}${from === 'user' ? '&from=user' : ''}`;
-          if (designerWorkflowId) redirectUrl += `&designerWorkflowId=${designerWorkflowId}`;
-          if (fromWorkflow) redirectUrl += `&fromWorkflow=true`;
-          router.push(redirectUrl, { scroll: false });
+          router.push(`/User/form?id=${res.data._id}&from=user${designerWorkflowId ? `&designerWorkflowId=${designerWorkflowId}` : ''}`, { scroll: false });
         }
       }
     } catch (error: any) {
@@ -315,26 +307,27 @@ export default function FormBuilder() {
       <Toaster position="top-right" richColors />
       <AnimatePresence>
       </AnimatePresence>
-      {/* Header */}
       <div className="bg-indigo-600 text-white z-30 shadow-md">
-        <div className="max-w-7xl mx-auto px-4 py-4 sm:h-20 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4 w-full sm:w-auto">
-            <Link 
-              href={
-                designerWorkflowId ? `${from === 'admin' ? '/admin' : '/User'}/create_workflows?id=${designerWorkflowId}` : 
-                (fromWorkflow ? `${from === 'admin' ? '/admin' : '/User'}/create_workflows` : 
-                (from === 'user' ? "/User/Allforms" : "/admin/AllForms"))
-              } 
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
-              title="Back"
+            <button 
+              onClick={() => {
+                if (designerWorkflowId) {
+                  router.push(`/User/create_workflows?id=${designerWorkflowId}`);
+                } else {
+                  router.push(from === 'user' ? "/User/Allforms" : "/admin/AllForms");
+                }
+              }}
+              className="p-2 hover:bg-white/10 rounded-lg transition-colors shrink-0"
+              title={designerWorkflowId ? "Back to Workflow" : "Back to All Forms"}
             >
               <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-              <div className="p-2 bg-white/10 rounded-xl hidden sm:block">
+            </button>
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="p-2 bg-white/10 rounded-xl shrink-0">
                 <FileText className="w-5 h-5 text-indigo-100" />
               </div>
-              <div className="flex flex-col min-w-0 flex-1">
+              <div className="flex flex-col min-w-0">
                 <input 
                   type="text" 
                   value={formName} 
@@ -352,25 +345,25 @@ export default function FormBuilder() {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-            { (designerWorkflowId || fromWorkflow) && (
-              <Link
-                href={`${from === 'admin' ? '/admin' : '/User'}/create_workflows${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}`}
-                className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white/10 text-white rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-white/20 transition-all border border-white/10 active:scale-95"
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
+            {designerWorkflowId && (
+              <button 
+                onClick={() => router.push(`/User/create_workflows?id=${designerWorkflowId}`)}
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white/10 text-white border border-white/20 rounded-lg font-bold text-[10px] sm:text-xs uppercase tracking-widest hover:bg-white/20 transition-all shadow-sm whitespace-nowrap"
               >
-                Back to Workflow
-              </Link>
+                <ArrowLeft className="w-3.5 h-3.5" /> <span className="hidden xs:inline">Back to Workflow</span><span className="xs:hidden">Workflow</span>
+              </button>
             )}
             <button 
               onClick={() => handleSave(true)} 
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-500 text-white rounded-lg font-semibold hover:bg-indigo-400 transition-all shadow-sm active:scale-95 whitespace-nowrap"
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-indigo-500 text-white rounded-lg font-semibold text-sm hover:bg-indigo-400 transition-all shadow-sm whitespace-nowrap"
             >
               Next <ArrowRight className="w-4 h-4" />
             </button>
             <button 
               onClick={() => handleSave(false)} 
               disabled={isSaving} 
-              className={`flex items-center gap-2 px-4 py-2 bg-white text-indigo-600 rounded-lg font-semibold hover:bg-indigo-50 active:scale-95 whitespace-nowrap ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
+              className={`flex items-center gap-2 px-3 sm:px-4 py-2 bg-white text-indigo-600 rounded-lg font-semibold text-sm hover:bg-indigo-50 whitespace-nowrap ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
             >
               {isSaving ? <Clock className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}{isSaving ? 'Saving...' : 'Save Form'}
             </button>

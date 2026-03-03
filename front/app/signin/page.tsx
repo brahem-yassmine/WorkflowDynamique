@@ -141,7 +141,7 @@ export default function SigninPage() {
         localStorage.setItem('user', JSON.stringify(user));
         localStorage.setItem('user_pass_sync', formData.password); // 👈 Added for Profile Sync
 
-        // 3️⃣ SAVE TENANT ID SEPARATELY (PRO SOLUTION)
+        // 3️⃣ SAVE TENANT ID SEPARATELY
         if (tenantId) {
           localStorage.setItem('tenantId', tenantId);
           console.log('✅ Tenant ID saved in localStorage');
@@ -149,8 +149,22 @@ export default function SigninPage() {
           console.warn('⚠️ No Tenant ID found in the response');
         }
 
+        // 4️⃣ SAVE TENANT DATA (from response or fetch it)
         if (response.data.data.tenant) {
           localStorage.setItem('tenant', JSON.stringify(response.data.data.tenant));
+        } else if (tenantId && user.role === 'admin') {
+          // Fetch tenant info separately since login response doesn't include it
+          try {
+            const tenantRes = await axios.get('http://localhost:5000/api/tenants/info', {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            if (tenantRes.data.success) {
+              localStorage.setItem('tenant', JSON.stringify(tenantRes.data.data));
+              console.log('✅ Tenant info fetched and saved:', tenantRes.data.data.name);
+            }
+          } catch (tenantErr) {
+            console.warn('Could not fetch tenant info:', tenantErr);
+          }
         }
 
         // 4️⃣ DETERMINE REDIRECT ROUTE

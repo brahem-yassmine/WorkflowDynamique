@@ -13,9 +13,11 @@ import {
   Bell,
   Globe,
   History,
-  Camera
+  Camera,
+  Building
 } from 'lucide-react';
 import { api } from '../../services/api';
+import { apiService } from '@/service/api.service';
 import { toast, Toaster } from 'sonner';
 
 export default function ProfilePage() {
@@ -26,7 +28,8 @@ export default function ProfilePage() {
     name: 'Loading...',
     email: '',
     password: '',
-    role: 'User'
+    role: 'User',
+    companyName: ''
   });
 
   useEffect(() => {
@@ -36,11 +39,13 @@ export default function ProfilePage() {
         const user = JSON.parse(storedUser);
         setUserId(user._id || user.id);
         const syncPass = localStorage.getItem('user_pass_sync') || '';
+        const tenant = JSON.parse(localStorage.getItem('tenant') || '{}');
         setFormData({
           name: user.name || (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : (user.firstName || 'Admin')),
           email: user.email || '',
           password: syncPass,
-          role: user.role === 'super_admin' ? 'Master Administrator' : (user.role === 'admin' ? 'Infrastructure Admin' : 'Agent Node')
+          role: user.role === 'super_admin' ? 'Master Administrator' : (user.role === 'admin' ? 'Infrastructure Admin' : 'Agent Node'),
+          companyName: tenant.name || ''
         });
       }
     }
@@ -56,11 +61,12 @@ export default function ProfilePage() {
     
     setIsSaving(true);
     try {
+      // 1. Update User Profile
       const names = formData.name.split(' ');
       const firstName = names[0];
       const lastName = names.slice(1).join(' ') || '';
 
-      const payload: any = {
+      const userPayload: any = {
         firstName,
         lastName,
         email: formData.email,
@@ -68,23 +74,38 @@ export default function ProfilePage() {
       };
 
       if (formData.password) {
-        payload.password = formData.password;
+        userPayload.password = formData.password;
       }
 
-      const res = await api.put(`/api/users/${userId}`, payload);
+      const userRes = await api.put(`/api/users/${userId}`, userPayload);
 
-      if (res.data.success) {
-        toast.success("Profile synchronized successfully!");
-        // Update localStorage
+      if (userRes.data.success) {
+        // Update localStorage user
         const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-        const updatedUser = { ...storedUser, ...res.data.data };
+        const updatedUser = { ...storedUser, ...userRes.data.data };
         localStorage.setItem('user', JSON.stringify(updatedUser));
         
-        // Update synced password if changed
         if (formData.password) {
           localStorage.setItem('user_pass_sync', formData.password);
         }
       }
+
+      // 2. Update Company Profile if Admin
+      const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+      if (storedUser.role === 'admin' && formData.companyName.trim()) {
+        const tenantRes = await api.put('/api/tenants/info', {
+          name: formData.companyName
+        });
+
+        if (tenantRes.data.success) {
+          localStorage.setItem('tenant', JSON.stringify(tenantRes.data.data));
+        }
+      }
+
+      toast.success("Profile synchronized successfully!");
+      // Reload to reflect changes in Header
+      window.location.reload();
+
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Sync error detected.");
     } finally {
@@ -206,6 +227,34 @@ export default function ProfilePage() {
               </div>
             </div>
           </section>
+
+          {/* Company section (Admin only) */}
+          {formData.role.includes('Admin') && (
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 animate-in slide-in-from-right duration-500">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                  <Building size={20} />
+                </div>
+                <h3 className="text-xl font-black text-slate-800 tracking-tight">Company Blueprint</h3>
+              </div>
+
+              <div className="space-y-6">
+                <InputGroup label="Enterprise Identity (Company Name)" icon={<Globe size={16} />}>
+                  <input
+                    type="text"
+                    name="companyName"
+                    value={formData.companyName}
+                    onChange={handleChange}
+                    className="w-full h-12 bg-slate-50 border-none rounded-xl px-4 font-bold text-slate-700 focus:ring-4 focus:ring-blue-50 transition-all outline-none"
+                    placeholder="Enter your company name..."
+                  />
+                </InputGroup>
+                <p className="text-[10px] text-slate-400 font-medium px-2 leading-relaxed">
+                  Note: Updating the enterprise identity affects the lattice headers and protocol assets for all associated nodes.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Preference sections */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

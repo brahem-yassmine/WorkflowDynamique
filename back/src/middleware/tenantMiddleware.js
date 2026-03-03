@@ -5,6 +5,7 @@ const { getTenantConnection } = require('../services/tenantConnection');
 const tenantResolver = async (req, res, next) => {
   try {
     let tenantId = req.headers['x-tenant-id'] || req.query.tenantId;
+    console.log(`🔌 [TenantResolver] Resolving tenant for path: ${req.path}, ID: ${tenantId}`);
 
     if (!tenantId) {
       return next();

@@ -142,6 +142,7 @@ exports.createWorkflow = async (req, res) => {
       nodes: workflowNodes,
       edges: workflowEdges,
       status: 'draft',
+      projectId: projectId || null,
       createdBy: req.user.id
     });
 

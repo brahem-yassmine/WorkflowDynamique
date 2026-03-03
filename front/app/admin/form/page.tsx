@@ -12,8 +12,11 @@ import {
   Clock, ThumbsUp, ThumbsDown, Maximize2, Minimize2, Save, Plus, ArrowRight, ArrowLeft
 } from 'lucide-react';
 import axios from 'axios';
+import { apiService } from '@/service/api.service';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
 import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 const STEP_STATUSES = [
   { id: 'pending', label: 'Pending', icon: Clock, color: 'text-yellow-500', bg: 'bg-yellow-50', border: 'border-yellow-200' },
@@ -22,15 +25,15 @@ const STEP_STATUSES = [
 ];
 
 const FIELD_TYPES = [
-  { id: 'text', label: 'Text Field', icon: Type },
-  { id: 'email', label: 'Email', icon: Mail },
-  { id: 'phone', label: 'Phone Number', icon: Phone },
-  { id: 'number', label: 'Number', icon: Hash },
-  { id: 'textarea', label: 'Text Area', icon: AlignLeft },
-  { id: 'select', label: 'Dropdown List', icon: List },
-  { id: 'date', label: 'Date', icon: Calendar },
-  { id: 'signature', label: 'Signature', icon: PenTool },
-  { id: 'checkbox', label: 'Checkbox', icon: CheckSquare },
+  { id: 'text', label: 'Text Field', icon: Type, description: 'Short text (names, titles)' },
+  { id: 'email', label: 'Email', icon: Mail, description: 'Validated email format' },
+  { id: 'phone', label: 'Phone Number', icon: Phone, description: 'Global phone numbers' },
+  { id: 'number', label: 'Number', icon: Hash, description: 'Quantities or numerical IDs' },
+  { id: 'textarea', label: 'Text Area', icon: AlignLeft, description: 'Multi-line descriptions' },
+  { id: 'select', label: 'Dropdown List', icon: List, description: 'Single choice from a list' },
+  { id: 'date', label: 'Date', icon: Calendar, description: 'Calendar date selection' },
+  { id: 'signature', label: 'Signature', icon: PenTool, description: 'Digital sign or file upload' },
+  { id: 'checkbox', label: 'Checkbox', icon: CheckSquare, description: 'Multiple choices ' },
 ];
 
 const PREVIEWS: Record<string, (f: any) => React.ReactNode> = {
@@ -55,13 +58,28 @@ const PREVIEWS: Record<string, (f: any) => React.ReactNode> = {
     </div>
   ),
   signature: () => (
-    <div className="w-full h-24 border-2 border-gray-100 border-dashed rounded-xl flex flex-col items-center justify-center bg-gray-50 group/sig hover:bg-indigo-50/30 transition-all relative overflow-hidden">
-      <PenTool className="w-6 h-6 text-gray-200 mb-2 group-hover/sig:text-indigo-200 transition-colors" />
-      <p className="text-xs text-gray-300 italic group-hover/sig:text-indigo-300 transition-colors">Sign here or upload signature</p>
-      <div className="absolute inset-0 flex items-center justify-center gap-3 opacity-0 group-hover/sig:opacity-100 transition-opacity bg-white/60 backdrop-blur-sm">
-        <button className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-indigo-700"><PenTool className="w-3 h-3" /> Sign Now</button>
-        <button className="px-3 py-1.5 bg-white border border-indigo-200 text-indigo-600 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-indigo-50"><Plus className="w-3 h-3" /> Upload</button>
-      </div>
+    <div className="space-y-2">
+      <label 
+        htmlFor="builder-sig-test"
+        className="w-full h-24 border-2 border-gray-100 border-dashed rounded-xl flex flex-col items-center justify-center bg-gray-50 group/sig hover:bg-indigo-50/30 transition-all relative overflow-hidden cursor-pointer block"
+      >
+        <div className="flex flex-col items-center transition-all group-hover/sig:-translate-y-2">
+          <PenTool className="w-6 h-6 text-indigo-300 mb-1" />
+          <p className="text-[10px] text-gray-400 italic font-medium text-center px-4">Signature / Upload</p>
+        </div>
+        <div className="absolute inset-x-0 bottom-2 flex items-center justify-center translate-y-8 group-hover/sig:translate-y-0 opacity-0 group-hover/sig:opacity-100 transition-all">
+          <div className="px-3 py-1 bg-indigo-600 text-white rounded-lg text-[9px] font-bold uppercase tracking-tight shadow-md flex items-center gap-1.5 backdrop-blur-sm">
+            <Plus className="w-2.5 h-2.5" /> Select Local File
+          </div>
+        </div>
+      </label>
+      <input 
+        id="builder-sig-test" 
+        type="file" 
+        className="hidden" 
+        accept="image/*,.pdf" 
+        onChange={() => toast.info("File selector triggered successfully!", { description: "Testing trigger only. Upload works in Preview mode." })}
+      />
     </div>
   ),
   default: (f) => <input type="text" className="w-full p-3 border-2 border-gray-100 rounded-xl text-sm bg-gray-50 text-gray-400 cursor-not-allowed" placeholder={f.placeholder || `Enter ${f.type}...`} readOnly />
@@ -82,22 +100,26 @@ function SortableField({ field, onUpdate, onRemove, isAlone }: any) {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2 flex-1">
               <div className="p-1.5 bg-indigo-50 rounded-lg"><Icon className="w-3.5 h-3.5 text-indigo-600" /></div>
-              <span className="text-sm font-bold text-gray-800 truncate">{field.label || 'Unnamed Field'}</span>
+              <input 
+                type="text"
+                className="text-sm font-bold text-gray-800 bg-transparent border-none outline-none focus:ring-0 w-full p-0"
+                value={field.label || ''}
+                onChange={(e) => onUpdate(field.id, { label: e.target.value })}
+                placeholder="Unnamed Field"
+              />
             </div>
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button onClick={() => onUpdate(field.id, { width: isWidthHalf ? 'full' : 'half' })} className="p-1.5 text-gray-400 hover:bg-gray-100 hover:text-indigo-600 rounded-lg">{isWidthHalf ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}</button>
               {['select', 'checkbox'].includes(field.type) && (
-                <>
-                  <button 
-                    onClick={() => onUpdate(field.id, { options: [...(field.options || []), `Option ${(field.options?.length || 0) + 1}`] })}
-                    className="p-1.5 text-gray-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-colors"
-                    title="Add Option"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                  </button>
-                  <button onClick={() => setShowSettings(!showSettings)} className={`p-1.5 rounded-lg ${showSettings ? 'bg-indigo-100 text-indigo-600' : 'text-gray-400 hover:bg-gray-100'}`}><Settings className="w-3.5 h-3.5" /></button>
-                </>
+                <button 
+                  onClick={() => onUpdate(field.id, { options: [...(field.options || []), `Option ${(field.options?.length || 0) + 1}`] })}
+                  className="p-1.5 text-gray-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-colors"
+                  title="Add Option"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
               )}
+              <button onClick={() => setShowSettings(!showSettings)} className={`p-1.5 rounded-lg ${showSettings ? 'bg-indigo-100 text-indigo-600' : 'text-gray-400 hover:bg-gray-100'}`}><Settings className="w-3.5 h-3.5" /></button>
               <button onClick={() => onRemove(field.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-3.5 h-3.5" /></button>
             </div>
           </div>
@@ -118,7 +140,7 @@ function SortableField({ field, onUpdate, onRemove, isAlone }: any) {
             </div>
           )}
 
-          {showSettings && ['select', 'checkbox'].includes(field.type) && (
+          {showSettings && (
             <div className="mt-4 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 space-y-4 animate-in fade-in duration-200">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -163,42 +185,38 @@ interface Step {
 export default function FormBuilder() {
   const [steps, setSteps] = useState<Step[]>([{ id: 'step-1', title: 'New Step', fields: [], status: 'pending' }]);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [formName, setFormName] = useState('New Form');
-  const [formDescription, setFormDescription] = useState('Form created with Form Builder');
-  const [formId, setFormId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-
+  const [formId, setFormId] = useState<string | null>(null);
+  
+  const [formName, setFormName] = useState('New Form');
+  const [formDescription, setFormDescription] = useState('');
+  
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const from = searchParams.get('from');
+  const designerWorkflowId = searchParams.get('designerWorkflowId');
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
   const currentStep = steps[currentStepIndex];
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const id = params.get('id');
+    const id = searchParams.get('id');
     if (id) {
       setFormId(id);
       fetchFormData(id);
     }
-  }, []);
+  }, [searchParams]);
 
   const fetchFormData = async (id: string) => {
     try {
-      const token = localStorage.getItem('auth_token');
-      const tenant = JSON.parse(localStorage.getItem('tenant') || 'null');
-      const tenantId = tenant?._id;
-      
-      const res = await axios.get(`http://localhost:5000/api/forms/${id}`, {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'x-tenant-id': tenantId
-        }
-      });
-      if (res.data.success) {
-        setSteps(res.data.data.steps || []);
-        setFormName(res.data.data.name || 'New Form');
-        setFormDescription(res.data.data.description || '');
+      const res = await apiService.request(`/forms/${id}`);
+      if (res.success) {
+        setSteps(res.data.steps || []);
+        setFormName(res.data.name || 'New Form');
+        setFormDescription(res.data.description || '');
       }
-    } catch (e) {
-      toast.error("Failed to load form data");
+    } catch (error: any) {
+      console.error("Error fetching form:", error);
+      toast.error("Failed to load form data: " + error.message);
     }
   };
 
@@ -213,47 +231,49 @@ export default function FormBuilder() {
     setSteps(prev => prev.map((s, i) => i === currentStepIndex ? { ...s, fields: [...s.fields, f] } : s));
   };
 
-  const handleSave = async () => {
+  const handleSave = async (shouldNavigate: boolean = false) => {
     setIsSaving(true);
     try {
-      const token = localStorage.getItem('auth_token');
-      const user = JSON.parse(localStorage.getItem('user') || 'null');
-      const tenant = JSON.parse(localStorage.getItem('tenant') || 'null');
-      const tenantId = tenant?._id || user?.tenantId || user?._id;
-      if (!tenantId) return toast.error("Tenant ID missing.");
-      
-      const payload = { 
-        name: formName || "Untitled Form", 
-        steps, 
-        description: formDescription 
+      const payload = {
+        name: formName || `Form Template ${new Date().toLocaleDateString()}`,
+        description: formDescription,
+        steps: steps.map((s, i) => ({
+          ...s,
+          order: i,
+          fields: s.fields.map((f, fi) => ({ ...f, order: fi }))
+        }))
       };
 
       const method = formId ? 'PATCH' : 'POST';
-      const url = formId ? `http://localhost:5000/api/forms/${formId}` : 'http://localhost:5000/api/forms';
+      const url = formId ? `/forms/${formId}` : '/forms';
 
-      const res = await axios({
+      const res = await apiService.request(url, {
         method,
-        url,
-        data: payload,
-        headers: { 
-          'Authorization': `Bearer ${token}`, 
-          'x-tenant-id': tenantId 
-        }
+        body: JSON.stringify(payload)
       });
 
-      if (res.data.success) {
-        toast.success(formId ? 'Update successful!' : 'Form saved!');
-        if (!formId && res.data.data?._id) {
-          setFormId(res.data.data._id);
-          window.history.replaceState(null, '', `/admin/form?id=${res.data.data._id}`);
+      if (res.success) {
+        toast.success(formId ? "Architecture updated!" : "Architecture saved!");
+        const newId = formId || res.data?._id;
+        
+        if (!formId && res.data?._id) {
+          setFormId(res.data._id);
+        }
+
+        if (shouldNavigate && newId) {
+          router.push(`/form/form3?id=${newId}${designerWorkflowId ? `&designerWorkflowId=${designerWorkflowId}` : ''}`);
+        } else if (!formId && res.data?._id) {
+          // If just saving new form without Next, update URL
+          router.push(`/admin/form?id=${res.data._id}${designerWorkflowId ? `&designerWorkflowId=${designerWorkflowId}` : ''}`, { scroll: false });
         }
       }
-    } catch (e: any) { 
-      toast.error('Save failed: ' + (e.response?.data?.message || e.message)); 
-    } finally { 
-      setIsSaving(false); 
+    } catch (error: any) {
+      toast.error("Failed to save: " + error.message);
+    } finally {
+      setIsSaving(false);
     }
   };
+
 
   const handleUpdateField = (id: string, updates: any) => {
     setSteps(prev => prev.map((s, i) => i === currentStepIndex ? { ...s, fields: s.fields.map((f: any) => f.id === id ? { ...f, ...updates } : f) } : s));
@@ -285,37 +305,66 @@ export default function FormBuilder() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Toaster position="top-right" richColors />
-      <div className="bg-indigo-600 text-white p-4 shadow-md">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link 
-              href="/admin/AllForms" 
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-              title="Back to All Forms"
+      <AnimatePresence>
+      </AnimatePresence>
+      <div className="bg-indigo-600 text-white z-30 shadow-md">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-4 w-full sm:w-auto">
+            <button 
+              onClick={() => {
+                if (designerWorkflowId) {
+                  router.push(`/admin/create_workflows?id=${designerWorkflowId}`);
+                } else {
+                  router.push(from === 'user' ? "/User/Allforms" : "/admin/AllForms");
+                }
+              }}
+              className="p-2 hover:bg-white/10 rounded-lg transition-colors shrink-0"
+              title={designerWorkflowId ? "Back to Workflow" : "Back to All Forms"}
             >
               <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-white/10 rounded-xl">
+            </button>
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="p-2 bg-white/10 rounded-xl shrink-0">
                 <FileText className="w-5 h-5 text-indigo-100" />
               </div>
-              <div className="flex flex-col">
+              <div className="flex flex-col min-w-0">
                 <input 
                   type="text" 
                   value={formName} 
                   onChange={(e) => setFormName(e.target.value)}
-                  className="bg-transparent border-none outline-none text-xl font-black text-white placeholder:text-indigo-300 w-full p-0 focus:ring-0 leading-tight"
+                  className="bg-transparent border-none outline-none text-lg sm:text-xl font-black text-white placeholder:text-indigo-300 w-full p-0 focus:ring-0 leading-tight truncate"
                   placeholder="Untitled Protocol"
                 />
-                <p className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest opacity-70">Interactive Form Blueprint</p>
+                <input 
+                  type="text" 
+                  value={formDescription} 
+                  onChange={(e) => setFormDescription(e.target.value)}
+                  className="bg-transparent border-none outline-none text-[9px] sm:text-[10px] font-bold text-indigo-200 uppercase tracking-widest opacity-70 w-full p-0 focus:ring-0 truncate"
+                  placeholder="Add form description..."
+                />
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <Link href="/admin/form/form2" className="flex items-center gap-2 px-4 py-2 bg-indigo-500 text-white rounded-lg font-semibold hover:bg-indigo-400 transition-all shadow-sm">
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
+            {designerWorkflowId && (
+              <button 
+                onClick={() => router.push(`/admin/create_workflows?id=${designerWorkflowId}`)}
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white/10 text-white border border-white/20 rounded-lg font-bold text-[10px] sm:text-xs uppercase tracking-widest hover:bg-white/20 transition-all shadow-sm whitespace-nowrap"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" /> <span className="hidden xs:inline">Back to Workflow</span><span className="xs:hidden">Workflow</span>
+              </button>
+            )}
+            <button 
+              onClick={() => handleSave(true)} 
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-indigo-500 text-white rounded-lg font-semibold text-sm hover:bg-indigo-400 transition-all shadow-sm whitespace-nowrap"
+            >
               Next <ArrowRight className="w-4 h-4" />
-            </Link>
-            <button onClick={handleSave} disabled={isSaving} className={`flex items-center gap-2 px-4 py-2 bg-white text-indigo-600 rounded-lg font-semibold hover:bg-indigo-50 ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}>
+            </button>
+            <button 
+              onClick={() => handleSave(false)} 
+              disabled={isSaving} 
+              className={`flex items-center gap-2 px-3 sm:px-4 py-2 bg-white text-indigo-600 rounded-lg font-semibold text-sm hover:bg-indigo-50 whitespace-nowrap ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
+            >
               {isSaving ? <Clock className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}{isSaving ? 'Saving...' : 'Save Form'}
             </button>
           </div>
@@ -324,38 +373,106 @@ export default function FormBuilder() {
 
       <div className="max-w-7xl mx-auto p-4 w-full flex-1">
         <div className="mb-4 flex gap-2 overflow-x-auto p-1">
-          {steps.map((s, i) => <button key={s.id} onClick={() => setCurrentStepIndex(i)} className={`px-4 py-2 rounded-lg text-sm ${currentStepIndex === i ? 'bg-indigo-600 text-white shadow-md' : 'bg-white border'}`}>{i + 1}. {s.title}</button>)}
+          {steps.map((s, i) => (
+            <button 
+              key={s.id} 
+              onClick={() => setCurrentStepIndex(i)} 
+              className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                currentStepIndex === i 
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' 
+                  : 'bg-white border border-slate-100 text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              Step {i + 1}
+            </button>
+          ))}
+          <button 
+            onClick={() => setSteps([...steps, { id: `step-${Date.now()}`, title: 'New Step', fields: [], status: 'pending' }])}
+            className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-all flex items-center gap-2"
+          >
+            <Plus className="w-3.5 h-3.5" /> Add Step
+          </button>
         </div>
 
-        <div className="grid grid-cols-12 gap-4">
+        <div className="grid grid-cols-12 gap-6">
           <div className="col-span-12 md:col-span-3">
-            <div className="bg-white rounded-lg shadow-sm p-3 sticky top-4">
-              <h2 className="font-semibold text-gray-800 mb-3 text-sm flex items-center gap-1"><Settings className="w-3 h-3" /> Fields</h2>
-              <div className="space-y-1.5">
-                {FIELD_TYPES.map(t => <div key={t.id} draggable onDragStart={(e) => e.dataTransfer.setData('text', t.id)} className="flex items-center gap-2 p-2 border rounded-lg cursor-move hover:border-indigo-300 hover:shadow-sm text-sm group transition-all">
-                  <t.icon className="w-4 h-4 text-gray-400 group-hover:text-indigo-600 transition-colors" /> 
-                  <span className="font-medium text-gray-600 group-hover:text-gray-900 transition-colors">{t.label}</span>
-                </div>)}
+            <div className="bg-white rounded-[32px] shadow-2xl shadow-slate-200/50 border border-slate-100 p-6 sticky top-8">
+              <div className="flex items-center gap-2 mb-6">
+                <div className="p-2 bg-indigo-50 rounded-xl">
+                  <Plus className="w-4 h-4 text-indigo-600" />
+                </div>
+                <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Components</h2>
+              </div>
+              
+              <div className="grid grid-cols-1 gap-3">
+                {FIELD_TYPES.map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => addField(t)}
+                    className="flex items-center gap-4 p-4 border-2 border-slate-50 rounded-2xl cursor-pointer hover:border-indigo-100 hover:bg-indigo-50/30 text-left group transition-all"
+                  >
+                    <div className="p-2 bg-white rounded-xl shadow-sm text-slate-400 group-hover:text-indigo-600 transition-colors">
+                      <t.icon className="w-4 h-4" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-black text-slate-700 uppercase tracking-wide leading-none">{t.label}</span>
+                      <span className="text-[9px] text-slate-400 font-bold mt-1 tracking-tight">{t.description}</span>
+                    </div>
+                  </button>
+                ))}
               </div>
             </div>
           </div>
 
-          <div className="col-span-12 md:col-span-9 bg-white rounded-lg shadow-sm">
-            <div className="p-4 border-b flex flex-wrap items-center justify-between gap-4">
-              <input value={currentStep.title} onChange={(e) => setSteps(p => p.map((s, i) => i === currentStepIndex ? { ...s, title: e.target.value } : s))} className="text-lg font-semibold bg-transparent border-b border-transparent focus:border-indigo-500 outline-none flex-1" />
-              <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-lg border">
-                {STEP_STATUSES.map(s => <button key={s.id} onClick={() => setSteps(p => p.map((st, i) => i === currentStepIndex ? { ...st, status: s.id as any } : st))} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium ${currentStep.status === s.id ? `${s.bg} ${s.color} border ${s.border}` : 'text-gray-400 hover:bg-gray-100'}`}><s.icon className="w-3.5 h-3.5" /> {s.label}</button>)}
-              </div>
-            </div>
-
-            <div className="p-4 min-h-[500px]" onDragOver={e => e.preventDefault()} onDrop={e => { const t = FIELD_TYPES.find(f => f.id === e.dataTransfer.getData('text')); if (t) addField(t); }}>
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <SortableContext items={currentStep.fields.map((f: any) => f.id)} strategy={rectSortingStrategy}>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {currentStep.fields.length ? renderFields() : <div className="col-span-full flex flex-col items-center justify-center h-64 text-gray-400 border-2 border-dashed rounded-lg"><Move className="w-8 h-8 mb-2" /><p className="text-sm">Drag fields here</p></div>}
+          <div className="col-span-12 md:col-span-9">
+            <div className="bg-white rounded-[40px] shadow-2xl shadow-slate-200/50 border border-slate-100 min-h-[600px] flex flex-col overflow-hidden">
+              <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-slate-50/30">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-white text-indigo-600 rounded-[20px] shadow-lg shadow-indigo-100 flex items-center justify-center font-black text-lg border border-indigo-50">
+                    {currentStepIndex + 1}
                   </div>
-                </SortableContext>
-              </DndContext>
+                  <div className="flex flex-col">
+                    <input 
+                      value={currentStep.title} 
+                      onChange={(e) => setSteps(p => p.map((s, i) => i === currentStepIndex ? { ...s, title: e.target.value } : s))} 
+                      className="text-lg font-black text-slate-800 uppercase tracking-widest bg-transparent border-none outline-none focus:ring-0 p-0"
+                      placeholder="STEP TITLE"
+                    />
+                    <span className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em] mt-0.5">Define interaction logic here</span>
+                  </div>
+                </div>
+                {steps.length > 1 && (
+                  <button 
+                    onClick={() => {
+                      const n = steps.filter((_, i) => i !== currentStepIndex);
+                      setSteps(n);
+                      setCurrentStepIndex(Math.max(0, currentStepIndex - 1));
+                    }} 
+                    className="p-3 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-2xl transition-all"
+                    title="Remove Step"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                )}
+              </div>
+
+              <div className="flex-1 p-8">
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <SortableContext items={currentStep.fields.map(f => f.id)} strategy={rectSortingStrategy}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {renderFields()}
+                      {currentStep.fields.length === 0 && (
+                        <div className="col-span-2 h-64 border-4 border-dashed border-slate-50 rounded-[40px] flex flex-col items-center justify-center text-slate-300 gap-4 group hover:border-indigo-100 hover:bg-indigo-50/10 transition-all">
+                          <div className="p-4 bg-white rounded-[24px] shadow-xl shadow-slate-100 group-hover:scale-110 transition-transform">
+                            <Plus size={32} />
+                          </div>
+                          <p className="font-black text-[10px] uppercase tracking-[0.3em]">Drop components here</p>
+                        </div>
+                      )}
+                    </div>
+                  </SortableContext>
+                </DndContext>
+              </div>
             </div>
           </div>
         </div>

@@ -2,11 +2,18 @@
 
 exports.getChecklists = async (req, res) => {
     try {
+        if (!req.tenantConn) {
+            console.error('❌ Error: req.tenantConn is undefined');
+            return res.status(500).json({ success: false, message: 'Erreur serveur: Connection non résolue' });
+        }
+
+        console.log('🔍 Fetching checklists for tenant:', req.tenantId);
         const Checklist = req.tenantConn.model('Checklist');
         const checklists = await Checklist.find().sort({ createdAt: -1 });
+        console.log(`✅ ${checklists.length} checklists found`);
         res.json({ success: true, count: checklists.length, data: checklists });
     } catch (error) {
-        console.error('❌ Erreur getChecklists:', error);
+        console.error('❌ Erreur getChecklists details:', error);
         res.status(500).json({ success: false, message: 'Erreur serveur', error: error.message });
     }
 };

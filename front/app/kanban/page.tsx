@@ -243,21 +243,27 @@ function KanbanColumn({
 export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [designerWorkflowId, setDesignerWorkflowId] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string>('admin');
   const [isSaving, setIsSaving] = useState(false);
   
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [boardName, setBoardName] = useState('New Board');
   const [boardDescription, setBoardDescription] = useState('');
+  const [workflows, setWorkflows] = useState<any[]>([]);
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState('');
+  const [boardId, setBoardId] = useState<string | null>(null);
+  const [fromWorkflow, setFromWorkflow] = useState<boolean>(false);
 
   const searchParams = useSearchParams();
   const router = useRouter();
-  const boardId = searchParams.get('boardId');
+  // const boardId = searchParams.get('boardId'); // This line is now replaced by state
 
-  const fetchBoardData = async () => {
+  const fetchBoardData = async (currentBoardId: string | null) => { // Modified to accept boardId
     try {
       setIsLoading(true);
-      if (!boardId) {
+      if (!currentBoardId) {
         setTasks([]);
         setBoardName('New Board');
         setBoardDescription('');
@@ -266,13 +272,13 @@ export default function TasksPage() {
       }
 
       // Fetch Tasks
-      const tasksUrl = `/tasks?boardId=${boardId}`;
+      const tasksUrl = `/tasks?boardId=${currentBoardId}`;
       const tasksRes = await apiService.request(tasksUrl);
       if (tasksRes.success) setTasks(tasksRes.data);
 
       // Fetch Board Details
       try {
-        const boardRes = await apiService.request(`/boards/${boardId}`);
+        const boardRes = await apiService.request(`/boards/${currentBoardId}`);
         if (boardRes.success && boardRes.data) {
           setBoardName(boardRes.data.name || 'New Board');
           setBoardDescription(boardRes.data.description || '');
@@ -288,9 +294,35 @@ export default function TasksPage() {
     }
   };
 
+  const fetchWorkflows = async () => {
+    try {
+      const res = await apiService.getWorkflows();
+      if (res.success) setWorkflows(res.data);
+    } catch (e) {
+      console.error('Fetch workflows error:', e);
+    }
+  };
+
   useEffect(() => {
-    fetchBoardData();
-  }, [boardId]);
+    const id = searchParams.get('boardId');
+    const dwId = searchParams.get('designerWorkflowId');
+    const role = searchParams.get('role');
+    const fWorkflow = searchParams.get('fromWorkflow') === 'true';
+    if (id) {
+      setBoardId(id);
+      fetchBoardData(id);
+    } else {
+      setBoardId(null);
+      fetchBoardData(null);
+    }
+    if (dwId) {
+      setDesignerWorkflowId(dwId);
+      setSelectedWorkflowId(dwId); // Default select the workflow we came from
+    }
+    if (role) setUserRole(role);
+    if (fWorkflow) setFromWorkflow(true);
+    fetchWorkflows();
+  }, [searchParams]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -364,18 +396,25 @@ export default function TasksPage() {
         description: boardDescription,
       };
 
-      if (currentBoardId) {
+       if (currentBoardId) {
         await apiService.request(`/boards/${currentBoardId}`, {
-          method: 'PATCH', // backend usually uses PATCH/PUT for updates
-          body: JSON.stringify(boardPayload)
+          method: 'PATCH',
+          body: JSON.stringify({
+            ...boardPayload,
+            workflowId: selectedWorkflowId || null
+          })
         });
       } else {
          const boardRes = await apiService.request('/boards', {
           method: 'POST',
-          body: JSON.stringify(boardPayload)
+          body: JSON.stringify({
+            ...boardPayload,
+            workflowId: selectedWorkflowId || null
+          })
         });
         if (boardRes.success) {
           currentBoardId = boardRes.data._id;
+          setBoardId(currentBoardId); // Update boardId state after creation
         }
       }
 
@@ -395,7 +434,12 @@ export default function TasksPage() {
 
       toast.success(boardId ? 'Architecture Board updated' : 'Architecture Board created successfully');
       setIsSaveModalOpen(false);
-      router.push('/admin/AllKanban');
+      
+      if (designerWorkflowId || fromWorkflow) {
+        router.push(`/${userRole}/create_workflows${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}`);
+      } else {
+        router.push('/admin/AllKanban');
+      }
     } catch (error) {
       console.error('Save error:', error);
       toast.error('Failed to save architecture');
@@ -480,6 +524,20 @@ export default function TasksPage() {
                     className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-700 font-bold focus:border-indigo-500 focus:bg-white outline-none transition-all min-h-[120px] resize-none"
                   />
                 </div>
+
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Associate with Workflow</label>
+                  <select 
+                    value={selectedWorkflowId}
+                    onChange={(e) => setSelectedWorkflowId(e.target.value)}
+                    className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-700 font-bold focus:border-indigo-500 focus:bg-white outline-none transition-all appearance-none"
+                  >
+                    <option value="">Select a Workflow...</option>
+                    {workflows.map((wf: any) => (
+                      <option key={wf._id} value={wf._id}>{wf.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               {/* Modal Footer */}
@@ -502,36 +560,52 @@ export default function TasksPage() {
           </div>
         )}
       </AnimatePresence>
-      {/* Sticky Header */}
-      <div className="bg-white border-b border-gray-100 sticky top-0 z-30 mb-10 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+      {/* Standalone Header */}
+      <div className="bg-white border-b border-gray-100 z-30 mb-10 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-0 sm:h-20 flex flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-4 w-full sm:w-auto">
             <button 
-              onClick={() => window.location.href = '/admin/AllKanban'}
-              className="p-2.5 bg-slate-50 text-slate-400 hover:text-indigo-600 rounded-xl hover:bg-indigo-50 transition-all border border-transparent hover:border-indigo-100"
-              title="Return to Management"
+              onClick={() => {
+                if (designerWorkflowId || fromWorkflow) {
+                  router.push(`/${userRole}/create_workflows${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}`);
+                } else {
+                  router.push('/admin/AllKanban');
+                }
+              }}
+              className="p-2.5 bg-slate-50 text-slate-400 hover:text-indigo-600 rounded-xl hover:bg-indigo-50 transition-all border border-transparent hover:border-indigo-100 shrink-0"
+              title={designerWorkflowId ? "Back to Workflow" : "Return to Management"}
             >
               <ChevronLeft size={24} />
             </button>
-            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-100">
+            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-100 shrink-0">
               <LayoutDashboard className="w-5 h-5 text-white" />
             </div>
-            <div>
-              <h1 className="text-xl font-black text-slate-800 tracking-tight uppercase">KanBan</h1>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-1">
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-xl font-black text-slate-800 tracking-tight uppercase truncate">KanBan</h1>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-1 truncate">
                 {isLoading ? 'Loading Neural Lattice...' : boardId ? `Architecture Board` : 'manage your tasks'}
               </p>
             </div>
           </div>
 
-          <button 
-            onClick={saveBoard}
-            disabled={isSaving || isLoading} 
-            className="flex items-center gap-3 px-8 py-3 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-indigo-700 active:scale-95 transition-all shadow-xl shadow-indigo-100 disabled:opacity-50"
-          >
-            {isSaving ? <Clock className="w-4 h-4 animate-spin" /> : <Save size={18} />}
-            {isSaving ? 'Synchronizing...' : 'Save Lattice State'}
-          </button>
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
+            {(designerWorkflowId || fromWorkflow) && (
+              <button 
+                onClick={() => router.push(`/${userRole}/create_workflows${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}`)}
+                className="flex items-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-slate-50 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-slate-100 active:scale-95 transition-all border border-slate-200 shadow-sm whitespace-nowrap"
+              >
+                <ChevronLeft size={16} /> <span className="hidden xs:inline">Back to Workflow</span><span className="xs:hidden">Workflow</span>
+              </button>
+            )}
+            <button 
+              onClick={saveBoard}
+              disabled={isSaving || isLoading} 
+              className="flex items-center gap-3 px-6 sm:px-8 py-2.5 sm:py-3 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-indigo-700 active:scale-95 transition-all shadow-xl shadow-indigo-100 disabled:opacity-50 whitespace-nowrap"
+            >
+              {isSaving ? <Clock className="w-4 h-4 animate-spin" /> : <Save size={18} />}
+              {isSaving ? 'Saving...' : 'Save Lattice State'}
+            </button>
+          </div>
         </div>
       </div>
 

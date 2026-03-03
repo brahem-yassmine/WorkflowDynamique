@@ -70,6 +70,43 @@ exports.getTenantInfo = async (req, res) => {
   }
 };
 
+exports.updateTenantInfo = async (req, res) => {
+  try {
+    if (!req.tenant) {
+      return res.status(404).json({
+        success: false,
+        message: "Tenant not found"
+      });
+    }
+
+    const { name, industry } = req.body;
+
+    // Update the Tenant model in the master DB
+    const Tenant = req.masterDb.model('Tenant');
+    const updatedTenant = await Tenant.findByIdAndUpdate(
+      req.tenant._id,
+      { name, industry },
+      { new: true, runValidators: true }
+    );
+
+    res.json({
+      success: true,
+      data: {
+        _id: updatedTenant._id,
+        name: updatedTenant.name,
+        email: updatedTenant.email,
+        industry: updatedTenant.industry
+      }
+    });
+  } catch (error) {
+    console.error('updateTenantInfo Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 // Tenant settings
 exports.getTenantSettings = async (req, res) => {
   try {

@@ -51,7 +51,9 @@ const SaveButton = ({ onSave, isSaving, initialName = '', initialDomain = 'HR', 
     try {
       const response = await apiService.getDomains();
       if (response.success) {
-        setAvailableDomains(response.data);
+        // Filter out domains that look like tenant URLs (e.g., axia-workflow.com)
+        const domains = response.data.filter((d: any) => !d.name.includes('.axia-workflow.com'));
+        setAvailableDomains(domains);
       }
     } catch (error) {
       console.error('Error fetching domains:', error);
@@ -152,7 +154,8 @@ const SaveButton = ({ onSave, isSaving, initialName = '', initialDomain = 'HR', 
                     {availableDomains.map(d => (
                       <option key={d._id} value={d.name}>{d.name}</option>
                     ))}
-                    {!availableDomains.find(d => d.name === domain) && domain && (
+                    {/* Only show the current domain if it's not in the list and doesn't look like a tenant URL */}
+                    {domain && !availableDomains.find(d => d.name === domain) && !domain.includes('.axia-workflow.com') && (
                       <option value={domain}>{domain}</option>
                     )}
                   </select>

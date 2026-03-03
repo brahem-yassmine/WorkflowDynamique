@@ -526,7 +526,7 @@ export default function SignupPage() {
                     required
                     disabled={loading}
                   >
-                    <option value="Construction & Engineering ">Construction & Engineering </option>
+                    <option value="Construction & Engineering">Construction & Engineering</option>
                     <option value="Information Technology & Software">Information Technology & Software</option>
                     <option value="Corporate & Business Services">Corporate & Business Services</option>
                     <option value="Healthcare">Healthcare</option>

@@ -17,9 +17,11 @@ import {
   AlertCircle,
   ChevronRight,
   Trash2,
-  Edit3
+  Edit3,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast, Toaster } from 'sonner';
 import { apiService } from '@/service/api.service';
 import Link from 'next/link';
 
@@ -53,6 +55,8 @@ export default function UserWorkflowsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [user, setUser] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'tasks' | 'registry'>('tasks');
+  const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
+  const [isChecklistModalOpen, setIsChecklistModalOpen] = useState(false);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -121,13 +125,13 @@ export default function UserWorkflowsPage() {
     try {
       const res = await apiService.deleteWorkflow(id);
       if (res.success) {
+        toast.success('Workflow deleted successfully');
         setWorkflows(prev => prev.filter(w => w._id !== id));
       } else {
-        alert(res.message || 'Failed to delete workflow');
+        toast.error(res.message || 'Failed to delete workflow');
       }
     } catch (err: any) {
-      console.error('Delete error:', err);
-      alert(err.message || 'An error occurred during deletion');
+      toast.error(err.message || 'An error occurred during deletion');
     }
   };
 
@@ -144,8 +148,83 @@ export default function UserWorkflowsPage() {
     );
   }
 
+  const ChecklistPreviewModal = ({ workflow, isOpen, onClose }: { workflow: Workflow | null, isOpen: boolean, onClose: () => void }) => {
+    if (!workflow || !isOpen) return null;
+
+    const tasks = workflow.nodes
+      .filter(node => node.type !== 'start' && node.type !== 'end')
+      .map(node => ({
+        id: node.id,
+        title: node.data?.label || node.id,
+        type: node.type,
+        priority: node.data?.priority || 'medium'
+      }));
+
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          className="bg-white w-full max-w-2xl rounded-[32px] overflow-hidden shadow-2xl border border-slate-100 flex flex-col max-h-[85vh]"
+        >
+          <div className="bg-indigo-600 p-8 text-white shrink-0 relative">
+            <button 
+              onClick={onClose}
+              className="absolute top-6 right-6 p-2 hover:bg-white/10 rounded-xl transition-colors"
+            >
+              <X size={20} />
+            </button>
+            <h2 className="text-2xl font-black tracking-tight uppercase">Checklist Architecture</h2>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80 mt-1">{workflow.name} Schema</p>
+          </div>
+
+          <div className="p-8 overflow-y-auto space-y-6 flex-grow custom-scrollbar">
+            {tasks.length === 0 ? (
+              <div className="text-center py-12">
+                <AlertCircle className="mx-auto text-slate-200 mb-4" size={48} />
+                <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">No tasks defined in this logic</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {tasks.map((task) => (
+                  <div key={task.id} className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-200 transition-all">
+                    <div className={`p-2 rounded-lg ${task.type === 'condition' ? 'bg-amber-100 text-amber-600' : 'bg-indigo-100 text-indigo-600'}`}>
+                      {task.type === 'condition' ? <Filter size={14} /> : <CheckCircle2 size={14} />}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-black text-slate-700 tracking-tight leading-none uppercase">{task.title}</p>
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">{task.type}</p>
+                    </div>
+                    <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${
+                      task.priority === 'high' ? 'bg-rose-100 text-rose-600' : 
+                      task.priority === 'medium' ? 'bg-amber-100 text-amber-600' : 
+                      'bg-emerald-100 text-emerald-600'
+                    }`}>
+                      {task.priority}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="p-8 pt-0 shrink-0">
+            <button 
+              onClick={onClose}
+              className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-600 transition-all active:scale-95 shadow-xl shadow-slate-100"
+            >
+              Close Architecture View
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-8 pb-12">
+      <Toaster position="top-right" richColors />
       {/* Header Section */}
       <div className="bg-indigo-700 rounded-[2.5rem] p-8 md:p-12 text-white relative overflow-hidden shadow-2xl shadow-indigo-200">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
@@ -308,8 +387,18 @@ export default function UserWorkflowsPage() {
                         </span>
                         
                         <div className="flex gap-1 ml-2">
+                          <button 
+                            onClick={() => {
+                              setSelectedWorkflow(workflow);
+                              setIsChecklistModalOpen(true);
+                            }}
+                            className="p-2 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 rounded-xl transition-all shadow-sm bg-white border border-slate-100"
+                            title="View Checklist"
+                          >
+                            <Eye size={14} />
+                          </button>
                           <Link href={`/User/create_workflows?id=${workflow._id}`}>
-                            <button className="p-2 hover:bg-slate-100 text-slate-400 hover:text-indigo-600 rounded-xl transition-all shadow-sm bg-white border border-slate-100">
+                             <button className="p-2 hover:bg-slate-100 text-slate-400 hover:text-indigo-600 rounded-xl transition-all shadow-sm bg-white border border-slate-100">
                               <Edit3 size={14} />
                             </button>
                           </Link>
@@ -354,6 +443,16 @@ export default function UserWorkflowsPage() {
               </div>
             )}
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isChecklistModalOpen && (
+          <ChecklistPreviewModal 
+            workflow={selectedWorkflow} 
+            isOpen={isChecklistModalOpen} 
+            onClose={() => setIsChecklistModalOpen(false)} 
+          />
         )}
       </AnimatePresence>
     </div>

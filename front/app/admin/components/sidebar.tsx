@@ -96,12 +96,20 @@ function Sidebar() {
           <p className="text-[11px] font-bold text-white/90">Master Node Active</p>
         </div>
 
-        <Link href="/signin">
-          <button className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-white/10 hover:text-white rounded-2xl w-full transition-all group">
-            <LogOut size={18} className="group-hover:-translate-x-1 transition-transform" />
-            <span className="text-xs font-bold tracking-tight">Terminate Session</span>
-          </button>
-        </Link>
+        <button
+          onClick={() => {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('user');
+            localStorage.removeItem('tenant');
+            localStorage.removeItem('tenantId');
+            localStorage.removeItem('user_pass_sync');
+            window.location.href = '/signin';
+          }}
+          className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-white/10 hover:text-white rounded-2xl w-full transition-all group"
+        >
+          <LogOut size={18} className="group-hover:-translate-x-1 transition-transform" />
+          <span className="text-xs font-bold tracking-tight">Terminate Session</span>
+        </button>
       </div>
     </aside>
   );

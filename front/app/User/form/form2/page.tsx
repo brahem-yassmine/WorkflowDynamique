@@ -135,13 +135,13 @@ export default function Form2Page() {
         
         // Dynamic redirection based on context
         if (designerWorkflowId) {
-          router.push(`/admin/create_workflows?id=${designerWorkflowId}`);
+          router.push(`/User/create_workflows?id=${designerWorkflowId}`);
         } else if (instanceId === 'new') {
           router.push(`/Workflows/instances/new?workflowId=${workflowId}`);
         } else if (instanceId) {
           router.push(`/Workflows/instances/${instanceId}`);
         } else {
-          router.push('/admin/AllForms');
+          router.push('/User/Allforms');
         }
       }
     } catch (error: any) {
@@ -266,7 +266,12 @@ export default function Form2Page() {
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link
-              href="/admin/AllForms"
+              href={
+                designerWorkflowId ? `/User/create_workflows?id=${designerWorkflowId}` :
+                instanceId === 'new' ? `/Workflows/instances/new?workflowId=${workflowId}` :
+                instanceId ? `/Workflows/instances/${instanceId}` :
+                "/User/Allforms"
+              }
               className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500"
             >
               <ArrowLeft className="w-5 h-5" />

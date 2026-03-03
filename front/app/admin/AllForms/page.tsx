@@ -142,7 +142,7 @@ export default function AllFormsPage() {
             <h2 className="text-xl font-bold text-gray-800">No forms found</h2>
             <p className="text-gray-500 mt-2 max-w-sm mb-8">Start by creating your first dynamic form to automate your workflow.</p>
             <Link 
-              href="/form"
+              href="/admin/form"
               className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 flex items-center gap-2"
             >
               <Plus className="w-5 h-5" /> Start Building
@@ -215,7 +215,7 @@ export default function AllFormsPage() {
                       <Trash2 className="w-4.5 h-4.5" />
                     </button>
                     <Link 
-                      href={`/form/form2?id=${form._id}`}
+                      href={`/form/form3?id=${form._id}`}
                       className="ml-2 w-9 h-9 bg-gray-50 text-gray-400 group-hover:bg-indigo-600 group-hover:text-white rounded-xl flex items-center justify-center transition-all shadow-sm"
                       title="View Interactive"
                     >

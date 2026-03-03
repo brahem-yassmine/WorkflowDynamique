@@ -63,6 +63,8 @@ function WorkflowEditorContent() {
     const [workflowProjectId, setWorkflowProjectId] = useState<string>('');
     const [currentWorkflowId, setCurrentWorkflowId] = useState<string | null>(workflowId);
     const [isSaving, setIsSaving] = useState(false);
+    const [isDirty, setIsDirty] = useState(false); // tracks unsaved changes
+    const lastSavedMetaRef = useRef<{ name: string; domain: string; projectId?: string } | null>(null);
 
     // Default domain from user if available
     useEffect(() => {
@@ -75,26 +77,100 @@ function WorkflowEditorContent() {
 
     // Initial load
     useEffect(() => {
-        if (workflowId) {
-            const loadWorkflow = async () => {
+        const loadWorkflow = async () => {
+            const draftKey = `workflow_draft_${workflowId || 'new'}`;
+            const draftData = localStorage.getItem(draftKey);
+            let draft = null;
+            if (draftData) {
+                try {
+                    draft = JSON.parse(draftData);
+                } catch (e) {
+                    console.error('Failed to parse draft:', e);
+                }
+            }
+
+            if (workflowId) {
                 try {
                     const response = await apiService.request(`/workflows/${workflowId}`);
                     if (response.success && response.data) {
                         const { name, nodes: loadedNodes, edges: loadedEdges, domain, projectId } = response.data;
-                        setWorkflowName(name);
-                        setWorkflowDomain(domain || 'HR');
-                        setWorkflowProjectId(projectId || '');
-                        setNodes(loadedNodes || []);
-                        setEdges(loadedEdges || []);
+                        
+                        // If draft is newer than what's on server, use draft
+                        if (draft && draft.savedAt > (new Date(response.data.updatedAt || 0).getTime())) {
+                            console.log('[Draft] Loading newer local draft');
+                            setWorkflowName(draft.name || name);
+                            setWorkflowDomain(draft.domain || domain || 'HR');
+                            setWorkflowProjectId(projectId || '');
+                            setNodes(draft.nodes || []);
+                            setEdges(draft.edges || []);
+                            setIsDirty(true);
+                        } else {
+                            setWorkflowName(name);
+                            setWorkflowDomain(domain || 'HR');
+                            setWorkflowProjectId(projectId || '');
+                            setNodes(loadedNodes || []);
+                            setEdges(loadedEdges || []);
+                        }
                     }
                 } catch (error) {
                     console.error('Failed to load workflow:', error);
                     alert('Error loading workflow');
                 }
-            };
-            loadWorkflow();
-        }
+            } else if (draft) {
+                // Loading "new" workflow but have a draft
+                console.log('[Draft] Loading unsaved "new" workflow draft');
+                setWorkflowName(draft.name || 'New Workflow');
+                setWorkflowDomain(draft.domain || 'HR');
+                setNodes(draft.nodes || initialNodes);
+                setEdges(draft.edges || []);
+                setIsDirty(true);
+            }
+        };
+        loadWorkflow();
     }, [workflowId, setNodes, setEdges]);
+
+    // Mark as dirty when nodes/edges change (after initial load) + persist draft to localStorage
+    const isFirstRender = useRef(true);
+    useEffect(() => {
+        if (isFirstRender.current) {
+            // Skip first render to avoid marking dirty on initial load
+            const timer = setTimeout(() => { isFirstRender.current = false; }, 1500);
+            return () => clearTimeout(timer);
+        }
+        setIsDirty(true);
+        // Persist draft to localStorage so navigation doesn't lose changes
+        const draftKey = `workflow_draft_${currentWorkflowId || 'new'}`;
+        localStorage.setItem(draftKey, JSON.stringify({
+            nodes,
+            edges,
+            name: workflowName,
+            domain: workflowDomain,
+            savedAt: Date.now()
+        }));
+    }, [nodes, edges]);
+
+    // Auto-save every 30 seconds if dirty and workflow already exists
+    useEffect(() => {
+        const interval = setInterval(async () => {
+            if (isDirty && currentWorkflowId && lastSavedMetaRef.current) {
+                console.log('[AutoSave] Saving workflow...');
+                await handleSave(lastSavedMetaRef.current);
+            }
+        }, 30000);
+        return () => clearInterval(interval);
+    }, [isDirty, currentWorkflowId]);
+
+    // Save before page unload / navigation
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (isDirty) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [isDirty]);
 
     // useReactFlow is used here, inside ReactFlowProvider
     const { screenToFlowPosition } = useReactFlow();
@@ -183,6 +259,7 @@ function WorkflowEditorContent() {
     const handleSave = useCallback(async (meta: { name: string; domain: string; projectId?: string }) => {
         try {
             setIsSaving(true);
+            lastSavedMetaRef.current = meta;
 
             const payload = {
                 name: meta.name,
@@ -205,7 +282,12 @@ function WorkflowEditorContent() {
             }
 
             if (response.success) {
-                toast.success(currentWorkflowId ? 'Workflow updated successfully!' : 'Workflow created successfully!');
+                setIsDirty(false);
+                // Clear draft on successful save
+                const draftKey = `workflow_draft_${currentWorkflowId || 'new'}`;
+                localStorage.removeItem(draftKey);
+                
+                toast.success(currentWorkflowId ? 'Workflow updated!' : 'Workflow created!');
                 setWorkflowName(meta.name);
             } else {
                 toast.error('Save error: ' + (response.message || 'Unknown error'));

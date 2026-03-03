@@ -9,7 +9,8 @@ const {
   getTeamMembers,
   inviteTeamMember,
   removeTeamMember,
-  getActivityLogs
+  getActivityLogs,
+  updateTenantInfo
 } = require('../controllers/tenantController');
 const { auth } = require('../middleware/auth');
 const { checkTenantActive, requirePlan } = require('../middleware/tenantMiddleware');
@@ -21,6 +22,7 @@ router.use(auth, checkTenantActive);
 // Public routes for tenant (even without plan)
 router.get('/dashboard', getDashboard);
 router.get('/info', getTenantInfo);
+router.put('/info', updateTenantInfo);
 
 // Routes that require a plan
 router.get('/settings', requirePlan, getTenantSettings);

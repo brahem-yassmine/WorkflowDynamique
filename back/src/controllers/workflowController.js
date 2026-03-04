@@ -21,48 +21,15 @@ exports.getWorkflows = async (req, res) => {
     const { projectId } = req.query;
     let query = {};
 
-    // 1. Handle Project Visibility
+    // 1. Visibility for non-admin users
     if (user.role !== 'admin' && user.role !== 'super_admin') {
-      // Domain aliases for HR/RH
       const domainsToMatch = [user.domain];
       if (user.domain === 'HR' || user.domain === 'RH') {
         domainsToMatch.push(user.domain === 'HR' ? 'RH' : 'HR');
       }
 
-      // Find accessible projects
-      const accessibleProjects = await Project.find({
-        $or: [
-          { isAllDomains: true },
-          { allowedDomains: { $in: domainsToMatch } },
-          { createdBy: user.userId }
-        ]
-      }).select('_id');
-      const accessibleProjectIds = accessibleProjects.map(p => p._id.toString());
-
-      if (projectId) {
-        // Specific project requested: check if user has access
-        if (!accessibleProjectIds.includes(projectId)) {
-          return res.json({ success: true, count: 0, data: [] });
-        }
-        query.projectId = projectId;
-      } else {
-        // No specific project: show workflows from accessible projects OR workflows matching domain (if no project linked)
-        query.$or = [
-          { projectId: { $in: accessibleProjectIds } },
-          {
-            domain: { $in: domainsToMatch },
-            $or: [
-              { projectId: { $exists: false } },
-              { projectId: null }
-            ]
-          }
-        ];
-
-        // Special bypass for IT domain as per legacy comment
-        if (user.domain === 'IT') {
-          delete query.$or;
-        }
-      }
+      // Simple Visibility: Show workflows in your domain
+      query.domain = { $in: domainsToMatch };
     } else {
       // Admin/SuperAdmin sees everything, but can filter by projectId
       if (projectId) query.projectId = projectId;

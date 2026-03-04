@@ -4,16 +4,16 @@ import { Play } from 'lucide-react';
 
 const StartNode = ({ data }: any) => {
     return (
-        <div className="px-3.5 py-2 shadow-md rounded-lg bg-white border-2 border-green-500 min-w-[140px]">
+        <div className="px-1.5 py-1 shadow-sm rounded bg-white border border-green-500 min-w-[70px] max-w-[90px]">
             <div className="flex items-center">
-                <div className="rounded-full w-7 h-7 flex items-center justify-center bg-green-100 text-green-600 mr-2">
-                    <Play size={14} />
+                <div className="rounded-sm w-4 h-4 flex items-center justify-center bg-green-50 text-green-600 mr-1.5">
+                    <Play size={8} />
                 </div>
                 <div>
-                    <div className="text-sm font-bold text-gray-900">{data.label || 'Start'}</div>
+                    <div className="text-[8px] font-bold text-slate-800 uppercase tracking-tighter">{data.label || 'Start'}</div>
                 </div>
             </div>
-            <Handle type="source" position={Position.Right} className="bg-green-500" style={{ borderRadius: '50%', width: '11px', height: '11px' }} />
+            <Handle type="source" position={Position.Right} className="bg-green-500" style={{ width: '5px', height: '5px' }} />
         </div>
     );
 };

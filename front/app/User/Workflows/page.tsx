@@ -16,7 +16,9 @@ import {
   Activity,
   AlertCircle,
   ChevronRight,
-  Copy
+  Copy,
+  Trash2,
+  Plus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiService } from '@/service/api.service';
@@ -31,6 +33,7 @@ interface Workflow {
   nodes: any[];
   edges: any[];
   projectId?: string;
+  userId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -51,9 +54,12 @@ export default function UserWorkflowsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [user, setUser] = useState<any>(null);
-  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-  const initialTab = searchParams?.get('tab') === 'registry' ? 'registry' : 'tasks';
+  const searchParamsSource = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const initialTab = searchParamsSource?.get('tab') === 'registry' ? 'registry' : 'tasks';
+  const mode = searchParamsSource?.get('mode') || 'operations';
+
   const [activeTab, setActiveTab] = useState<'tasks' | 'registry'>(initialTab);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -104,10 +110,12 @@ export default function UserWorkflowsPage() {
 
       setInstances(combinedInstances);
 
-      // Only auto-switch if no specific tab was requested
-      if (!searchParams?.get('tab')) {
+      // Only auto-switch if no specific tab or mode was requested
+      if (!searchParamsSource?.get('tab') && mode !== 'design') {
         if (combinedInstances.length > 0) setActiveTab('tasks');
         else setActiveTab('registry');
+      } else if (mode === 'design') {
+        setActiveTab('registry');
       }
 
     } catch (error) {
@@ -117,10 +125,52 @@ export default function UserWorkflowsPage() {
     }
   };
 
-  const filteredWorkflows = workflows.filter(w =>
-    w.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    w.domain.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this process design?')) return;
+    try {
+      const response = await apiService.request(`/workflows/${id}`, { method: 'DELETE' });
+      if (response.success) {
+        setWorkflows(prev => prev.filter(w => w._id !== id));
+      }
+    } catch (error: any) {
+      alert('Error during deletion: ' + error.message);
+    }
+  };
+
+  const handleDuplicate = async (id: string) => {
+    try {
+      setDuplicatingId(id);
+      const response = await apiService.duplicateWorkflow(id);
+      if (response.success) {
+        setWorkflows([response.data, ...workflows]);
+        alert('Design cloned successfully in your repository!');
+      }
+    } catch (error: any) {
+      alert('Error duplicating: ' + error.message);
+    } finally {
+      setDuplicatingId(null);
+    }
+  };
+
+  const filteredWorkflows = workflows.filter(w => {
+    const matchesSearch = w.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      w.domain.toLowerCase().includes(searchTerm.toLowerCase());
+
+    // Unified HR/RH matching + case-insensitive check
+    const getDomainGroup = (d: string) => {
+      const normalized = d?.toLowerCase().trim() || '';
+      if (normalized === 'hr' || normalized === 'rh') return 'hr_rh';
+      return normalized;
+    };
+
+    const matchesDomain = !user?.domain ||
+      getDomainGroup(w.domain) === getDomainGroup(user.domain);
+
+    // In Launch mode, show Active and Draft. In Design mode, show all.
+    const matchesStatus = mode === 'design' ? true : (w.status === 'active' || w.status === 'draft');
+
+    return matchesSearch && matchesDomain && matchesStatus;
+  });
 
   if (loading) {
     return (
@@ -160,24 +210,26 @@ export default function UserWorkflowsPage() {
         </div>
       </div>
 
-      {/* Tabs / Switcher */}
-      <div className="flex items-center gap-2 bg-white p-1.5 rounded-2xl w-fit border border-slate-100 shadow-sm">
-        <button
-          onClick={() => setActiveTab('tasks')}
-          className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'tasks' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
-        >
-          My Action Center ({instances.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('registry')}
-          className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'registry' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
-        >
-          Workflow Registry ({workflows.length})
-        </button>
-      </div>
+      {/* Tabs / Switcher - Hidden in Design Mode */}
+      {mode !== 'design' && (
+        <div className="flex items-center gap-2 bg-white p-1.5 rounded-2xl w-fit border border-slate-100 shadow-sm">
+          <button
+            onClick={() => setActiveTab('tasks')}
+            className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'tasks' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
+          >
+            My Action Center ({instances.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('registry')}
+            className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'registry' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
+          >
+            Workflow Registry ({filteredWorkflows.length})
+          </button>
+        </div>
+      )}
 
       <AnimatePresence mode="wait">
-        {activeTab === 'tasks' ? (
+        {(activeTab === 'tasks' && mode !== 'design') ? (
           <motion.div
             key="tasks"
             initial={{ opacity: 0, y: 20 }}
@@ -257,9 +309,17 @@ export default function UserWorkflowsPage() {
                 />
               </div>
               <div className="flex gap-2">
-                <div className="px-4 py-2 bg-white rounded-xl border border-slate-100 flex items-center gap-2 text-xs font-bold text-slate-500">
+                {mode === 'design' && (
+                  <Link href="/create-workflow">
+                    <button className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-[20px] font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95">
+                      <Plus size={16} strokeWidth={3} />
+                      Create New Design
+                    </button>
+                  </Link>
+                )}
+                <div className="px-4 py-3 bg-white rounded-[20px] border border-slate-100 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
                   <Activity size={14} className="text-indigo-500" />
-                  {filteredWorkflows.length} Operational Designs
+                  {filteredWorkflows.length} {mode === 'design' ? 'Workflows' : 'Available Patterns'}
                 </div>
               </div>
             </div>
@@ -275,64 +335,95 @@ export default function UserWorkflowsPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredWorkflows.map((workflow) => (
-                  <motion.div
-                    layout
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    key={workflow._id}
-                    className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 hover:-translate-y-1 transition-all group"
-                  >
-                    <div className="flex justify-between items-start mb-6">
-                      <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl group-hover:bg-indigo-600 group-hover:text-white transition-all">
-                        <GitBranch size={24} />
+                {filteredWorkflows.map((workflow) => {
+                  const isOwner = workflow.userId === (user?._id || user?.id);
+                  return (
+                    <motion.div
+                      layout
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      key={workflow._id}
+                      className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 hover:-translate-y-1 transition-all group"
+                    >
+                      <div className="flex justify-between items-start mb-6">
+                        <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                          <GitBranch size={24} />
+                        </div>
+                        <div className="flex flex-col items-end gap-1.5">
+                          <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${workflow.status === 'active' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
+                            }`}>
+                            {workflow.status}
+                          </span>
+                          {isOwner && (
+                            <span className="text-[8px] font-black text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded uppercase tracking-tighter border border-indigo-100">My Design</span>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex gap-1.5">
-                        <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${workflow.status === 'active' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
-                          }`}>
-                          {workflow.status}
-                        </span>
+
+                      <h3 className="text-xl font-black text-slate-800 mb-2 truncate group-hover:text-indigo-600 transition-colors uppercase tracking-tight">
+                        {workflow.name}
+                      </h3>
+                      <p className="text-sm text-slate-500 font-medium line-clamp-2 mb-6 h-10">
+                        {workflow.description || "Procedural mapping for organizational consistency and automated tracking."}
+                      </p>
+
+                      <div className="grid grid-cols-2 gap-3 mb-6">
+                        <div className="p-3 bg-slate-50 rounded-2xl">
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Architecture</p>
+                          <p className="text-xs font-black text-slate-700">{workflow.nodes.length} Logical Nodes</p>
+                        </div>
+                        <div className="p-3 bg-slate-50 rounded-2xl">
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Domain</p>
+                          <p className="text-xs font-black text-indigo-600">{workflow.domain}</p>
+                        </div>
                       </div>
-                    </div>
 
-                    <h3 className="text-xl font-black text-slate-800 mb-2 truncate group-hover:text-indigo-600 transition-colors uppercase tracking-tight">
-                      {workflow.name}
-                    </h3>
-                    <p className="text-sm text-slate-500 font-medium line-clamp-2 mb-6 h-10">
-                      {workflow.description || "Procedural mapping for organizational consistency and automated tracking."}
-                    </p>
-
-                    <div className="grid grid-cols-2 gap-3 mb-6">
-                      <div className="p-3 bg-slate-50 rounded-2xl">
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Architecture</p>
-                        <p className="text-xs font-black text-slate-700">{workflow.nodes.length} Logical Nodes</p>
-                      </div>
-                      <div className="p-3 bg-slate-50 rounded-2xl">
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Domain</p>
-                        <p className="text-xs font-black text-indigo-600">{workflow.domain}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2 mb-3">
-                      <Link href={`/create-workflow?id=${workflow._id}`} className="flex-1">
-                        <button className="w-full py-3 bg-white border border-slate-100 text-slate-600 rounded-xl font-black text-[9px] uppercase tracking-widest flex items-center justify-center gap-1.5 hover:bg-slate-50 transition-all">
-                          <Layers size={12} />
-                          Architect
-                        </button>
-                      </Link>
-                      <button className="px-4 py-3 bg-white border border-slate-100 text-slate-400 rounded-xl hover:text-indigo-600 transition-all">
-                        <Copy size={12} />
-                      </button>
-                    </div>
-
-                    <Link href={`/Workflows/instances/new?workflowId=${workflow._id}`}>
-                      <button className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-indigo-600 transition-all active:scale-95 shadow-lg shadow-slate-200 group-hover:shadow-indigo-200">
-                        <Play size={14} fill="currentColor" />
-                        Initialize Process
-                      </button>
-                    </Link>
-                  </motion.div>
-                ))}
+                      {mode === 'design' ? (
+                        <div className="flex gap-2 mb-3">
+                          {isOwner ? (
+                            <>
+                              <Link href={`/create-workflow?id=${workflow._id}`} className="flex-1">
+                                <button className="w-full py-3 bg-white border border-slate-100 text-slate-600 rounded-xl font-black text-[9px] uppercase tracking-widest flex items-center justify-center gap-1.5 hover:bg-slate-50 transition-all">
+                                  <Layers size={12} />
+                                  Architect
+                                </button>
+                              </Link>
+                              <button
+                                onClick={() => handleDuplicate(workflow._id)}
+                                title="Clone"
+                                className="px-4 py-3 bg-white border border-slate-100 text-slate-400 rounded-xl hover:text-indigo-600 transition-all"
+                              >
+                                <Copy size={12} className={duplicatingId === workflow._id ? 'animate-spin' : ''} />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(workflow._id)}
+                                title="Delete"
+                                className="px-4 py-3 bg-rose-50 border border-rose-100 text-rose-400 rounded-xl hover:bg-rose-500 hover:text-white transition-all"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              onClick={() => handleDuplicate(workflow._id)}
+                              className="w-full py-3 bg-white border border-slate-100 text-slate-600 rounded-xl font-black text-[9px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-indigo-50 hover:text-indigo-600 transition-all shadow-sm"
+                            >
+                              <Copy size={14} className={duplicatingId === workflow._id ? 'animate-spin' : ''} />
+                              Clone to My Workspace
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <Link href={`/Workflows/instances/new?workflowId=${workflow._id}`}>
+                          <button className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-indigo-600 transition-all active:scale-95 shadow-lg shadow-slate-200 group-hover:shadow-indigo-200 mb-2">
+                            <Play size={14} fill="currentColor" />
+                            Initialize Process
+                          </button>
+                        </Link>
+                      )}
+                    </motion.div>
+                  );
+                })}
               </div>
             )}
           </motion.div>

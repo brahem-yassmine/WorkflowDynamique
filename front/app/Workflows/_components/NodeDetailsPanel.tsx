@@ -300,15 +300,17 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
                                     <div className="grid gap-10">
                                         {/* Task Identity */}
                                         <div className="space-y-6">
-                                            <div className="space-y-3">
-                                                <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Task Designation</Label>
-                                                <Input
-                                                    value={label}
-                                                    onChange={(e) => setLabel(e.target.value)}
-                                                    placeholder="ex: HR Validation"
-                                                    className="h-14 bg-white border-2 border-slate-100 rounded-2xl font-bold text-lg text-slate-700 focus:ring-indigo-100 shadow-sm"
-                                                />
-                                            </div>
+                                            {selectedNode.type !== 'start' && (
+                                                <div className="space-y-3">
+                                                    <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Task Designation</Label>
+                                                    <Input
+                                                        value={label}
+                                                        onChange={(e) => setLabel(e.target.value)}
+                                                        placeholder="ex: HR Validation"
+                                                        className="h-14 bg-white border-2 border-slate-100 rounded-2xl font-bold text-lg text-slate-700 focus:ring-indigo-100 shadow-sm"
+                                                    />
+                                                </div>
+                                            )}
 
                                             <div className="space-y-3">
                                                 <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Operational Instructions</Label>
@@ -321,148 +323,152 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
                                             </div>
                                         </div>
 
-                                        {/* Task Type Selection */}
-                                        <div className="space-y-6 pt-6 border-t border-slate-100">
-                                            <div className="flex items-center justify-between">
-                                                <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Work Model (Type)</Label>
-                                                <div className="flex bg-slate-100/50 p-1.5 rounded-2xl gap-2">
-                                                    <button
-                                                        onClick={() => setTaskType('normal')}
-                                                        className={`px-6 py-2.5 text-[10px] font-black uppercase rounded-xl transition-all ${taskType === 'normal' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}
-                                                    >
-                                                        1. Normal
-                                                    </button>
-                                                    <button
-                                                        onClick={() => setTaskType('form')}
-                                                        className={`px-6 py-2.5 text-[10px] font-black uppercase rounded-xl transition-all ${taskType === 'form' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}
-                                                    >
-                                                        2. Form
-                                                    </button>
-                                                </div>
-                                            </div>
-
-                                            {taskType === 'normal' && (
-                                                <div className="p-8 bg-slate-50 border-2 border-slate-100 rounded-[32px] space-y-6 animate-in slide-in-from-top-4">
+                                        {selectedNode.type !== 'start' && selectedNode.type !== 'condition' && (
+                                            <>
+                                                {/* Task Type Selection */}
+                                                <div className="space-y-6 pt-6 border-t border-slate-100">
                                                     <div className="flex items-center justify-between">
-                                                        <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Attachments & Media</Label>
-                                                        {isUploading && <Clock className="animate-spin text-indigo-500" size={14} />}
+                                                        <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Work Model (Type)</Label>
+                                                        <div className="flex bg-slate-100/50 p-1.5 rounded-2xl gap-2">
+                                                            <button
+                                                                onClick={() => setTaskType('normal')}
+                                                                className={`px-6 py-2.5 text-[10px] font-black uppercase rounded-xl transition-all ${taskType === 'normal' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}
+                                                            >
+                                                                1. Normal
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setTaskType('form')}
+                                                                className={`px-6 py-2.5 text-[10px] font-black uppercase rounded-xl transition-all ${taskType === 'form' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}
+                                                            >
+                                                                2. Form
+                                                            </button>
+                                                        </div>
                                                     </div>
 
-                                                    {attachments.length > 0 && (
-                                                        <div className="grid grid-cols-1 gap-2">
-                                                            {attachments.map((att, idx) => (
-                                                                <div key={idx} className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl shadow-sm group">
-                                                                    <div className="flex items-center gap-3">
-                                                                        <Paperclip size={14} className="text-indigo-500" />
-                                                                        <span className="text-xs font-bold text-slate-700 truncate max-w-[200px] font-medium">{att.filename}</span>
-                                                                    </div>
-                                                                    <div className="flex items-center gap-2">
-                                                                        <a
-                                                                            href={att.previewUrl || att.url}
-                                                                            target="_blank"
-                                                                            rel="noreferrer"
-                                                                            className="p-1 text-slate-300 hover:text-indigo-500 transition-colors outline-none h-fit w-fit bg-transparent border-0"
-                                                                        >
-                                                                            <ExternalLink size={14} />
-                                                                        </a>
-                                                                        <button
-                                                                            onClick={() => setAttachments(attachments.filter((_, i) => i !== idx))}
-                                                                            className="p-1 text-slate-300 hover:text-rose-500 transition-colors outline-none h-fit w-fit bg-transparent border-0"
-                                                                        >
-                                                                            <Trash2 size={14} />
-                                                                        </button>
-                                                                    </div>
+                                                    {taskType === 'normal' && (
+                                                        <div className="p-8 bg-slate-50 border-2 border-slate-100 rounded-[32px] space-y-6 animate-in slide-in-from-top-4">
+                                                            <div className="flex items-center justify-between">
+                                                                <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Attachments & Media</Label>
+                                                                {isUploading && <Clock className="animate-spin text-indigo-500" size={14} />}
+                                                            </div>
+
+                                                            {attachments.length > 0 && (
+                                                                <div className="grid grid-cols-1 gap-2">
+                                                                    {attachments.map((att, idx) => (
+                                                                        <div key={idx} className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl shadow-sm group">
+                                                                            <div className="flex items-center gap-3">
+                                                                                <Paperclip size={14} className="text-indigo-500" />
+                                                                                <span className="text-xs font-bold text-slate-700 truncate max-w-[200px] font-medium">{att.filename}</span>
+                                                                            </div>
+                                                                            <div className="flex items-center gap-2">
+                                                                                <a
+                                                                                    href={att.previewUrl || att.url}
+                                                                                    target="_blank"
+                                                                                    rel="noreferrer"
+                                                                                    className="p-1 text-slate-300 hover:text-indigo-500 transition-colors outline-none h-fit w-fit bg-transparent border-0"
+                                                                                >
+                                                                                    <ExternalLink size={14} />
+                                                                                </a>
+                                                                                <button
+                                                                                    onClick={() => setAttachments(attachments.filter((_, i) => i !== idx))}
+                                                                                    className="p-1 text-slate-300 hover:text-rose-500 transition-colors outline-none h-fit w-fit bg-transparent border-0"
+                                                                                >
+                                                                                    <Trash2 size={14} />
+                                                                                </button>
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
                                                                 </div>
-                                                            ))}
+                                                            )}
+
+                                                            <div className="flex gap-4">
+                                                                <input
+                                                                    type="file"
+                                                                    id="node-file-upload"
+                                                                    className="hidden"
+                                                                    onChange={handleFileUpload}
+                                                                />
+                                                                <button
+                                                                    onClick={() => document.getElementById('node-file-upload')?.click()}
+                                                                    className="flex-1 h-16 bg-white border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center gap-1 hover:border-indigo-400 hover:bg-indigo-50 transition-all text-slate-400 hover:text-indigo-600 outline-none border-0"
+                                                                >
+                                                                    <ImageIcon size={18} />
+                                                                    <span className="text-[9px] font-black uppercase tracking-widest">Add Media</span>
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => document.getElementById('node-file-upload')?.click()}
+                                                                    className="flex-1 h-16 bg-white border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center gap-1 hover:border-indigo-400 hover:bg-indigo-50 transition-all text-slate-400 hover:text-indigo-600 outline-none border-0"
+                                                                >
+                                                                    <FilePlus size={18} />
+                                                                    <span className="text-[9px] font-black uppercase tracking-widest">Add Document</span>
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                     )}
 
-                                                    <div className="flex gap-4">
-                                                        <input
-                                                            type="file"
-                                                            id="node-file-upload"
-                                                            className="hidden"
-                                                            onChange={handleFileUpload}
-                                                        />
-                                                        <button
-                                                            onClick={() => document.getElementById('node-file-upload')?.click()}
-                                                            className="flex-1 h-16 bg-white border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center gap-1 hover:border-indigo-400 hover:bg-indigo-50 transition-all text-slate-400 hover:text-indigo-600 outline-none border-0"
-                                                        >
-                                                            <ImageIcon size={18} />
-                                                            <span className="text-[9px] font-black uppercase tracking-widest">Add Media</span>
-                                                        </button>
-                                                        <button
-                                                            onClick={() => document.getElementById('node-file-upload')?.click()}
-                                                            className="flex-1 h-16 bg-white border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center gap-1 hover:border-indigo-400 hover:bg-indigo-50 transition-all text-slate-400 hover:text-indigo-600 outline-none border-0"
-                                                        >
-                                                            <FilePlus size={18} />
-                                                            <span className="text-[9px] font-black uppercase tracking-widest">Add Document</span>
-                                                        </button>
-                                                    </div>
+                                                    {taskType === 'form' && (
+                                                        <div className="space-y-6 animate-in slide-in-from-top-4">
+                                                            <div className="flex items-center justify-between">
+                                                                <Label className="text-[11px] font-black text-slate-500 uppercase">Connect a Form</Label>
+                                                                <Button
+                                                                    onClick={() => router.push('/form')}
+                                                                    variant="link"
+                                                                    className="text-[10px] font-black text-indigo-600 uppercase"
+                                                                >
+                                                                    <Plus size={14} className="mr-1" /> Create New Form
+                                                                </Button>
+                                                            </div>
+                                                            <select
+                                                                className="w-full h-14 px-4 bg-white border-2 border-indigo-100 rounded-2xl font-bold text-slate-700 focus:ring-2 focus:ring-indigo-200 outline-none"
+                                                                value={linkedObjectId}
+                                                                onChange={(e) => setLinkedObjectId(e.target.value)}
+                                                            >
+                                                                <option value="">-- Select a form --</option>
+                                                                {availableForms.map(f => <option key={f._id} value={f._id}>{f.name}</option>)}
+                                                            </select>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            )}
 
-                                            {taskType === 'form' && (
-                                                <div className="space-y-6 animate-in slide-in-from-top-4">
+                                                {/* External Kanban Link */}
+                                                <div className="space-y-6 pt-6 border-t border-slate-100">
                                                     <div className="flex items-center justify-between">
-                                                        <Label className="text-[11px] font-black text-slate-500 uppercase">Connect a Form</Label>
-                                                        <Button
-                                                            onClick={() => router.push('/form')}
-                                                            variant="link"
-                                                            className="text-[10px] font-black text-indigo-600 uppercase"
-                                                        >
-                                                            <Plus size={14} className="mr-1" /> Create New Form
-                                                        </Button>
-                                                    </div>
-                                                    <select
-                                                        className="w-full h-14 px-4 bg-white border-2 border-indigo-100 rounded-2xl font-bold text-slate-700 focus:ring-2 focus:ring-indigo-200 outline-none"
-                                                        value={linkedObjectId}
-                                                        onChange={(e) => setLinkedObjectId(e.target.value)}
-                                                    >
-                                                        <option value="">-- Select a form --</option>
-                                                        {availableForms.map(f => <option key={f._id} value={f._id}>{f.name}</option>)}
-                                                    </select>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* External Kanban Link */}
-                                        <div className="space-y-6 pt-6 border-t border-slate-100">
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex flex-col">
-                                                    <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Kanban Integration (Optional)</Label>
-                                                    <span className="text-[10px] text-slate-400 font-medium">Link a specific board to this stage</span>
-                                                </div>
-                                                <button
-                                                    onClick={() => setAttachKanban(!attachKanban)}
-                                                    className={`w-14 h-8 rounded-full transition-all relative ${attachKanban ? 'bg-emerald-500 shadow-lg shadow-emerald-200' : 'bg-slate-200'}`}
-                                                >
-                                                    <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all ${attachKanban ? 'left-7 shadow-sm' : 'left-1'}`} />
-                                                </button>
-                                            </div>
-
-                                            {attachKanban && (
-                                                <div className="animate-in fade-in slide-in-from-top-2 space-y-4">
-                                                    <div className="flex items-center justify-between px-1">
-                                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Select Board</span>
+                                                        <div className="flex flex-col">
+                                                            <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Kanban Integration (Optional)</Label>
+                                                            <span className="text-[10px] text-slate-400 font-medium">Link a specific board to this stage</span>
+                                                        </div>
                                                         <button
-                                                            onClick={handleCreateBoard}
-                                                            className="text-[10px] font-black text-emerald-600 uppercase hover:text-emerald-700 flex items-center gap-1"
+                                                            onClick={() => setAttachKanban(!attachKanban)}
+                                                            className={`w-14 h-8 rounded-full transition-all relative ${attachKanban ? 'bg-emerald-500 shadow-lg shadow-emerald-200' : 'bg-slate-200'}`}
                                                         >
-                                                            <Plus size={12} /> Auto-Generate Board
+                                                            <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all ${attachKanban ? 'left-7 shadow-sm' : 'left-1'}`} />
                                                         </button>
                                                     </div>
-                                                    <select
-                                                        className="w-full h-14 px-4 bg-white border-2 border-emerald-100 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-200"
-                                                        value={kanbanBoardId}
-                                                        onChange={(e) => setKanbanBoardId(e.target.value)}
-                                                    >
-                                                        <option value="">-- Choose a Kanban board --</option>
-                                                        {kanbanBoards.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
-                                                    </select>
+
+                                                    {attachKanban && (
+                                                        <div className="animate-in fade-in slide-in-from-top-2 space-y-4">
+                                                            <div className="flex items-center justify-between px-1">
+                                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Select Board</span>
+                                                                <button
+                                                                    onClick={handleCreateBoard}
+                                                                    className="text-[10px] font-black text-emerald-600 uppercase hover:text-emerald-700 flex items-center gap-1"
+                                                                >
+                                                                    <Plus size={12} /> Auto-Generate Board
+                                                                </button>
+                                                            </div>
+                                                            <select
+                                                                className="w-full h-14 px-4 bg-white border-2 border-emerald-100 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-200"
+                                                                value={kanbanBoardId}
+                                                                onChange={(e) => setKanbanBoardId(e.target.value)}
+                                                            >
+                                                                <option value="">-- Choose a Kanban board --</option>
+                                                                {kanbanBoards.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
+                                                            </select>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            )}
-                                        </div>
+                                            </>
+                                        )}
                                     </div>
                                 </section>
                             )}

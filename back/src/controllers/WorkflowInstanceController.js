@@ -178,7 +178,11 @@ exports.getInstances = async (req, res) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit))
-        .populate('workflowId', 'name description')
+        .populate({
+          path: 'workflowId',
+          select: 'name description domain projectId',
+          populate: { path: 'projectId', select: 'name' }
+        })
         .populate('createdBy', 'email firstName lastName'),
       WorkflowInstance.countDocuments(query)
     ]);

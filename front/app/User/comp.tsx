@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   Plus,
   Bell,
@@ -15,6 +15,9 @@ import {
 
 function UserSidebar() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const isDesignMode = searchParams.get('mode') === 'design';
 
   const handleLogout = () => {
     try {
@@ -28,6 +31,15 @@ function UserSidebar() {
     }
   };
 
+  const menuItems = [
+    { icon: User, label: "My Profile", href: "/User" },
+    { icon: Plus, label: "My Workflows", href: "/User/Workflows?tab=registry", active: (p: string) => p === "/User/Workflows" && !isDesignMode },
+    { icon: Bell, label: "Alert Inbox", href: "/User/Notifications" },
+    { icon: GitBranch, label: "Start Process", href: "/User/Workflows?mode=design", active: (p: string) => p === "/User/Workflows" && isDesignMode },
+    { icon: Users, label: "Invite Matrix", href: "/User/InviteTeam" },
+    { icon: Zap, label: "AI Autopilot", href: "/User/AIGenerate", color: "text-amber-400" },
+  ];
+
   return (
     <aside className="w-64 bg-indigo-700 text-white flex flex-col h-full shadow-2xl">
       <div className="p-6">
@@ -37,41 +49,23 @@ function UserSidebar() {
 
       <nav className="flex-1 mt-6 overflow-y-auto px-4">
         <div className="space-y-1">
-          <Link href="/User" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-xl transition-all group">
-            <User className="h-5 w-5 group-hover:scale-110 transition-transform" />
-            <span className="text-sm font-bold">My Profile</span>
-          </Link>
-
-          <Link href="/User/Workflows?tab=registry" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-xl transition-all group">
-            <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform duration-300" />
-            <span className="text-sm font-bold">Start Process</span>
-          </Link>
-
-          <Link href="/User/Notifications" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-xl transition-all group">
-            <Bell className="h-5 w-5 group-hover:scale-110 transition-transform" />
-            <span className="text-sm font-bold">Alert Inbox</span>
-          </Link>
-
-          <Link href="/User/Workflows" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-xl transition-all group">
-            <GitBranch className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
-            <span className="text-sm font-bold">My Workflows</span>
-          </Link>
-
-          <Link href="/User/InviteTeam" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-xl transition-all group">
-            <Users className="h-5 w-5 group-hover:scale-110 transition-transform" />
-            <span className="text-sm font-bold">Invite Matrix</span>
-          </Link>
-
-
-
-          <Link href="/User/AIGenerate" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-xl transition-all group">
-            <Zap className="h-5 w-5 text-amber-400 group-hover:animate-pulse" />
-            <span className="text-sm font-bold">AI Autopilot</span>
-          </Link>
+          {menuItems.map((item, idx) => {
+            const activeMatch = item.active ? item.active(pathname) : pathname === item.href;
+            return (
+              <Link
+                key={idx}
+                href={item.href}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${activeMatch ? 'bg-white text-indigo-700 shadow-lg' : 'text-indigo-100 hover:bg-indigo-800'}`}
+              >
+                <item.icon className={`h-5 w-5 transition-transform group-hover:scale-110 ${activeMatch ? 'text-indigo-600' : (item.color || 'text-indigo-300')}`} />
+                <span className={`text-sm font-bold ${activeMatch ? 'font-black' : ''}`}>{item.label}</span>
+              </Link>
+            );
+          })}
 
           <div className="my-4 border-t border-indigo-600/50"></div>
 
-          <Link href="/User/Help&FirstSteps" className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-indigo-800 rounded-xl transition-all group">
+          <Link href="/User/Help&FirstSteps" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${pathname === "/User/Help&FirstSteps" ? 'bg-white text-indigo-700 shadow-lg' : 'text-indigo-100 hover:bg-indigo-800'}`}>
             <HelpCircle className="h-5 w-5" />
             <span className="text-sm font-bold">Help Center</span>
           </Link>

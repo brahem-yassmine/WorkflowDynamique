@@ -301,49 +301,53 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                 </div>
 
                 {/* Metadata & Matrix Combined */}
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="p-5 bg-white border border-slate-100 rounded-[24px] shadow-sm flex flex-col gap-1">
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Priority Class</p>
-                        <div className="flex items-center gap-2">
-                            <div className={`w-2.5 h-2.5 rounded-full ${data.priority === 'high' || data.priority === 'critical' ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.4)]' : data.priority === 'medium' ? 'bg-blue-500' : 'bg-emerald-400'}`}></div>
-                            <span className="text-sm font-black text-slate-800 uppercase">{data.priority || 'Standard'}</span>
-                        </div>
-                    </div>
-                    <div className="p-5 bg-white border border-slate-100 rounded-[24px] shadow-sm flex flex-col gap-1">
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">SLA Deadline</p>
-                        <div className="flex items-center gap-2">
-                            <Clock size={16} className="text-indigo-400" />
-                            <span className="text-sm font-black text-slate-800">{data.estimatedDuration || 'No SLA'}</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Responsibility Matrix */}
-                <div className="space-y-4">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Permission Matrix</p>
-                    <div className="space-y-3">
-                        <div className="p-4 bg-white/50 border border-slate-100 rounded-[20px] flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2.5 bg-indigo-50 text-indigo-500 rounded-xl"><Users size={16} /></div>
-                                <div className="flex flex-col">
-                                    <span className="text-[9px] font-black text-slate-400 uppercase">Target Team</span>
-                                    <span className="text-xs font-bold text-slate-700">{data.assigneeType === 'all' ? 'All Members' : resolveNames(data.assigneeIds || [], data.assigneeType === 'group' ? 'role' : 'user')}</span>
-                                </div>
+                {node.type !== 'start' && (
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="p-5 bg-white border border-slate-100 rounded-[24px] shadow-sm flex flex-col gap-1">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Priority Class</p>
+                            <div className="flex items-center gap-2">
+                                <div className={`w-2.5 h-2.5 rounded-full ${data.priority === 'high' || data.priority === 'critical' ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.4)]' : data.priority === 'medium' ? 'bg-blue-500' : 'bg-emerald-400'}`}></div>
+                                <span className="text-sm font-black text-slate-800 uppercase">{data.priority || 'Standard'}</span>
                             </div>
                         </div>
-                        {data.validationType !== 'none' && data.validationType && (
+                        <div className="p-5 bg-white border border-slate-100 rounded-[24px] shadow-sm flex flex-col gap-1">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">SLA Deadline</p>
+                            <div className="flex items-center gap-2">
+                                <Clock size={16} className="text-indigo-400" />
+                                <span className="text-sm font-black text-slate-800">{data.estimatedDuration || 'No SLA'}</span>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Responsibility Matrix */}
+                {node.type !== 'start' && (
+                    <div className="space-y-4">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Permission Matrix</p>
+                        <div className="space-y-3">
                             <div className="p-4 bg-white/50 border border-slate-100 rounded-[20px] flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                    <div className="p-2.5 bg-emerald-50 text-emerald-500 rounded-xl"><ShieldCheck size={16} /></div>
+                                    <div className="p-2.5 bg-indigo-50 text-indigo-500 rounded-xl"><Users size={16} /></div>
                                     <div className="flex flex-col">
-                                        <span className="text-[9px] font-black text-slate-400 uppercase">Step Validator</span>
-                                        <span className="text-xs font-bold text-slate-700">{resolveNames(data.validatorIds || [], data.validatorType || 'user')}</span>
+                                        <span className="text-[9px] font-black text-slate-400 uppercase">Target Team</span>
+                                        <span className="text-xs font-bold text-slate-700">{data.assigneeType === 'all' ? 'All Members' : resolveNames(data.assigneeIds || [], data.assigneeType === 'group' ? 'role' : 'user')}</span>
                                     </div>
                                 </div>
                             </div>
-                        )}
+                            {data.validationType !== 'none' && data.validationType && (
+                                <div className="p-4 bg-white/50 border border-slate-100 rounded-[20px] flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2.5 bg-emerald-50 text-emerald-500 rounded-xl"><ShieldCheck size={16} /></div>
+                                        <div className="flex flex-col">
+                                            <span className="text-[9px] font-black text-slate-400 uppercase">Step Validator</span>
+                                            <span className="text-xs font-bold text-slate-700">{resolveNames(data.validatorIds || [], data.validatorType || 'user')}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Resource Output Section */}
                 <div className="space-y-4">
@@ -600,7 +604,7 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                             disabled={loading}
                             className={`flex-1 h-14 rounded-2xl ${!instance && node.type === 'start' ? 'bg-emerald-600' : 'bg-indigo-600'} text-white font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl shadow-indigo-200 hover:scale-[1.02] active:scale-95 transition-all`}
                         >
-                            <CheckCircle2 size={16} /> {!instance && node.type === 'start' ? 'Initialize Flow' : 'Finalize Step'}
+                            <CheckCircle2 size={16} /> {!instance && node.type === 'start' ? 'Initialize Task' : 'Finalize Step'}
                         </Button>
                     </div>
                     <p className="text-[9px] text-center text-slate-400 font-bold uppercase tracking-tighter">

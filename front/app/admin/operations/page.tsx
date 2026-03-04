@@ -38,6 +38,7 @@ export default function AdminOperationsPage() {
     const [statusFilter, setStatusFilter] = useState('in_progress');
     const [activeView, setActiveView] = useState<'processes' | 'tasks'>('processes');
     const [tasks, setTasks] = useState<any[]>([]);
+    const [allWorkflows, setAllWorkflows] = useState<any[]>([]);
 
     useEffect(() => {
         fetchPageData();
@@ -46,13 +47,38 @@ export default function AdminOperationsPage() {
     const fetchPageData = async () => {
         try {
             setLoading(true);
-            // Fetch all instances for admin
-            const res = await apiService.getInstances();
-            if (res.success) {
-                setInstances(res.data);
+            const [instancesRes, workflowsRes] = await Promise.all([
+                apiService.getInstances(),
+                apiService.getWorkflows()
+            ]);
 
-                // Extract all current pending tasks from all in-progress instances
-                const pendingTasks = res.data
+            if (instancesRes.success && workflowsRes.success) {
+                const fetchedInstances = instancesRes.data;
+                const fetchedWorkflows = workflowsRes.data.filter((w: any) => w.status === 'active' || w.status === 'draft');
+
+                setAllWorkflows(fetchedWorkflows);
+
+                // Create a list of workflows that HAVE instances
+                const workflowIdsWithInstances = new Set(fetchedInstances.map((i: any) => i.workflowId?._id?.toString() || i.workflowId?.toString()));
+
+                // For workflows with NO instances, create "virtual" instances to show them in the list
+                const virtualInstances = fetchedWorkflows
+                    .filter((w: any) => !workflowIdsWithInstances.has(w._id.toString()))
+                    .map((w: any) => ({
+                        _id: `virtual-${w._id}`,
+                        title: `Potential: ${w.name}`,
+                        status: 'not_started',
+                        workflowId: w,
+                        createdAt: w.createdAt,
+                        priority: 'medium',
+                        isVirtual: true
+                    }));
+
+                const combined = [...fetchedInstances, ...virtualInstances];
+                setInstances(combined);
+
+                // Extract all current pending tasks
+                const pendingTasks = fetchedInstances
                     .filter((inst: any) => inst.status === 'in_progress')
                     .flatMap((inst: any) =>
                         (inst.currentNodes || []).map((node: any) => ({
@@ -60,6 +86,8 @@ export default function AdminOperationsPage() {
                             instanceId: inst._id,
                             instanceTitle: inst.title,
                             workflowName: inst.workflowId?.name,
+                            domain: inst.workflowId?.domain,
+                            projectName: inst.workflowId?.projectId?.name,
                             createdAt: inst.createdAt
                         }))
                     );
@@ -89,7 +117,8 @@ export default function AdminOperationsPage() {
             case 'in_progress': return 'bg-blue-50 text-blue-600 border-blue-100';
             case 'completed': return 'bg-emerald-50 text-emerald-600 border-emerald-100';
             case 'rejected': return 'bg-rose-50 text-rose-600 border-rose-100';
-            default: return 'bg-slate-100 text-slate-500 border-slate-200';
+            case 'not_started': return 'bg-slate-100 text-slate-500 border-slate-200';
+            default: return 'bg-slate-50 text-slate-400 border-slate-100';
         }
     };
 
@@ -139,6 +168,10 @@ export default function AdminOperationsPage() {
                                 Launch New Process
                             </button>
                         </Link>
+                        <div className="bg-white/5 p-4 rounded-3xl backdrop-blur-md border border-white/10 text-center min-w-[120px]">
+                            <p className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-1 text-blue-400">Total Templates</p>
+                            <p className="text-2xl font-black">{allWorkflows.length}</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -174,7 +207,7 @@ export default function AdminOperationsPage() {
 
                     {activeView === 'processes' && (
                         <div className="flex items-center gap-2 p-1 bg-white rounded-2xl border border-slate-100 shadow-sm">
-                            {['all', 'in_progress', 'completed'].map((f) => (
+                            {['all', 'not_started', 'in_progress', 'completed'].map((f) => (
                                 <button
                                     key={f}
                                     onClick={() => setStatusFilter(f)}
@@ -200,10 +233,10 @@ export default function AdminOperationsPage() {
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {filteredInstances.map((instance) => (
-                            <Link href={`/Workflows/instances/${instance._id}`} key={instance._id}>
+                        {filteredInstances.map((instance: any) => (
+                            <Link href={instance.isVirtual ? `/admin/create_workflows?id=${instance.workflowId?._id}` : `/Workflows/instances/${instance._id}`} key={instance._id}>
                                 <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 hover:-translate-y-1 transition-all group cursor-pointer relative overflow-hidden">
-                                    <div className={`absolute top-0 left-0 w-1.5 h-full ${instance.status === 'in_progress' ? 'bg-blue-500' : instance.status === 'completed' ? 'bg-emerald-500' : 'bg-rose-500'}`}></div>
+                                    <div className={`absolute top-0 left-0 w-1.5 h-full ${instance.status === 'in_progress' ? 'bg-blue-500' : instance.status === 'completed' ? 'bg-emerald-500' : instance.status === 'not_started' ? 'bg-slate-300' : 'bg-rose-500'}`}></div>
 
                                     <div className="flex justify-between items-start mb-4">
                                         <div className="flex items-center gap-3">
@@ -214,11 +247,22 @@ export default function AdminOperationsPage() {
                                                 <h3 className="font-black text-slate-800 text-lg leading-tight group-hover:text-indigo-600 transition-colors uppercase tracking-tight">
                                                     {instance.title}
                                                 </h3>
-                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                                                    {instance.workflowId?.name || 'Standard Procedure'}
-                                                    <span className="mx-2 text-slate-200">|</span>
-                                                    By {instance.createdBy?.firstName || 'User'}
-                                                </p>
+                                                <div className="mt-2 space-y-2">
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <span className="text-[11px] font-black text-indigo-600 uppercase tracking-wider bg-indigo-50/50 px-2 py-1 rounded-lg">
+                                                            {instance.workflowId?.name || 'Standard Procedure'}
+                                                        </span>
+                                                        {instance.workflowId?.domain && (
+                                                            <span className="px-2 py-1 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-bold uppercase">{instance.workflowId.domain}</span>
+                                                        )}
+                                                        {instance.workflowId?.projectId?.name && (
+                                                            <span className="px-2 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-bold uppercase">{instance.workflowId.projectId.name}</span>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center">
+                                                        Initiated By <span className="text-slate-600 ml-1.5">{instance.createdBy?.firstName || 'User'}</span>
+                                                    </p>
+                                                </div>
                                             </div>
                                         </div>
                                         <div className={`px-3 py-1 rounded-xl border text-[9px] font-black uppercase tracking-widest ${getStatusColor(instance.status)}`}>
@@ -239,7 +283,7 @@ export default function AdminOperationsPage() {
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-1 text-indigo-600 font-black text-[10px] uppercase tracking-widest group-hover:gap-2 transition-all">
-                                            Monitor Execution <ChevronRight size={14} />
+                                            {instance.isVirtual ? 'Open Template' : 'Monitor Execution'} <ChevronRight size={14} />
                                         </div>
                                     </div>
                                 </div>
@@ -270,11 +314,18 @@ export default function AdminOperationsPage() {
                                             <h4 className="font-black text-slate-800 text-sm uppercase tracking-tight group-hover:text-indigo-600 transition-colors">
                                                 {task.label || 'Standard Step'}
                                             </h4>
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                                                In: <span className="text-slate-600">{task.instanceTitle}</span>
-                                                <span className="mx-2 opacity-30">•</span>
-                                                Pattern: <span className="text-indigo-500">{task.workflowName}</span>
-                                            </p>
+                                            <div className="flex flex-col gap-1.5 mt-1">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest bg-indigo-50 px-2 py-0.5 rounded-md">
+                                                        {task.workflowName}
+                                                    </span>
+                                                    {task.domain && <span className="px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded-md text-[9px] uppercase font-bold">{task.domain}</span>}
+                                                    {task.projectName && <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-600 rounded-md text-[9px] uppercase font-bold">{task.projectName}</span>}
+                                                </div>
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                                    In: <span className="text-slate-600">{task.instanceTitle}</span>
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
 

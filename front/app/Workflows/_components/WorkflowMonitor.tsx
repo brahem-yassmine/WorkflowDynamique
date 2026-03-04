@@ -86,7 +86,7 @@ const WorkflowMonitor = ({ initialNodes, initialEdges, currentNodeIds, execution
                     >
                         <Controls showInteractive={false} />
                         <MiniMap />
-                        <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
+                        <Background variant={BackgroundVariant.Dots} gap={8} size={0.5} />
                     </ReactFlow>
                 </div>
             </ReactFlowProvider>

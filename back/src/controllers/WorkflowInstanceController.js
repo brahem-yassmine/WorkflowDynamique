@@ -31,6 +31,18 @@ exports.createInstance = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Workflow has no start node' });
     }
 
+    const UserModel = req.tenantConn.model('User');
+    let startAssignees = startNode.data?.assigneeIds || [];
+
+    // If ALL department members must validate
+    if (startNode.data?.assignmentType === 'ALL' && (startNode.data?.assignedTo || startNode.data?.responsibleDomain)) {
+      const domainName = startNode.data?.responsibleDomain || (await req.tenantConn.model('Domain').findById(startNode.data?.assignedTo))?.name;
+      if (domainName) {
+        const domainUsers = await UserModel.find({ domain: domainName });
+        startAssignees = domainUsers.map(u => u._id);
+      }
+    }
+
     const instance = new WorkflowInstance({
       workflowId: workflow._id,
       createdBy: req.user.id,
@@ -40,9 +52,11 @@ exports.createInstance = async (req, res) => {
         nodeId: startNode.id,
         status: 'in_progress',
         startedAt: new Date(),
-        responsibleUser: startNode.data?.assignedUser || (startNode.data?.assigneeSelectionType === 'user' ? (startNode.data.assigneeIds?.[0]) : null),
-        responsibleDomain: startNode.data?.responsibleDomain || startNode.data?.domain || null,
-        assignees: startNode.data?.assigneeIds || []
+        responsibleUser: (startNode.data?.assignmentType === 'SINGLE' && startNode.data?.assignedTo)
+          ? startNode.data.assignedTo
+          : (startNode.data?.assignedUser || (startNode.data?.assigneeSelectionType === 'user' ? (startNode.data.assigneeIds?.[0]) : null)),
+        responsibleDomain: startNode.data?.responsibleDomain || startNode.data?.domain || (startNode.data?.assignmentType !== 'SINGLE' ? startNode.data?.assignedTo : null),
+        assignees: startAssignees
       }],
       variables: data || {},
       executionPath: [{
@@ -228,14 +242,55 @@ exports.approveNode = async (req, res) => {
 
     const WorkflowInstance = req.tenantConn.model('WorkflowInstance');
     const Workflow = req.tenantConn.model('Workflow');
-
     const instance = await WorkflowInstance.findById(instanceId);
     if (!instance) return res.status(404).json({ success: false, message: 'Instance not found' });
     if (instance.status !== 'in_progress') return res.status(400).json({ success: false, message: 'Instance not active' });
 
     const currentNodeIndex = instance.currentNodes.findIndex(n => n.nodeId === nodeId && n.status === 'in_progress');
     if (currentNodeIndex === -1) return res.status(400).json({ success: false, message: 'This node is not active' });
+    const nodeEntry = instance.currentNodes[currentNodeIndex];
 
+    const workflow = await Workflow.findById(instance.workflowId);
+    if (!workflow) throw new Error('Workflow definition not found');
+
+    const nodeData = workflow.nodes.find(n => n.id === nodeId)?.data || {};
+    const assignmentType = nodeData.assignmentType || 'SINGLE';
+
+    // ⛔ Handle LOCK Logic for "ANY"
+    if (assignmentType === 'ANY' && nodeEntry.responsibleUser && nodeEntry.responsibleUser.toString() !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Only the user who locked this task can complete it' });
+    }
+
+    // ✅ Handle Consensus Logic for "ALL"
+    if (assignmentType === 'ALL') {
+      if (!nodeEntry.approvedBy) nodeEntry.approvedBy = [];
+      if (!nodeEntry.approvedBy.includes(req.user.id)) {
+        nodeEntry.approvedBy.push(req.user.id);
+      }
+
+      // We need to check if everyone in assignees approved.
+      // NOTE: assignees should be populated with direct IDs when node entry is created for departments
+      const allApproved = nodeEntry.assignees.every(id => nodeEntry.approvedBy.includes(id.toString()));
+
+      if (!allApproved) {
+        // NOT everyone has finished yet, just save and return
+        instance.history.push({
+          action: 'partial_approval',
+          title: `Approbation partielle`,
+          performedBy: req.user.id,
+          comments: `L'utilisateur a validé, en attente des autres membres (${nodeEntry.approvedBy.length}/${nodeEntry.assignees.length})`
+        });
+        await instance.save();
+        return res.json({
+          success: true,
+          message: 'Approval recorded. Waiting for other team members.',
+          data: instance,
+          waitingForConsensus: true
+        });
+      }
+    }
+
+    // If we reach here, either it's SINGLE/ANY or it's ALL and everyone approved
     instance.currentNodes.splice(currentNodeIndex, 1);
 
     if (data) {
@@ -261,36 +316,90 @@ exports.approveNode = async (req, res) => {
       comments: comments || `Action validée sur le noeud ${nodeId}`
     });
 
-    const workflow = await Workflow.findById(instance.workflowId);
-    if (!workflow) throw new Error('Workflow definition not found');
+    const nodesToActivate = [];
 
-    const outgoingEdges = workflow.edges.filter(edge => edge.source === nodeId);
-    const nextNodes = [];
-
-    for (const edge of outgoingEdges) {
-      let conditionMet = true;
-      // Simple condition check if needed
-      if (conditionMet) {
+    // 🔍 Find nodes to activate, handling Parallel Joins automatically
+    const findNextExecutableNodes = (sourceId, targetNodesArray) => {
+      const edges = workflow.edges.filter(e => e.source === sourceId);
+      for (const edge of edges) {
         const targetNode = workflow.nodes.find(n => n.id === edge.target);
-        if (targetNode) nextNodes.push(targetNode);
+        if (!targetNode) continue;
+
+        if (targetNode.type === 'parallel_split') {
+          // Split is automatic: Record and continue to children
+          if (!instance.executionPath.some(p => p.nodeId === targetNode.id)) {
+            instance.executionPath.push({
+              nodeId: targetNode.id,
+              nodeType: 'parallel_split',
+              action: 'auto_approved',
+              timestamp: new Date()
+            });
+          }
+          findNextExecutableNodes(targetNode.id, targetNodesArray);
+        } else if (targetNode.type === 'parallel_join') {
+          const incoming = workflow.edges.filter(e => e.target === targetNode.id);
+          const completed = instance.executionPath.map(p => p.nodeId);
+          // Also include the node we just finished approving
+          if (!completed.includes(nodeId)) completed.push(nodeId);
+
+          if (incoming.every(e => completed.includes(e.source))) {
+            // Join condition met! This node is specialized but automatic.
+            // Record it in execution path and move forward
+            if (!instance.executionPath.some(p => p.nodeId === targetNode.id)) {
+              instance.executionPath.push({
+                nodeId: targetNode.id,
+                nodeType: 'parallel_join',
+                action: 'auto_approved',
+                timestamp: new Date()
+              });
+            }
+            // Recursively find what's after the join
+            findNextExecutableNodes(targetNode.id, targetNodesArray);
+          } else {
+            instance.history.push({
+              action: 'sync_waiting',
+              title: `En attente de synchronisation`,
+              performedBy: req.user.id,
+              comments: `La branche arrivant à "${targetNode.data?.label || targetNode.id}" est terminée, attend les autres branches.`
+            });
+          }
+        } else {
+          // If it's not a join/split, or it's a join/split that we've already decided is ready (handled in recursion), add to pendings
+          targetNodesArray.push(targetNode);
+        }
       }
-    }
+    };
+
+    findNextExecutableNodes(nodeId, nodesToActivate);
 
     let isFlowFinished = false;
-    if (nextNodes.length === 0) {
+    if (nodesToActivate.length === 0) {
       if (instance.currentNodes.length === 0) isFlowFinished = true;
     } else {
-      for (const node of nextNodes) {
+      for (const node of nodesToActivate) {
         if (node.type === 'end') {
-          isFlowFinished = true;
+          if (instance.currentNodes.length === 0) isFlowFinished = true;
         } else {
+          const UserModel = req.tenantConn.model('User');
+          let nodeAssignees = node.data?.assigneeIds || [];
+
+          if (node.data?.assignmentType === 'ALL' && (node.data?.assignedTo || node.data?.responsibleDomain)) {
+            const domainName = node.data?.responsibleDomain || (await req.tenantConn.model('Domain').findById(node.data?.assignedTo))?.name;
+            if (domainName) {
+              const domainUsers = await UserModel.find({ domain: domainName });
+              nodeAssignees = domainUsers.map(u => u._id);
+            }
+          }
+
           instance.currentNodes.push({
             nodeId: node.id,
             status: 'in_progress',
             startedAt: new Date(),
-            responsibleUser: node.data?.assignedUser || (node.data?.assigneeSelectionType === 'user' ? (node.data.assigneeIds?.[0]) : null),
-            responsibleDomain: node.data?.responsibleDomain || node.data?.domain || null,
-            assignees: node.data?.assigneeIds || []
+            responsibleUser: (node.data?.assignmentType === 'SINGLE' && node.data?.assignedTo)
+              ? node.data.assignedTo
+              : (node.data?.assignedUser || (node.data?.assigneeSelectionType === 'user' ? (node.data.assigneeIds?.[0]) : null)),
+            responsibleDomain: node.data?.responsibleDomain || node.data?.domain || (node.data?.assignmentType !== 'SINGLE' ? node.data?.assignedTo : null),
+            assignees: nodeAssignees
           });
         }
       }
@@ -458,6 +567,45 @@ exports.rejectNode = async (req, res) => {
 
   } catch (error) {
     console.error('❌ rejectNode Error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// ============================================
+// 5.5 LOCK NODE (For ANY assignment type)
+// ============================================
+exports.lockNode = async (req, res) => {
+  try {
+    const { instanceId } = req.params;
+    const { nodeId } = req.body;
+
+    const WorkflowInstance = req.tenantConn.model('WorkflowInstance');
+    const instance = await WorkflowInstance.findById(instanceId);
+
+    if (!instance) return res.status(404).json({ success: false, message: 'Instance not found' });
+    if (instance.status !== 'in_progress') return res.status(400).json({ success: false, message: 'Instance not active' });
+
+    const nodeEntry = instance.currentNodes.find(n => n.nodeId === nodeId && n.status === 'in_progress');
+    if (!nodeEntry) return res.status(400).json({ success: false, message: 'This node is not active' });
+
+    if (nodeEntry.responsibleUser && nodeEntry.responsibleUser.toString() !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'This task is already locked by another user' });
+    }
+
+    nodeEntry.responsibleUser = req.user.id;
+
+    instance.history.push({
+      action: 'task_locked',
+      title: 'Tâche verrouillée',
+      performedBy: req.user.id,
+      comments: `L'utilisateur a pris possession de la tâche ${nodeId}`
+    });
+
+    await instance.save();
+
+    res.json({ success: true, message: 'Task locked successfully', data: instance });
+  } catch (error) {
+    console.error('❌ lockNode Error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };

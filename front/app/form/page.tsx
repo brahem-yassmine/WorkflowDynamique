@@ -260,6 +260,16 @@ export default function FormBuilder() {
 
       if (res.success) {
         toast.success(formId ? "Architecture updated!" : "Architecture saved!");
+
+        const redirectPath = searchParams.get('redirect');
+        if (redirectPath) {
+          toast.info("Returning to workflow editor...");
+          setTimeout(() => {
+            router.push(redirectPath);
+          }, 1500);
+          return;
+        }
+
         if (!formId && res.data?._id) {
           router.push(`/form?id=${res.data._id}`);
         }

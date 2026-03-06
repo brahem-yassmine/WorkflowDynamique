@@ -1,7 +1,7 @@
 // front/app/Workflows/_components/Sidebar.tsx
 "use client"
 import React from 'react';
-import { Play, Square, Users, GitFork } from 'lucide-react';
+import { Play, Square, Users, GitFork, Merge, GitBranchPlus } from 'lucide-react';
 
 export default function Sidebar() {
     const onDragStart = (event: React.DragEvent, nodeType: string) => {
@@ -42,6 +42,29 @@ export default function Sidebar() {
             >
                 <GitFork size={18} className="text-amber-600" />
                 <span className="font-medium">Condition (Yes/No)</span>
+            </div>
+
+            <div className="h-px bg-slate-100 my-2"></div>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Logic Controls</p>
+
+            {/* Parallel Split */}
+            <div
+                className="flex items-center gap-2 p-3 bg-emerald-900 border border-emerald-700 rounded cursor-grab hover:bg-emerald-800 text-white"
+                onDragStart={(e) => onDragStart(e, 'parallel_split')}
+                draggable
+            >
+                <GitBranchPlus size={18} className="text-emerald-400" />
+                <span className="font-medium">Parallel Split</span>
+            </div>
+
+            {/* Parallel Join */}
+            <div
+                className="flex items-center gap-2 p-3 bg-slate-900 border border-slate-700 rounded cursor-grab hover:bg-slate-800 text-white"
+                onDragStart={(e) => onDragStart(e, 'parallel_join')}
+                draggable
+            >
+                <Merge size={18} className="text-indigo-400" />
+                <span className="font-medium">Parallel Join</span>
             </div>
 
             {/* End Node */}

@@ -8,6 +8,7 @@ const {
   getInstanceById,
   approveNode,
   rejectNode,
+  lockNode,
   cancelInstance,
   addAttachment,
   getInstanceStats
@@ -28,6 +29,7 @@ router.get('/:instanceId', getInstanceById);         // GET /api/workflow-instan
 // Actions on instances
 router.post('/:instanceId/approve', approveNode);    // POST /api/workflow-instances/:id/approve
 router.post('/:instanceId/reject', rejectNode);      // POST /api/workflow-instances/:id/reject
+router.post('/:instanceId/lock', lockNode);          // POST /api/workflow-instances/:id/lock // Added lock route
 router.post('/:instanceId/cancel', cancelInstance);  // POST /api/workflow-instances/:id/cancel
 router.post('/:instanceId/attachments', addAttachment); // POST /api/workflow-instances/:id/attachments
 

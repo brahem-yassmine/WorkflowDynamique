@@ -24,6 +24,8 @@ import StartNode from './nodes/StartNode';
 import EndNode from './nodes/EndNode';
 import ActionNode from './nodes/ActionNode';
 import ConditionNode from './nodes/ConditionNode';
+import ParallelJoinNode from './nodes/ParallelJoinNode';
+import ParallelSplitNode from './nodes/ParallelSplitNode';
 import SaveButton from './SaveButton';
 import NodeDetailsPanel from './NodeDetailsPanel';
 import { apiService } from '@/service/api.service';
@@ -37,6 +39,8 @@ const nodeTypes = {
     end: EndNode,
     action: ActionNode,
     condition: ConditionNode,
+    parallel_split: ParallelSplitNode,
+    parallel_join: ParallelJoinNode,
 };
 
 const initialNodes: Node[] = [
@@ -64,10 +68,42 @@ function WorkflowEditorContent() {
     const [currentWorkflowId, setCurrentWorkflowId] = useState<string | null>(workflowId);
     const [isSaving, setIsSaving] = useState(false);
 
-    // Initial load
+    // Draft Persistence Logic & Double-firing Mitigation
+    const draftKey = workflowId ? `workflow_draft_${workflowId}` : 'workflow_draft_new';
+    const isInitialLoad = useRef(true);
+
+    // 1. Initial Load (Draft or Server)
     useEffect(() => {
-        if (workflowId) {
-            const loadWorkflow = async () => {
+        if (!isInitialLoad.current) return;
+        isInitialLoad.current = false;
+
+        const loadInitialData = async () => {
+            const savedDraft = localStorage.getItem(draftKey);
+            let draftData = null;
+
+            if (savedDraft) {
+                try {
+                    draftData = JSON.parse(savedDraft);
+                    // IMPORTANT: Only resume if it's a new workflow or if draft has actually changed content
+                    if (!workflowId && draftData && (draftData.nodes?.length > 1 || draftData.edges?.length > 0)) {
+                        setNodes(draftData.nodes || initialNodes);
+                        setEdges(draftData.edges || []);
+                        setWorkflowName(draftData.name || 'New Workflow');
+                        setWorkflowDomain(draftData.domain || 'HR');
+                        setWorkflowProjectId(draftData.projectId || '');
+                        toast.info('Draft resumed from previous session', {
+                            description: `Restored progress on "${draftData.name || 'New Workflow'}"`,
+                            duration: 3000,
+                            id: 'draft-resume-toast'
+                        });
+                        return;
+                    }
+                } catch (e) {
+                    console.error('Failed to parse draft:', e);
+                }
+            }
+
+            if (workflowId) {
                 try {
                     const response = await apiService.request(`/workflows/${workflowId}`);
                     if (response.success && response.data) {
@@ -80,12 +116,25 @@ function WorkflowEditorContent() {
                     }
                 } catch (error) {
                     console.error('Failed to load workflow:', error);
-                    alert('Error loading workflow');
+                    toast.error('Error loading workflow');
                 }
-            };
-            loadWorkflow();
-        }
-    }, [workflowId, setNodes, setEdges]);
+            }
+        };
+        loadInitialData();
+    }, [workflowId, draftKey, setNodes, setEdges]);
+
+    // 2. Auto-save to LocalStorage
+    useEffect(() => {
+        const stateToSave = {
+            nodes,
+            edges,
+            name: workflowName,
+            domain: workflowDomain,
+            projectId: workflowProjectId,
+            updatedAt: new Date().toISOString()
+        };
+        localStorage.setItem(draftKey, JSON.stringify(stateToSave));
+    }, [nodes, edges, workflowName, workflowDomain, workflowProjectId, draftKey]);
 
     // useReactFlow is used here, inside ReactFlowProvider
     const { screenToFlowPosition } = useReactFlow();
@@ -198,6 +247,10 @@ function WorkflowEditorContent() {
             if (response.success) {
                 toast.success(currentWorkflowId ? 'Workflow updated successfully!' : 'Workflow created successfully!');
                 setWorkflowName(meta.name);
+                // SUCCESS: Remove current draft
+                localStorage.removeItem(draftKey);
+                // Also remove generic draft if it was a new creation that just got an ID
+                if (!workflowId) localStorage.removeItem('workflow_draft_new');
             } else {
                 toast.error('Save error: ' + (response.message || 'Unknown error'));
             }

@@ -3,12 +3,13 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Node } from '@xyflow/react';
-import { X, Plus, Trash2, ListChecks, Clock, ShieldAlert, GraduationCap, LayoutGrid, ClipboardType, FilePlus, CheckSquare, ExternalLink, Paperclip, Image as ImageIcon } from 'lucide-react';
+import { X, Plus, Trash2, ListChecks, Clock, ShieldAlert, Users, GraduationCap, LayoutGrid, ClipboardType, FilePlus, CheckSquare, ExternalLink, Paperclip, Image as ImageIcon } from 'lucide-react';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { apiService } from '@/service/api.service';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface NodeDetailsPanelProps {
     selectedNode: Node | null;
@@ -19,18 +20,26 @@ interface NodeDetailsPanelProps {
 
 // Helper Sub-component
 const TabButton = ({ active, onClick, icon, title, subtitle }: any) => (
-    <button
+    <motion.button
+        whileHover={{ x: 5 }}
+        whileTap={{ scale: 0.98 }}
         onClick={onClick}
-        className={`w-full p-5 rounded-[24px] flex items-center gap-5 transition-all outline-none border-0 text-left ${active ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20 scale-[1.02]' : 'bg-transparent text-slate-400 hover:bg-slate-800/50'}`}
+        className={`w-full p-5 rounded-[24px] flex items-center gap-5 transition-all outline-none border-0 text-left relative overflow-hidden group ${active ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/20' : 'bg-transparent text-slate-400 hover:bg-slate-800/40'}`}
     >
-        <div className={`p-3 rounded-xl ${active ? 'bg-white/10 text-white' : 'bg-slate-800 text-slate-500 transition-colors'}`}>
+        {active && (
+            <motion.div
+                layoutId="active-tab-glow"
+                className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent pointer-events-none"
+            />
+        )}
+        <div className={`p-3 rounded-2xl transition-all duration-300 ${active ? 'bg-white/20 text-white rotate-0' : 'bg-slate-800 text-slate-500 group-hover:bg-slate-700'}`}>
             {icon}
         </div>
         <div className="flex flex-col">
-            <span className={`text-xs font-black uppercase tracking-widest ${active ? 'text-white' : 'text-slate-300'}`}>{title}</span>
-            <span className={`text-[10px] font-bold mt-0.5 ${active ? 'text-indigo-200' : 'text-slate-500'}`}>{subtitle}</span>
+            <span className={`text-[11px] font-black uppercase tracking-widest leading-none ${active ? 'text-white' : 'text-slate-300'}`}>{title}</span>
+            <span className={`text-[9px] font-bold mt-1 uppercase tracking-tight opacity-60 ${active ? 'text-indigo-200' : 'text-slate-500'}`}>{subtitle}</span>
         </div>
-    </button>
+    </motion.button>
 );
 
 const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDetailsPanelProps) => {
@@ -67,6 +76,13 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
     const [kanbanBoardId, setKanbanBoardId] = useState('');
     const [kanbanBoards, setKanbanBoards] = useState<any[]>([]);
 
+    // User's requested fields
+    const [assignmentType, setAssignmentType] = useState<'ANY' | 'ALL' | 'SINGLE'>('SINGLE');
+    const [taskContent, setTaskContent] = useState<string>('Text');
+    const [userAction, setUserAction] = useState<string>('Complete Task');
+    const [assignedTo, setAssignedTo] = useState<string>(''); // For Department or User ID
+    const [deadline, setDeadline] = useState('');
+
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -78,12 +94,12 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
                     apiService.getProjects(),
                     apiService.getBoards()
                 ]);
-                if (domainsRes.success) setDomains(domainsRes.data);
-                if (usersRes.success) setUsers(usersRes.data);
-                if (rolesRes.success) setRoles(rolesRes.data);
-                if (formsRes.success) setAvailableForms(formsRes.data);
-                if (projectsRes.success) setAvailableProjects(projectsRes.data);
-                if (boardsRes.success) setKanbanBoards(boardsRes.data);
+                setDomains(domainsRes.success ? domainsRes.data : (Array.isArray(domainsRes) ? domainsRes : []));
+                setUsers(usersRes.success ? usersRes.data : (Array.isArray(usersRes) ? usersRes : []));
+                setRoles(rolesRes.success ? rolesRes.data : (Array.isArray(rolesRes) ? rolesRes : []));
+                setAvailableForms(formsRes.success ? formsRes.data : (Array.isArray(formsRes) ? formsRes : []));
+                setAvailableProjects(projectsRes.success ? projectsRes.data : (Array.isArray(projectsRes) ? projectsRes : []));
+                setKanbanBoards(boardsRes.success ? boardsRes.data : (Array.isArray(boardsRes) ? boardsRes : []));
             } catch (err) {
                 console.error('Error fetching data:', err);
             }
@@ -101,7 +117,7 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
             setEstimatedDuration(selectedNode.data.estimatedDuration as string || '');
             setCondition(selectedNode.data.condition as string || '');
 
-            // Set new fields from data or defaults with type safety
+            // Set state from data
             setDomainScope((selectedNode.data.domainScope as 'all' | 'specific') || 'specific');
             setValidationType((selectedNode.data.validationType as 'automatic' | 'simple' | 'multi') || 'simple');
             setValidatorType((selectedNode.data.validatorType as 'user' | 'role') || 'role');
@@ -113,6 +129,12 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
             setAttachKanban(!!selectedNode.data.attachKanban);
             setKanbanBoardId(selectedNode.data.kanbanBoardId as string || '');
             setAttachments(Array.isArray(selectedNode.data.attachments) ? selectedNode.data.attachments : []);
+
+            setAssignmentType((selectedNode.data.assignmentType as 'ANY' | 'ALL' | 'SINGLE') || 'SINGLE');
+            setTaskContent(selectedNode.data.taskContent as string || 'Form');
+            setUserAction(selectedNode.data.userAction as string || 'Complete Task');
+            setAssignedTo(selectedNode.data.assignedTo as string || '');
+            setDeadline(selectedNode.data.deadline as string || '');
         }
     }, [selectedNode]);
 
@@ -128,14 +150,13 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
             setAttachments(prev => [...prev, {
                 filename: file.name,
                 url: base64,
-                previewUrl: URL.createObjectURL(file), // For reliable opening in new tab before save
+                previewUrl: URL.createObjectURL(file),
                 uploadedAt: new Date().toISOString()
             }]);
             setIsUploading(false);
         };
     };
 
-    // Auto-select kanban board if possible
     useEffect(() => {
         if (attachKanban && !kanbanBoardId && label && kanbanBoards.length > 0) {
             const matchingBoard = kanbanBoards.find(b =>
@@ -189,9 +210,14 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
                 linkedObjectId,
                 attachKanban,
                 kanbanBoardId,
-                attachments
+                attachments,
+                assignmentType,
+                taskContent,
+                userAction,
+                assignedTo,
+                deadline
             });
-            onClose(); // Close the modal after saving
+            onClose();
         }
     };
 
@@ -205,80 +231,79 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
 
     return (
         <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
-            {/* Backdrop */}
-            <div
-                className="absolute inset-0 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300"
-                onClick={onClose}
-            />
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300" onClick={onClose} />
 
-            {/* Modal Container */}
-            <div className="relative w-full max-w-5xl bg-white rounded-[40px] shadow-2xl overflow-hidden flex flex-col md:flex-row h-[85vh] animate-in zoom-in-95 duration-300 border border-slate-100">
-
-                {/* Fixed Header (Mobile) or Sidebar Nav (Desktop) */}
-                <div className="w-full md:w-80 bg-slate-900 flex flex-col">
-                    <div className="p-8 border-b border-slate-800/50">
-                        <div className="p-3 bg-indigo-500/10 rounded-2xl w-fit mb-6">
-                            <ShieldAlert className="text-indigo-400" size={24} />
+            <div className="relative w-full max-w-[1200px] h-[90vh] bg-white rounded-[40px] shadow-2xl flex overflow-hidden border border-white/20 animate-in zoom-in-95 duration-300">
+                {/* NAVIGATION SIDEBAR */}
+                <div className="w-[320px] bg-slate-900 p-8 flex flex-col shrink-0 border-r border-slate-800">
+                    <div className="flex items-center gap-4 mb-12 px-2">
+                        <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
+                            <LayoutGrid className="text-indigo-400" size={24} />
                         </div>
-                        <h3 className="font-black text-[10px] uppercase tracking-[0.2em] text-slate-500 mb-2">Node Architect</h3>
-                        <p className="text-2xl font-black text-white tracking-tight line-clamp-2">
-                            {label || 'Untitled Step'}
-                        </p>
+                        <div>
+                            <h3 className="text-white font-black text-lg tracking-tight">Stage details</h3>
+                            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">{selectedNode.type} Node</p>
+                        </div>
                     </div>
 
-                    <nav className="flex-grow p-4 space-y-2 mt-4 overflow-y-auto custom-scrollbar">
+                    <div className="flex-1 space-y-3 overflow-y-auto custom-scrollbar pr-2">
                         <TabButton
                             active={activeTab === 'general'}
                             onClick={() => setActiveTab('general')}
-                            icon={<ShieldAlert size={18} />}
+                            icon={<LayoutGrid size={20} />}
                             title="Base Config"
-                            subtitle="Label & Instructions"
+                            subtitle="Identity & Type"
                         />
-
                         {selectedNode.type === 'action' && (
                             <>
                                 <TabButton
                                     active={activeTab === 'assignment'}
                                     onClick={() => setActiveTab('assignment')}
-                                    icon={<GraduationCap size={18} />}
+                                    icon={<Users size={20} />}
                                     title="Assignment"
-                                    subtitle="Team & Resources"
+                                    subtitle="Responsible parties"
                                 />
                                 <TabButton
                                     active={activeTab === 'validation'}
                                     onClick={() => setActiveTab('validation')}
-                                    icon={<ShieldAlert size={18} />}
+                                    icon={<ShieldAlert size={20} />}
                                     title="Validation"
-                                    subtitle="Approval Logic"
+                                    subtitle="Approval rules"
+                                />
+                                <TabButton
+                                    active={activeTab === 'config'}
+                                    onClick={() => setActiveTab('config')}
+                                    icon={<ClipboardType size={20} />}
+                                    title="Content & Action"
+                                    subtitle="Task UI & Behavior"
                                 />
                             </>
                         )}
-
                         {selectedNode.type === 'condition' && (
                             <TabButton
                                 active={activeTab === 'logic'}
                                 onClick={() => setActiveTab('logic')}
-                                icon={<ShieldAlert size={18} />}
-                                title="Routing"
+                                icon={<ShieldAlert size={20} />}
+                                title="Routing Logic"
                                 subtitle="Decision Rules"
                             />
                         )}
-                    </nav>
 
-                    <div className="p-8 mt-auto bg-slate-800/20">
-                        <Button
-                            onClick={handleDelete}
-                            variant="ghost"
-                            className="w-full h-12 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 hover:text-rose-300 rounded-2xl flex items-center justify-center gap-3 font-bold uppercase text-[10px] tracking-widest transition-all"
-                        >
-                            <Trash2 size={16} />
-                            Destroy Node
-                        </Button>
+                        <div className="pt-8 mt-8 border-t border-slate-800/50">
+                            <Button
+                                variant="ghost"
+                                onClick={handleDelete}
+                                className="w-full justify-start h-14 px-6 rounded-2xl text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 gap-4 font-black transition-all"
+                            >
+                                <Trash2 size={16} />
+                                Destroy Node
+                            </Button>
+                        </div>
                     </div>
                 </div>
 
-                {/* Content Area */}
-                <div className="flex-grow flex flex-col bg-slate-50/50 relative overflow-hidden">
+                {/* CONTENT AREA */}
+                <div className="flex-grow flex flex-col bg-slate-50 relative">
                     <button
                         onClick={onClose}
                         className="absolute right-8 top-8 p-3 hover:bg-slate-200/50 rounded-2xl transition-all z-10 text-slate-400 hover:text-slate-600"
@@ -286,410 +311,512 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
                         <X size={20} />
                     </button>
 
-                    <div className="flex-grow overflow-y-auto p-12 custom-scrollbar">
-                        <div className="max-w-2xl mx-auto space-y-12 animate-in slide-in-from-bottom-4 duration-500">
+                    <div className="flex-grow overflow-y-auto p-12 custom-scrollbar bg-white/50">
+                        <AnimatePresence mode="wait">
+                            <motion.div
+                                key={activeTab}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                transition={{ duration: 0.2 }}
+                                className="max-w-2xl mx-auto space-y-12"
+                            >
 
-                            {/* TAB: GENERAL */}
-                            {activeTab === 'general' && (
-                                <section className="space-y-12">
-                                    <div className="space-y-2">
-                                        <h2 className="text-3xl font-black text-slate-800 tracking-tight">Tactical Configuration</h2>
-                                        <p className="text-slate-400 font-medium">Define the identity and resources for this stage.</p>
-                                    </div>
-
-                                    <div className="grid gap-10">
-                                        {/* Task Identity */}
-                                        <div className="space-y-6">
-                                            {selectedNode.type !== 'start' && (
-                                                <div className="space-y-3">
-                                                    <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Task Designation</Label>
-                                                    <Input
-                                                        value={label}
-                                                        onChange={(e) => setLabel(e.target.value)}
-                                                        placeholder="ex: HR Validation"
-                                                        className="h-14 bg-white border-2 border-slate-100 rounded-2xl font-bold text-lg text-slate-700 focus:ring-indigo-100 shadow-sm"
-                                                    />
-                                                </div>
-                                            )}
-
-                                            <div className="space-y-3">
-                                                <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Operational Instructions</Label>
-                                                <Textarea
-                                                    value={description}
-                                                    onChange={(e) => setDescription(e.target.value)}
-                                                    placeholder="Detail the steps to follow..."
-                                                    className="bg-white border-2 border-slate-100 rounded-2xl font-medium text-slate-600 focus:ring-indigo-100 min-h-[120px] text-base shadow-sm"
-                                                />
-                                            </div>
+                                {/* TAB: GENERAL */}
+                                {activeTab === 'general' && (
+                                    <section className="space-y-12">
+                                        <div className="space-y-2">
+                                            <h2 className="text-3xl font-black text-slate-800 tracking-tight">Tactical Configuration</h2>
+                                            <p className="text-slate-400 font-medium">Define the identity and resources for this stage.</p>
                                         </div>
 
-                                        {selectedNode.type !== 'start' && selectedNode.type !== 'condition' && (
-                                            <>
-                                                {/* Task Type Selection */}
-                                                <div className="space-y-6 pt-6 border-t border-slate-100">
-                                                    <div className="flex items-center justify-between">
-                                                        <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Work Model (Type)</Label>
-                                                        <div className="flex bg-slate-100/50 p-1.5 rounded-2xl gap-2">
-                                                            <button
-                                                                onClick={() => setTaskType('normal')}
-                                                                className={`px-6 py-2.5 text-[10px] font-black uppercase rounded-xl transition-all ${taskType === 'normal' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}
-                                                            >
-                                                                1. Normal
-                                                            </button>
-                                                            <button
-                                                                onClick={() => setTaskType('form')}
-                                                                className={`px-6 py-2.5 text-[10px] font-black uppercase rounded-xl transition-all ${taskType === 'form' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}
-                                                            >
-                                                                2. Form
-                                                            </button>
+                                        <div className="grid gap-10">
+                                            <div className="space-y-6">
+                                                {selectedNode.type !== 'start' && (
+                                                    <div className="space-y-3">
+                                                        <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest text-[#6366f1]">Stage Name</Label>
+                                                        <Input
+                                                            value={label}
+                                                            onChange={(e) => setLabel(e.target.value)}
+                                                            className="h-16 px-8 bg-white border-none rounded-[20px] font-bold text-lg text-slate-700 ring-1 ring-slate-100 focus:ring-4 focus:ring-indigo-100 shadow-sm transition-all"
+                                                            placeholder="Enter stage name..."
+                                                        />
+                                                    </div>
+                                                )}
+
+                                                <div className="space-y-3">
+                                                    <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest text-[#6366f1]">Internal Description</Label>
+                                                    <Textarea
+                                                        value={description}
+                                                        onChange={(e) => setDescription(e.target.value)}
+                                                        className="min-h-[140px] p-8 bg-white border-none rounded-[24px] font-medium text-slate-600 ring-1 ring-slate-100 focus:ring-4 focus:ring-indigo-100 shadow-sm transition-all leading-relaxed"
+                                                        placeholder="Describe the purpose of this stage..."
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {selectedNode.type === 'action' && (
+                                                <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-8">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="p-3 bg-fuchsia-500/10 rounded-2xl text-fuchsia-600">
+                                                            <LayoutGrid size={20} />
                                                         </div>
+                                                        <Label className="text-[11px] font-black text-slate-500 uppercase tracking-widest text-fuchsia-600">Kanban Integration</Label>
                                                     </div>
 
-                                                    {taskType === 'normal' && (
-                                                        <div className="p-8 bg-slate-50 border-2 border-slate-100 rounded-[32px] space-y-6 animate-in slide-in-from-top-4">
-                                                            <div className="flex items-center justify-between">
-                                                                <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Attachments & Media</Label>
-                                                                {isUploading && <Clock className="animate-spin text-indigo-500" size={14} />}
-                                                            </div>
-
-                                                            {attachments.length > 0 && (
-                                                                <div className="grid grid-cols-1 gap-2">
-                                                                    {attachments.map((att, idx) => (
-                                                                        <div key={idx} className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl shadow-sm group">
-                                                                            <div className="flex items-center gap-3">
-                                                                                <Paperclip size={14} className="text-indigo-500" />
-                                                                                <span className="text-xs font-bold text-slate-700 truncate max-w-[200px] font-medium">{att.filename}</span>
-                                                                            </div>
-                                                                            <div className="flex items-center gap-2">
-                                                                                <a
-                                                                                    href={att.previewUrl || att.url}
-                                                                                    target="_blank"
-                                                                                    rel="noreferrer"
-                                                                                    className="p-1 text-slate-300 hover:text-indigo-500 transition-colors outline-none h-fit w-fit bg-transparent border-0"
-                                                                                >
-                                                                                    <ExternalLink size={14} />
-                                                                                </a>
-                                                                                <button
-                                                                                    onClick={() => setAttachments(attachments.filter((_, i) => i !== idx))}
-                                                                                    className="p-1 text-slate-300 hover:text-rose-500 transition-colors outline-none h-fit w-fit bg-transparent border-0"
-                                                                                >
-                                                                                    <Trash2 size={14} />
-                                                                                </button>
-                                                                            </div>
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            )}
-
-                                                            <div className="flex gap-4">
-                                                                <input
-                                                                    type="file"
-                                                                    id="node-file-upload"
-                                                                    className="hidden"
-                                                                    onChange={handleFileUpload}
-                                                                />
-                                                                <button
-                                                                    onClick={() => document.getElementById('node-file-upload')?.click()}
-                                                                    className="flex-1 h-16 bg-white border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center gap-1 hover:border-indigo-400 hover:bg-indigo-50 transition-all text-slate-400 hover:text-indigo-600 outline-none border-0"
-                                                                >
-                                                                    <ImageIcon size={18} />
-                                                                    <span className="text-[9px] font-black uppercase tracking-widest">Add Media</span>
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => document.getElementById('node-file-upload')?.click()}
-                                                                    className="flex-1 h-16 bg-white border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center gap-1 hover:border-indigo-400 hover:bg-indigo-50 transition-all text-slate-400 hover:text-indigo-600 outline-none border-0"
-                                                                >
-                                                                    <FilePlus size={18} />
-                                                                    <span className="text-[9px] font-black uppercase tracking-widest">Add Document</span>
-                                                                </button>
-                                                            </div>
+                                                    <div className="space-y-6">
+                                                        <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                                            <span className="text-xs font-bold text-slate-600">Auto-create board for this stage</span>
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={attachKanban}
+                                                                onChange={(e) => setAttachKanban(e.target.checked)}
+                                                                className="w-5 h-5 rounded-lg border-2 border-slate-200 text-indigo-600 focus:ring-indigo-500 transition-all cursor-pointer"
+                                                            />
                                                         </div>
-                                                    )}
 
-                                                    {taskType === 'form' && (
-                                                        <div className="space-y-6 animate-in slide-in-from-top-4">
-                                                            <div className="flex items-center justify-between">
-                                                                <Label className="text-[11px] font-black text-slate-500 uppercase">Connect a Form</Label>
+                                                        {attachKanban && (
+                                                            <div className="animate-in fade-in slide-in-from-top-4 space-y-4 pt-4 border-t border-slate-50">
+                                                                <div className="space-y-2">
+                                                                    <Label className="text-[10px] font-black text-slate-400 uppercase">Linked Workspace Board</Label>
+                                                                    <select
+                                                                        className="w-full h-14 px-4 bg-white rounded-2xl font-bold text-slate-700 border-none outline-none ring-1 ring-slate-100 shadow-inner"
+                                                                        value={kanbanBoardId}
+                                                                        onChange={(e) => setKanbanBoardId(e.target.value)}
+                                                                    >
+                                                                        <option value="">-- No board attached --</option>
+                                                                        {kanbanBoards.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
+                                                                    </select>
+                                                                </div>
+
                                                                 <Button
-                                                                    onClick={() => router.push('/form')}
-                                                                    variant="link"
-                                                                    className="text-[10px] font-black text-indigo-600 uppercase"
+                                                                    onClick={handleCreateBoard}
+                                                                    className="w-full h-14 bg-indigo-50 text-indigo-700 font-bold rounded-2xl hover:bg-indigo-100 transition-all border border-indigo-200/50 flex items-center justify-center gap-3"
                                                                 >
-                                                                    <Plus size={14} className="mr-1" /> Create New Form
+                                                                    <Plus size={18} />
+                                                                    Instantiate New Board
                                                                 </Button>
                                                             </div>
-                                                            <select
-                                                                className="w-full h-14 px-4 bg-white border-2 border-indigo-100 rounded-2xl font-bold text-slate-700 focus:ring-2 focus:ring-indigo-200 outline-none"
-                                                                value={linkedObjectId}
-                                                                onChange={(e) => setLinkedObjectId(e.target.value)}
-                                                            >
-                                                                <option value="">-- Select a form --</option>
-                                                                {availableForms.map(f => <option key={f._id} value={f._id}>{f.name}</option>)}
-                                                            </select>
-                                                        </div>
-                                                    )}
+                                                        )}
+                                                    </div>
                                                 </div>
+                                            )}
+                                        </div>
+                                    </section>
+                                )}
 
-                                                {/* External Kanban Link */}
-                                                <div className="space-y-6 pt-6 border-t border-slate-100">
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="flex flex-col">
-                                                            <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Kanban Integration (Optional)</Label>
-                                                            <span className="text-[10px] text-slate-400 font-medium">Link a specific board to this stage</span>
-                                                        </div>
+                                {/* TAB: ASSIGNMENT */}
+                                {activeTab === 'assignment' && selectedNode.type === 'action' && (
+                                    <section className="space-y-10">
+                                        <div className="space-y-2">
+                                            <h2 className="text-3xl font-black text-slate-800 tracking-tight">Responsibility</h2>
+                                            <p className="text-slate-400 font-medium">Configure who is authorized to execute this stage.</p>
+                                        </div>
+
+                                        <div className="grid gap-10">
+                                            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm space-y-6">
+                                                <div className="space-y-4">
+                                                    <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest text-[#6366f1]">1. Organization Scope</Label>
+                                                    <div className="flex bg-slate-50 p-1.5 rounded-2xl gap-2">
                                                         <button
-                                                            onClick={() => setAttachKanban(!attachKanban)}
-                                                            className={`w-14 h-8 rounded-full transition-all relative ${attachKanban ? 'bg-emerald-500 shadow-lg shadow-emerald-200' : 'bg-slate-200'}`}
+                                                            onClick={() => setDomainScope('all')}
+                                                            className={`flex-1 py-4 text-xs font-black uppercase tracking-[0.1em] rounded-xl transition-all ${domainScope === 'all' ? 'bg-white text-indigo-600 shadow-md ring-1 ring-slate-100' : 'text-slate-400 hover:text-slate-600'}`}
                                                         >
-                                                            <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all ${attachKanban ? 'left-7 shadow-sm' : 'left-1'}`} />
+                                                            Global Access
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setDomainScope('specific')}
+                                                            className={`flex-1 py-4 text-xs font-black uppercase tracking-[0.1em] rounded-xl transition-all ${domainScope === 'specific' ? 'bg-white text-indigo-600 shadow-md ring-1 ring-slate-100' : 'text-slate-400 hover:text-slate-600'}`}
+                                                        >
+                                                            Restricted Domain
                                                         </button>
                                                     </div>
-
-                                                    {attachKanban && (
-                                                        <div className="animate-in fade-in slide-in-from-top-2 space-y-4">
-                                                            <div className="flex items-center justify-between px-1">
-                                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Select Board</span>
-                                                                <button
-                                                                    onClick={handleCreateBoard}
-                                                                    className="text-[10px] font-black text-emerald-600 uppercase hover:text-emerald-700 flex items-center gap-1"
-                                                                >
-                                                                    <Plus size={12} /> Auto-Generate Board
-                                                                </button>
-                                                            </div>
-                                                            <select
-                                                                className="w-full h-14 px-4 bg-white border-2 border-emerald-100 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-200"
-                                                                value={kanbanBoardId}
-                                                                onChange={(e) => setKanbanBoardId(e.target.value)}
-                                                            >
-                                                                <option value="">-- Choose a Kanban board --</option>
-                                                                {kanbanBoards.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
-                                                            </select>
-                                                        </div>
-                                                    )}
                                                 </div>
-                                            </>
-                                        )}
-                                    </div>
-                                </section>
-                            )}
 
-                            {/* TAB: ASSIGNMENT */}
-                            {activeTab === 'assignment' && selectedNode.type === 'action' && (
-                                <section className="space-y-10">
-                                    <div className="space-y-2">
-                                        <h2 className="text-3xl font-black text-slate-800 tracking-tight">Responsibility</h2>
-                                        <p className="text-slate-400 font-medium">Configure who is authorized to execute this stage.</p>
-                                    </div>
-
-                                    <div className="grid gap-10">
-                                        <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm space-y-6">
-                                            <div className="space-y-4">
-                                                <Label className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Access Scope</Label>
-                                                <div className="flex bg-slate-50 p-1.5 rounded-2xl gap-2">
-                                                    <button
-                                                        onClick={() => setDomainScope('all')}
-                                                        className={`flex-1 py-4 text-xs font-black uppercase tracking-[0.1em] rounded-xl transition-all ${domainScope === 'all' ? 'bg-white text-indigo-600 shadow-md ring-1 ring-slate-100' : 'text-slate-400 hover:text-slate-600'}`}
-                                                    >
-                                                        Global Access
-                                                    </button>
-                                                    <button
-                                                        onClick={() => setDomainScope('specific')}
-                                                        className={`flex-1 py-4 text-xs font-black uppercase tracking-[0.1em] rounded-xl transition-all ${domainScope === 'specific' ? 'bg-white text-indigo-600 shadow-md ring-1 ring-slate-100' : 'text-slate-400 hover:text-slate-600'}`}
-                                                    >
-                                                        Restricted Domain
-                                                    </button>
-                                                </div>
+                                                {domainScope === 'specific' && (
+                                                    <div className="animate-in fade-in slide-in-from-top-4 space-y-3">
+                                                        <Label className="text-[11px] font-black text-slate-500 uppercase tracking-widest block">Select Target Domain</Label>
+                                                        <select
+                                                            className="w-full h-14 px-4 bg-slate-50 rounded-2xl font-bold text-slate-700 border-none outline-none ring-1 ring-slate-100 focus:ring-2 focus:ring-indigo-100 shadow-inner"
+                                                            value={responsibleDomain}
+                                                            onChange={(e) => {
+                                                                setResponsibleDomain(e.target.value);
+                                                                const domain = domains.find(d => d.name === e.target.value);
+                                                                if (domain) setAssignedTo(domain._id);
+                                                                else setAssignedTo('');
+                                                            }}
+                                                        >
+                                                            <option value="">-- Choose Domain --</option>
+                                                            {domains.map(d => <option key={d._id} value={d.name}>{d.name}</option>)}
+                                                        </select>
+                                                    </div>
+                                                )}
                                             </div>
 
-                                            {domainScope === 'specific' && (
-                                                <div className="animate-in fade-in slide-in-from-top-4">
-                                                    <Label className="text-[11px] font-black text-slate-500 uppercase tracking-widest block mb-4">Target Organization Unit</Label>
-                                                    <select
-                                                        className="w-full h-14 px-4 bg-slate-50 rounded-2xl font-bold text-slate-700 border-none outline-none ring-1 ring-slate-100 focus:ring-2 focus:ring-indigo-100"
-                                                        value={responsibleDomain}
-                                                        onChange={(e) => setResponsibleDomain(e.target.value)}
-                                                    >
-                                                        <option value="">Unassigned</option>
-                                                        {domains.map(d => <option key={d._id} value={d.name}>{d.name}</option>)}
-                                                    </select>
+                                            <div className="bg-white p-10 rounded-[40px] border border-slate-100 shadow-xl space-y-8">
+                                                <div className="space-y-4">
+                                                    <Label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] text-[#6366f1]">2. Assignment Strategy</Label>
+                                                    <div className="grid grid-cols-3 gap-4">
+                                                        {[
+                                                            { id: 'SINGLE', label: 'INDIVIDUAL', icon: <Users size={16} />, desc: 'One person' },
+                                                            { id: 'ANY', label: 'POOL (ANY)', icon: <Users size={16} />, desc: 'First claim' },
+                                                            { id: 'ALL', label: 'TEAM (ALL)', icon: <GraduationCap size={16} />, desc: 'Consensus' }
+                                                        ].map((opt: any) => (
+                                                            <motion.button
+                                                                whileHover={{ scale: 1.02 }}
+                                                                whileTap={{ scale: 0.98 }}
+                                                                key={opt.id}
+                                                                onClick={() => setAssignmentType(opt.id)}
+                                                                className={`flex flex-col items-center justify-center p-5 rounded-[24px] border-2 transition-all gap-2 text-center ${assignmentType === opt.id
+                                                                    ? 'border-indigo-600 bg-indigo-50/50 text-indigo-900 shadow-lg shadow-indigo-100 ring-2 ring-indigo-500/20'
+                                                                    : 'border-slate-50 bg-slate-50/50 text-slate-400 hover:border-slate-200'
+                                                                    }`}
+                                                            >
+                                                                <div className={`p-2.5 rounded-xl transition-all ${assignmentType === opt.id ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-400'
+                                                                    }`}>
+                                                                    {opt.icon}
+                                                                </div>
+                                                                <div className="space-y-0.5">
+                                                                    <span className="text-[9px] font-black uppercase tracking-wider">{opt.label}</span>
+                                                                    <p className="text-[7px] font-black opacity-60 uppercase">{opt.desc}</p>
+                                                                </div>
+                                                            </motion.button>
+                                                        ))}
+                                                    </div>
                                                 </div>
-                                            )}
+
+                                                {assignmentType === 'SINGLE' && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, height: 0 }}
+                                                        animate={{ opacity: 1, height: 'auto' }}
+                                                        className="space-y-4 pt-4 border-t border-slate-50"
+                                                    >
+                                                        <Label className="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                                                            <Users size={14} className="text-indigo-500" />
+                                                            Target Person
+                                                        </Label>
+                                                        <select
+                                                            className="w-full h-16 px-6 bg-slate-50/50 rounded-[24px] font-bold text-slate-700 border-none outline-none ring-1 ring-slate-100 focus:ring-4 focus:ring-indigo-500/10 shadow-inner transition-all"
+                                                            value={assignedTo}
+                                                            onChange={(e) => setAssignedTo(e.target.value)}
+                                                        >
+                                                            <option value="">-- Select Member --</option>
+                                                            {users.filter(u => !responsibleDomain || u.domain === responsibleDomain).map(u => (
+                                                                <option key={u._id} value={u._id}>
+                                                                    {u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : (u.email || u.id)}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </motion.div>
+                                                )}
+
+                                                <div className="grid grid-cols-3 gap-6 pt-8 border-t border-slate-100">
+                                                    <div className="space-y-4">
+                                                        <Label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                                                            <ShieldAlert size={12} className="text-rose-500" />
+                                                            Priority
+                                                        </Label>
+                                                        <select
+                                                            className="w-full h-14 px-4 bg-slate-50/80 rounded-2xl font-bold text-slate-700 border-none outline-none ring-1 ring-slate-100 focus:ring-4 focus:ring-indigo-100/30 transition-all"
+                                                            value={priority}
+                                                            onChange={(e) => setPriority(e.target.value)}
+                                                        >
+                                                            <option value="low">Low</option>
+                                                            <option value="medium">Standard</option>
+                                                            <option value="high">High</option>
+                                                            <option value="critical">Critical</option>
+                                                        </select>
+                                                    </div>
+                                                    <div className="space-y-4">
+                                                        <Label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                                                            <Clock size={12} className="text-indigo-500" />
+                                                            Estimation
+                                                        </Label>
+                                                        <Input
+                                                            value={estimatedDuration}
+                                                            onChange={(e) => setEstimatedDuration(e.target.value)}
+                                                            placeholder="e.g. 2h"
+                                                            className="h-14 px-6 bg-slate-50/80 border-none rounded-2xl font-bold ring-1 ring-slate-100 focus:ring-4 focus:ring-indigo-100/30 transition-all"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-4">
+                                                        <Label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                                                            <Clock size={12} className="text-amber-500" />
+                                                            Deadline
+                                                        </Label>
+                                                        <input
+                                                            type="date"
+                                                            value={deadline}
+                                                            onChange={(e) => setDeadline(e.target.value)}
+                                                            className="w-full h-14 px-6 bg-slate-50/80 border-none rounded-2xl font-bold text-slate-700 outline-none ring-1 ring-slate-100 focus:ring-4 focus:ring-indigo-100/30 transition-all"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </section>
+                                )}
+
+                                {/* TAB: VALIDATION */}
+                                {activeTab === 'validation' && selectedNode.type === 'action' && (
+                                    <section className="space-y-10">
+                                        <div className="space-y-2">
+                                            <h2 className="text-3xl font-black text-slate-800 tracking-tight">Validation Matrix</h2>
+                                            <p className="text-slate-400 font-medium">Determine the criteria for step completion and approval.</p>
                                         </div>
 
-                                        <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm space-y-6">
-                                            <div className="space-y-4">
-                                                <Label className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Designated Assignees</Label>
-                                                <select
-                                                    className="w-full h-14 px-4 bg-slate-50 rounded-2xl font-bold text-slate-700 border-none outline-none ring-1 ring-slate-100 focus:ring-2 focus:ring-indigo-100"
-                                                    value={assigneeType}
-                                                    onChange={(e) => {
-                                                        const val = e.target.value as any;
-                                                        setAssigneeType(val);
-                                                        if (val === 'group') setAssigneeSelectionType('role');
-                                                        if (val === 'specific') setAssigneeSelectionType('user');
-                                                    }}
-                                                >
-                                                    <option value="all">Everyone in selected domain</option>
-                                                    <option value="group">Specific Roles</option>
-                                                    <option value="specific">Nominated Users</option>
-                                                </select>
+                                        <div className="space-y-8 bg-white p-10 rounded-[32px] border border-slate-100 shadow-sm">
+                                            <div className="space-y-6">
+                                                <Label className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Approval Strategy</Label>
+                                                <div className="grid grid-cols-3 gap-4 bg-slate-50 p-2 rounded-2xl">
+                                                    {(['automatic', 'simple', 'multi'] as const).map((type) => (
+                                                        <button
+                                                            key={type}
+                                                            onClick={() => setValidationType(type)}
+                                                            className={`py-4 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${validationType === type ? 'bg-white text-indigo-600 shadow-md ring-1 ring-slate-100/50' : 'text-slate-400 hover:text-slate-600'}`}
+                                                        >
+                                                            {type}
+                                                        </button>
+                                                    ))}
+                                                </div>
                                             </div>
 
-                                            {assigneeType !== 'all' && (
-                                                <div className="animate-in fade-in slide-in-from-top-4 space-y-4">
-                                                    <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">
-                                                        Selection Pool ({assigneeType === 'group' ? 'Roles' : 'Individual Users'})
-                                                    </Label>
+                                            {validationType !== 'automatic' && (
+                                                <div className="animate-in fade-in slide-in-from-top-4 space-y-8 pt-8 border-t border-slate-50">
+                                                    <div className="flex items-center justify-between">
+                                                        <Label className="text-[11px] font-black text-slate-600 uppercase tracking-widest">Qualified Validators</Label>
+                                                        <div className="flex bg-slate-100/50 p-1 rounded-xl">
+                                                            <button
+                                                                onClick={() => setValidatorType('role')}
+                                                                className={`px-4 py-2 text-[10px] font-black uppercase rounded-lg transition-all ${validatorType === 'role' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}
+                                                            > Roles </button>
+                                                            <button
+                                                                onClick={() => setValidatorType('user')}
+                                                                className={`px-4 py-2 text-[10px] font-black uppercase rounded-lg transition-all ${validatorType === 'user' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}
+                                                            > Users </button>
+                                                        </div>
+                                                    </div>
+
                                                     <select
                                                         multiple
-                                                        className="w-full p-4 bg-slate-50 rounded-2xl font-medium text-slate-700 border-none outline-none ring-1 ring-slate-100 min-h-[160px] focus:ring-2 focus:ring-indigo-100 shadow-inner"
-                                                        value={assigneeIds}
-                                                        onChange={(e) => setAssigneeIds(Array.from(e.target.selectedOptions, o => o.value))}
+                                                        className="w-full p-4 bg-slate-50 rounded-2xl font-bold text-slate-700 min-h-[200px] outline-none ring-1 ring-slate-100 focus:ring-2 focus:ring-indigo-100 shadow-inner"
+                                                        value={validatorIds}
+                                                        onChange={(e) => setValidatorIds(Array.from(e.target.selectedOptions, o => o.value))}
                                                     >
-                                                        {assigneeType === 'group' ? (
-                                                            roles.map(r => <option key={r._id} value={r._id}>{r.name}</option>)
-                                                        ) : (
-                                                            users.map(u => <option key={u._id} value={u._id}>{u.firstName} {u.lastName}</option>)
-                                                        )}
+                                                        {validatorType === 'role' ? roles.map(r => <option key={r._id} value={r._id}>{r.name}</option>) : users.map(u => <option key={u._id} value={u._id}>{u.firstName} {u.lastName}</option>)}
                                                     </select>
+
+                                                    <div className="p-6 bg-slate-900 rounded-3xl flex items-center gap-4 border border-slate-800 shadow-xl">
+                                                        <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center">
+                                                            <ShieldAlert className="text-indigo-400" size={20} />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-white font-bold text-sm">
+                                                                {validationType === 'multi' ? 'Consensus Required' : 'Solo Approval'}
+                                                            </p>
+                                                            <p className="text-slate-400 text-xs mt-1">
+                                                                {validationType === 'multi' ? 'Every selected party must authorize the transition.' : 'Any single individual from the group can authorize.'}
+                                                            </p>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
+                                    </section>
+                                )}
 
-                                        <div className="grid grid-cols-2 gap-8">
-                                            <div className="space-y-4">
-                                                <Label className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Priority Grade</Label>
-                                                <select
-                                                    className="w-full h-14 px-4 bg-white rounded-2xl font-bold text-slate-700 border border-slate-100 shadow-sm outline-none focus:ring-2 focus:ring-indigo-100"
-                                                    value={priority}
-                                                    onChange={(e) => setPriority(e.target.value)}
-                                                >
-                                                    <option value="low">Low Priority</option>
-                                                    <option value="medium">Standard</option>
-                                                    <option value="high">High Priority</option>
-                                                    <option value="critical">Mission Critical</option>
-                                                </select>
-                                            </div>
-                                            <div className="space-y-4">
-                                                <Label className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Estimated TTL</Label>
-                                                <div className="relative">
-                                                    <Clock className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                                                    <Input
-                                                        value={estimatedDuration}
-                                                        onChange={(e) => setEstimatedDuration(e.target.value)}
-                                                        placeholder="e.g., 2h 30m"
-                                                        className="h-14 pl-14 bg-white border border-slate-100 rounded-2xl font-bold text-slate-700 shadow-sm focus:ring-2 focus:ring-indigo-100"
+                                {/* TAB: CONTENT & ACTION */}
+                                {activeTab === 'config' && (
+                                    <section className="space-y-10">
+                                        <div className="space-y-2">
+                                            <h2 className="text-3xl font-black text-slate-800 tracking-tight">Content & Interaction</h2>
+                                            <p className="text-slate-400 font-medium">Define what the user sees and what they must do.</p>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                            <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-6">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="p-2.5 bg-indigo-500/10 rounded-xl text-indigo-600">
+                                                        <ClipboardType size={16} />
+                                                    </div>
+                                                    <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-indigo-600">1. Task Content</Label>
+                                                </div>
+
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    {[
+                                                        { id: 'Form', icon: <ListChecks size={14} />, desc: 'Capture data' },
+                                                        { id: 'Document', icon: <FilePlus size={14} />, desc: 'PDF / Docs' },
+                                                        { id: 'Image', icon: <ImageIcon size={14} />, desc: 'Visuals' },
+                                                        { id: 'Instructions', icon: <ClipboardType size={14} />, desc: 'Read-only' }
+                                                    ].map((opt) => (
+                                                        <motion.button
+                                                            whileHover={{ scale: 1.02, translateY: -2 }}
+                                                            whileTap={{ scale: 0.98 }}
+                                                            key={opt.id}
+                                                            onClick={() => setTaskContent(opt.id)}
+                                                            className={`relative flex items-center gap-3 p-3.5 rounded-[24px] transition-all border-2 text-left overflow-hidden ${taskContent === opt.id
+                                                                ? 'border-indigo-500 bg-indigo-50/50 shadow-lg shadow-indigo-100 ring-2 ring-indigo-500/10'
+                                                                : 'border-slate-100 bg-white hover:border-slate-200 hover:shadow-sm'
+                                                                }`}
+                                                        >
+                                                            {taskContent === opt.id && (
+                                                                <motion.div
+                                                                    layoutId="active-content-bg"
+                                                                    className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent pointer-events-none"
+                                                                />
+                                                            )}
+                                                            <div className={`p-2.5 rounded-xl transition-all flex-shrink-0 ${taskContent === opt.id
+                                                                ? 'bg-indigo-600 text-white shadow-md'
+                                                                : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
+                                                                }`}>
+                                                                {opt.icon}
+                                                            </div>
+                                                            <div className="flex flex-col items-start min-w-0">
+                                                                <span className={`text-[10px] font-black uppercase tracking-wider truncate w-full ${taskContent === opt.id ? 'text-indigo-900' : 'text-slate-500'
+                                                                    }`}>{opt.id}</span>
+                                                                <span className={`text-[7px] font-black uppercase opacity-60 truncate w-full ${taskContent === opt.id ? 'text-indigo-600' : 'text-slate-300'
+                                                                    }`}>{opt.desc}</span>
+                                                            </div>
+                                                        </motion.button>
+                                                    ))}
+                                                </div>
+
+                                                {taskContent === 'Form' && (
+                                                    <div className="animate-in fade-in slide-in-from-top-2 space-y-4">
+                                                        <div className="flex items-center justify-between">
+                                                            <Label className="text-[10px] font-black text-slate-400 uppercase">Link Form</Label>
+                                                            <button
+                                                                onClick={() => {
+                                                                    const currentUrl = window.location.pathname + window.location.search;
+                                                                    router.push(`/form?redirect=${encodeURIComponent(currentUrl)}`);
+                                                                }}
+                                                                className="text-[10px] font-black text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5 transition-colors group"
+                                                            >
+                                                                <Plus size={12} className="group-hover:rotate-90 transition-transform" />
+                                                                Create New Form
+                                                            </button>
+                                                        </div>
+                                                        <select
+                                                            className="w-full h-14 px-6 bg-slate-50/80 rounded-[20px] font-bold text-slate-800 border-none outline-none ring-1 ring-slate-100 focus:ring-4 focus:ring-indigo-500/10 shadow-inner transition-all appearance-none"
+                                                            value={linkedObjectId}
+                                                            onChange={(e) => setLinkedObjectId(e.target.value)}
+                                                        >
+                                                            <option value="">-- Choose Existing Form --</option>
+                                                            {Array.isArray(availableForms) && availableForms.map(f => (
+                                                                <option key={f._id || f.id} value={f._id || f.id}>{f.title || f.name || 'Untitled Form'}</option>
+                                                            ))}
+                                                        </select>
+                                                        <p className="text-[8px] font-bold text-slate-400 italic">Select a form that users will fill during this stage.</p>
+                                                    </div>
+                                                )}
+
+                                                {(taskContent === 'Document' || taskContent === 'Image') && (
+                                                    <div className="animate-in fade-in slide-in-from-top-2 space-y-4">
+                                                        <input type="file" id="content-file-upload-2" className="hidden" onChange={handleFileUpload} />
+                                                        <Button
+                                                            onClick={() => document.getElementById('content-file-upload-2')?.click()}
+                                                            className="w-full h-14 bg-white border-2 border-dashed border-indigo-200 rounded-2xl flex items-center justify-center gap-3 text-indigo-600 font-bold hover:bg-indigo-50 transition-all"
+                                                        >
+                                                            <Plus size={18} />
+                                                            Import {taskContent}
+                                                        </Button>
+                                                    </div>
+                                                )}
+
+                                                <div className="space-y-3">
+                                                    <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Public context</Label>
+                                                    <Textarea
+                                                        value={description}
+                                                        onChange={(e) => setDescription(e.target.value)}
+                                                        placeholder="Execution instructions..."
+                                                        className="min-h-[100px] bg-slate-50 border-none rounded-xl"
                                                     />
                                                 </div>
                                             </div>
-                                        </div>
-                                    </div>
-                                </section>
-                            )}
 
-                            {/* TAB: VALIDATION */}
-                            {activeTab === 'validation' && selectedNode.type === 'action' && (
-                                <section className="space-y-10">
-                                    <div className="space-y-2">
-                                        <h2 className="text-3xl font-black text-slate-800 tracking-tight">Validation Matrix</h2>
-                                        <p className="text-slate-400 font-medium">Determine the criteria for step completion and approval.</p>
-                                    </div>
-
-                                    <div className="space-y-8 bg-white p-10 rounded-[32px] border border-slate-100 shadow-sm">
-                                        <div className="space-y-6">
-                                            <Label className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Approval Strategy</Label>
-                                            <div className="grid grid-cols-3 gap-4 bg-slate-50 p-2 rounded-2xl">
-                                                {(['automatic', 'simple', 'multi'] as const).map((type) => (
-                                                    <button
-                                                        key={type}
-                                                        onClick={() => setValidationType(type)}
-                                                        className={`py-4 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${validationType === type ? 'bg-white text-indigo-600 shadow-md ring-1 ring-slate-100/50' : 'text-slate-400 hover:text-slate-600'}`}
-                                                    >
-                                                        {type}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        {validationType !== 'automatic' && (
-                                            <div className="animate-in fade-in slide-in-from-top-4 space-y-8 pt-8 border-t border-slate-50">
-                                                <div className="flex items-center justify-between">
-                                                    <Label className="text-[11px] font-black text-slate-600 uppercase tracking-widest">Qualified Validators</Label>
-                                                    <div className="flex bg-slate-100/50 p-1 rounded-xl">
-                                                        <button
-                                                            onClick={() => setValidatorType('role')}
-                                                            className={`px-4 py-2 text-[10px] font-black uppercase rounded-lg transition-all ${validatorType === 'role' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}
-                                                        >
-                                                            Roles
-                                                        </button>
-                                                        <button
-                                                            onClick={() => setValidatorType('user')}
-                                                            className={`px-4 py-2 text-[10px] font-black uppercase rounded-lg transition-all ${validatorType === 'user' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}
-                                                        >
-                                                            Users
-                                                        </button>
+                                            <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-6">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="p-2.5 bg-emerald-500/10 rounded-xl text-emerald-600">
+                                                        <CheckSquare size={16} />
                                                     </div>
+                                                    <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-emerald-600">2. Targeted Action</Label>
                                                 </div>
 
-                                                <select
-                                                    multiple
-                                                    className="w-full p-4 bg-slate-50 rounded-2xl font-bold text-slate-700 min-h-[200px] outline-none ring-1 ring-slate-100 focus:ring-2 focus:ring-indigo-100 shadow-inner"
-                                                    value={validatorIds}
-                                                    onChange={(e) => setValidatorIds(Array.from(e.target.selectedOptions, o => o.value))}
-                                                >
-                                                    {validatorType === 'role' ? roles.map(r => <option key={r._id} value={r._id}>{r.name}</option>) : users.map(u => <option key={u._id} value={u._id}>{u.firstName} {u.lastName}</option>)}
-                                                </select>
-
-                                                <div className="p-6 bg-slate-900 rounded-3xl flex items-center gap-4 border border-slate-800 shadow-xl">
-                                                    <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center">
-                                                        <ShieldAlert className="text-indigo-400" size={20} />
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-white font-bold text-sm">
-                                                            {validationType === 'multi' ? 'Consensus Required' : 'Solo Approval'}
-                                                        </p>
-                                                        <p className="text-slate-400 text-xs mt-1">
-                                                            {validationType === 'multi' ? 'Every selected party must authorize the transition.' : 'Any single individual from the group can authorize.'}
-                                                        </p>
-                                                    </div>
+                                                <div className="space-y-4">
+                                                    {[
+                                                        { id: 'Fill Form', icon: <ListChecks size={16} />, desc: 'Link dynamic forms' },
+                                                        { id: 'Approve / Reject', icon: <ShieldAlert size={16} />, desc: 'Mandatory validation' },
+                                                        { id: 'Upload File', icon: <FilePlus size={16} />, desc: 'Evidence submission' },
+                                                        { id: 'Write Report', icon: <ClipboardType size={16} />, desc: 'Detailed feedback' },
+                                                        { id: 'Complete Task', icon: <CheckSquare size={16} />, desc: 'Standard execution' }
+                                                    ].map((opt) => (
+                                                        <motion.button
+                                                            whileHover={{ x: 6, scale: 1.01 }}
+                                                            whileTap={{ scale: 0.99 }}
+                                                            key={opt.id}
+                                                            onClick={() => setUserAction(opt.id)}
+                                                            className={`w-full flex items-center justify-between p-5 rounded-[28px] transition-all border-2 group ${userAction === opt.id
+                                                                ? 'border-emerald-500 bg-emerald-50/50 shadow-xl shadow-emerald-100 ring-4 ring-emerald-500/5'
+                                                                : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/50 shadow-sm'
+                                                                }`}
+                                                        >
+                                                            <div className="flex items-center gap-4 min-w-0 flex-1">
+                                                                <div className={`p-2.5 rounded-xl transition-all flex-shrink-0 ${userAction === opt.id
+                                                                    ? 'bg-emerald-600 text-white shadow-md'
+                                                                    : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
+                                                                    }`}>
+                                                                    {opt.icon}
+                                                                </div>
+                                                                <div className="flex flex-col items-start min-w-0">
+                                                                    <span className={`text-[10px] font-black uppercase tracking-wider truncate w-full ${userAction === opt.id ? 'text-emerald-900' : 'text-slate-500'
+                                                                        }`}>{opt.id}</span>
+                                                                    <span className="text-[7px] font-black text-slate-400 uppercase tracking-tight opacity-60 truncate w-full">{opt.desc}</span>
+                                                                </div>
+                                                            </div>
+                                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${userAction === opt.id ? 'bg-emerald-600 scale-100 rotate-0 shadow-lg' : 'bg-slate-100 scale-50 opacity-0 rotate-45'
+                                                                }`}>
+                                                                <CheckSquare size={14} className="text-white" />
+                                                            </div>
+                                                        </motion.button>
+                                                    ))}
                                                 </div>
                                             </div>
-                                        )}
-                                    </div>
-                                </section>
-                            )}
+                                        </div>
+                                    </section>
+                                )}
 
-                            {/* TAB: ROUTING (Condition Node) */}
-                            {activeTab === 'logic' && selectedNode.type === 'condition' && (
-                                <section className="space-y-10">
-                                    <div className="space-y-2">
-                                        <h2 className="text-3xl font-black text-slate-800 tracking-tight">Dynamic Routing</h2>
-                                        <p className="text-slate-400 font-medium">Assign a logical rule to determine the flow path.</p>
-                                    </div>
-
-                                    <div className="bg-slate-900 p-10 rounded-[40px] shadow-2xl space-y-10 text-left border border-slate-800">
-                                        <div className="flex items-center gap-4 p-4 bg-indigo-500/10 rounded-2xl border border-indigo-500/20 w-fit">
-                                            <ShieldAlert className="text-indigo-400" size={24} />
-                                            <span className="text-indigo-200 font-black text-[10px] uppercase tracking-widest">Logic Engine v4.0</span>
+                                {/* TAB: LOGIC */}
+                                {activeTab === 'logic' && selectedNode.type === 'condition' && (
+                                    <section className="space-y-10">
+                                        <div className="space-y-2">
+                                            <h2 className="text-3xl font-black text-slate-800 tracking-tight">Dynamic Routing</h2>
+                                            <p className="text-slate-400 font-medium">Assign a logical rule to determine the flow path.</p>
                                         </div>
 
-                                        <div className="space-y-4">
-                                            <Label className="text-[11px] font-black text-slate-500 uppercase tracking-widest block">Structural Rule (Variables)</Label>
-                                            <Input
-                                                value={condition}
-                                                onChange={(e) => setCondition(e.target.value)}
-                                                placeholder="invoice_val > 5000"
-                                                className="h-16 bg-slate-800 border-none rounded-2xl font-mono text-2xl text-emerald-400 focus:ring-2 focus:ring-emerald-500 shadow-inner px-8"
-                                            />
-                                            <p className="text-slate-500 text-sm font-medium italic">Example: department == 'Finance' && total &gt; 1000</p>
+                                        <div className="bg-slate-900 p-10 rounded-[40px] shadow-2xl space-y-10 border border-slate-800">
+                                            <div className="flex items-center gap-4 p-4 bg-indigo-500/10 rounded-2xl border border-indigo-500/20 w-fit">
+                                                <ShieldAlert className="text-indigo-400" size={24} />
+                                                <span className="text-indigo-200 font-black text-[10px] uppercase tracking-widest">Logic Engine v4.0</span>
+                                            </div>
+
+                                            <div className="space-y-4">
+                                                <Label className="text-[11px] font-black text-slate-500 uppercase tracking-widest block">Structural Rule</Label>
+                                                <Input
+                                                    value={condition}
+                                                    onChange={(e) => setCondition(e.target.value)}
+                                                    placeholder="amount > 5000"
+                                                    className="h-16 bg-slate-800 border-none rounded-2xl font-mono text-2xl text-emerald-400 focus:ring-2 focus:ring-emerald-500 shadow-inner px-8"
+                                                />
+                                                <p className="text-slate-500 text-sm font-medium italic">Example: department == 'Finance' && total &gt; 1000</p>
+                                            </div>
                                         </div>
-                                    </div>
-                                </section>
-                            )}
-                        </div>
+                                    </section>
+                                )}
+                            </motion.div>
+                        </AnimatePresence>
                     </div>
 
-                    {/* Modal Footer */}
+                    {/* MODAL FOOTER */}
                     <div className="p-8 px-12 bg-white border-t border-slate-100 flex items-center justify-between">
                         <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">Lattice OS Configurator</p>
                         <div className="flex items-center gap-4">
@@ -702,10 +829,10 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
                             </Button>
                             <Button
                                 onClick={handleSave}
-                                className="h-14 px-12 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] shadow-xl shadow-indigo-200 transition-all hover:-translate-y-1 active:scale-95 flex items-center gap-3"
+                                className="h-14 px-12 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] shadow-xl shadow-indigo-200 transition-all flex items-center gap-3"
                             >
                                 Save Changes
-                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-300 animate-pulse"></div>
+                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-300 animate-pulse" />
                             </Button>
                         </div>
                     </div>

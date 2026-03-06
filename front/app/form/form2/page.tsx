@@ -24,6 +24,7 @@ export default function Form2Page() {
   const router = useRouter();
   const instanceId = searchParams.get('instanceId');
   const nodeId = searchParams.get('nodeId');
+  const taskId = searchParams.get('taskId');
   const formId = searchParams.get('formId') || searchParams.get('id');
 
   const [form, setForm] = useState<any>(null);
@@ -114,23 +115,55 @@ export default function Form2Page() {
 
   const confirmSubmit = async () => {
     if (!form?._id) return toast.error("Form ID missing.");
-    if (!submissionName.trim()) return toast.error("Veuillez saisir un nom pour cette soumission.");
+    if (!submissionName.trim()) return toast.error("Please enter a name for this submission.");
 
     setIsSubmitting(true);
     try {
+      // 1. Submit the form response
       const res = await apiService.request(`/forms/${form._id}/submit`, {
         method: 'POST',
         body: JSON.stringify({
           data: formData,
           name: submissionName,
-          description: submissionDescription
+          description: submissionDescription,
+          instanceId, // Include workflow context if available
+          nodeId
         })
       });
 
       if (res.success) {
+        // 2. If this is part of a workflow, approve the node to move to the next step
+        if (instanceId && nodeId) {
+          try {
+            await apiService.approveNode(
+              instanceId,
+              nodeId,
+              `Form submitted: ${submissionName}`,
+              formData
+            );
+          } catch (workflowErr) {
+            console.error("Workflow sync error:", workflowErr);
+          }
+        }
+
+        // 3. If this is a standalone Kanban task, complete it
+        if (taskId) {
+          try {
+            await apiService.updateTask(taskId, { status: 'done' });
+          } catch (taskErr) {
+            console.error("Task update error:", taskErr);
+          }
+        }
+
         toast.success("Form submitted successfully!");
         setIsSubmitModalOpen(false);
-        router.push('/admin/AllForms');
+
+        // Redirect to task list if coming from workflow or task, else all forms
+        if (instanceId || taskId) {
+          router.push('/User/tasks');
+        } else {
+          router.push('/admin/AllForms');
+        }
       }
     } catch (error: any) {
       toast.error("Submission failed: " + error.message);
@@ -229,22 +262,15 @@ export default function Form2Page() {
                 <button
                   onClick={confirmSubmit}
                   disabled={isSubmitting}
-                  className="px-10 py-4 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-indigo-700 active:scale-95 transition-all shadow-xl shadow-indigo-100 disabled:opacity-50"
+                  className="px-10 py-4 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-indigo-700 active:scale-95 transition-all shadow-xl shadow-indigo-100 disabled:opacity-50 flex items-center gap-2"
                 >
-                  {isSubmitting ? 'Synchronizing...' : 'Commit Submission'}
+                  {isSubmitting ? 'Synchronizing...' : 'Save and Send to Admin'}
                 </button>
               </div>
             </motion.div>
           </div>
         )}
-        {instanceId && currentNode && (
-          <TaskExecutionPanel
-            instance={instance}
-            node={currentNode}
-            onClose={() => { }}
-            onRefresh={fetchData}
-          />
-        )}
+
       </AnimatePresence>
 
       {/* Header */}
@@ -304,7 +330,7 @@ export default function Form2Page() {
               <div className="w-8 h-8 bg-indigo-600 text-white rounded-lg flex items-center justify-center font-black text-xs shadow-md shadow-indigo-100">
                 {sIdx + 1}
               </div>
-              <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest">Partie {sIdx + 1}</h2>
+              <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest">Section {sIdx + 1}</h2>
               <div className="flex-1 h-[2px] bg-slate-100 ml-4"></div>
             </div>
 

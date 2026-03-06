@@ -164,6 +164,13 @@ class ApiService {
     return this.request('/users/my/tasks');
   }
 
+  updateTask(id: string, data: any) {
+    return this.request(`/tasks/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
   // Workflow Management
   getWorkflows() {
     return this.request('/workflows');
@@ -268,19 +275,29 @@ class ApiService {
     return this.request(`/workflow-instances/${id}`);
   }
 
-  approveNode(instanceId: string, nodeId: string, data?: any) {
+  approveNode(instanceId: string, nodeId: string, comment?: string, variables?: any) {
     return this.request(`/workflow-instances/${instanceId}/approve`, {
       method: 'POST',
       body: JSON.stringify({
         nodeId,
-        comments: data?.comment || '',
-        data: data?.variables || {}
+        comments: comment || '',
+        data: variables || {}
       })
     });
   }
 
-  rejectNode(instanceId: string, nodeId: string) {
+  rejectNode(instanceId: string, nodeId: string, comment?: string) {
     return this.request(`/workflow-instances/${instanceId}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({
+        nodeId,
+        comments: comment || ''
+      })
+    });
+  }
+
+  lockNode(instanceId: string, nodeId: string) {
+    return this.request(`/workflow-instances/${instanceId}/lock`, {
       method: 'POST',
       body: JSON.stringify({ nodeId })
     });

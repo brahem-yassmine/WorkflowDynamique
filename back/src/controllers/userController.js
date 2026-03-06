@@ -1,4 +1,5 @@
 // back/src/controllers/userController.js
+const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const { recordActivity } = require('../services/auditLogger');
 
@@ -252,6 +253,154 @@ exports.deleteUser = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Erreur serveur'
+    });
+  }
+};
+
+// Get tasks assigned to the user (Workflow + Kanban)
+exports.getUserTasks = async (req, res) => {
+  try {
+    const userId = req.user.userId || req.user.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'User ID not found in token' });
+    }
+
+    const User = req.tenantConn.model('User');
+    const Role = req.tenantConn.model('Role');
+    const WorkflowInstance = req.tenantConn.model('WorkflowInstance');
+    const Workflow = req.tenantConn.model('Workflow');
+    const Project = req.tenantConn.model('Project');
+    const Task = req.tenantConn.model('Task');
+    const Board = req.tenantConn.model('Board');
+
+    const user = await User.findById(userId);
+    const domain = user?.domain || req.user.domain;
+
+    // Find user's role object to handle role-based assignments
+    const userRole = user ? await Role.findOne({ name: user.role }) : null;
+    const userRoleId = userRole?._id;
+
+    console.log(`🔍 [getUserTasks] User: ${userId} | Domain: ${domain} | Role: ${user?.role} (${userRoleId})`);
+
+    // 1. KANBAN TASKS (Direct assignments)
+    const kanbanTasksRaw = await Task.find({
+      $or: [
+        { assignedTo: userId },
+        { assignedDomain: domain }
+      ],
+      status: { $ne: 'done' }
+    }).populate({
+      path: 'boardId',
+      populate: { path: 'projectId', select: 'name' }
+    });
+
+    const kanbanEnriched = kanbanTasksRaw.map(t => ({
+      _id: t._id,
+      title: t.title,
+      workflowName: t.boardId?.name || 'General Board',
+      projectName: t.boardId?.projectId?.name || 'Unassigned',
+      instanceTitle: 'Direct Task',
+      type: 'kanban',
+      taskType: t.type === 'form' ? 'Formulaire' : 'Tâche',
+      priority: 'medium',
+      createdAt: t.createdAt,
+      dueDate: t.dueDate,
+      description: t.description
+    }));
+
+    // 2. WORKFLOW TASKS
+    const userObjId = mongoose.Types.ObjectId.isValid(userId) ? new mongoose.Types.ObjectId(userId) : null;
+    const roleIdStr = userRoleId?.toString();
+    const roleObjId = roleIdStr && mongoose.Types.ObjectId.isValid(roleIdStr) ? new mongoose.Types.ObjectId(roleIdStr) : null;
+
+    // Define domains to match (handling HR/RH synonymity)
+    const domainsToMatch = [domain];
+    if (domain === 'HR' || domain === 'RH') {
+      domainsToMatch.push(domain === 'HR' ? 'RH' : 'HR');
+    }
+
+    const query = {
+      status: 'in_progress',
+      $or: [
+        { 'currentNodes.responsibleUser': userId },
+        { 'currentNodes.assignees': userId },
+        { 'currentNodes.responsibleDomain': { $in: domainsToMatch } }
+      ]
+    };
+
+    // Add ObjectId matches for robust Mongoose querying
+    if (userObjId) {
+      query.$or.push({ 'currentNodes.responsibleUser': userObjId });
+      query.$or.push({ 'currentNodes.assignees': userObjId });
+    }
+    if (roleObjId) {
+      query.$or.push({ 'currentNodes.assignees': roleObjId });
+      query.$or.push({ 'currentNodes.assignees': roleIdStr });
+    }
+
+    const workflowInstances = await WorkflowInstance.find(query).populate({
+      path: 'workflowId',
+      populate: {
+        path: 'projectId',
+        select: 'name'
+      }
+    });
+
+    console.log(`📊 [getUserTasks] Found ${workflowInstances.length} instances in total for query`);
+
+    const workflowTasks = [];
+    workflowInstances.forEach(instance => {
+      if (!instance.workflowId) return;
+
+      instance.currentNodes.forEach(node => {
+        const isAssigned =
+          node.responsibleUser?.toString() === userId.toString() ||
+          node.assignees?.some(a => a.toString() === userId.toString()) ||
+          domainsToMatch.includes(node.responsibleDomain) ||
+          (roleIdStr && node.assignees?.some(a => a.toString() === roleIdStr));
+
+        if (isAssigned && node.status === 'in_progress') {
+          const nodeDef = instance.workflowId.nodes.find(n => n.id === node.nodeId);
+          const nodeLabel = nodeDef?.data?.label || nodeDef?.type || 'Validation Task';
+          const nodeType = nodeDef?.type || 'action';
+          const isForm = nodeType === 'form' || !!nodeDef?.data?.formId;
+
+          workflowTasks.push({
+            _id: `${instance._id}_${node.nodeId}`,
+            instanceId: instance._id,
+            nodeId: node.nodeId,
+            title: nodeLabel,
+            workflowName: instance.workflowId.name,
+            instanceTitle: instance.title,
+            projectName: instance.workflowId.projectId?.name || 'No Project',
+            type: 'workflow',
+            taskType: isForm ? 'Formulaire' : 'Tâche',
+            priority: instance.priority || 'medium',
+            createdAt: node.startedAt || instance.createdAt,
+            dueDate: instance.dueDate || instance.workflowId.dueDate,
+            description: instance.description || instance.workflowId.description
+          });
+        }
+      });
+    });
+
+    // Merge and sort
+    const allTasks = [...kanbanEnriched, ...workflowTasks].sort((a, b) =>
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+
+    console.log(`✅ [getUserTasks] Returning ${allTasks.length} tasks total`);
+
+    res.json({
+      success: true,
+      data: allTasks
+    });
+
+  } catch (error) {
+    console.error('❌ [getUserTasks] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error: ' + error.message
     });
   }
 };

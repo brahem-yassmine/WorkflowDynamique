@@ -171,7 +171,7 @@ function WorkflowEditorContent() {
         setSelectedNode(null);
     }, [setNodes, setEdges]);
 
-    const handleSave = useCallback(async (meta: { name: string; domain: string; projectId?: string }) => {
+    const handleSave = useCallback(async (meta: { name: string; domain: string; projectId?: string; status?: string }) => {
         try {
             setIsSaving(true);
 
@@ -182,7 +182,7 @@ function WorkflowEditorContent() {
                 description: "Workflow created via visual editor",
                 nodes: nodes,
                 edges: edges,
-                status: 'draft'
+                status: meta.status || 'draft'
             };
 
             let response;

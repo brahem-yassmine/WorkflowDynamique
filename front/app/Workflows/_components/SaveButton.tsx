@@ -23,6 +23,7 @@ const SaveButton = ({ onSave, isSaving, initialName = '', initialDomain = 'HR', 
   const [name, setName] = useState(initialName);
   const [domain, setDomain] = useState(initialDomain);
   const [projectId, setProjectId] = useState(initialProjectId || urlProjectId || '');
+  const [status, setStatus] = useState<'draft' | 'active'>('draft');
   const [showModal, setShowModal] = useState(false);
   const [projects, setProjects] = useState<any[]>([]);
 
@@ -61,7 +62,7 @@ const SaveButton = ({ onSave, isSaving, initialName = '', initialDomain = 'HR', 
 
     if (onSave) {
       try {
-        await onSave({ name, domain, projectId: projectId || undefined });
+        await (onSave as any)({ name, domain, projectId: projectId || undefined, status });
         setShowModal(false);
       } catch (error) {
         console.error('Error saving workflow:', error);
@@ -128,17 +129,31 @@ const SaveButton = ({ onSave, isSaving, initialName = '', initialDomain = 'HR', 
                   </select>
                 </div>
 
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-medium text-slate-500 uppercase tracking-wider pl-1">Target Sector (Domain)</label>
-                  <select
-                    value={domain}
-                    onChange={(e) => setDomain(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-indigo-50 font-bold text-slate-700 outline-none transition-all"
-                  >
-                    {domains.map(d => (
-                      <option key={d} value={d}>{d}</option>
-                    ))}
-                  </select>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-medium text-slate-500 uppercase tracking-wider pl-1">Domain</label>
+                    <select
+                      value={domain}
+                      onChange={(e) => setDomain(e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-indigo-50 font-bold text-slate-700 outline-none transition-all"
+                    >
+                      {domains.map(d => (
+                        <option key={d} value={d}>{d}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-medium text-slate-500 uppercase tracking-wider pl-1">Lifecycle Status</label>
+                    <select
+                      value={status}
+                      onChange={(e) => setStatus(e.target.value as any)}
+                      className={`w-full px-4 py-3 bg-slate-50 border-none rounded-2xl focus:ring-4 font-bold outline-none transition-all ${status === 'active' ? 'text-emerald-600 focus:ring-emerald-50' : 'text-slate-700 focus:ring-indigo-50'
+                        }`}
+                    >
+                      <option value="draft">Draft</option>
+                      <option value="active">Active (Auto-Start)</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div className="flex gap-3 pt-2">

@@ -2,12 +2,15 @@
 
 const express = require('express');
 const router = express.Router();
-const { getUsers, createUser, updateUser, deleteUser } = require('../controllers/userController');
+const { getUsers, createUser, updateUser, deleteUser, getUserTasks } = require('../controllers/userController');
 const { auth, requireRole } = require('../middleware/auth');
 const { checkTenantActive, checkPlanLimits } = require('../middleware/tenantMiddleware');
 
 // All routes require auth + active tenant
 router.use(auth, checkTenantActive);
+
+// Get my tasks
+router.get('/my/tasks', getUserTasks);
 
 // Publicly accessible to tenant members for lookups
 router.get('/', getUsers);

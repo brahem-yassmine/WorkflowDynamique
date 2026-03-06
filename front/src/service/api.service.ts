@@ -159,6 +159,11 @@ class ApiService {
     });
   }
 
+  // Task Management
+  getMyTasks() {
+    return this.request('/users/my/tasks');
+  }
+
   // Workflow Management
   getWorkflows() {
     return this.request('/workflows');

@@ -10,7 +10,8 @@ import {
   User,
   HelpCircle,
   Zap,
-  LogOut
+  LogOut,
+  CheckSquare
 } from 'lucide-react';
 
 function UserSidebar() {
@@ -33,6 +34,7 @@ function UserSidebar() {
 
   const menuItems = [
     { icon: User, label: "My Profile", href: "/User" },
+    { icon: CheckSquare, label: "My Tasks", href: "/User/tasks" },
     { icon: Plus, label: "My Workflows", href: "/User/Workflows?tab=registry", active: (p: string) => p === "/User/Workflows" && !isDesignMode },
     { icon: Bell, label: "Alert Inbox", href: "/User/Notifications" },
     { icon: GitBranch, label: "Start Process", href: "/User/Workflows?mode=design", active: (p: string) => p === "/User/Workflows" && isDesignMode },

@@ -31,6 +31,11 @@ const checklistSchema = new mongoose.Schema({
         type: String,
         enum: ['draft', 'completed'],
         default: 'draft'
+    },
+    workflowId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Workflow',
+        required: false
     }
 }, { timestamps: true });
 

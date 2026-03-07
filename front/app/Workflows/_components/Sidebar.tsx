@@ -54,7 +54,7 @@ export default function Sidebar() {
                 draggable
             >
                 <GitBranchPlus size={18} className="text-emerald-400" />
-                <span className="font-medium">Parallel Split</span>
+                <span className="font-medium">Start Parallel</span>
             </div>
 
             {/* Parallel Join */}
@@ -64,7 +64,7 @@ export default function Sidebar() {
                 draggable
             >
                 <Merge size={18} className="text-indigo-400" />
-                <span className="font-medium">Parallel Join</span>
+                <span className="font-medium">Sync Join</span>
             </div>
 
             {/* End Node */}
@@ -74,7 +74,7 @@ export default function Sidebar() {
                 draggable
             >
                 <Square size={18} className="text-red-600" />
-                <span className="font-medium">End</span>
+                <span className="font-medium">End Workflow</span>
             </div>
 
             {/* Info */}

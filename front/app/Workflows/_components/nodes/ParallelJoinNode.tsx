@@ -22,7 +22,7 @@ const ParallelJoinNode = ({ data }: any) => {
                     <Merge size={24} />
                 </div>
                 <div className="text-center">
-                    <div className="text-[11px] font-black text-white uppercase tracking-widest leading-none">Parallel Join</div>
+                    <div className="text-[11px] font-black text-white uppercase tracking-widest leading-none">{data.label || 'Sync Join'}</div>
                     <div className="text-[8px] text-slate-500 font-bold uppercase tracking-tight mt-1.5 px-2 bg-slate-800/80 py-1 rounded-md border border-slate-700">
                         Wait for all paths
                     </div>

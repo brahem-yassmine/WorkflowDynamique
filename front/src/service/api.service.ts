@@ -206,6 +206,10 @@ class ApiService {
     });
   }
 
+  getWorkflowMembers(id: string) {
+    return this.request(`/workflows/${id}/members`);
+  }
+
   // Project Management
   getProjects() {
     return this.request('/projects');

@@ -3,7 +3,9 @@
 exports.getChecklists = async (req, res) => {
     try {
         const Checklist = req.tenantConn.model('Checklist');
-        const checklists = await Checklist.find().sort({ createdAt: -1 });
+        const { workflowId } = req.query;
+        const query = workflowId ? { workflowId } : {};
+        const checklists = await Checklist.find(query).sort({ createdAt: -1 });
         res.json({ success: true, count: checklists.length, data: checklists });
     } catch (error) {
         console.error('❌ Erreur getChecklists:', error);
@@ -26,7 +28,7 @@ exports.getChecklistById = async (req, res) => {
 
 exports.createChecklist = async (req, res) => {
     try {
-        const { name, tasks, description } = req.body;
+        const { name, tasks, description, workflowId } = req.body;
         const Checklist = req.tenantConn.model('Checklist');
 
         const checklist = new Checklist({
@@ -34,7 +36,8 @@ exports.createChecklist = async (req, res) => {
             description: description || '',
             tasks: tasks || [],
             status: req.body.status || 'draft',
-            createdBy: req.user.id
+            createdBy: req.user.id,
+            workflowId
         });
 
         await checklist.save();

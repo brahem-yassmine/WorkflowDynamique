@@ -810,6 +810,79 @@ exports.changeWorkflowStatus = async (req, res) => {
 };
 
 // ============================================
+// 10. GET WORKFLOW MEMBERS (ADMIN VIEW)
+// ============================================
+exports.getWorkflowMembers = async (req, res) => {
+  try {
+    const { workflowId } = req.params;
+    const Workflow = req.tenantConn.model('Workflow');
+    const WorkflowInstance = req.tenantConn.model('WorkflowInstance');
+    const User = req.tenantConn.model('User');
+
+    const workflow = await Workflow.findById(workflowId);
+    if (!workflow) return res.status(404).json({ success: false, message: 'Workflow not found' });
+
+    // 1. Get users assigned in Template
+    const templateUserIds = new Set();
+    workflow.nodes.forEach(node => {
+      if (node.data?.assigneeIds) {
+        node.data.assigneeIds.forEach(id => templateUserIds.add(id.toString()));
+      }
+      if (node.data?.assignedUser) templateUserIds.add(node.data.assignedUser.toString());
+    });
+
+    // 2. Get users assigned in Instances
+    const instances = await WorkflowInstance.find({ workflowId, status: 'in_progress' });
+    const instanceUserIds = new Set();
+    const userTasks = {}; // userId -> array of tasks
+
+    instances.forEach(inst => {
+      inst.currentNodes.forEach(node => {
+        const ids = [];
+        if (node.responsibleUser) ids.push(node.responsibleUser.toString());
+        if (node.assignees) node.assignees.forEach(id => ids.push(id.toString()));
+
+        ids.forEach(uid => {
+          instanceUserIds.add(uid);
+          if (!userTasks[uid]) userTasks[uid] = [];
+          userTasks[uid].push({
+            instanceId: inst._id,
+            instanceTitle: inst.title,
+            nodeId: node.nodeId,
+            nodeLabel: workflow.nodes.find(n => n.id === node.nodeId)?.data?.label || 'Step',
+            status: node.status,
+            startedAt: node.startedAt
+          });
+        });
+      });
+    });
+
+    // 3. Combine and Fetch User Details
+    const allUserIds = Array.from(new Set([...templateUserIds, ...instanceUserIds]));
+    const users = await User.find({ _id: { $in: allUserIds } }).select('name email role domain avatar');
+
+    const members = users.map(user => {
+      const uid = user._id.toString();
+      return {
+        ...user.toObject(),
+        isTemplateMember: templateUserIds.has(uid),
+        isActiveMember: instanceUserIds.has(uid),
+        tasks: userTasks[uid] || []
+      };
+    });
+
+    res.json({
+      success: true,
+      data: members
+    });
+
+  } catch (error) {
+    console.error('❌ getWorkflowMembers Error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// ============================================
 // 8. DUPLICATE WORKFLOW
 // ============================================
 exports.duplicateWorkflow = async (req, res) => {

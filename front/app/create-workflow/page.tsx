@@ -3,48 +3,75 @@
 import React from "react";
 import WorkflowEditor from "../Workflows/_components/WorkflowEditor";
 import { ArrowLeft, Zap, Info, Activity } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 
-const CreateWorkflowFullScreen = () => {
+const WorkflowArchitectContent = () => {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const projectId = searchParams.get('projectId');
+    const flowId = searchParams.get('id');
+
+    const handleBack = () => {
+        console.log('Back button clicked. Context:', { flowId, projectId });
+        if (flowId) {
+            router.push(`/admin/workflows/${flowId}?tab=visual`);
+        } else if (projectId) {
+            router.push(`/admin/projects/${projectId}`);
+        } else {
+            console.log('No specific context, attempting history back or redirect to list');
+            if (window.history.length > 2) {
+                router.back();
+            } else {
+                router.push('/admin/workflows');
+            }
+        }
+    };
 
     return (
-        <div className="flex flex-col h-screen w-full bg-slate-50 overflow-hidden">
-            {/* Top Navigation Bar */}
-            <div className="bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between shadow-sm z-10">
-                <div className="flex items-center gap-6">
+        <div className="flex flex-col h-screen w-full bg-[#fdfdfd] overflow-hidden">
+            {/* Top Navigation Bar - Premium Dark Theme */}
+            <div className="bg-[#1e1b4b] px-10 py-5 flex items-center justify-between shadow-2xl z-[100] relative">
+                {/* Visual Glow Ornament */}
+                <div className="absolute top-0 left-1/4 w-96 h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-50"></div>
+                
+                <div className="flex items-center gap-10">
                     <button
-                        onClick={() => router.back()}
-                        className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition-all flex items-center gap-2 group"
+                        onClick={handleBack}
+                        className="flex items-center gap-3 px-6 py-2.5 bg-white/5 border border-white/10 rounded-2xl text-white/70 hover:text-white hover:bg-white/10 transition-all group cursor-pointer backdrop-blur-md"
                     >
-                        <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
-                        <span className="text-sm font-black uppercase tracking-widest">Back</span>
+                        <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] pt-0.5">Exit Architect</span>
                     </button>
 
-                    <div className="h-6 w-px bg-slate-100 mx-2"></div>
+                    <div className="h-10 w-px bg-white/10 mx-2"></div>
 
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-100">
-                            <Zap size={18} fill="currentColor" />
+                    <div className="flex items-center gap-5">
+                        <div className="w-14 h-14 bg-indigo-600 rounded-[20px] flex items-center justify-center shadow-2xl shadow-indigo-500/40 border border-indigo-400/30 group">
+                            <Zap size={24} fill="white" className="text-white group-hover:scale-110 transition-transform" />
                         </div>
                         <div>
-                            <h1 className="text-lg font-black text-slate-800 tracking-tight leading-none uppercase">Workflow Architect</h1>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Design Organizational Intelligence</p>
+                            <h1 className="text-xl font-black text-white tracking-widest leading-none uppercase flex items-center gap-3">
+                                Workflow <span className="text-indigo-400">Architect</span>
+                                <span className="bg-indigo-500 text-[8px] px-2 py-1 rounded-md text-white font-black">PRO</span>
+                            </h1>
+                            <p className="text-[9px] text-white/40 font-black uppercase tracking-[0.3em] mt-2">Design Organizational Intelligence System</p>
                         </div>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-4">
-                    <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-[10px] font-black uppercase tracking-widest">
-                        <Activity size={14} className="animate-pulse" />
-                        Live Designer
+                <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-3 px-5 py-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-2xl text-[9px] font-black uppercase tracking-[0.15em] shadow-inner">
+                        <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></div>
+                        Live Design Synchronized
                     </div>
-                    <div className="hidden lg:flex items-center gap-2 px-4 py-2 bg-slate-50 text-slate-400 rounded-xl text-[10px] font-black uppercase tracking-widest">
-                        <Info size={14} />
-                        Auto-save active
+                    <div className="flex items-center gap-3 px-5 py-3 bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 rounded-2xl text-[9px] font-black uppercase tracking-[0.15em]">
+                        <Activity size={16} />
+                        Lattice Protocol v2.4
                     </div>
                 </div>
             </div>
+
 
             {/* Editor Canvas Container - NOW FULL SCREEN */}
             <div className="flex-grow overflow-hidden relative">
@@ -64,6 +91,14 @@ const CreateWorkflowFullScreen = () => {
                 </div>
             </div>
         </div>
+    );
+};
+
+const CreateWorkflowFullScreen = () => {
+    return (
+        <Suspense fallback={<div className="h-screen w-screen flex items-center justify-center bg-slate-50 font-black text-indigo-600 uppercase tracking-widest">Initializing Architect...</div>}>
+            <WorkflowArchitectContent />
+        </Suspense>
     );
 };
 

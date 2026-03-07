@@ -133,6 +133,7 @@ export default function RolesPage() {
     setSelectedPermissions(role.permissions);
     setCurrentStep(0);
     setIsModalOpen(true);
+    setSelectedRole(null);
   };
 
   const resetForm = () => {
@@ -224,9 +225,9 @@ export default function RolesPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Roles List */}
-        <div className="lg:col-span-8 bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+      <div className="grid grid-cols-1 gap-8">
+        {/* Roles List - Now full width */}
+        <div className="bg-white rounded-[40px] shadow-xl border border-slate-100 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
@@ -284,108 +285,109 @@ export default function RolesPage() {
           </div>
         </div>
 
-        {/* Role Inspector */}
-        <div className="lg:col-span-4 h-full">
-          <AnimatePresence mode="wait">
-            {selectedRole ? (
+        {/* Role Inspector Modal */}
+        <AnimatePresence>
+          {selectedRole && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
               <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 h-full flex flex-col"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setSelectedRole(null)}
+                className="absolute inset-0 bg-slate-900/60 backdrop-blur-lg"
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="bg-white rounded-[40px] shadow-2xl w-full max-w-2xl relative z-10 overflow-hidden border border-white/20 flex flex-col max-h-[90vh]"
               >
-                <div className="flex justify-between items-start mb-8">
-                  <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
-                    <Shield size={24} />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => startEditing(selectedRole)}
-                      className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                    >
-                      <Edit3 size={18} />
-                    </button>
-                    <button onClick={() => setSelectedRole(null)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
-                      <X size={18} />
-                    </button>
-                  </div>
+                {/* Header with Close Button */}
+                <div className="absolute top-6 right-6 z-20">
+                  <button
+                    onClick={() => setSelectedRole(null)}
+                    className="p-3 bg-white/80 backdrop-blur-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-2xl transition-all shadow-sm border border-slate-100"
+                  >
+                    <X size={20} />
+                  </button>
                 </div>
 
-                <h2 className="text-2xl font-black text-slate-800 tracking-tight mb-1">{selectedRole.name}</h2>
-                <div className="flex items-center gap-2 mb-6">
-                  <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Authority Node</span>
-                  {selectedRole.isDefault && <span className="bg-amber-100 text-amber-600 text-[8px] font-bold px-1.5 py-0.5 rounded tracking-tighter uppercase">Default</span>}
-                </div>
-
-                <div className="space-y-6 flex-grow">
-                  <div className="space-y-1.5">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Objective Spectrum</p>
-                    <p className="text-sm font-medium text-slate-600">{selectedRole.description || 'No system objective defined for this node.'}</p>
+                <div className="p-10 flex-grow overflow-y-auto custom-scrollbar">
+                  <div className="mb-10">
+                    <div className="bg-indigo-600 w-24 h-24 rounded-[32px] flex items-center justify-center text-white shadow-xl shadow-indigo-100 shrink-0">
+                      <Shield size={40} />
+                    </div>
                   </div>
 
-                  <div className="space-y-6 mt-8 overflow-y-auto custom-scrollbar pr-2 flex-grow">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Permissions Matrix ({selectedRole.permissions.length})</p>
+                  <div className="space-y-4 mb-10">
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-3xl font-black text-slate-800 tracking-tight leading-none uppercase">{selectedRole.name}</h2>
+                      {selectedRole.isDefault && <span className="bg-amber-100 text-amber-600 text-[10px] font-black px-2 py-0.5 rounded-lg tracking-widest uppercase">Default</span>}
+                    </div>
+                    <p className="text-xs font-bold text-indigo-500 uppercase tracking-[0.2em]">Authority Configuration Node</p>
+                    <p className="text-sm font-medium text-slate-500 leading-relaxed mt-4">
+                      {selectedRole.description || 'This authority node defines a specific perimeter of rights and responsibilities within the organizational lattice.'}
+                    </p>
+                  </div>
 
-                    {activeCategories.map(cat => {
-                      const groupPerms = selectedRole.permissions.filter(pName =>
-                        availablePermissions.find(ap => ap.name === pName)?.category === cat
-                      );
+                  <div className="space-y-8">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] border-b border-slate-50 pb-2">Active Permissions Matrix ({selectedRole.permissions.length})</p>
 
-                      if (groupPerms.length === 0) return null;
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {activeCategories.map(cat => {
+                        const groupPerms = selectedRole.permissions.filter(pName =>
+                          availablePermissions.find(ap => ap.name === pName)?.category === cat
+                        );
 
-                      return (
-                        <div key={cat} className="space-y-3 border-l-2 border-slate-50 pl-4 py-1">
-                          <div className="flex items-center gap-2 text-indigo-600">
-                            <div className="p-1.5 bg-indigo-50 rounded-lg scale-75 transform-gpu">
-                              {getCategoryIcon(cat)}
+                        if (groupPerms.length === 0) return null;
+
+                        return (
+                          <div key={cat} className="p-6 bg-slate-50 rounded-[28px] space-y-4 border border-slate-100/50">
+                            <div className="flex items-center gap-3 text-indigo-600">
+                              <div className="p-2 bg-white rounded-xl shadow-sm">
+                                {getCategoryIcon(cat)}
+                              </div>
+                              <span className="text-[10px] font-black uppercase tracking-widest">{cat}</span>
                             </div>
-                            <span className="text-[10px] font-black uppercase tracking-widest">{cat}</span>
+                            <div className="flex flex-wrap gap-2">
+                              {groupPerms.map(p => (
+                                <span key={p} className="bg-white text-slate-700 text-[9px] font-black px-3 py-1.5 rounded-lg border border-slate-100 shadow-sm uppercase tracking-tight">
+                                  {p.split('_').slice(1).join(' ')}
+                                </span>
+                              ))}
+                            </div>
                           </div>
-                          <div className="flex flex-wrap gap-1.5 pl-1">
-                            {groupPerms.map(p => (
-                              <span key={p} className="bg-white text-slate-600 text-[9px] font-black px-2.5 py-1.5 rounded-lg border border-slate-100 shadow-sm uppercase tracking-tight">
-                                {p.split('_').slice(1).join(' ')}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
 
                     {selectedRole.permissions.length === 0 && (
-                      <div className="py-12 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-100">
-                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">No Authorized Nodes</p>
+                      <div className="py-12 text-center bg-slate-50 rounded-[32px] border border-dashed border-slate-200">
+                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">Zero-Privilege Profile</p>
                       </div>
                     )}
                   </div>
                 </div>
 
-                <div className="pt-8 border-t border-slate-50 space-y-3 mt-8">
+                <div className="p-8 bg-slate-50 border-t border-slate-100 flex gap-4">
                   <button
                     onClick={() => startEditing(selectedRole)}
-                    className="w-full py-3 bg-indigo-50 text-indigo-600 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-indigo-100 transition-all active:scale-95"
+                    className="flex-[2] py-5 bg-indigo-600 text-white rounded-[24px] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-indigo-700 transition-all active:scale-95 shadow-xl shadow-indigo-200"
                   >
-                    Manage Permissions
+                    <Edit3 size={18} />
+                    Modify Permissions
                   </button>
                   {!(selectedRole.isSystemRole || selectedRole.isDefault) && (
-                    <button className="w-full py-3 bg-rose-50 text-rose-600 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-rose-100 transition-all active:scale-95">
-                      <Trash2 size={16} />
-                      Purge Role
+                    <button className="flex-1 py-5 bg-rose-50 text-rose-600 rounded-[24px] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-rose-500 hover:text-white transition-all border border-rose-100">
+                      <Trash2 size={18} />
+                      Purge
                     </button>
                   )}
                 </div>
               </motion.div>
-            ) : (
-              <div className="bg-slate-50/50 rounded-3xl border border-dashed border-slate-200 h-full flex flex-col items-center justify-center p-12 text-center min-h-[400px]">
-                <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-6 text-slate-300">
-                  <Shield size={32} />
-                </div>
-                <h3 className="text-lg font-black text-slate-400 tracking-tight">Node Inspector Inactive</h3>
-                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Select an authority node from the matrix.</p>
-              </div>
-            )}
-          </AnimatePresence>
-        </div>
+            </div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Create Role Modal */}
@@ -397,7 +399,7 @@ export default function RolesPage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsModalOpen(false)}
-              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-lg"
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}

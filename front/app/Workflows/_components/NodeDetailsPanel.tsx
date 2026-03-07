@@ -221,6 +221,14 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
         }
     };
 
+    const handleSaveWithValidation = () => {
+        if (validationType === 'multi' && validatorIds.length < 2) {
+            alert('Consensus (Multi) validation strategy requires at least 2 validators.');
+            return;
+        }
+        handleSave();
+    };
+
     const handleDelete = () => {
         if (selectedNode && window.confirm('Are you sure you want to delete this node?')) {
             onDelete(selectedNode.id);
@@ -231,7 +239,7 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
 
     return (
         <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300" onClick={onClose} />
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-lg animate-in fade-in duration-300" onClick={onClose} />
 
             <div className="relative w-full max-w-[1200px] h-[90vh] bg-white rounded-[40px] shadow-2xl flex overflow-hidden border border-white/20 animate-in zoom-in-95 duration-300">
                 {/* NAVIGATION SIDEBAR */}
@@ -606,6 +614,17 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
                                                         {validatorType === 'role' ? roles.map(r => <option key={r._id} value={r._id}>{r.name}</option>) : users.map(u => <option key={u._id} value={u._id}>{u.firstName} {u.lastName}</option>)}
                                                     </select>
 
+                                                    {validationType === 'multi' && validatorIds.length < 2 && (
+                                                        <motion.p
+                                                            initial={{ opacity: 0, y: -10 }}
+                                                            animate={{ opacity: 1, y: 0 }}
+                                                            className="text-rose-500 text-[10px] font-bold mt-2 flex items-center gap-2 px-2"
+                                                        >
+                                                            <ShieldAlert size={12} />
+                                                            Vous devez sélectionner au moins 2 {validatorType === 'user' ? 'utilisateurs' : 'rôles'} pour la validation multiple.
+                                                        </motion.p>
+                                                    )}
+
                                                     <div className="p-6 bg-slate-900 rounded-3xl flex items-center gap-4 border border-slate-800 shadow-xl">
                                                         <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center">
                                                             <ShieldAlert className="text-indigo-400" size={20} />
@@ -816,25 +835,17 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
                         </AnimatePresence>
                     </div>
 
-                    {/* MODAL FOOTER */}
-                    <div className="p-8 px-12 bg-white border-t border-slate-100 flex items-center justify-between">
-                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">Lattice OS Configurator</p>
-                        <div className="flex items-center gap-4">
-                            <Button
-                                variant="ghost"
-                                onClick={onClose}
-                                className="h-14 px-8 rounded-2xl font-black uppercase text-[10px] tracking-widest text-slate-400 hover:bg-slate-50 transition-all"
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                onClick={handleSave}
-                                className="h-14 px-12 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] shadow-xl shadow-indigo-200 transition-all flex items-center gap-3"
-                            >
-                                Save Changes
-                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-300 animate-pulse" />
-                            </Button>
-                        </div>
+                    {/* Footer Actions */}
+                    <div className="p-8 bg-slate-50/80 border-t border-slate-100 flex items-center justify-end gap-4">
+                        <Button variant="ghost" onClick={onClose} className="rounded-2xl h-14 px-8 font-bold text-slate-500">
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleSaveWithValidation}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl h-14 px-12 font-black shadow-xl shadow-indigo-500/20 transition-all border-none"
+                        >
+                            Commit Changes
+                        </Button>
                     </div>
                 </div>
             </div>

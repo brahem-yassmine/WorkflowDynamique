@@ -246,7 +246,7 @@ export default function UserTasksPage() {
             </AnimatePresence>
 
             {isFetchingTask && (
-                <div className="fixed inset-0 bg-white/40 backdrop-blur-[2px] z-[99] flex items-center justify-center">
+                <div className="fixed inset-0 bg-white/60 backdrop-blur-md z-[99] flex items-center justify-center animate-in fade-in duration-300">
                     <div className="bg-white p-6 rounded-3xl shadow-2xl border border-slate-100 flex items-center gap-4">
                         <Loader2 className="w-6 h-6 text-indigo-600 animate-spin" />
                         <span className="text-sm font-black text-slate-800 uppercase tracking-widest">Syncing Task Data...</span>

@@ -185,7 +185,9 @@ function WorkflowEditorContent() {
                 data: {
                     label: type === 'condition' ? 'New Condition' :
                         type === 'action' ? 'New Task' :
-                            type === 'start' ? 'Start' : 'End'
+                            type === 'start' ? 'Start' :
+                                type === 'parallel_split' ? 'Start Parallel' :
+                                    type === 'parallel_join' ? 'Sync Join' : 'End Workflow'
                 },
             };
 

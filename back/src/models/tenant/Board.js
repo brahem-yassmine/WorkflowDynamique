@@ -19,6 +19,11 @@ const boardSchema = new mongoose.Schema({
         type: String,
         enum: ['active', 'archived'],
         default: 'active'
+    },
+    workflowId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Workflow',
+        required: false
     }
 }, { timestamps: true });
 

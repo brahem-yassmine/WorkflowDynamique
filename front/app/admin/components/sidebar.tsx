@@ -27,7 +27,7 @@ const menuItems = [
   { icon: Users, label: "User Network", href: "/admin/userManagement" },
   { icon: LayoutGrid, label: "Structural Domains", href: "/admin/domains" },
   { icon: ShieldCheck, label: "Authority Roles", href: "/admin/roles" },
-  { icon: FolderKanban, label: "Project ", href: "/admin/projects" },
+  { icon: FolderKanban, label: "Strategic Projects", href: "/admin/projects" },
   { icon: GitBranch, label: "All Workflows", href: "/admin/workflows" },
   { icon: FolderKanban, label: "Kanban Boards", href: "/admin/AllKanban" },
   { icon: ListTodo, label: "All Checklists", href: "/admin/AllCheck" },

@@ -7,7 +7,9 @@ const getTaskModel = (req) => req.tenantConn.model('Task');
 exports.getBoards = async (req, res) => {
     try {
         const Board = getBoardModel(req);
-        const boards = await Board.find();
+        const { workflowId } = req.query;
+        const query = workflowId ? { workflowId } : {};
+        const boards = await Board.find(query);
         res.json({ success: true, data: boards });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Server error' });
@@ -29,13 +31,14 @@ exports.getBoardById = async (req, res) => {
 exports.createBoard = async (req, res) => {
     try {
         const Board = getBoardModel(req);
-        const { name, description } = req.body;
+        const { name, description, workflowId } = req.body;
         const userId = req.user?.userId || req.user?.id || req.user?._id;
 
         const board = new Board({
             name,
             description,
-            createdBy: userId
+            createdBy: userId,
+            workflowId
         });
 
         await board.save();

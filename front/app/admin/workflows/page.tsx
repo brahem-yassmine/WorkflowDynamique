@@ -18,7 +18,8 @@ import {
   ArrowRight,
   Copy,
   Briefcase,
-  Play
+  Play,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiService } from '@/service/api.service';
@@ -155,6 +156,7 @@ export default function WorkflowsPage() {
       projectId: selectedWorkflow.projectId || ''
     });
     setShowEditModal(true);
+    setSelectedWorkflow(null);
   };
 
   const filteredWorkflows = workflows.filter(w =>
@@ -225,9 +227,9 @@ export default function WorkflowsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-[calc(100vh-280px)]">
-        {/* Workflow Grid/List */}
-        <div className="lg:col-span-8 overflow-y-auto pr-2 custom-scrollbar">
+      <div className="grid grid-cols-1 gap-8">
+        {/* Workflow Grid/List - Now takes full width */}
+        <div className="overflow-y-auto pr-2 custom-scrollbar">
           {filteredWorkflows.length === 0 ? (
             <div className="bg-white rounded-3xl border border-dashed border-slate-200 p-12 text-center h-full flex flex-col items-center justify-center">
               <div className="w-20 h-20 bg-slate-50 rounded-2xl flex items-center justify-center mb-6 text-slate-300">
@@ -315,96 +317,108 @@ export default function WorkflowsPage() {
           )}
         </div>
 
-        {/* Workflow Inspector */}
-        <div className="lg:col-span-4 h-full">
-          <AnimatePresence mode="wait">
-            {selectedWorkflow ? (
+        {/* Workflow Inspector Modal */}
+        <AnimatePresence>
+          {selectedWorkflow && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
               <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 h-full flex flex-col"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setSelectedWorkflow(null)}
+                className="absolute inset-0 bg-slate-900/60 backdrop-blur-lg"
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="bg-white rounded-[40px] shadow-2xl w-full max-w-2xl relative z-10 overflow-hidden border border-white/20 flex flex-col max-h-[90vh]"
               >
-                <div className="flex justify-between items-start mb-8">
-                  <div className={`px-3 py-1 rounded-lg border text-[10px] font-black uppercase tracking-widest ${getStatusStyles(selectedWorkflow.status)}`}>
-                    {selectedWorkflow.status} Status
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => setSelectedWorkflow(null)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
-                      <MoreHorizontal size={20} />
+                <div className="p-8 flex-grow overflow-y-auto custom-scrollbar">
+                  <div className="flex justify-between items-start mb-8">
+                    <div className={`px-4 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-widest ${getStatusStyles(selectedWorkflow.status)}`}>
+                      {selectedWorkflow.status} Status
+                    </div>
+                    <button
+                      onClick={() => setSelectedWorkflow(null)}
+                      className="p-3 bg-slate-50 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-2xl transition-all"
+                    >
+                      <X size={20} />
                     </button>
                   </div>
+
+                  <div className="flex flex-col md:flex-row gap-8 items-start mb-10">
+                    <div className="bg-indigo-600 w-24 h-24 rounded-[32px] flex items-center justify-center text-white shadow-xl shadow-indigo-200 shrink-0">
+                      <GitBranch size={40} />
+                    </div>
+                    <div className="space-y-2">
+                      <h2 className="text-3xl font-black text-slate-800 tracking-tight leading-none uppercase">{selectedWorkflow.name}</h2>
+                      <p className="text-xs font-bold text-indigo-500 uppercase tracking-[0.2em]">Process Lattice Schema</p>
+                      <p className="text-sm font-medium text-slate-500 leading-relaxed mt-4">
+                        {selectedWorkflow.description || 'This schema defines the sequential and parallel logic for organizational operations.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                    <div className="p-6 bg-slate-50 rounded-[28px] space-y-4">
+                      <DetailRow label="Strategic Domain" icon={<Layers size={16} />}>
+                        <span className="text-sm font-bold text-slate-700 bg-white px-3 py-1 rounded-lg border border-slate-100 shadow-sm">{selectedWorkflow.domain}</span>
+                      </DetailRow>
+                      <DetailRow label="Project" icon={<Briefcase size={16} />}>
+                        <span className="text-sm font-bold text-slate-700">{getWorkflowProjectName(selectedWorkflow.projectId)}</span>
+                      </DetailRow>
+                    </div>
+                    <div className="p-6 bg-slate-50 rounded-[28px] space-y-4">
+                      <DetailRow label="Node Logic" icon={<CheckCircle2 size={16} />}>
+                        <span className="text-sm font-bold text-slate-700">{selectedWorkflow.nodes.length} Blocks</span>
+                      </DetailRow>
+                      <DetailRow label="Protocol Version" icon={<Calendar size={16} />}>
+                        <span className="text-sm font-bold text-slate-700">
+                          {new Date(selectedWorkflow.updatedAt).toLocaleDateString()}
+                        </span>
+                      </DetailRow>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="bg-indigo-50 w-16 h-16 rounded-2xl flex items-center justify-center text-indigo-600 mb-6">
-                  <GitBranch size={32} />
-                </div>
-
-                <h2 className="text-2xl font-black text-slate-800 tracking-tight mb-2">{selectedWorkflow.name}</h2>
-                <p className="text-sm font-medium text-slate-500 leading-relaxed mb-8">{selectedWorkflow.description || 'No description provided for this orchestration schema.'}</p>
-
-                <div className="space-y-6 flex-grow">
-                  <DetailRow label="Strategic Domain" icon={<Layers size={16} />}>
-                    <span className="text-sm font-bold text-slate-700 bg-slate-50 px-3 py-1 rounded-lg">{selectedWorkflow.domain}</span>
-                  </DetailRow>
-                  <DetailRow label="Project" icon={<Briefcase size={16} />}>
-                    <span className="text-sm font-bold text-slate-700">{getWorkflowProjectName(selectedWorkflow.projectId)}</span>
-                  </DetailRow>
-                  <DetailRow label="Node Logic" icon={<CheckCircle2 size={16} />}>
-                    <span className="text-sm font-bold text-slate-700">{selectedWorkflow.nodes.length} Blocks Configured</span>
-                  </DetailRow>
-                  <DetailRow label="Protocol Version" icon={<Calendar size={16} />}>
-                    <span className="text-sm font-bold text-slate-700">
-                      {new Date(selectedWorkflow.updatedAt).toLocaleDateString()}
-                    </span>
-                  </DetailRow>
-                </div>
-
-                <div className="pt-8 border-t border-slate-50 space-y-3">
-                  <div className="flex gap-3">
-                    <Link href={`/create-workflow?id=${selectedWorkflow._id}`} className="flex-1">
-                      <button className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all active:scale-95 shadow-lg shadow-indigo-100">
-                        <Layers size={16} />
-                        Edit Visual Flow
+                <div className="p-8 bg-slate-50 border-t border-slate-100 space-y-4">
+                  <div className="flex gap-4">
+                    <Link href={`/create-workflow?id=${selectedWorkflow._id}`} className="flex-[2]">
+                      <button className="w-full py-5 bg-indigo-600 text-white rounded-[24px] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-indigo-700 transition-all active:scale-95 shadow-xl shadow-indigo-200">
+                        <Layers size={18} />
+                        Architect Visual Flow
                       </button>
                     </Link>
                     <button
                       onClick={() => handleInitialize(selectedWorkflow._id)}
-                      className="px-6 py-4 bg-emerald-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all active:scale-95 shadow-lg shadow-emerald-100"
+                      className="flex-1 py-5 bg-emerald-600 text-white rounded-[24px] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-emerald-700 transition-all active:scale-95 shadow-xl shadow-emerald-200"
                     >
-                      <Play size={16} fill="white" />
-                      Run
+                      <Play size={18} fill="white" />
+                      Launch
                     </button>
                   </div>
-                  <div className="flex gap-3">
+                  <div className="flex gap-4">
                     <button
                       onClick={() => handleDuplicate(selectedWorkflow._id)}
                       disabled={duplicatingId === selectedWorkflow._id}
-                      className="flex-1 py-4 bg-slate-50 text-slate-600 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-100 transition-all font-bold disabled:opacity-50"
+                      className="flex-1 py-4 bg-white border border-slate-200 text-slate-600 rounded-[20px] font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-50 transition-all disabled:opacity-50"
                     >
-                      <Copy size={14} />
-                      {duplicatingId === selectedWorkflow._id ? 'Cloning...' : 'Clone Flow'}
+                      <Copy size={16} />
+                      {duplicatingId === selectedWorkflow._id ? 'Cloning...' : 'Duplicate Schema'}
                     </button>
                     <button
                       onClick={() => handleDelete(selectedWorkflow._id)}
-                      className="p-4 bg-rose-50 text-rose-600 rounded-2xl hover:bg-rose-100 transition-all"
+                      className="px-6 py-4 bg-rose-50 text-rose-600 rounded-[20px] hover:bg-rose-500 hover:text-white transition-all border border-rose-100 flex items-center justify-center"
                     >
-                      <Trash2 size={18} />
+                      <Trash2 size={20} />
                     </button>
                   </div>
                 </div>
               </motion.div>
-            ) : (
-              <div className="bg-slate-100/30 rounded-3xl border border-dashed border-slate-200 h-full flex flex-col items-center justify-center p-12 text-center">
-                <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-6 text-slate-200 border border-slate-100">
-                  <Eye size={32} />
-                </div>
-                <h3 className="text-lg font-black text-slate-400 tracking-tight">Select a Workflow</h3>
-                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Select an item from the list to view its architecture or start editing.</p>
-              </div>
-            )}
-          </AnimatePresence>
-        </div>
+            </div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Edit Metadata Modal */}
@@ -416,7 +430,7 @@ export default function WorkflowsPage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowEditModal(false)}
-              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-lg"
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -424,7 +438,13 @@ export default function WorkflowsPage() {
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="bg-white rounded-3xl shadow-xl w-full max-w-md relative z-10 overflow-hidden border border-slate-100"
             >
-              <div className="bg-indigo-600 p-6 text-white">
+              <div className="bg-indigo-600 p-6 text-white relative">
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="absolute right-6 top-6 p-2 hover:bg-white/10 rounded-xl transition-all"
+                >
+                  <X size={18} />
+                </button>
                 <h3 className="text-xl font-black">Workflow Settings</h3>
                 <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-widest mt-1">Global Configuration</p>
               </div>

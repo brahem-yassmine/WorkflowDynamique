@@ -210,9 +210,9 @@ export default function UserManagementPage() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                {/* User List Matrix */}
-                <div className="lg:col-span-8 bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+            <div className="grid grid-cols-1 gap-8">
+                {/* User List Matrix - Now full width */}
+                <div className="bg-white rounded-[40px] shadow-xl border border-slate-100 overflow-hidden">
                     <div className="px-8 py-6 border-b border-slate-50 flex justify-between items-center">
                         <h3 className="text-lg font-black text-slate-800 tracking-tight">Lattice Entities</h3>
                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{filteredUsers.length} Nodes Detected</span>
@@ -272,74 +272,90 @@ export default function UserManagementPage() {
                     </div>
                 </div>
 
-                {/* Persona Inspector */}
-                <div className="lg:col-span-4 h-full">
-                    <AnimatePresence mode="wait">
-                        {selectedUser ? (
+                {/* Persona Inspector Modal */}
+                <AnimatePresence>
+                    {selectedUser && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                             <motion.div
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: 20 }}
-                                className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 h-full flex flex-col sticky top-24"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                onClick={() => setSelectedUser(null)}
+                                className="absolute inset-0 bg-slate-900/60 backdrop-blur-lg"
+                            />
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                                className="bg-white rounded-[40px] shadow-2xl w-full max-w-2xl relative z-10 overflow-hidden border border-white/20 flex flex-col max-h-[90vh]"
                             >
-                                <div className="flex justify-between items-start mb-8">
-                                    <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
-                                        <User size={24} />
+                                <div className="p-8 flex-grow overflow-y-auto custom-scrollbar">
+                                    <div className="flex justify-between items-start mb-10">
+                                        <div className="bg-indigo-600 w-24 h-24 rounded-[32px] flex items-center justify-center text-white shadow-xl shadow-indigo-100 shrink-0">
+                                            <User size={40} />
+                                        </div>
+                                        <button
+                                            onClick={() => setSelectedUser(null)}
+                                            className="p-3 bg-slate-50 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-2xl transition-all"
+                                        >
+                                            <X size={20} />
+                                        </button>
                                     </div>
-                                    <div className="flex items-center gap-2">
+
+                                    <div className="space-y-2 mb-10">
+                                        <h2 className="text-3xl font-black text-slate-800 tracking-tight leading-none uppercase">{selectedUser.firstName} {selectedUser.lastName}</h2>
+                                        <p className="text-xs font-bold text-indigo-500 uppercase tracking-[0.2em]">{selectedUser.role} Agent Proxy</p>
+                                        <p className="text-sm font-medium text-slate-500 leading-relaxed mt-4">
+                                            This entity represents an active node in the organizational lattice, authorized for specific operations within the current domain.
+                                        </p>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                        <div className="p-6 bg-slate-50 rounded-[28px] space-y-4">
+                                            <InspectorInfo label="Connectivity" icon={<Mail size={16} />} value={selectedUser.email} />
+                                            <InspectorInfo label="Assignment Domain" icon={<Briefcase size={16} />} value={selectedUser.domain} />
+                                        </div>
+                                        <div className="p-6 bg-slate-50 rounded-[28px] space-y-4">
+                                            <InspectorInfo label="Node Integrity" icon={<Activity size={16} />}>
+                                                <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border shadow-sm ${selectedUser.isActive ? 'bg-white text-emerald-600 border-emerald-100' : 'bg-white text-rose-600 border-rose-100'}`}>
+                                                    {selectedUser.isActive ? 'Operational' : 'Access Locked'}
+                                                </span>
+                                            </InspectorInfo>
+                                            <InspectorInfo label="Authorization Tier" icon={<Shield size={16} />} value={selectedUser.role} />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="p-8 bg-slate-50 border-t border-slate-100 space-y-4">
+                                    <div className="flex gap-4">
+                                        <button
+                                            onClick={() => handleToggleStatus(selectedUser)}
+                                            className={`flex-[2] py-5 rounded-[24px] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 transition-all active:scale-95 shadow-xl ${selectedUser.isActive ? 'bg-amber-100 text-amber-600 shadow-amber-100 hover:bg-amber-200' : 'bg-emerald-600 text-white shadow-emerald-200 hover:bg-emerald-700'}`}
+                                        >
+                                            {selectedUser.isActive ? <Lock size={18} /> : <CheckCircle2 size={18} />}
+                                            {selectedUser.isActive ? 'Suspend Authorization' : 'Restore Connection'}
+                                        </button>
+                                    </div>
+                                    <div className="flex gap-4">
                                         <button
                                             onClick={() => handleEdit(selectedUser)}
-                                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                                            className="flex-1 py-4 bg-white border border-slate-200 text-slate-600 rounded-[20px] font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-50 transition-all"
                                         >
-                                            <Edit3 size={18} />
+                                            <Edit3 size={16} />
+                                            Refine Profile
                                         </button>
-                                        <button onClick={() => setSelectedUser(null)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
-                                            <X size={18} />
+                                        <button
+                                            onClick={() => handleDelete(selectedUser._id)}
+                                            className="px-6 py-4 bg-rose-50 text-rose-600 rounded-[20px] hover:bg-rose-500 hover:text-white transition-all border border-rose-100 flex items-center justify-center"
+                                        >
+                                            <Trash2 size={20} />
                                         </button>
                                     </div>
                                 </div>
-
-                                <h2 className="text-2xl font-black text-slate-800 tracking-tight mb-1">{selectedUser.firstName} {selectedUser.lastName}</h2>
-                                <p className="text-xs font-black text-indigo-500 uppercase tracking-widest mb-8">{selectedUser.role} Agent</p>
-
-                                <div className="space-y-6 flex-grow">
-                                    <InspectorInfo label="Connectivity" icon={<Mail size={16} />} value={selectedUser.email} />
-                                    <InspectorInfo label="Core Domain" icon={<Briefcase size={16} />} value={selectedUser.domain} />
-                                    <InspectorInfo label="Lattice Status" icon={<Activity size={16} />}>
-                                        <span className={`text-xs font-black ${selectedUser.isActive ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                            {selectedUser.isActive ? 'NOMINAL SYNC' : 'ACCESS SUSPENDED'}
-                                        </span>
-                                    </InspectorInfo>
-                                </div>
-
-                                <div className="pt-8 border-t border-slate-50 space-y-3">
-                                    <button
-                                        onClick={() => handleToggleStatus(selectedUser)}
-                                        className={`w-full py-3 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg ${selectedUser.isActive ? 'bg-amber-50 text-amber-600 shadow-amber-100 hover:bg-amber-100' : 'bg-emerald-50 text-emerald-600 shadow-emerald-100 hover:bg-emerald-100'}`}
-                                    >
-                                        {selectedUser.isActive ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}
-                                        {selectedUser.isActive ? 'Suspend Access' : 'Authorize Node'}
-                                    </button>
-                                    <button
-                                        onClick={() => handleDelete(selectedUser._id)}
-                                        className="w-full py-3 bg-rose-50 text-rose-600 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-rose-100 transition-all active:scale-95"
-                                    >
-                                        <Trash2 size={16} />
-                                        Purge Persona
-                                    </button>
-                                </div>
                             </motion.div>
-                        ) : (
-                            <div className="bg-slate-50/50 rounded-3xl border border-dashed border-slate-200 h-full flex flex-col items-center justify-center p-12 text-center">
-                                <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-6 text-slate-300">
-                                    <Users size={32} />
-                                </div>
-                                <h3 className="text-lg font-black text-slate-400 tracking-tight">Inspector Inactive</h3>
-                                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Select an entity from the matrix.</p>
-                            </div>
-                        )}
-                    </AnimatePresence>
-                </div>
+                        </div>
+                    )}
+                </AnimatePresence>
             </div>
 
             {/* Auth Modal */}
@@ -351,7 +367,7 @@ export default function UserManagementPage() {
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={() => setIsModalOpen(false)}
-                            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+                            className="absolute inset-0 bg-slate-900/60 backdrop-blur-lg"
                         />
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -359,9 +375,14 @@ export default function UserManagementPage() {
                             exit={{ opacity: 0, scale: 0.95, y: 20 }}
                             className="bg-white rounded-3xl shadow-2xl w-full max-w-lg relative z-10 overflow-hidden border border-slate-100"
                         >
-                            <div className="bg-indigo-600 p-8 text-white">
-                                <h2 className="text-2xl font-black tracking-tight">{isEditing ? 'Refine Node' : 'Authorize Entity'}</h2>
-                                <p className="text-indigo-200 text-xs font-bold uppercase tracking-widest mt-1">Manual Lattice Injection</p>
+                            <div className="bg-indigo-600 p-8 text-white flex justify-between items-center">
+                                <div>
+                                    <h2 className="text-2xl font-black tracking-tight">{isEditing ? 'Refine Node' : 'Authorize Entity'}</h2>
+                                    <p className="text-indigo-200 text-xs font-bold uppercase tracking-widest mt-1">Manual Lattice Injection</p>
+                                </div>
+                                <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-indigo-500 rounded-xl transition-all">
+                                    <X size={24} />
+                                </button>
                             </div>
                             <form onSubmit={handleSaveUser} className="p-8 space-y-5">
                                 <div className="grid grid-cols-2 gap-4">

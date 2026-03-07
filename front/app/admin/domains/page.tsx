@@ -152,7 +152,7 @@ export default function DomainsPage() {
             </div>
 
             {/* Matrix View */}
-            <div className="flex flex-col lg:flex-row gap-8">
+            <div className="flex flex-col gap-8">
                 <div className="flex-grow space-y-4">
                     <div className="relative group">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
@@ -206,61 +206,86 @@ export default function DomainsPage() {
                     </div>
                 </div>
 
-                {/* Inspector Panel */}
-                <div className="w-full lg:w-96 shrink-0">
-                    <AnimatePresence mode="wait">
-                        {selectedDomain ? (
+                {/* Domain Inspector Modal */}
+                <AnimatePresence>
+                    {selectedDomain && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                             <motion.div
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: 20 }}
-                                className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 sticky top-24"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                onClick={() => setSelectedDomain(null)}
+                                className="absolute inset-0 bg-slate-900/60 backdrop-blur-lg"
+                            />
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                                className="bg-white rounded-[40px] shadow-2xl w-full max-w-2xl relative z-10 overflow-hidden border border-white/20 flex flex-col max-h-[90vh]"
                             >
-                                <div className="flex justify-between items-center mb-6">
-                                    <div
-                                        className="w-4 h-4 rounded-full"
-                                        style={{ backgroundColor: selectedDomain.color }}
-                                    ></div>
-                                    <div className="flex gap-2">
-                                        <button onClick={() => handleEdit(selectedDomain)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">
-                                            <Edit size={18} />
+                                <div className="p-8 flex-grow overflow-y-auto custom-scrollbar">
+                                    <div className="flex justify-between items-start mb-10">
+                                        <div className="w-24 h-24 rounded-[32px] flex items-center justify-center text-white shadow-xl shrink-0"
+                                            style={{ backgroundColor: selectedDomain.color || '#6366f1' }}>
+                                            <Briefcase size={40} />
+                                        </div>
+                                        <button
+                                            onClick={() => setSelectedDomain(null)}
+                                            className="p-3 bg-slate-50 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-2xl transition-all"
+                                        >
+                                            <X size={20} />
                                         </button>
-                                        <button onClick={() => handleDelete(selectedDomain._id)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">
-                                            <Trash2 size={18} />
-                                        </button>
-                                        <button onClick={() => setSelectedDomain(null)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
-                                            <X size={18} />
-                                        </button>
+                                    </div>
+
+                                    <div className="space-y-2 mb-10">
+                                        <div className="flex items-center gap-3">
+                                            <h2 className="text-3xl font-black text-slate-800 tracking-tight leading-none uppercase">{selectedDomain.name}</h2>
+                                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: selectedDomain.color }}></div>
+                                        </div>
+                                        <p className="text-xs font-bold text-indigo-500 uppercase tracking-[0.2em]">Structural Domain Sector</p>
+                                        <p className="text-sm font-medium text-slate-500 leading-relaxed mt-4">
+                                            {selectedDomain.description || 'This structural domain defines a strategic sector of the organization, compartmentalizing workflows and resources for specialized execution.'}
+                                        </p>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="p-6 bg-slate-50 rounded-[28px] space-y-4">
+                                            <div className="space-y-1">
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Sector Identifier</p>
+                                                <p className="text-sm font-bold text-slate-700">{selectedDomain.name.toUpperCase()}</p>
+                                            </div>
+                                        </div>
+                                        <div className="p-6 bg-slate-50 rounded-[28px] space-y-4">
+                                            <div className="flex justify-between items-center">
+                                                <div className="flex items-center gap-3 text-slate-400">
+                                                    <Activity size={16} />
+                                                    <span className="text-[10px] font-black uppercase tracking-widest">Operation Status</span>
+                                                </div>
+                                                <span className="text-[10px] font-black text-emerald-500 bg-white border border-emerald-100 px-3 py-1 rounded-lg shadow-sm">NOMINAL</span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <h2 className="text-2xl font-black text-slate-800 tracking-tight">{selectedDomain.name}</h2>
-                                <p className="text-xs font-black text-indigo-500 uppercase tracking-widest mt-1 mb-6">Structural Domain</p>
-
-                                <div className="space-y-6">
-                                    <div className="space-y-1">
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mission Narrative</p>
-                                        <p className="text-sm text-slate-600 font-medium leading-relaxed">{selectedDomain.description}</p>
-                                    </div>
-
-                                    <div className="flex justify-between items-center py-4 border-t border-slate-50">
-                                        <div className="flex items-center gap-3 text-slate-400">
-                                            <Activity size={16} />
-                                            <span className="text-[10px] font-black uppercase tracking-widest">Sector Status</span>
-                                        </div>
-                                        <span className="text-xs font-extrabold text-emerald-500 bg-emerald-50 px-2 py-1 rounded-lg">OPERATIONAL</span>
-                                    </div>
+                                <div className="p-8 bg-slate-50 border-t border-slate-100 flex gap-4">
+                                    <button
+                                        onClick={() => handleEdit(selectedDomain)}
+                                        className="flex-[2] py-5 bg-indigo-600 text-white rounded-[24px] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-indigo-700 transition-all active:scale-95 shadow-xl shadow-indigo-200"
+                                    >
+                                        <Edit size={18} />
+                                        Refine Sector
+                                    </button>
+                                    <button
+                                        onClick={() => handleDelete(selectedDomain._id)}
+                                        className="px-6 py-4 bg-rose-50 text-rose-600 rounded-[20px] hover:bg-rose-500 hover:text-white transition-all border border-rose-100 flex items-center justify-center"
+                                    >
+                                        <Trash2 size={20} />
+                                    </button>
                                 </div>
                             </motion.div>
-                        ) : (
-                            <div className="h-full bg-slate-50/50 rounded-3xl border border-dashed border-slate-200 p-12 text-center flex flex-col items-center justify-center">
-                                <LayoutGrid size={32} className="text-slate-300 mb-4" />
-                                <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest">Domain Inspector</h3>
-                                <p className="text-xs text-slate-400 mt-2">Select a sector to view structural details.</p>
-                            </div>
-                        )}
-                    </AnimatePresence>
-                </div>
+                        </div>
+                    )}
+                </AnimatePresence>
             </div>
 
             {/* Modal */}
@@ -272,7 +297,7 @@ export default function DomainsPage() {
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={() => setIsModalOpen(false)}
-                            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+                            className="absolute inset-0 bg-slate-900/60 backdrop-blur-lg"
                         />
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -280,9 +305,14 @@ export default function DomainsPage() {
                             exit={{ opacity: 0, scale: 0.95, y: 20 }}
                             className="bg-white rounded-3xl shadow-2xl w-full max-w-md relative z-10 overflow-hidden border border-slate-100"
                         >
-                            <div className="bg-indigo-600 p-8 text-white">
-                                <h2 className="text-2xl font-black tracking-tight">{isEditing ? 'Refine Domain' : 'Define New Sector'}</h2>
-                                <p className="text-indigo-200 text-xs font-bold uppercase tracking-widest mt-1">Manual structural injection</p>
+                            <div className="bg-indigo-600 p-8 text-white flex justify-between items-center">
+                                <div>
+                                    <h2 className="text-2xl font-black tracking-tight">{isEditing ? 'Refine Domain' : 'Define Sector'}</h2>
+                                    <p className="text-indigo-200 text-xs font-bold uppercase tracking-widest mt-1">Manual structural injection</p>
+                                </div>
+                                <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-indigo-500 rounded-xl transition-all">
+                                    <X size={24} />
+                                </button>
                             </div>
 
                             <form onSubmit={handleSubmit} className="p-8 space-y-6">

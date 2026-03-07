@@ -376,17 +376,28 @@ exports.approveNode = async (req, res) => {
     if (nodesToActivate.length === 0) {
       if (instance.currentNodes.length === 0) isFlowFinished = true;
     } else {
+      const UserModel = req.tenantConn.model('User');
+      const DomainModel = req.tenantConn.model('Domain');
+
       for (const node of nodesToActivate) {
         if (node.type === 'end') {
-          if (instance.currentNodes.length === 0) isFlowFinished = true;
+          // If we reach an END node, we only finish if no other nodes are active
+          // Wait until the end of the loop to decide if the whole thing is finished
+          continue;
         } else {
-          const UserModel = req.tenantConn.model('User');
           let nodeAssignees = node.data?.assigneeIds || [];
+          let domainName = node.data?.responsibleDomain || node.data?.domain;
 
-          if (node.data?.assignmentType === 'ALL' && (node.data?.assignedTo || node.data?.responsibleDomain)) {
-            const domainName = node.data?.responsibleDomain || (await req.tenantConn.model('Domain').findById(node.data?.assignedTo))?.name;
-            if (domainName) {
-              const domainUsers = await UserModel.find({ domain: domainName });
+          // Resolve domain name if only ID is provided
+          if (!domainName && node.data?.assignedTo && node.data?.assignmentType !== 'SINGLE') {
+            const domain = await DomainModel.findById(node.data.assignedTo);
+            if (domain) domainName = domain.name;
+          }
+
+          if (node.data?.assignmentType === 'ALL' && (node.data?.assignedTo || domainName)) {
+            const dName = domainName || (node.data?.assignedTo ? (await DomainModel.findById(node.data.assignedTo))?.name : null);
+            if (dName) {
+              const domainUsers = await UserModel.find({ domain: dName });
               nodeAssignees = domainUsers.map(u => u._id);
             }
           }
@@ -398,10 +409,15 @@ exports.approveNode = async (req, res) => {
             responsibleUser: (node.data?.assignmentType === 'SINGLE' && node.data?.assignedTo)
               ? node.data.assignedTo
               : (node.data?.assignedUser || (node.data?.assigneeSelectionType === 'user' ? (node.data.assigneeIds?.[0]) : null)),
-            responsibleDomain: node.data?.responsibleDomain || node.data?.domain || (node.data?.assignmentType !== 'SINGLE' ? node.data?.assignedTo : null),
+            responsibleDomain: domainName || (node.data?.assignmentType !== 'SINGLE' ? node.data?.assignedTo : null),
             assignees: nodeAssignees
           });
         }
+      }
+
+      // After processing all potential new nodes, check if any are actually active
+      if (instance.currentNodes.length === 0) {
+        isFlowFinished = true;
       }
     }
 

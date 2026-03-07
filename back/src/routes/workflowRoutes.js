@@ -10,7 +10,8 @@ const {
   deleteWorkflow,
   executeWorkflow,
   changeWorkflowStatus,
-  duplicateWorkflow
+  duplicateWorkflow,
+  getWorkflowMembers
 } = require('../controllers/workflowController');
 
 const { auth } = require('../middleware/auth');
@@ -21,6 +22,7 @@ router.use(auth, checkTenantActive);
 // Full CRUD
 router.get('/', getWorkflows);                           // GET all
 router.get('/:workflowId', getWorkflowById);            // GET one
+router.get('/:workflowId/members', getWorkflowMembers);   // GET members
 router.post('/', createWorkflow);                        // CREATE
 router.put('/:workflowId', updateWorkflow);             // UPDATE
 router.delete('/:workflowId', deleteWorkflow);          // DELETE

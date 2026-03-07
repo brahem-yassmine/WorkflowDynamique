@@ -13,7 +13,8 @@ import {
     Eye,
     Clock,
     ArrowRight,
-    Briefcase
+    Briefcase,
+    X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiService } from '@/service/api.service';
@@ -30,6 +31,8 @@ interface Project {
     updatedAt: string;
 }
 
+import { useRouter } from 'next/navigation';
+
 interface Domain {
     _id: string;
     name: string;
@@ -38,6 +41,7 @@ interface Domain {
 }
 
 export default function ProjectsPage() {
+    const router = useRouter();
     const [projects, setProjects] = useState<Project[]>([]);
     const [domains, setDomains] = useState<Domain[]>([]);
     const [loading, setLoading] = useState(true);
@@ -49,8 +53,11 @@ export default function ProjectsPage() {
         description: '',
         status: 'planning',
         isAllDomains: true,
-        allowedDomains: [] as string[]
+        allowedDomains: [] as string[],
+        domain: '',
+        color: '#6366f1'
     });
+    const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
 
     useEffect(() => {
         fetchProjects();
@@ -94,7 +101,9 @@ export default function ProjectsPage() {
                     description: '',
                     status: 'planning',
                     isAllDomains: true,
-                    allowedDomains: []
+                    allowedDomains: [],
+                    domain: '',
+                    color: '#6366f1'
                 });
             }
         } catch (error: any) {
@@ -113,6 +122,21 @@ export default function ProjectsPage() {
         } catch (error: any) {
             alert('Error during deletion: ' + error.message);
         }
+    };
+
+    const startEditing = (project: any) => {
+        setNewProject({
+            name: project.name,
+            description: project.description || '',
+            domain: project.domain || '',
+            allowedDomains: project.allowedDomains || [],
+            isAllDomains: project.isAllDomains || false,
+            status: project.status || 'active',
+            color: project.color || '#6366f1'
+        });
+        setEditingProjectId(project._id);
+        setIsModalOpen(true);
+        setSelectedProject(null);
     };
 
     const filteredProjects = projects.filter(p =>
@@ -168,9 +192,9 @@ export default function ProjectsPage() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-[calc(100vh-280px)]">
-                {/* Project Grid */}
-                <div className="lg:col-span-8 overflow-y-auto pr-2 custom-scrollbar">
+            <div className="grid grid-cols-1 gap-8">
+                {/* Project Grid - Now full width */}
+                <div className="overflow-y-auto pr-2 custom-scrollbar">
                     {filteredProjects.length === 0 ? (
                         <div className="bg-white rounded-3xl border border-dashed border-slate-200 p-12 text-center h-full flex flex-col items-center justify-center">
                             <div className="w-20 h-20 bg-slate-50 rounded-2xl flex items-center justify-center mb-6 text-slate-300">
@@ -192,112 +216,132 @@ export default function ProjectsPage() {
                                     key={project._id}
                                     project={project}
                                     isSelected={selectedProject?._id === project._id}
-                                    onClick={() => setSelectedProject(project)}
+                                    onClick={() => router.push(`/admin/projects/${project._id}`)}
                                 />
                             ))}
                         </div>
                     )}
                 </div>
 
-                {/* Project Inspector */}
-                <div className="lg:col-span-4 h-full">
-                    <AnimatePresence mode="wait">
-                        {selectedProject ? (
+                {/* Project Inspector Modal */}
+                <AnimatePresence>
+                    {selectedProject && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                             <motion.div
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: 20 }}
-                                className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 h-full flex flex-col"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                onClick={() => setSelectedProject(null)}
+                                className="absolute inset-0 bg-slate-900/60 backdrop-blur-lg"
+                            />
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                                className="bg-white rounded-[40px] shadow-2xl w-full max-w-2xl relative z-10 overflow-hidden border border-white/20 flex flex-col max-h-[90vh]"
                             >
-                                <div className="flex justify-between items-start mb-8">
-                                    <div className={`px-3 py-1 rounded-lg border text-[10px] font-black uppercase tracking-widest ${getStatusStyles(selectedProject.status)}`}>
-                                        {selectedProject.status}
+                                <div className="p-8 flex-grow overflow-y-auto custom-scrollbar">
+                                    <div className="flex justify-between items-start mb-8">
+                                        <div className={`px-4 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-widest ${getStatusStyles(selectedProject.status)}`}>
+                                            {selectedProject.status} Status
+                                        </div>
+                                        <button
+                                            onClick={() => setSelectedProject(null)}
+                                            className="p-3 bg-slate-50 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-2xl transition-all"
+                                        >
+                                            <X size={20} />
+                                        </button>
+                                    </div>
+
+                                    <div className="flex flex-col md:flex-row gap-8 items-start mb-10">
+                                        <div className="bg-indigo-600 w-24 h-24 rounded-[32px] flex items-center justify-center text-white shadow-xl shadow-indigo-200 shrink-0">
+                                            <Briefcase size={40} />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <h2 className="text-3xl font-black text-slate-800 tracking-tight leading-none uppercase">{selectedProject.name}</h2>
+                                            <p className="text-xs font-bold text-indigo-500 uppercase tracking-[0.2em]">Project Environment</p>
+                                            <p className="text-sm font-medium text-slate-500 leading-relaxed mt-4">
+                                                {selectedProject.description || 'This environment serves as a containment and orchestration layer for specialized operational workflows.'}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                                        <div className="p-6 bg-slate-50 rounded-[28px] space-y-4">
+                                            <DetailRow label="Strategic Visibility" icon={<Layers size={16} />}>
+                                                <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border shadow-sm ${selectedProject.isAllDomains ? 'bg-white text-emerald-600 border-emerald-100' : 'bg-white text-amber-600 border-amber-100'}`}>
+                                                    {selectedProject.isAllDomains ? 'Universal Access' : 'Restricted Lattice'}
+                                                </span>
+                                            </DetailRow>
+                                            {!selectedProject.isAllDomains && (
+                                                <div className="space-y-2 pt-2">
+                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Authorized Sectors</p>
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {selectedProject.allowedDomains.map(d => (
+                                                            <span key={d} className="px-2 py-1 bg-white text-slate-600 rounded-md border border-slate-100 text-[9px] font-black uppercase tracking-tight shadow-sm">
+                                                                {d}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="p-6 bg-slate-50 rounded-[28px] space-y-4">
+                                            <DetailRow label="Genesis Date" icon={<Calendar size={16} />}>
+                                                <span className="text-sm font-bold text-slate-700">{new Date(selectedProject.createdAt).toLocaleDateString()}</span>
+                                            </DetailRow>
+                                            <DetailRow label="Last Synchronization" icon={<Clock size={16} />}>
+                                                <span className="text-sm font-bold text-slate-700">{new Date(selectedProject.updatedAt).toLocaleDateString()}</span>
+                                            </DetailRow>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div className="bg-indigo-50 w-16 h-16 rounded-2xl flex items-center justify-center text-indigo-600 mb-6">
-                                    <Briefcase size={32} />
-                                </div>
-
-                                <h2 className="text-2xl font-black text-slate-800 tracking-tight mb-2">{selectedProject.name}</h2>
-                                <p className="text-sm font-medium text-slate-500 leading-relaxed mb-8">{selectedProject.description || 'No description provided for this project.'}</p>
-
-                                <div className="space-y-6 flex-grow">
-                                    <DetailRow label="Visibility" icon={<Layers size={16} />}>
-                                        <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg ${selectedProject.isAllDomains ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
-                                            {selectedProject.isAllDomains ? 'Public (All Domains)' : 'Restricted'}
-                                        </span>
-                                    </DetailRow>
-                                    {!selectedProject.isAllDomains && (
-                                        <div className="space-y-2">
-                                            <div className="flex items-center gap-3 text-slate-400">
-                                                <div className="p-2.5 bg-slate-50 rounded-xl"><Briefcase size={16} /></div>
-                                                <span className="text-[10px] font-black uppercase tracking-widest">Target Domains</span>
-                                            </div>
-                                            <div className="flex flex-wrap gap-1.5 pl-11">
-                                                {selectedProject.allowedDomains.map(d => (
-                                                    <span key={d} className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-[9px] font-bold uppercase tracking-tighter">
-                                                        {d}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                    <DetailRow label="Created On" icon={<Calendar size={16} />}>
-                                        <span className="text-sm font-bold text-slate-700">
-                                            {new Date(selectedProject.createdAt).toLocaleDateString()}
-                                        </span>
-                                    </DetailRow>
-                                    <DetailRow label="Last Update" icon={<Clock size={16} />}>
-                                        <span className="text-sm font-bold text-slate-700">
-                                            {new Date(selectedProject.updatedAt).toLocaleDateString()}
-                                        </span>
-                                    </DetailRow>
-                                </div>
-
-                                <div className="pt-8 border-t border-slate-50 space-y-3">
-                                    <Link href={`/admin/workflows?projectId=${selectedProject._id}`} className="block">
-                                        <button className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all active:scale-95 shadow-lg shadow-indigo-100">
-                                            <Layers size={16} />
-                                            View Project Workflows
-                                        </button>
-                                    </Link>
-                                    <div className="flex gap-3">
-                                        <button className="flex-1 py-4 bg-slate-50 text-slate-600 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-100 transition-all">
-                                            <Edit size={14} />
-                                            Edit Details
+                                <div className="p-8 bg-slate-50 border-t border-slate-100 space-y-4">
+                                    <div className="flex gap-4">
+                                        <Link href={`/admin/workflows?projectId=${selectedProject._id}`} className="flex-[2]">
+                                            <button className="w-full py-5 bg-indigo-600 text-white rounded-[24px] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-indigo-700 transition-all active:scale-95 shadow-xl shadow-indigo-200">
+                                                <Layers size={18} />
+                                                Inspect Workflows
+                                            </button>
+                                        </Link>
+                                    </div>
+                                    <div className="flex gap-4">
+                                        <button
+                                            onClick={() => startEditing(selectedProject)}
+                                            className="flex-1 py-4 bg-white border border-slate-200 text-slate-600 rounded-[20px] font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-50 transition-all font-inter"
+                                        >
+                                            <Edit size={16} />
+                                            Update Environment
                                         </button>
                                         <button
                                             onClick={() => handleDelete(selectedProject._id)}
-                                            className="p-4 bg-rose-50 text-rose-600 rounded-2xl hover:bg-rose-100 transition-all"
+                                            className="px-6 py-4 bg-rose-50 text-rose-600 rounded-[20px] hover:bg-rose-500 hover:text-white transition-all border border-rose-100 flex items-center justify-center shadow-lg shadow-rose-50"
                                         >
-                                            <Trash2 size={18} />
+                                            <Trash2 size={20} />
                                         </button>
                                     </div>
                                 </div>
                             </motion.div>
-                        ) : (
-                            <div className="bg-slate-100/30 rounded-3xl border border-dashed border-slate-200 h-full flex flex-col items-center justify-center p-12 text-center">
-                                <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-6 text-slate-200 border border-slate-100">
-                                    <Eye size={32} />
-                                </div>
-                                <h3 className="text-lg font-black text-slate-400 tracking-tight">Project Inspector</h3>
-                                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Select a project to see its configuration and workflows.</p>
-                            </div>
-                        )}
-                    </AnimatePresence>
-                </div>
+                        </div>
+                    )}
+                </AnimatePresence>
             </div>
 
             {/* Create Project Modal */}
             {isModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-lg z-50 flex items-center justify-center p-4">
                     <motion.div
                         initial={{ scale: 0.9, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl"
                     >
-                        <h2 className="text-2xl font-black text-slate-800 mb-6">Create New Project</h2>
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-2xl font-black text-slate-800 tracking-tight">Construct Environment</h2>
+                            <button onClick={() => setIsModalOpen(false)} className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-50 transition-all">
+                                <X size={20} />
+                            </button>
+                        </div>
                         <form onSubmit={handleCreateProject} className="space-y-4">
                             <div>
                                 <label className="text-xs font-black uppercase tracking-widest text-slate-400 mb-2 block">Project Name</label>

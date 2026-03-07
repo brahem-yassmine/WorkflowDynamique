@@ -65,28 +65,32 @@ export default function AdminLayout({
 }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const pathname = usePathname();
+    const isWorkflowDetail = pathname.match(/^\/admin\/workflows\/.+/);
+    const hideSidebar = isWorkflowDetail;
     const metadata = PAGE_METADATA[pathname] || { title: "Axia Admin", subtitle: "Management Console" };
 
     return (
         <div className="flex h-screen bg-gray-50 overflow-hidden">
             {/* Sidebar with responsive overlay logic */}
-            <div className={`
-                fixed inset-y-0 left-0 z-50 transform bg-indigo-700 transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0
-                ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-                w-64
-            `}>
-                <Sidebar />
-                {/* Mobile Close Button */}
-                <button
-                    onClick={() => setIsSidebarOpen(false)}
-                    className="absolute top-4 right-[-50px] bg-indigo-700 text-white p-2 rounded-r-lg lg:hidden shadow-lg shadow-indigo-200"
-                >
-                    <CloseIcon />
-                </button>
-            </div>
+            {!hideSidebar && (
+                <div className={`
+                    fixed inset-y-0 left-0 z-50 transform bg-indigo-700 transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0
+                    ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+                    w-64
+                `}>
+                    <Sidebar />
+                    {/* Mobile Close Button */}
+                    <button
+                        onClick={() => setIsSidebarOpen(false)}
+                        className="absolute top-4 right-[-50px] bg-indigo-700 text-white p-2 rounded-r-lg lg:hidden shadow-lg shadow-indigo-200"
+                    >
+                        <CloseIcon />
+                    </button>
+                </div>
+            )}
 
             {/* Mobile Backdrop */}
-            {isSidebarOpen && (
+            {isSidebarOpen && !hideSidebar && (
                 <div
                     className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-40 lg:hidden transition-opacity"
                     onClick={() => setIsSidebarOpen(false)}
@@ -95,19 +99,21 @@ export default function AdminLayout({
 
             <div className="flex-1 flex flex-col min-w-0">
                 {/* Mobile Menu Trigger */}
-                <div className="lg:hidden p-4 bg-white border-b border-gray-100 flex items-center shadow-sm">
-                    <button
-                        onClick={() => setIsSidebarOpen(true)}
-                        className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors"
-                    >
-                        <MenuIcon />
-                    </button>
-                    <span className="ml-4 font-bold text-gray-800 tracking-tight">Axia Admin</span>
-                </div>
+                {!hideSidebar && (
+                    <div className="lg:hidden p-4 bg-white border-b border-gray-100 flex items-center shadow-sm">
+                        <button
+                            onClick={() => setIsSidebarOpen(true)}
+                            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors"
+                        >
+                            <MenuIcon />
+                        </button>
+                        <span className="ml-4 font-bold text-gray-800 tracking-tight">Axia Admin</span>
+                    </div>
+                )}
 
                 <div className="flex-1 flex flex-col overflow-hidden">
-                    <Header title={metadata.title} subtitle={metadata.subtitle} />
-                    <main className="flex-1 overflow-y-scroll p-4 md:p-8 pt-0">
+                    {!hideSidebar && <Header title={metadata.title} subtitle={metadata.subtitle} />}
+                    <main className={`flex-1 overflow-y-scroll ${hideSidebar ? 'p-0' : 'p-4 md:p-8 pt-0'}`}>
                         {children}
                     </main>
                 </div>

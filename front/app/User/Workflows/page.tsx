@@ -57,6 +57,7 @@ export default function UserWorkflowsPage() {
   const [activeTab, setActiveTab] = useState<'tasks' | 'registry'>('tasks');
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
   const [isChecklistModalOpen, setIsChecklistModalOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'draft' | 'archived'>('all');
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -135,10 +136,12 @@ export default function UserWorkflowsPage() {
     }
   };
 
-  const filteredWorkflows = workflows.filter(w =>
-    w.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    w.domain.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredWorkflows = workflows.filter(w => {
+    const matchesSearch = w.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         w.domain.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || w.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   if (loading) {
     return (
@@ -349,7 +352,20 @@ export default function UserWorkflowsPage() {
                   className="w-full pl-12 pr-4 py-3 bg-white border border-slate-100 rounded-2xl shadow-sm focus:outline-none focus:ring-4 focus:ring-indigo-50 transition-all font-medium text-slate-700"
                 />
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
+                {['all', 'active', 'draft', 'archived'].map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => setStatusFilter(status as any)}
+                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${
+                      statusFilter === status 
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg' 
+                        : 'bg-white text-slate-400 border-slate-100 hover:border-indigo-200'
+                    }`}
+                  >
+                    {status}
+                  </button>
+                ))}
                 <div className="px-4 py-2 bg-white rounded-xl border border-slate-100 flex items-center gap-2 text-xs font-bold text-slate-500">
                   <Activity size={14} className="text-indigo-500" />
                   {filteredWorkflows.length} Operational Designs

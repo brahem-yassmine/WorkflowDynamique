@@ -568,14 +568,14 @@ async function _triggerAutomaticChecklist(req, workflow) {
     if (checklist) {
       // Update existing checklist
       checklist.tasks = checklistTasks;
-      checklist.description = `Automatically updated checklist for workflow ${workflow.name}`;
+      checklist.description = `Checklist tracking for workflow ${workflow.name}`;
       await checklist.save();
       console.log(`✅ [Automation] Checklist "${checklistName}" updated.`);
     } else {
       // Create new checklist
       checklist = new Checklist({
         name: checklistName,
-        description: `Automatically generated checklist for workflow ${workflow.name}`,
+        description: `Checklist tracking for workflow ${workflow.name}`,
         tasks: checklistTasks,
         createdBy: req.user.id,
         status: 'draft'

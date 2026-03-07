@@ -6,6 +6,7 @@ import { useState, FormEvent, ChangeEvent, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import axios, { AxiosError } from "axios";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ChartNetwork,
   CreditCard,
@@ -66,6 +67,8 @@ export default function SignupPage() {
     planId: "",
   });
 
+  const [startDate, setStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
+
   const [paymentDetails, setPaymentDetails] = useState<PaymentDetails>({
     cardNumber: "",
     cardHolder: "",
@@ -86,6 +89,7 @@ export default function SignupPage() {
   const router = useRouter();
 
   // ✅ LOAD PLANS AT STARTUP
+  // ✅ LOAD PLANS AT STARTUP
   useEffect(() => {
     const fetchPlans = async () => {
       try {
@@ -95,9 +99,8 @@ export default function SignupPage() {
 
         if (response.data.success && response.data.data) {
           setPlans(response.data.data);
-          // Select the first plan by default (often the free plan)
+          // Select the first plan by default
           if (response.data.data.length > 0) {
-            // Look for the DEMO (free) plan as priority
             const demoPlan = response.data.data.find((p: Plan) => p.code === 'DEMO' || p.price === 0);
             setFormData(prev => ({
               ...prev,
@@ -212,7 +215,7 @@ export default function SignupPage() {
       setSelectedPlan(selectedPlan);
       setShowPaymentModal(true);
     } else {
-      // For free plan, proceed directly
+      // For free/demo plan, proceed directly
       await registerUser();
     }
   };
@@ -266,6 +269,7 @@ export default function SignupPage() {
           industry: formData.industry,
           password: formData.password,
           planId: formData.planId,
+          startDate: startDate
         },
         {
           headers: {
@@ -279,14 +283,36 @@ export default function SignupPage() {
       if (response.data.success) {
         setSuccess("Company created successfully");
 
+        // Save plan info locally for immediate fallback
+        if (selectedPlan) {
+          localStorage.setItem('selectedPlan', selectedPlan.name.toLowerCase());
+          localStorage.setItem('planStartDate', startDate);
+        }
+
         // Redirect to login after 3 seconds
         setTimeout(() => {
           router.push("/signin");
         }, 3000);
       }
-    } catch (err) {
+    } catch (err: any) {
       const error = err as AxiosError<ApiErrorResponse>;
-      console.error("❌ Registration error:", error.response?.data || error.message);
+      console.error("❌ Registration error details:", {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+        stack: error.stack,
+        fullError: err
+      });
+
+      // Log the specific data being sent
+      console.log("📤 Payload sent was:", {
+        companyName: formData.companyName,
+        adminEmail: formData.adminEmail,
+        industry: formData.industry,
+        password: formData.password,
+        planId: formData.planId,
+        startDate: startDate
+      });
 
       if (error.response?.data?.message) {
         setError(error.response.data.message);
@@ -551,7 +577,8 @@ export default function SignupPage() {
                 </div>
 
                 {/* PLAN SELECTION - STYLED */}
-                <div>
+                {/* PLAN SELECTION - RESTORED */}
+                <div className="space-y-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Choose your plan *
                   </label>
@@ -602,21 +629,50 @@ export default function SignupPage() {
                               {plan.price > 0 && (
                                 <p className="text-xs text-green-600">15-day free trial</p>
                               )}
+                              {plan.price === 0 && (
+                                <p className="text-xs text-blue-600">7-day free trial</p>
+                              )}
                             </div>
                           </div>
                           {plan.price > 0 && formData.planId === plan._id && (
                             <div className="mt-2 flex items-center gap-1 text-xs text-indigo-700">
                               <CreditCard size={14} />
-                              <span>Payment required</span>
+                              <span>Simulation: Secure payment required</span>
                             </div>
                           )}
                         </label>
                       ))}
                     </div>
                   )}
-                  <p className="mt-3 text-xs text-gray-500">
-                    15-day free trial on all paid plans • No credit card required
-                  </p>
+
+                  {/* TEMPORAL SYNC CALENDAR FOR TESTING */}
+                  {formData.planId && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className="mt-6 bg-slate-50 rounded-2xl p-6 border border-slate-200"
+                    >
+                      <div className="flex items-center gap-3 mb-4">
+                        <Calendar className="text-indigo-600" size={20} />
+                        <span className="text-sm font-bold text-slate-700 uppercase tracking-wider">Sync Temporal Origin</span>
+                      </div>
+                      <div className="space-y-3">
+                        <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400">
+                          Plan Start Date (Testing/Simulation)
+                        </label>
+                        <input 
+                          type="date"
+                          value={startDate}
+                          onChange={(e) => setStartDate(e.target.value)}
+                          max={new Date().toISOString().split('T')[0]}
+                          className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-600 outline-none transition-all font-bold text-slate-700"
+                        />
+                        <p className="text-[10px] text-slate-400 italic">
+                          * Adjusting this date allows testing subscription expiry warnings in the billing dashboard.
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
                 </div>
 
                 <div>
@@ -706,21 +762,21 @@ export default function SignupPage() {
               </div>
             </div>
 
-            {/* RIGHT SIDE - PLANS PREVIEW */}
+            {/* RIGHT SIDE - PLANS PREVIEW (REVERTED) */}
             <div className="bg-indigo-700 rounded-2xl shadow-xl p-8 text-white">
               <div className="mb-8">
                 <h1 className="text-3xl font-bold mb-4">
                   Choose the perfect plan for you
                 </h1>
                 <p className="text-blue-100">
-                  15-day free trial on all plans • No credit card required
+                  7 or 15-day free trial on all plans • No credit card required
                 </p>
               </div>
 
               {/* Plans Preview */}
               <div className="space-y-4">
                 {!loadingPlans && plans.map((plan) => (
-                  <div key={plan._id} className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+                  <div key={plan._id} className="bg-white/10 backdrop-blur-sm rounded-lg p-4 transition-all hover:bg-white/20">
                     <div className="flex justify-between items-center">
                       <div>
                         <h3 className="font-semibold text-lg">{plan.name}</h3>
@@ -729,9 +785,7 @@ export default function SignupPage() {
                             ? 'Unlimited staff'
                             : `Up to ${plan.features?.maxStaff} staff`}
                           {' • '}
-                          {plan.features?.maxLocations === -1
-                            ? 'Unlimited locations'
-                            : `Up to ${plan.features?.maxLocations} locations`}
+                          {plan.features?.analysis || 'Standard Analysis'}
                         </p>
                       </div>
                       <div className="text-right">
@@ -740,10 +794,10 @@ export default function SignupPage() {
                         </p>
                       </div>
                     </div>
-                    {plan.price > 0 && (
+                    {(plan.price > 0 || plan.code === 'DEMO') && (
                       <div className="mt-2 flex items-center gap-1 text-xs text-blue-200">
                         <CreditCard size={12} />
-                        <span>Secure payment required</span>
+                        <span>{plan.price > 0 ? '15-day free trial' : '7-day free trial'}</span>
                       </div>
                     )}
                   </div>
@@ -753,7 +807,7 @@ export default function SignupPage() {
               <div className="mt-6 bg-green-500/20 backdrop-blur-sm rounded-lg p-4 border border-green-400/30">
                 <p className="font-semibold">✨ All plans include:</p>
                 <ul className="mt-2 text-sm text-blue-100 space-y-1">
-                  <li>✓ 15-day free trial</li>
+                  <li>✓ Free trial period</li>
                   <li>✓ Cancel anytime</li>
                   <li>✓ Email support</li>
                   <li>✓ Regular updates</li>

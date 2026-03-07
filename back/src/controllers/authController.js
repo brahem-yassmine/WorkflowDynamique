@@ -17,13 +17,17 @@ const getTenantModel = (req) => getModel(req.masterDb, 'Tenant', '../models/mast
 const getPlanModel = (req) => getModel(req.masterDb, 'Plan', '../models/master/Plan');
 const getSuperAdminModel = (req) => getModel(req.masterDb, 'SuperAdmin', '../models/master/SuperAdmin');
 const getRoleModel = (conn) => getModel(conn, 'Role', '../models/master/Role');
+const getSubscriptionModel = (conn) => getModel(conn, 'Subscription', '../models/tenant/Subscription');
 
 // ====================================
 // FUNCTION TO CREATE TENANT DATABASE
 // ====================================
-const createTenantDatabase = async (tenantId, dbName, plan, adminEmail, hashedPassword) => {
+const createTenantDatabase = async (tenantId, dbName, plan, adminEmail, hashedPassword, paymentDetails = null, startDate = null) => {
   try {
-    console.log(` Creating database: ${dbName}`);
+    console.log(`🚀 createTenantDatabase started for ${dbName}`, {
+      plan: plan?.name,
+      startDate
+    });
 
     const dbUri = `mongodb://localhost:27017/${dbName}`;
     const tenantConn = mongoose.createConnection(dbUri, {
@@ -54,21 +58,43 @@ const createTenantDatabase = async (tenantId, dbName, plan, adminEmail, hashedPa
     await adminUser.save();
     console.log('✅ Admin created in tenant database');
 
-    // Create subscription
-    const subscription = new Subscription({
-      tenantId: tenantId.toString(),
-      planId: plan._id.toString(),
-      planName: plan.name,
-      planCode: plan.code,
-      price: plan.price,
-      status: 'trial',
-      selectedBy: adminUser._id,
-      trialStartDate: new Date(),
-      trialEndDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)
-    });
+    // Create subscription if plan is provided
+    let subscription = null;
+    if (plan) {
+      const start = startDate ? new Date(startDate) : new Date();
+      const planCode = (plan.code || '').toLowerCase();
+      const trialDays = (planCode.includes('demo') || planCode.includes('lattice')) ? 7 : 15;
 
-    await subscription.save();
-    console.log(' Subscription created');
+      const trialEndDate = new Date(start.getTime() + trialDays * 24 * 60 * 60 * 1000);
+
+      console.log(`📋 Creating subscription for ${plan.name}`, {
+        start,
+        trialEndDate,
+        trialDays
+      });
+
+      subscription = new Subscription({
+        planId: plan._id.toString(),
+        planName: plan.name,
+        planCode: plan.code,
+        price: plan.price,
+        status: 'trial',
+        selectedBy: adminUser._id,
+        trialStartDate: start,
+        trialEndDate: trialEndDate,
+        currentPeriodStart: start, // for frontend compatibility
+        currentPeriodEnd: trialEndDate, // for frontend compatibility
+        paymentInfo: paymentDetails
+      });
+
+      await subscription.save();
+      console.log(' Subscription created successfully');
+
+      // Update admin user to reflect plan selection if it was done at signup
+      adminUser.hasSelectedPlan = true;
+      adminUser.selectedPlan = plan.name;
+      await adminUser.save();
+    }
 
     await tenantConn.close();
     return { adminUser, subscription };
@@ -189,7 +215,11 @@ const login = async (req, res) => {
       { expiresIn: '30d' }
     );
 
-    // 4. Record Activity (if not super_admin)
+    // 4. Record Activity & Check Subscription (if not super_admin)
+    let subscriptionExpired = false;
+    let daysLeft = 0;
+    let currentPlan = null;
+
     if (role !== 'super_admin' && tenantId) {
       try {
         const { getTenantConnection } = require('../services/tenantConnection');
@@ -197,8 +227,59 @@ const login = async (req, res) => {
         const tenant = await TenantModel.findById(tenantId);
 
         if (tenant) {
-          // Get connection for recordActivity
           const tenantConn = await getTenantConnection(tenant.domain, tenant.databaseName);
+          const Subscription = getSubscriptionModel(tenantConn);
+
+          // Get latest subscription
+          const sub = await Subscription.findOne().sort({ createdAt: -1 });
+
+          if (sub) {
+            currentPlan = sub.planName;
+            let endDate = sub.currentPeriodEnd || sub.trialEndDate;
+
+            // DEBUG: Allow overriding start date for testing
+            if (req.body.debugStartDate) {
+              const debugStart = new Date(req.body.debugStartDate);
+              if (!isNaN(debugStart.getTime())) {
+                const planCode = (sub.planCode || '').toLowerCase();
+                const duration = (planCode.includes('demo') || planCode.includes('lattice')) ? 7 : 15;
+                endDate = new Date(debugStart.getTime() + duration * 24 * 60 * 60 * 1000);
+                console.log('🛠️ Debug Start Date active:', debugStart, 'duration:', duration, 'ends:', endDate);
+              } else {
+                console.warn('⚠️ Invalid debugStartDate provided:', req.body.debugStartDate);
+              }
+            }
+
+            const now = new Date();
+            subscriptionExpired = now > endDate;
+            daysLeft = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
+
+            // Warning logic: 3 days before expiry
+            const warningSoon = !subscriptionExpired && daysLeft <= 3;
+
+            // Prepare response data
+            return res.json({
+              success: true,
+              data: {
+                token,
+                user: {
+                  id: user._id,
+                  _id: user._id, // Ensure both id and _id are present for compatibility
+                  email: user.email,
+                  name: user.name || user.firstName,
+                  role: role,
+                  tenantId,
+                  domain: user.domain,
+                  hasSelectedPlan: user.hasSelectedPlan ?? false,
+                  subscriptionExpired,
+                  warningSoon,
+                  daysLeft: Math.max(0, daysLeft),
+                  currentPlan
+                },
+                tenantId: tenantId
+              }
+            });
+          }
 
           // Mimic request object parts for recordActivity
           const mockReq = {
@@ -219,7 +300,7 @@ const login = async (req, res) => {
           });
         }
       } catch (logErr) {
-        console.error('❌ Failed to log SIGN_IN:', logErr.message);
+        console.error('❌ Failed to check subscription/log SIGN_IN:', logErr.message);
       }
     }
 
@@ -232,9 +313,12 @@ const login = async (req, res) => {
           email: user.email,
           role: role,
           name: user.name || user.firstName || (role === 'admin' ? user.name : 'Admin'),
-          hasSelectedPlan: role === 'admin' ? true : true,
+          hasSelectedPlan: user.hasSelectedPlan ?? (role === 'super_admin' ? true : false),
           tenantId: tenantId,
-          domain: user.domain || 'HR'
+          domain: user.domain || 'HR',
+          subscriptionExpired,
+          daysLeft,
+          currentPlan
         },
         tenantId: tenantId
       }
@@ -254,11 +338,20 @@ const login = async (req, res) => {
 // ====================================
 const registerTenant = async (req, res) => {
   try {
-    const { companyName, adminEmail, password, planId, industry } = req.body;
+    const { companyName, adminEmail, password, planId, industry, paymentDetails, startDate } = req.body;
 
-    console.log('📝 Tenant registration:', { companyName, adminEmail, planId });
+    console.log('📝 registerTenant Request received:', {
+      companyName,
+      adminEmail,
+      planId,
+      industry,
+      startDate,
+      hasPassword: !!password,
+      hasPayment: !!paymentDetails
+    });
 
     if (!companyName || !adminEmail || !password || !planId || !industry) {
+      console.log('❌ registerTenant Validation failed: Missing fields');
       return res.status(400).json({
         success: false,
         message: 'All fields are required'
@@ -276,12 +369,15 @@ const registerTenant = async (req, res) => {
       });
     }
 
-    const plan = await Plan.findById(planId);
-    if (!plan) {
-      return res.status(404).json({
-        success: false,
-        message: 'Selected plan not found'
-      });
+    let plan = null;
+    if (planId) {
+      plan = await Plan.findById(planId);
+      if (!plan) {
+        return res.status(404).json({
+          success: false,
+          message: 'Selected plan not found'
+        });
+      }
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -300,7 +396,7 @@ const registerTenant = async (req, res) => {
       status: 'active',
       industry: industry || 'Other',
       adminName: adminEmail.split('@')[0],
-      selectedPlan: plan._id,
+      selectedPlan: plan ? plan._id : null,
       databaseName: dbName,
       databaseUri: dbUri
     });
@@ -309,8 +405,9 @@ const registerTenant = async (req, res) => {
 
     // Create the tenant database and admin user
     try {
-      await createTenantDatabase(tenant._id, dbName, plan, adminEmail, hashedPassword);
+      await createTenantDatabase(tenant._id, dbName, plan, adminEmail, hashedPassword, paymentDetails, startDate);
     } catch (dbError) {
+      console.error('❌ database creation failed:', dbError);
       await Tenant.findByIdAndDelete(tenant._id);
       return res.status(500).json({
         success: false,

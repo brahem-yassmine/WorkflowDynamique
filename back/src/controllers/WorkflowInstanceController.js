@@ -284,6 +284,7 @@ exports.approveNode = async (req, res) => {
     await instance.save();
 
     // Update associated checklist task
+    /* 
     if (instance.checklistId) {
       try {
         const ChecklistModel = req.tenantConn.model('Checklist');
@@ -302,6 +303,7 @@ exports.approveNode = async (req, res) => {
         console.error('Checklist Sync Error:', err);
       }
     }
+    */
 
     // Notifications
     try {

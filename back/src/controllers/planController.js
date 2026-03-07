@@ -90,7 +90,7 @@ exports.checkPlanSelection = async (req, res) => {
       });
     }
 
-    const requiresPlanSelection = user.role === 'admin' && !user.hasSelectedPlan;
+    const requiresPlanSelection = !user.hasSelectedPlan;
 
     console.log('✅ Verification completed:', { requiresPlanSelection, role: user.role });
 
@@ -176,8 +176,16 @@ exports.selectPlan = async (req, res) => {
       });
     }
 
+    // Handle Start Date and Duration
+    const start = req.body.startDate ? new Date(req.body.startDate) : new Date();
+    const planCode = plan.code ? plan.code.toLowerCase() : '';
+    const trialDays = (planCode.includes('demo') || planCode.includes('lattice')) ? 7 : 15;
+
+    const trialEndDate = new Date(start.getTime() + trialDays * 24 * 60 * 60 * 1000);
+
     user.hasSelectedPlan = true;
     user.planSelectedAt = new Date();
+    user.selectedPlan = plan.name;
     await user.save();
 
     // Create subscription
@@ -185,14 +193,15 @@ exports.selectPlan = async (req, res) => {
       tenantId,
       planId: plan._id,
       planName: plan.name,
+      planCode: plan.code,
       billingCycle: billingCycle || 'monthly',
       price: plan.price,
       status: 'trial',
       selectedBy: userId,
-      trialStartDate: new Date(),
-      trialEndDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-      currentPeriodStart: new Date(),
-      currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      trialStartDate: start,
+      trialEndDate: trialEndDate,
+      currentPeriodStart: start,
+      currentPeriodEnd: trialEndDate
     });
 
     await subscription.save();
@@ -211,8 +220,8 @@ exports.selectPlan = async (req, res) => {
         features: plan.features
       };
       tenant.trialPeriod = {
-        startDate: new Date(),
-        endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        startDate: start,
+        endDate: trialEndDate,
         isActive: true
       };
       await tenant.save();

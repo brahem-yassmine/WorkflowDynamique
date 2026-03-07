@@ -8,7 +8,6 @@ exports.getSubscriptionHistory = async (req, res) => {
     const Subscription = req.tenantConn.model('Subscription');
 
     const subscriptions = await Subscription.find()
-      .populate('planId', 'displayName name')
       .populate('selectedBy', 'email firstName lastName')
       .sort({ createdAt: -1 });
 
@@ -62,7 +61,7 @@ exports.getCurrentSubscription = async (req, res) => {
 // ✅ Change plan (upgrade/downgrade)
 exports.changePlan = async (req, res) => {
   try {
-    const { planId, billingCycle } = req.body;
+    const { planId, billingCycle, paymentInfo } = req.body;
     const tenantId = req.user.tenantId;
     const userId = req.user._id;
 
@@ -90,13 +89,15 @@ exports.changePlan = async (req, res) => {
     // 2️⃣ CREATE NEW SUBSCRIPTION
     const subscription = new Subscription({
       planId: plan._id,
-      planName: plan.displayName,
+      planName: plan.name,
+      planCode: plan.code,
       billingCycle,
-      price: billingCycle === 'yearly' ? plan.yearlyPrice : plan.monthlyPrice,
+      price: plan.price,
       status: 'active', // No more trial if already a customer
       currentPeriodStart: new Date(),
-      currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      selectedBy: userId
+      currentPeriodEnd: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
+      selectedBy: userId,
+      paymentInfo: paymentInfo // Save payment info
     });
 
     await subscription.save();
@@ -107,9 +108,9 @@ exports.changePlan = async (req, res) => {
       currentSubscription: subscription._id,
       'planDetails': {
         name: plan.name,
-        displayName: plan.displayName,
-        monthlyPrice: plan.monthlyPrice,
-        yearlyPrice: plan.yearlyPrice,
+        code: plan.code,
+        price: plan.price,
+        currency: plan.currency || 'D',
         features: plan.features
       },
       'subscription.status': 'active',

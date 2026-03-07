@@ -11,6 +11,7 @@ const userRoutes = require('./src/routes/userRoutes');
 const authRoutes = require('./src/routes/authRoutes');
 const tenantRoutes = require('./src/routes/tenantRoutes');
 const planRoutes = require('./src/routes/planRoutes');
+const subscriptionService = require('./src/services/subscriptionService');
 const workflowRoutes = require('./src/routes/workflowRoutes');
 const projectRoutes = require('./src/routes/projectRoutes');
 const workflowInstanceRoutes = require('./src/routes/WorkflowInstanceRoutes');
@@ -83,6 +84,13 @@ masterConnection.on('connected', () => {
   📊 DB: workflow_master
   ✅ Status: Connected
       `);
+
+      // Start subscription check
+      subscriptionService.checkExpiringSubscriptions(masterConnection);
+      // Run every 24 hours
+      setInterval(() => {
+        subscriptionService.checkExpiringSubscriptions(masterConnection);
+      }, 24 * 60 * 60 * 1000);
     });
   } catch (error) {
     console.error('❌ Erreur lors du chargement des modèles:', error);

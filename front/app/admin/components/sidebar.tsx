@@ -39,7 +39,7 @@ const menuItems = [
 
 
 
-function Sidebar() {
+function Sidebar({ isExpired = false }: { isExpired?: boolean }) {
   const pathname = usePathname();
 
   return (
@@ -60,7 +60,7 @@ function Sidebar() {
         </div>
       </div>
 
-      <nav className="flex-1 mt-4 overflow-y-auto px-4 space-y-1 relative z-10 custom-scrollbar">
+      <nav className={`flex-1 mt-4 overflow-y-auto px-4 space-y-1 relative z-10 custom-scrollbar transition-all duration-500 ${isExpired ? 'grayscale blur-[2px] opacity-40 pointer-events-none' : ''}`}>
         {menuItems.map((item, index) => {
           const isActive = pathname === item.href;
           return (
@@ -88,7 +88,7 @@ function Sidebar() {
       </nav>
 
       <div className="p-6 mt-auto relative z-10">
-        <div className="bg-indigo-800/50 rounded-2xl p-4 border border-indigo-400/20 mb-6">
+        <div className={`bg-indigo-800/50 rounded-2xl p-4 border border-indigo-400/20 mb-6 transition-all duration-500 ${isExpired ? 'grayscale blur-[2px] opacity-40' : ''}`}>
           <div className="flex items-center gap-2 mb-2">
             <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></div>
             <span className="text-[9px] font-black text-indigo-200 uppercase tracking-widest">Lattice Security</span>

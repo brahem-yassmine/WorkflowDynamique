@@ -2,7 +2,7 @@
 const API_URL = 'http://127.0.0.1:5000/api';
 
 class ApiService {
-  private getToken(): string | null {
+  getToken(): string | null {
     if (typeof window === 'undefined') return null;
     return localStorage.getItem('token') ||
       localStorage.getItem('auth_token') ||
@@ -240,6 +240,12 @@ class ApiService {
   // Checklist Management
   getChecklists() {
     return this.request('/checklists');
+  }
+
+  toggleTaskStatus(id: string, taskId: string) {
+    return this.request(`/checklists/${id}/tasks/${taskId}/toggle`, {
+      method: 'PATCH'
+    });
   }
 
   deleteChecklist(id: string) {

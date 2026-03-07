@@ -14,6 +14,6 @@ router.use(auth, checkTenantActive);
 
 router.get('/history', getSubscriptionHistory);
 router.get('/current', getCurrentSubscription);
-// router.post('/change', requirePlan, changePlan);
+router.post('/change', changePlan);
 
 module.exports = router;

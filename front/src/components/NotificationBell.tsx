@@ -24,6 +24,9 @@ export default function NotificationBell() {
     const unreadCount = notifications.filter(n => !n.read).length;
 
     const fetchNotifications = async () => {
+        const token = apiService.getToken();
+        if (!token) return; // Silent guard
+        
         try {
             const res = await apiService.getNotifications();
             if (res.success) setNotifications(res.data);
@@ -33,6 +36,9 @@ export default function NotificationBell() {
     };
 
     useEffect(() => {
+        const token = apiService.getToken();
+        if (!token) return;
+
         fetchNotifications();
         const interval = setInterval(fetchNotifications, 30000); // Poll every 30s
         return () => clearInterval(interval);
@@ -71,6 +77,7 @@ export default function NotificationBell() {
             case 'workflow_created': return <GitBranch size={16} className="text-indigo-500" />;
             case 'task_assigned': return <Briefcase size={16} className="text-amber-500" />;
             case 'workflow_completed': return <Check size={16} className="text-emerald-500" />;
+            case 'warning' as any: return <ShieldAlert size={16} className="text-rose-500" />;
             default: return <ShieldAlert size={16} className="text-blue-500" />;
         }
     };

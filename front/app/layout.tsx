@@ -10,6 +10,7 @@ export const metadata: Metadata = {
 };
 
 import { Toaster } from "sonner";
+import SubscriptionWarning from "@/components/SubscriptionWarning";
 
 export default function RootLayout({
   children,
@@ -19,6 +20,7 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body className={inter.className}>
+        <SubscriptionWarning />
         {children}
         <Toaster position="top-right" richColors />
       </body>

@@ -116,16 +116,39 @@ export default function AllChecklistsPage() {
             ) : (
               <div className="space-y-3">
                 {checklist.tasks.map((task: any, idx: number) => (
-                  <div key={idx} className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-200 transition-all">
-                    <div className={`p-2 rounded-lg ${task.completed ? 'bg-emerald-100 text-emerald-600' : 'bg-indigo-100 text-indigo-600'}`}>
-                      {task.completed ? <CheckCircle2 size={14} /> : <Clock size={14} />}
+                  <div 
+                    key={idx} 
+                    className={`flex items-center gap-4 p-4 rounded-2xl border transition-all cursor-pointer group ${
+                      task.completed ? 'bg-emerald-50/50 border-emerald-100 hover:border-emerald-200' : 'bg-slate-50 border-slate-100 hover:border-indigo-200'
+                    }`}
+                    onClick={async () => {
+                      try {
+                        const res = await apiService.toggleTaskStatus(checklist._id, task.id);
+                        if (res.success) {
+                          // Update local State for current modal
+                          const updatedChecklist = { ...checklist };
+                          updatedChecklist.tasks[idx].completed = !task.completed;
+                          setSelectedChecklist(updatedChecklist);
+                          
+                          // Update list state
+                          setChecklists(prev => prev.map(c => c._id === checklist._id ? res.data : c));
+                          
+                          toast.success(task.completed ? 'Task marked as pending' : 'Task marked as completed');
+                        }
+                      } catch (err: any) {
+                        toast.error('Failed to update task status');
+                      }
+                    }}
+                  >
+                    <div className={`p-2 rounded-lg transition-colors ${task.completed ? 'bg-emerald-100 text-emerald-600' : 'bg-indigo-100 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white'}`}>
+                      {task.completed ? <CheckCircle2 size={14} /> : <div className="w-3.5 h-3.5 border-2 border-current rounded-sm" />}
                     </div>
                     <div className="flex-1">
-                      <p className={`text-sm font-black tracking-tight leading-none uppercase ${task.completed ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
+                      <p className={`text-sm font-black tracking-tight leading-none uppercase transition-all ${task.completed ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
                         {task.title}
                       </p>
                       <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">
-                        {task.completed ? 'Achieved' : 'Pending Operations'}
+                        {task.completed ? 'Achieved' : 'Click to validate'}
                       </p>
                     </div>
                     <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${

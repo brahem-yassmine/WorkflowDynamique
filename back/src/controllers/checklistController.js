@@ -103,3 +103,34 @@ exports.cloneChecklist = async (req, res) => {
         res.status(500).json({ success: false, message: 'Erreur serveur', error: error.message });
     }
 };
+
+exports.toggleTaskStatus = async (req, res) => {
+    try {
+        const { id, taskId } = req.params;
+        const Checklist = req.tenantConn.model('Checklist');
+        const checklist = await Checklist.findById(id);
+
+        if (!checklist) {
+            return res.status(404).json({ success: false, message: 'Checklist non trouvée' });
+        }
+
+        const taskIndex = checklist.tasks.findIndex(t => t.id === taskId);
+        if (taskIndex === -1) {
+            return res.status(404).json({ success: false, message: 'Tâche non trouvée' });
+        }
+
+        // Toggle status
+        checklist.tasks[taskIndex].completed = !checklist.tasks[taskIndex].completed;
+
+        // Auto update overall status if all tasks are completed
+        const allCompleted = checklist.tasks.every(t => t.completed);
+        checklist.status = allCompleted ? 'completed' : 'draft';
+
+        await checklist.save();
+
+        res.json({ success: true, data: checklist });
+    } catch (error) {
+        console.error('❌ Erreur toggleTaskStatus:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur', error: error.message });
+    }
+};

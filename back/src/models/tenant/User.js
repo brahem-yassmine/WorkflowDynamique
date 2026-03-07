@@ -35,6 +35,12 @@ const userSchema = new mongoose.Schema({
 
   lastLogin: Date,
 
+  hasSelectedPlan: {
+    type: Boolean,
+    default: false
+  },
+  selectedPlan: String,
+
   resetPasswordToken: String,
   resetPasswordExpires: Date
 }, { timestamps: true });

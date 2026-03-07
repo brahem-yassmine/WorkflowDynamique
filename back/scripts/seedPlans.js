@@ -34,11 +34,11 @@ const defaultPlans = [
   },
   {
     name: 'starter',
-    displayName: 'Starter',
+    displayName: 'Starter Plan',
     description: 'Perfect for small teams',
-    trialPeriodDays: 0,
-    monthlyPrice: 19,
-    yearlyPrice: 190, // 2 free months
+    trialPeriodDays: 15,
+    monthlyPrice: 79,
+    yearlyPrice: 790, // 2 free months
     currency: 'TND',
     features: {
       maxUsers: 10,
@@ -63,11 +63,11 @@ const defaultPlans = [
   },
   {
     name: 'pro',
-    displayName: 'Pro',
+    displayName: 'Pro Plan',
     description: 'For growing companies',
-    trialPeriodDays: 0,
-    monthlyPrice: 49,
-    yearlyPrice: 490, // 2 free months
+    trialPeriodDays: 15,
+    monthlyPrice: 299,
+    yearlyPrice: 2990, // 2 free months
     currency: 'TND',
     features: {
       maxUsers: 50,

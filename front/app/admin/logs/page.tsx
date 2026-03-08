@@ -43,6 +43,7 @@ export default function LogsPage() {
         const catMatch = log.category === activeTab;
         const searchMatch = !search || 
             log.action.toLowerCase().includes(search.toLowerCase()) ||
+            log.user?.name?.toLowerCase().includes(search.toLowerCase()) ||
             log.user?.email?.toLowerCase().includes(search.toLowerCase()) ||
             log.resource?.name?.toLowerCase().includes(search.toLowerCase());
         return catMatch && searchMatch;

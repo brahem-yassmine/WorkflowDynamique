@@ -4,7 +4,7 @@
 const mongoose = require('mongoose');
 const subscriptionSchema = new mongoose.Schema({
   // NO MORE tenantId
-  planId: String, // just the plan ID (no MongoDB reference)
+  planId: String,
   planName: String,
   planCode: String,
   billingCycle: String,

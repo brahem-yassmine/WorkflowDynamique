@@ -16,6 +16,7 @@ import {
   Camera,
   Building
 } from 'lucide-react';
+import Link from 'next/link';
 import { api } from '../../services/api';
 import { apiService } from '@/service/api.service';
 import { toast, Toaster } from 'sonner';
@@ -27,7 +28,6 @@ export default function ProfilePage() {
   const [formData, setFormData] = useState({
     name: 'Loading...',
     email: '',
-    password: '',
     role: 'User',
     companyName: ''
   });
@@ -38,12 +38,10 @@ export default function ProfilePage() {
       if (storedUser) {
         const user = JSON.parse(storedUser);
         setUserId(user._id || user.id);
-        const syncPass = localStorage.getItem('user_pass_sync') || '';
         const tenant = JSON.parse(localStorage.getItem('tenant') || '{}');
         setFormData({
           name: user.name || (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : (user.firstName || 'Admin')),
           email: user.email || '',
-          password: syncPass,
           role: user.role === 'super_admin' ? 'Master Administrator' : (user.role === 'admin' ? 'Infrastructure Admin' : 'Agent Node'),
           companyName: tenant.name || ''
         });
@@ -73,10 +71,6 @@ export default function ProfilePage() {
         name: formData.name
       };
 
-      if (formData.password) {
-        userPayload.password = formData.password;
-      }
-
       const userRes = await api.put(`/api/users/${userId}`, userPayload);
 
       if (userRes.data.success) {
@@ -84,10 +78,6 @@ export default function ProfilePage() {
         const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
         const updatedUser = { ...storedUser, ...userRes.data.data };
         localStorage.setItem('user', JSON.stringify(updatedUser));
-        
-        if (formData.password) {
-          localStorage.setItem('user_pass_sync', formData.password);
-        }
       }
 
       // 2. Update Company Profile if Admin
@@ -193,22 +183,16 @@ export default function ProfilePage() {
               </div>
 
               <InputGroup label="Access Key (Password)" icon={<Lock size={16} />}>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    placeholder={showPassword ? "Type new password..." : "•••••••• "}
-                    className="w-full h-12 bg-slate-50 border-none rounded-xl px-4 font-bold text-slate-700 focus:ring-4 focus:ring-indigo-50 transition-all outline-none pr-12"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 outline-none"
+                <div className="flex items-center gap-4">
+                  <div className="flex-1 h-12 bg-slate-50 border-none rounded-xl px-4 flex items-center font-bold text-slate-400">
+                    ••••••••
+                  </div>
+                  <Link 
+                    href="/forget"
+                    className="px-6 py-3 bg-slate-100 text-indigo-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all shadow-sm active:scale-95 whitespace-nowrap"
                   >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
+                    Forget Password?
+                  </Link>
                 </div>
               </InputGroup>
 

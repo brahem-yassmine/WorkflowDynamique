@@ -291,15 +291,12 @@ export default function SignupPage() {
 
         // Save plan info locally for immediate fallback
         if (selectedPlan) {
-          localStorage.setItem('selectedPlan', selectedPlan.name.toLowerCase());
           localStorage.setItem('planStartDate', startDate);
         // Save plan info locally for immediate fallback on billing page
         if (selectedPlan) {
-          localStorage.setItem('selectedPlan', selectedPlan.name.toLowerCase());
           localStorage.setItem('planStartDate', formData.startDate || new Date().toISOString());
         }
 
-        // Redirect to login after 3 seconds
         setTimeout(() => {
           router.push("/signin");
         }, 3000);

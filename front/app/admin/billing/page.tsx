@@ -40,7 +40,10 @@ interface Plan {
     features: any;
 }
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> e6314a902f52656002db49b7c9c2223bf17d346f
 interface HistoryItem {
     _id: string;
     planName: string;
@@ -225,7 +228,10 @@ export default function BillingPage() {
             if (!savedDate) localStorage.setItem('planStartDate', date.toISOString());
             setStart(date);
             setDays(Math.ceil(Math.abs(Date.now() - date.getTime()) / 86400000));
+<<<<<<< HEAD
 
+=======
+>>>>>>> e6314a902f52656002db49b7c9c2223bf17d346f
     const [plan, setPlan] = useState<PlanType>('demo');
     const [days, setDays] = useState(0);
     const [start, setStart] = useState<Date | null>(null);

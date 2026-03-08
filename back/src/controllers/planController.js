@@ -225,6 +225,10 @@ exports.selectPlan = async (req, res) => {
       tenant.trialPeriod = {
         startDate: start,
         endDate: trialEndDate,
+<<<<<<< HEAD
+=======
+
+>>>>>>> e6314a902f52656002db49b7c9c2223bf17d346f
         startDate: new Date(),
         endDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
         isActive: true

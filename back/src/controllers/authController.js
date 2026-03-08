@@ -89,6 +89,10 @@ const createTenantDatabase = async (tenantId, dbName, plan, adminEmail, hashedPa
 
       await subscription.save();
       console.log(' Subscription created successfully');
+<<<<<<< HEAD
+=======
+
+>>>>>>> e6314a902f52656002db49b7c9c2223bf17d346f
       console.log('✅ Subscription created successfully');
 
       // Update admin user to reflect plan selection if it was done at signup
@@ -366,6 +370,10 @@ const registerTenant = async (req, res) => {
 
     if (!companyName || !adminEmail || !password || !planId || !industry) {
       console.log('❌ registerTenant Validation failed: Missing fields');
+<<<<<<< HEAD
+=======
+
+>>>>>>> e6314a902f52656002db49b7c9c2223bf17d346f
       hasPassword,
       hasPayment
     });

@@ -185,14 +185,15 @@ exports.selectPlan = async (req, res) => {
       tenantId,
       planId: plan._id,
       planName: plan.name,
+      planCode: plan.code,
       billingCycle: billingCycle || 'monthly',
       price: plan.price,
       status: 'trial',
       selectedBy: userId,
       trialStartDate: new Date(),
-      trialEndDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+      trialEndDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
       currentPeriodStart: new Date(),
-      currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      currentPeriodEnd: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)
     });
 
     await subscription.save();
@@ -207,12 +208,11 @@ exports.selectPlan = async (req, res) => {
         code: plan.code,
         price: plan.price,
         currency: plan.currency,
-        interval: plan.interval,
         features: plan.features
       };
       tenant.trialPeriod = {
         startDate: new Date(),
-        endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        endDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
         isActive: true
       };
       await tenant.save();

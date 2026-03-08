@@ -4,8 +4,8 @@ const API_URL = 'http://127.0.0.1:5000/api';
 class ApiService {
   private getToken(): string | null {
     if (typeof window === 'undefined') return null;
-    return localStorage.getItem('token') ||
-      localStorage.getItem('auth_token') ||
+    return localStorage.getItem('auth_token') ||
+      localStorage.getItem('token') ||
       localStorage.getItem('accessToken');
   }
 

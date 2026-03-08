@@ -72,10 +72,10 @@ export default function SigninPage() {
       requiresPlanSelection
     });
 
-    // ✅ If the user has not selected a plan, redirect to the selection page
+    // ✅ If the user has not selected a plan, redirect to the billing page or handle accordingly
     if (requiresPlanSelection || hasSelectedPlan === false) {
-      console.log('⚠️ User without plan, redirecting to /select-plan');
-      return '/select-plan';
+      console.log('⚠️ User without plan, redirecting to /admin/billing');
+      return '/admin/billing';
     }
 
     // Redirect by role

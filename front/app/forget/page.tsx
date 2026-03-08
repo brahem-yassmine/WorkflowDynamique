@@ -22,11 +22,11 @@ export default function ForgetPasswordPage() {
             const response = await axios.post('http://localhost:5000/api/auth/forgot-password', { email });
             if (response.data.success) {
                 setSubmitted(true);
-                toast.success('Lien de réinitialisation envoyé !');
+                toast.success('Reset link sent!');
             }
         } catch (error: any) {
             console.error('Forget password error:', error);
-            const msg = error.response?.data?.message || 'Une erreur est survenue.';
+            const msg = error.response?.data?.message || 'An error occurred.';
             toast.error(msg);
         } finally {
             setLoading(false);
@@ -55,7 +55,7 @@ export default function ForgetPasswordPage() {
                     <div className="w-9 h-9 rounded-xl bg-slate-50 flex items-center justify-center group-hover:bg-indigo-50 transition-colors border border-transparent group-hover:border-indigo-100">
                         <ArrowLeft size={16} />
                     </div>
-                    Retour à la connexion
+                    Back to Login
                 </Link>
 
                 <AnimatePresence mode="wait">
@@ -71,17 +71,17 @@ export default function ForgetPasswordPage() {
                             </div>
 
                             <h1 className="text-3xl font-black text-slate-800 tracking-tight uppercase leading-tight mb-4">
-                                Mot de passe <br /> <span className="text-indigo-600 font-black">oublié ?</span>
+                                Forgot <br /> <span className="text-indigo-600 font-black">Password?</span>
                             </h1>
                             
                             <p className="text-slate-500 text-sm font-medium leading-relaxed mb-8">
-                                Entrez l'adresse e-mail associée à votre compte et nous vous enverrons un lien pour réinitialiser votre mot de passe.
+                                Enter the email address associated with your account and we will send you a link to reset your password.
                             </p>
 
                             <form onSubmit={handleSubmit} className="space-y-6">
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                                        Adresse E-mail
+                                        Email Address
                                     </label>
                                     <div className="relative group">
                                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={18} />
@@ -90,7 +90,7 @@ export default function ForgetPasswordPage() {
                                             required
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
-                                            placeholder="exemple@boite.com"
+                                            placeholder="example@box.com"
                                             className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:bg-white transition-all font-bold text-slate-700 placeholder:text-slate-300 text-sm"
                                         />
                                     </div>
@@ -106,7 +106,7 @@ export default function ForgetPasswordPage() {
                                     ) : (
                                         <>
                                             <Send size={16} />
-                                            Envoyer le lien
+                                            Send Reset Link
                                         </>
                                     )}
                                 </button>
@@ -124,18 +124,18 @@ export default function ForgetPasswordPage() {
                             </div>
 
                             <h1 className="text-3xl font-black text-slate-800 tracking-tight uppercase mb-4">
-                                E-mail <span className="text-emerald-500 text-6xl block mt-[-10px]">Envoyé</span>
+                                Email <span className="text-emerald-500 text-6xl block mt-[-10px]">Sent</span>
                             </h1>
                             
                             <p className="text-slate-500 text-sm font-medium leading-relaxed mb-8">
-                                Nous avons envoyé des instructions à <br /> <strong className="text-slate-800 underline decoration-indigo-200 decoration-[4px] underline-offset-4">{email}</strong>. <br /> Veuillez vérifier votre boîte de réception.
+                                We have sent instructions to <br /> <strong className="text-slate-800 underline decoration-indigo-200 decoration-[4px] underline-offset-4">{email}</strong>. <br /> Please check your inbox.
                             </p>
 
                             <button 
                                 onClick={() => setSubmitted(false)}
                                 className="text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:text-indigo-800 transition-colors underline underline-offset-8"
                             >
-                                Je n'ai pas reçu l'e-mail
+                                I didn't receive the email
                             </button>
                         </motion.div>
                     )}

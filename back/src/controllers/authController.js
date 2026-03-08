@@ -18,12 +18,14 @@ const getPlanModel = (req) => getModel(req.masterDb, 'Plan', '../models/master/P
 const getSuperAdminModel = (req) => getModel(req.masterDb, 'SuperAdmin', '../models/master/SuperAdmin');
 const getRoleModel = (conn) => getModel(conn, 'Role', '../models/master/Role');
 
-// ====================================
 // FUNCTION TO CREATE TENANT DATABASE
 // ====================================
-const createTenantDatabase = async (tenantId, dbName, plan, adminEmail, hashedPassword) => {
+const createTenantDatabase = async (tenantId, dbName, plan, adminEmail, hashedPassword, paymentDetails = null, startDate = null) => {
   try {
-    console.log(` Creating database: ${dbName}`);
+    console.log(`🚀 createTenantDatabase started for ${dbName}`, {
+      plan: plan?.name,
+      startDate
+    });
 
     const dbUri = `mongodb://localhost:27017/${dbName}`;
     const tenantConn = mongoose.createConnection(dbUri, {
@@ -54,27 +56,50 @@ const createTenantDatabase = async (tenantId, dbName, plan, adminEmail, hashedPa
     await adminUser.save();
     console.log('✅ Admin created in tenant database');
 
-    // Create subscription
-    const subscription = new Subscription({
-      tenantId: tenantId.toString(),
-      planId: plan._id.toString(),
-      planName: plan.name,
-      planCode: plan.code,
-      price: plan.price,
-      status: 'trial',
-      selectedBy: adminUser._id,
-      trialStartDate: new Date(),
-      trialEndDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)
-    });
+    // Create subscription if plan is provided
+    let subscription = null;
+    if (plan) {
+      const start = startDate ? new Date(startDate) : new Date();
+      const planCode = (plan.code || '').toLowerCase();
+      // Demo/Lattice = 7 days, others 15 days
+      const trialDays = (planCode.includes('demo') || planCode.includes('lattice')) ? 7 : 15;
 
-    await subscription.save();
-    console.log(' Subscription created');
+      const trialEndDate = new Date(start.getTime() + trialDays * 24 * 60 * 60 * 1000);
+
+      console.log(`📋 Creating subscription for ${plan.name}`, {
+        start,
+        trialEndDate,
+        trialDays
+      });
+
+      subscription = new Subscription({
+        planId: plan._id.toString(),
+        planName: plan.name,
+        planCode: plan.code,
+        price: plan.price,
+        status: 'trial',
+        selectedBy: adminUser._id,
+        trialStartDate: start,
+        trialEndDate: trialEndDate,
+        currentPeriodStart: start, // for frontend compatibility
+        currentPeriodEnd: trialEndDate, // for frontend compatibility
+        paymentInfo: paymentDetails
+      });
+
+      await subscription.save();
+      console.log('✅ Subscription created successfully');
+
+      // Update admin user to reflect plan selection if it was done at signup
+      adminUser.hasSelectedPlan = true;
+      adminUser.selectedPlan = plan.name;
+      await adminUser.save();
+    }
 
     await tenantConn.close();
     return { adminUser, subscription };
 
   } catch (error) {
-    console.error(' Tenant database creation error:', error);
+    console.error('❌ Tenant database creation error:', error);
     throw error;
   }
 };
@@ -180,6 +205,7 @@ const login = async (req, res) => {
         id: user._id,
         userId: user._id,
         email: user.email,
+        name: user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : (user.name || user.username),
         role: role,
         tenantId: tenantId,
         domain: user.domain || 'HR',
@@ -249,16 +275,34 @@ const login = async (req, res) => {
   }
 };
 
-// ====================================
 // REGISTER NEW TENANT
 // ====================================
 const registerTenant = async (req, res) => {
   try {
-    const { companyName, adminEmail, password, planId, industry } = req.body;
+    const {
+      companyName,
+      adminEmail,
+      password,
+      planId,
+      industry,
+      startDate,
+      hasPassword,
+      hasPayment,
+      paymentDetails
+    } = req.body;
 
-    console.log('📝 Tenant registration:', { companyName, adminEmail, planId });
+    console.log('📝 Incoming Tenant Registration Request:', {
+      companyName,
+      adminEmail,
+      planId,
+      industry,
+      startDate,
+      hasPassword,
+      hasPayment
+    });
 
     if (!companyName || !adminEmail || !password || !planId || !industry) {
+      console.warn('⚠️ Missing required fields in registration request');
       return res.status(400).json({
         success: false,
         message: 'All fields are required'
@@ -270,6 +314,7 @@ const registerTenant = async (req, res) => {
 
     const existingTenant = await Tenant.findOne({ email: adminEmail.toLowerCase() });
     if (existingTenant) {
+      console.warn(`⚠️ Registration failed: Email ${adminEmail} already exists`);
       return res.status(400).json({
         success: false,
         message: 'This email is already registered'
@@ -278,11 +323,14 @@ const registerTenant = async (req, res) => {
 
     const plan = await Plan.findById(planId);
     if (!plan) {
+      console.warn(`⚠️ Registration failed: Plan ID ${planId} not found`);
       return res.status(404).json({
         success: false,
         message: 'Selected plan not found'
       });
     }
+
+    console.log('✅ Plan found:', plan.name);
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
@@ -306,11 +354,15 @@ const registerTenant = async (req, res) => {
     });
 
     await tenant.save();
+    console.log('✅ Tenant record created in master database');
 
     // Create the tenant database and admin user
     try {
-      await createTenantDatabase(tenant._id, dbName, plan, adminEmail, hashedPassword);
+      console.log('🚀 Initiating tenant database creation...');
+      await createTenantDatabase(tenant._id, dbName, plan, adminEmail, hashedPassword, paymentDetails, startDate);
+      console.log('✅ Tenant database and admin user created successfully');
     } catch (dbError) {
+      console.error('❌ Database initialization failed. Rolling back tenant record.');
       await Tenant.findByIdAndDelete(tenant._id);
       return res.status(500).json({
         success: false,
@@ -559,10 +611,61 @@ const resetPassword = async (req, res) => {
   }
 };
 
+// ====================================
+// GET PROFILE
+// ====================================
+const getProfile = async (req, res) => {
+  try {
+    const { id, role, tenantId } = req.user;
+    let user = null;
+
+    if (role === 'super_admin') {
+      const SuperAdmin = getSuperAdminModel(req);
+      user = await SuperAdmin.findById(id).select('-password');
+    } else if (role === 'admin') {
+      const TenantModel = getTenantModel(req);
+      user = await TenantModel.findById(tenantId || id).select('-password');
+    } else if (tenantId) {
+      // User in tenant DB
+      const TenantModel = getTenantModel(req);
+      const tenant = await TenantModel.findById(tenantId);
+      if (tenant) {
+        const conn = mongoose.createConnection(tenant.databaseUri);
+        const TenantUser = require('../models/tenant/User')(conn);
+        user = await TenantUser.findById(id).select('-password');
+        await conn.close();
+      }
+    }
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        ...user.toObject(),
+        role: role,
+        tenantId: tenantId
+      }
+    });
+  } catch (error) {
+    console.error('❌ getProfile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error: ' + error.message
+    });
+  }
+};
+
 module.exports = {
   login,
   registerTenant,
   registerSuperAdmin,
   forgotPassword,
-  resetPassword
+  resetPassword,
+  getProfile
 };

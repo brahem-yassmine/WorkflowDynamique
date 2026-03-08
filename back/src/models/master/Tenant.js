@@ -61,6 +61,27 @@ const tenantSchema = new mongoose.Schema({
     default: null
   },
 
+  currentSubscription: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Subscription',
+    default: null
+  },
+
+  planDetails: {
+    name: String,
+    code: String,
+    price: Number,
+    currency: String,
+    features: mongoose.Schema.Types.Mixed
+  },
+
+  subscription: {
+    status: { type: String, default: 'inactive' },
+    billingCycle: { type: String, default: 'monthly' },
+    currentPeriodStart: Date,
+    currentPeriodEnd: Date
+  },
+
   databaseName: {
     type: String,
     required: true,

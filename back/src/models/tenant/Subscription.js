@@ -4,15 +4,16 @@
 const mongoose = require('mongoose');
 const subscriptionSchema = new mongoose.Schema({
   // NO MORE tenantId
-  planId: String, // just the plan ID (no MongoDB reference)
+  planId: String,
   planName: String,
+  planCode: String,
   billingCycle: String,
   price: Number,
   status: String,
-  startDate: Date,
-  endDate: Date,
-
-  // Reference to the user who performed the action
+  currentPeriodStart: Date,
+  currentPeriodEnd: Date,
+  trialStartDate: Date,
+  trialEndDate: Date,
   selectedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'

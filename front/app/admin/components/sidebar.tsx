@@ -1,7 +1,10 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 import {
   LayoutDashboard,
   Users,
@@ -41,6 +44,7 @@ const menuItems = [
 
 function Sidebar({ isExpired = false }: { isExpired?: boolean }) {
   const pathname = usePathname();
+  const { subscriptionExpired } = useAuth();
 
   return (
     <aside className="w-64 bg-indigo-700 text-white flex flex-col h-full shadow-2xl relative overflow-hidden">
@@ -63,13 +67,25 @@ function Sidebar({ isExpired = false }: { isExpired?: boolean }) {
       <nav className={`flex-1 mt-4 overflow-y-auto px-4 space-y-1 relative z-10 custom-scrollbar transition-all duration-500 ${isExpired ? 'grayscale blur-[2px] opacity-40 pointer-events-none' : ''}`}>
         {menuItems.map((item, index) => {
           const isActive = pathname === item.href;
+          const isBilling = item.href === '/admin/billing';
+          const isRestricted = subscriptionExpired && !isBilling;
+          
           return (
             <Link
               key={index}
-              href={item.href}
+              href={isRestricted ? '#' : item.href}
+              onClick={(e) => {
+                if (isRestricted) {
+                    e.preventDefault();
+                    toast.error("Access Restricted: Subscription Protocol Terminated.", {
+                        description: "Please renew your matrix access in the Fiscal center.",
+                    });
+                }
+              }}
               className={`
                 flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 group relative
                 ${isActive ? 'bg-white text-indigo-700 shadow-xl shadow-indigo-900/20' : 'text-indigo-100 hover:bg-white/10 hover:text-white'}
+                ${isRestricted ? 'grayscale blur-[2px] opacity-40 cursor-not-allowed' : ''}
               `}
             >
               <item.icon size={18} className={`${isActive ? 'text-indigo-600' : 'text-indigo-300 group-hover:text-white'} transition-colors`} />
@@ -92,13 +108,28 @@ function Sidebar({ isExpired = false }: { isExpired?: boolean }) {
           <div className="flex items-center gap-2 mb-2">
             <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></div>
             <span className="text-[9px] font-black text-indigo-200 uppercase tracking-widest">Lattice Security</span>
+=        {subscriptionExpired ? (
+          <div className="bg-rose-500/10 rounded-2xl p-4 border border-rose-400/30 mb-6 animate-pulse">
+            <div className="flex items-center gap-2 mb-2 text-rose-300">
+              <Zap size={14} className="fill-rose-400" />
+              <span className="text-[9px] font-black uppercase tracking-widest">Protocol Terminal</span>
+            </div>
+            <p className="text-[11px] font-black text-white uppercase tracking-tight">Access Restricted</p>
           </div>
-          <p className="text-[11px] font-bold text-white/90">Master Node Active</p>
-        </div>
+        ) : (
+          <div className="bg-indigo-800/50 rounded-2xl p-4 border border-indigo-400/20 mb-6">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></div>
+              <span className="text-[9px] font-black text-indigo-200 uppercase tracking-widest">Lattice Security</span>
+            </div>
+            <p className="text-[11px] font-bold text-white/90">Master Node Active</p>
+          </div>
+        )}
 
         <button
           onClick={() => {
             localStorage.removeItem('auth_token');
+            localStorage.removeItem('token');
             localStorage.removeItem('user');
             localStorage.removeItem('tenant');
             localStorage.removeItem('tenantId');

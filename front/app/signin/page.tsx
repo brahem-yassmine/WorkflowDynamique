@@ -71,6 +71,34 @@ export default function SigninPage() {
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const router = useRouter();
 
+  // ✅ Improved redirect function
+  const getRedirectPath = (userData: UserData, requiresPlanSelection?: boolean): string => {
+    const { role, hasSelectedPlan } = userData;
+
+    console.log('🔍 Debug redirect:', {
+      role,
+      hasSelectedPlan,
+      requiresPlanSelection
+    });
+
+    // ✅ If the user has not selected a plan, redirect to the billing page or handle accordingly
+    if (requiresPlanSelection || hasSelectedPlan === false) {
+      console.log('⚠️ User without plan, redirecting to /admin/billing');
+      return '/admin/billing';
+    }
+
+    // Redirect by role
+    switch (role) {
+      case 'super_admin':
+        return '/super_admin';
+      case 'admin':
+        return '/admin';
+      case 'user':
+        return '/User/create_workflows';
+      default:
+        return '/User';
+    }
+  };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();

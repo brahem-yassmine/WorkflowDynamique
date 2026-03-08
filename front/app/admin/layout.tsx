@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useState, useEffect } from 'react';
 import Sidebar from './components/sidebar';
@@ -6,6 +6,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
 import { usePathname, useRouter } from 'next/navigation';
 import Header from './components/header';
+import { useAuth } from '@/hooks/useAuth';
 
 const PAGE_METADATA: Record<string, { title: string, subtitle: string }> = {
     '/admin': {
@@ -103,6 +104,14 @@ export default function AdminLayout({
             window.removeEventListener('storage', checkSubscription);
         };
     }, [pathname, router]);
+    const { subscriptionExpired, loading } = useAuth();
+    const router = useRouter();
+
+    useEffect(() => {
+        if (!loading && subscriptionExpired && pathname !== '/admin/billing') {
+            router.push('/admin/billing');
+        }
+    }, [subscriptionExpired, loading, pathname, router]);
 
     return (
         <div className="flex h-screen bg-gray-50 overflow-hidden">

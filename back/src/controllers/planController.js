@@ -202,6 +202,10 @@ exports.selectPlan = async (req, res) => {
       trialEndDate: trialEndDate,
       currentPeriodStart: start,
       currentPeriodEnd: trialEndDate
+      trialStartDate: new Date(),
+      trialEndDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
+      currentPeriodStart: new Date(),
+      currentPeriodEnd: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)
     });
 
     await subscription.save();
@@ -216,12 +220,14 @@ exports.selectPlan = async (req, res) => {
         code: plan.code,
         price: plan.price,
         currency: plan.currency,
-        interval: plan.interval,
         features: plan.features
       };
       tenant.trialPeriod = {
         startDate: start,
         endDate: trialEndDate,
+
+        startDate: new Date(),
+        endDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
         isActive: true
       };
       await tenant.save();

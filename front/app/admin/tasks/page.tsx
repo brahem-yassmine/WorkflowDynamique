@@ -215,7 +215,7 @@ export default function TasksPage() {
 
   const getAuthInfo = () => {
     if (typeof window === 'undefined') return { tenantId: null, token: null };
-    const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
+    const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
     const tenantId =
       localStorage.getItem('tenantId') ||
       (() => {

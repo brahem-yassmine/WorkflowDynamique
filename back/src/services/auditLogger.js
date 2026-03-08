@@ -34,7 +34,7 @@ const recordActivity = async (req, action, resource, details = {}) => {
             user: {
                 id: user.id || user._id,
                 email: user.email,
-                name: user.name || user.username,
+                name: user.name || user.firstName || user.username,
                 role: user.role
             },
             action,

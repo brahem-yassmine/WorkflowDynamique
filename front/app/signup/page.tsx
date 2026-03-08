@@ -13,8 +13,10 @@ import {
   X,
   Lock,
   Calendar,
-  User
+  User,
+  CheckCircle2
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface SignupFormData {
   companyName: string;
@@ -24,6 +26,7 @@ interface SignupFormData {
   confirmPassword: string;
   agreeTerms: boolean;
   planId: string;
+  startDate?: string;
 }
 
 interface PaymentDetails {
@@ -65,6 +68,7 @@ export default function SignupPage() {
     confirmPassword: "",
     agreeTerms: false,
     planId: "",
+    startDate: new Date().toISOString().split('T')[0], // Default to today
   });
 
   const [startDate, setStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -86,6 +90,7 @@ export default function SignupPage() {
   const [loading, setLoading] = useState<boolean>(false);
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
+  const [showDebug, setShowDebug] = useState<boolean>(false);
   const router = useRouter();
 
   // ✅ LOAD PLANS AT STARTUP
@@ -270,6 +275,7 @@ export default function SignupPage() {
           password: formData.password,
           planId: formData.planId,
           startDate: startDate
+          startDate: formData.startDate
         },
         {
           headers: {
@@ -285,11 +291,12 @@ export default function SignupPage() {
 
         // Save plan info locally for immediate fallback
         if (selectedPlan) {
-          localStorage.setItem('selectedPlan', selectedPlan.name.toLowerCase());
           localStorage.setItem('planStartDate', startDate);
+        // Save plan info locally for immediate fallback on billing page
+        if (selectedPlan) {
+          localStorage.setItem('planStartDate', formData.startDate || new Date().toISOString());
         }
 
-        // Redirect to login after 3 seconds
         setTimeout(() => {
           router.push("/signin");
         }, 3000);
@@ -540,6 +547,33 @@ export default function SignupPage() {
                   />
                 </div>
 
+                {/* DEBUG CALENDAR PROTOCOL */}
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                    <div 
+                        className="flex justify-between items-center cursor-pointer"
+                        onClick={() => setShowDebug(!showDebug)}
+                    >
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Debug Protocol: Start Date</span>
+                        <div className={`w-8 h-4 rounded-full transition-colors relative ${showDebug ? 'bg-indigo-600' : 'bg-slate-300'}`}>
+                            <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${showDebug ? 'right-0.5' : 'left-0.5'}`}></div>
+                        </div>
+                    </div>
+                    {showDebug && (
+                        <div className="mt-4 animate-in slide-in-from-top-2 duration-300">
+                            <input 
+                                type="date" 
+                                name="startDate"
+                                value={formData.startDate}
+                                onChange={handleChange}
+                                className="w-full px-4 py-2 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm font-bold text-slate-700 bg-white"
+                            />
+                            <p className="mt-2 text-[9px] text-indigo-500 font-bold uppercase tracking-tighter">
+                                Manual override for subscription timestamp
+                            </p>
+                        </div>
+                    )}
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Industry *
@@ -770,6 +804,16 @@ export default function SignupPage() {
                 </h1>
                 <p className="text-blue-100">
                   7 or 15-day free trial on all plans • No credit card required
+            {/* RIGHT SIDE - PLANS PREVIEW */}
+            <div className="bg-indigo-700 rounded-2xl shadow-xl p-8 text-white relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32 blur-3xl"></div>
+              
+              <div className="relative z-10 mb-8">
+                <h1 className="text-3xl font-black mb-4 tracking-tight">
+                  Choose your protocol
+                </h1>
+                <p className="text-blue-100 font-medium">
+                  Dynamic orchestration tiers for every stage of your workflow.
                 </p>
               </div>
 
@@ -792,7 +836,39 @@ export default function SignupPage() {
                         <p className="text-xl font-bold">
                           {formatPrice(plan.price, plan.currency, plan.interval)}
                         </p>
+              <div className="space-y-4 relative z-10">
+                {!loadingPlans && plans.map((plan) => {
+                  const isDemo = (plan.code || '').toLowerCase().includes('demo') || (plan.code || '').toLowerCase().includes('lattice');
+                  const trialDays = isDemo ? 7 : 15;
+                  
+                  return (
+                    <div key={plan._id} className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 group hover:bg-white/15 transition-all">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-black text-lg tracking-tight">{plan.name}</h3>
+                            <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${isDemo ? 'bg-indigo-500/30' : 'bg-emerald-500/30'}`}>
+                                {trialDays}-Day Cycle
+                            </span>
+                          </div>
+                          <p className="text-xs text-blue-100 font-medium">
+                            {plan.features?.maxStaff === -1
+                              ? 'Unlimited Node Entities'
+                              : `Up to ${plan.features?.maxStaff} Node Entities`}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xl font-black tracking-tighter">
+                            {formatPrice(plan.price, plan.currency, plan.interval)}
+                          </p>
+                        </div>
                       </div>
+                      {plan.price > 0 && (
+                        <div className="mt-4 flex items-center gap-2 text-[10px] text-blue-200 font-bold uppercase tracking-widest">
+                          <CreditCard size={12} className="text-indigo-300" />
+                          <span>Security Verification Required</span>
+                        </div>
+                      )}
                     </div>
                     {(plan.price > 0 || plan.code === 'DEMO') && (
                       <div className="mt-2 flex items-center gap-1 text-xs text-blue-200">
@@ -811,6 +887,26 @@ export default function SignupPage() {
                   <li>✓ Cancel anytime</li>
                   <li>✓ Email support</li>
                   <li>✓ Regular updates</li>
+                  );
+                })}
+              </div>
+
+              <div className="mt-8 relative z-10 bg-indigo-800/50 backdrop-blur-sm rounded-2xl p-6 border border-white/5">
+                <p className="font-black text-[10px] uppercase tracking-[0.2em] text-indigo-300 mb-4">Lattice Standards:</p>
+                <ul className="space-y-3">
+                  {[
+                    `Flexible Free trials (7-15 days)`,
+                    'Zero-friction cancellation',
+                    '24/7 Security support',
+                    'Regular protocol updates'
+                  ].map((text, i) => (
+                    <li key={i} className="flex items-center gap-3 text-xs font-bold text-blue-100">
+                      <div className="p-1 bg-indigo-500/30 rounded shadow-inner">
+                        <CheckCircle2 size={10} className="text-indigo-200" />
+                      </div>
+                      {text}
+                    </li>
+                  ))}
                 </ul>
               </div>
             </div>

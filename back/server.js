@@ -141,6 +141,7 @@ app.use('/api', tenantResolver);
 // ========================
 // TENANT PROTECTED ROUTES
 // ========================
+app.use('/api/tenant', tenantRoutes);
 app.use('/api/tenants', tenantRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/projects', projectRoutes);

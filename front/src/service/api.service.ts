@@ -324,6 +324,15 @@ class ApiService {
       method: 'DELETE',
     });
   }
+
+  // Tenant Stats & Logs
+  getTenantStats() {
+    return this.request('/tenant/stats');
+  }
+
+  getTenantLogs() {
+    return this.request('/tenant/logs');
+  }
 }
 
 export const apiService = new ApiService();

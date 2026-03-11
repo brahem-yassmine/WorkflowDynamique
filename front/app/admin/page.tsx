@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { apiService } from '@/service/api.service';
 import {
   Activity,
   Users,
@@ -11,7 +12,9 @@ import {
   AlertCircle,
   BarChart3,
   Search,
-  Filter
+  Filter,
+  Layers,
+  Zap
 } from 'lucide-react';
 import {
   AreaChart,
@@ -26,25 +29,51 @@ import {
   Cell
 } from 'recharts';
 
-const data = [
-  { name: 'Mon', active: 12, completed: 8 },
-  { name: 'Tue', active: 15, completed: 10 },
-  { name: 'Wed', active: 18, completed: 12 },
-  { name: 'Thu', active: 22, completed: 15 },
-  { name: 'Fri', active: 20, completed: 18 },
-  { name: 'Sat', active: 10, completed: 5 },
-  { name: 'Sun', active: 8, completed: 4 },
-];
-
 const COLORS = ['#4f46e5', '#818cf8', '#6366f1', '#4338ca'];
 
 export default function AdminDashboard() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<any>(null);
+  const [logs, setLogs] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      const [statsRes, logsRes] = await Promise.all([
+        apiService.getTenantStats(),
+        apiService.getTenantLogs()
+      ]);
+      
+      if (statsRes.success) setStats(statsRes.data);
+      if (logsRes.success) setLogs(logsRes.data || []);
+      
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading || !stats) {
+    return (
+      <div className="flex items-center justify-center min-h-[600px]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white animate-bounce shadow-xl shadow-indigo-200">
+             <Zap size={24} fill="white" />
+          </div>
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">Synchronizing Command Center...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-
-
       {/* Control Bar */}
       <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
         <div className="relative w-full sm:max-w-md group">
@@ -62,10 +91,10 @@ export default function AdminDashboard() {
             <Filter size={20} />
           </button>
           <div className="hidden md:flex flex-col items-end">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">System Status</span>
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">Lattice Status</span>
             <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-500">
               <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-              Nominal
+              Operational
             </span>
           </div>
         </div>
@@ -74,30 +103,30 @@ export default function AdminDashboard() {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
-          label="Active Workflows"
-          value="42"
-          trend="+12% vs last week"
+          label="Architectures"
+          value={stats.totalWorkflows}
+          trend={`${stats.activeInstances} Running`}
           icon={<GitBranch size={20} />}
           color="bg-indigo-50 text-indigo-600"
         />
         <StatCard
-          label="Total Users"
-          value="128"
-          trend="+4 joined today"
+          label="User Network"
+          value={stats.totalUsers}
+          trend="Live Connection"
           icon={<Users size={20} />}
           color="bg-blue-50 text-blue-600"
         />
         <StatCard
-          label="Avg. Completion"
-          value="84%"
-          trend="+3% improvement"
+          label="Completed Units"
+          value={stats.completedInstances}
+          trend={`${stats.completionRate}% Success`}
           icon={<CheckCircle2 size={20} />}
           color="bg-emerald-50 text-emerald-600"
         />
         <StatCard
-          label="Pending Tasks"
-          value="15"
-          trend="6 urgent"
+          label="Pending Load"
+          value={stats.totalPendingTasks || 0}
+          trend="Queue backlog"
           icon={<AlertCircle size={20} />}
           color="bg-rose-50 text-rose-600"
         />
@@ -108,14 +137,14 @@ export default function AdminDashboard() {
         <div className="lg:col-span-2 bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
           <div className="flex justify-between items-center mb-8">
             <div>
-              <h3 className="text-lg font-black text-slate-800 tracking-tight">Execution Velocity</h3>
-              <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Workflow throughput (Weekly)</p>
+              <h3 className="text-lg font-black text-slate-800 tracking-tight">System Throughput</h3>
+              <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Global lattice activity (Weekly)</p>
             </div>
             <BarChart3 className="text-indigo-500" />
           </div>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data}>
+              <AreaChart data={stats.performanceData}>
                 <defs>
                   <linearGradient id="colorActive" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.1} />
@@ -136,29 +165,40 @@ export default function AdminDashboard() {
         </div>
 
         {/* Task Distribution */}
-        <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
+        <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 overflow-hidden">
           <div className="mb-8">
-            <h3 className="text-lg font-black text-slate-800 tracking-tight">Node Load</h3>
-            <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Resource distribution</p>
+            <h3 className="text-lg font-black text-slate-800 tracking-tight">Real-time Feed</h3>
+            <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Latest system executions</p>
           </div>
-          <div className="h-[250px]">
+          <div className="h-[250px] mb-6">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data.slice(0, 4)}>
+              <BarChart data={stats.performanceData.slice(0, 4)}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 600, fill: '#94a3b8' }} />
                 <YAxis hide />
                 <Tooltip cursor={{ fill: '#f8fafc' }} />
-                <Bar dataKey="completed" fill="#4f46e5" radius={[6, 6, 0, 0]} barSize={40}>
-                  {data.map((entry, index) => (
+                <Bar dataKey="active" fill="#4f46e5" radius={[6, 6, 0, 0]} barSize={40}>
+                  {stats.performanceData.map((entry: any, index: number) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <div className="mt-6 space-y-4">
-            <ActivityItem label="Budget Renewal" status="In Progress" color="bg-amber-500" />
-            <ActivityItem label="Member Onboarding" status="Completed" color="bg-emerald-500" />
+          <div className="space-y-3">
+            {logs.length > 0 ? logs.slice(0, 3).map((log, idx) => (
+              <ActivityItem 
+                key={idx}
+                label={log.action || 'System Process'} 
+                status={new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 
+                color={log.type === 'error' ? 'bg-rose-500' : 'bg-emerald-500'} 
+              />
+            )) : (
+              <>
+                <ActivityItem label="Master Core" status="Nominal" color="bg-emerald-500" />
+                <ActivityItem label="Audit System" status="Active" color="bg-indigo-500" />
+              </>
+            )}
           </div>
         </div>
       </div>

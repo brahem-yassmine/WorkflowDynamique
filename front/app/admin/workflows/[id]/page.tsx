@@ -10,18 +10,14 @@ import {
   CheckSquare, 
   GitBranch,
   ArrowLeft,
-  Search,
-  Plus,
-  Edit3,
-  Trash2,
   ChevronRight,
-  MoreVertical,
-  Calendar,
-  Clock,
   Briefcase,
   Layers,
-  Shield,
-  Trash
+  Clock,
+  BarChart3,
+  Search,
+  LayoutGrid,
+  ClipboardList
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiService } from '@/service/api.service';
@@ -33,6 +29,8 @@ import OperationsView from './_components/OperationsView';
 import KanbanView from './_components/KanbanView';
 import ChecklistView from './_components/ChecklistView';
 import VisualFlowView from './_components/VisualFlowView';
+import DashboardView from './_components/DashboardView';
+import TaskLogView from './_components/TaskLogView';
 
 
 export default function WorkflowAdminDetails() {
@@ -51,7 +49,7 @@ function WorkflowAdminDetailsContent() {
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const searchParams = useSearchParams();
-  const initialTab = searchParams.get('tab') || 'members';
+  const initialTab = searchParams.get('tab') || 'overview';
   const [activeTab, setActiveTab] = useState(initialTab);
 
   useEffect(() => {
@@ -93,145 +91,100 @@ function WorkflowAdminDetailsContent() {
   }
 
   const tabs = [
-    { id: 'members', label: 'Members', icon: <Users size={20} /> },
-    { id: 'operations', label: 'Live Operations', icon: <Activity size={20} /> },
-    { id: 'kanban', label: 'Kanban Boards', icon: <LayoutDashboard size={20} /> },
-    { id: 'checklist', label: 'Checklists', icon: <CheckSquare size={20} /> },
-    { id: 'visual', label: 'Visual Flow', icon: <GitBranch size={20} /> },
+    { id: 'dashboard', label: 'Progress Dashboard', description: 'Monitor task advancement and efficiency stats', icon: <BarChart3 size={24} />, color: 'bg-blue-500' },
+    { id: 'taskLog', label: 'Tasks & Entries', description: 'Review completed, rejected, and pending tasks', icon: <ClipboardList size={24} />, color: 'bg-emerald-500' },
+    { id: 'kanban', label: 'Kanban Boards', description: 'Manage operational tasks in a grid view', icon: <LayoutDashboard size={24} />, color: 'bg-amber-500' },
+    { id: 'visual', label: 'Visual Flow', description: 'Analyze the workflow structural lattice', icon: <GitBranch size={24} />, color: 'bg-indigo-500' },
+    { id: 'members', label: 'Team Members', description: 'Manage personnel assigned to this unit', icon: <Users size={24} />, color: 'bg-fuchsia-500' },
+    { id: 'operations', label: 'Live Operations', description: 'Track real-time execution instances', icon: <Activity size={24} />, color: 'bg-rose-500' },
+    { id: 'checklist', label: 'Checklists', description: 'Verify standard operational procedures', icon: <CheckSquare size={24} />, color: 'bg-slate-500' },
   ];
 
   return (
-    <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">
+    <div className="flex flex-col h-screen bg-[#F8FAFC] overflow-hidden">
       <Toaster position="top-right" richColors />
       
-      {/* NEW SIDEBAR (Specific to this Workflow) */}
-      <aside className="w-72 bg-white border-r border-slate-100 flex flex-col shrink-0">
-        <div className="p-6 border-b border-slate-50">
-          <button 
-            onClick={() => router.back()}
-            className="flex items-center gap-2 text-slate-400 hover:text-indigo-600 transition-colors mb-8 text-[10px] font-black uppercase tracking-[0.2em]"
-          >
-            <ArrowLeft size={14} />
-            Back to Project
-          </button>
-          
-          <div className="space-y-1">
-             <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-                <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Administrative Panel</span>
-             </div>
-             <h2 className="text-2xl font-black text-slate-800 tracking-tight uppercase leading-tight line-clamp-2">
-               {workflow?.name}
-             </h2>
-          </div>
-          
-          <div className="mt-6 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-             <div className="flex items-center gap-3 text-slate-400 mb-1">
-                <Briefcase size={14} />
-                <span className="text-[9px] font-black uppercase tracking-widest">Linked Project</span>
-             </div>
-             <p className="text-xs font-bold text-slate-700 truncate">{project?.name || 'Unassigned Project'}</p>
-          </div>
-        </div>
-
-        <nav className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
-           <div className="px-4 py-2">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Management Suite</span>
-           </div>
-           {tabs.map((tab) => (
-             <button
-               key={tab.id}
-               onClick={() => setActiveTab(tab.id)}
-               className={`w-full flex items-center justify-between p-4 rounded-[20px] transition-all group ${
-                 activeTab === tab.id 
-                   ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100 translate-x-1' 
-                   : 'text-slate-500 hover:bg-slate-50 hover:text-indigo-600'
-               }`}
-             >
-               <div className="flex items-center gap-4">
-                 <div className={`p-2.5 rounded-xl transition-colors ${
-                   activeTab === tab.id ? 'bg-indigo-500' : 'bg-slate-50 group-hover:bg-indigo-50'
-                 }`}>
-                   {tab.icon}
-                 </div>
-                 <span className="text-sm font-black tracking-tight">{tab.label}</span>
-               </div>
-               {activeTab === tab.id && <ChevronRight size={16} />}
-             </button>
-           ))}
-        </nav>
-
-        <div className="p-6 mt-auto border-t border-slate-50">
-           <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100/50 space-y-3">
-              <div className="flex items-center gap-2">
-                 <Shield size={14} className="text-indigo-600" />
-                 <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">Protocol Stats</span>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                 <div>
-                    <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tight">Nodes</p>
-                    <p className="text-sm font-black text-slate-800">{workflow?.nodes?.length || 0}</p>
-                 </div>
-                 <div>
-                    <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tight">Status</p>
-                    <p className="text-sm font-black text-indigo-600 uppercase">{workflow?.status}</p>
-                 </div>
-              </div>
-           </div>
-        </div>
-      </aside>
-
-      {/* MAIN CONTENT AREA */}
-      <main className="flex-1 flex flex-col h-full overflow-hidden relative">
-         {/* Top Header */}
-         <header className="h-24 bg-white border-b border-slate-100 flex items-center justify-between px-10 shrink-0 z-10">
-            <div className="flex items-center gap-4">
-               <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 border border-slate-100">
-                  <Layers size={24} />
-               </div>
-               <div>
-                  <h1 className="text-xl font-black text-slate-800 tracking-tight uppercase">
-                    {tabs.find(t => t.id === activeTab)?.label}
-                  </h1>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
-                    Internal Administration Interface
-                  </p>
-               </div>
+      {/* HEADER */}
+      <header className="bg-white border-b border-slate-200 shrink-0 z-10 shadow-sm">
+          <div className="h-20 px-10 flex items-center justify-between">
+            <div className="flex items-center gap-6">
+                <button 
+                  onClick={() => router.back()}
+                  className="w-10 h-10 bg-slate-50 hover:bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 transition-all border border-slate-100 shadow-sm active:scale-95 group"
+                >
+                  <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
+                </button>
+                
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-100">
+                      <Layers size={20} />
+                  </div>
+                  <div>
+                      <h1 className="text-lg font-black text-slate-800 tracking-tight uppercase leading-none">
+                        {workflow?.name}
+                      </h1>
+                      <div className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1 flex items-center gap-2">
+                        <span className="text-indigo-500 font-black">{project?.name || 'GENERIC'}</span> 
+                        <div className="w-1 h-1 rounded-full bg-slate-300" />
+                        Operational Unit Control
+                      </div>
+                  </div>
+                </div>
             </div>
 
             <div className="flex items-center gap-3">
-               <div className="flex items-center gap-1.5 px-4 py-2.5 bg-slate-50 rounded-xl border border-slate-100 text-slate-400">
-                  <Clock size={16} />
-                  <span className="text-xs font-black uppercase tracking-tight">Last Sync: Just Now</span>
-               </div>
                <button 
                  onClick={() => router.push(`/create-workflow?id=${workflowId}`)}
-                 className="px-6 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg"
+                 className="px-6 py-2.5 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-[0.2em] hover:bg-slate-800 shadow-xl transition-all active:scale-95 flex items-center gap-2"
                >
-                 Open Architect
+                 <GitBranch size={14} />
+                 Architect
                </button>
             </div>
-         </header>
+          </div>
 
-         {/* Dynamic Content */}
-         <div className="flex-1 overflow-y-auto p-10 custom-scrollbar bg-[#F8FAFC]">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeTab}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2 }}
-                className="h-full"
-              >
-                {activeTab === 'members' && <MembersView workflowId={workflowId} />}
-                {activeTab === 'operations' && <OperationsView workflowId={workflowId} />}
-                {activeTab === 'kanban' && <KanbanView workflowId={workflowId} />}
-                {activeTab === 'checklist' && <ChecklistView workflowId={workflowId} />}
-                {activeTab === 'visual' && <VisualFlowView workflowId={workflowId} workflow={workflow} />}
-              </motion.div>
-            </AnimatePresence>
-         </div>
+          {/* COMPACT NAVIGATION STRIP */}
+          <div className="px-10 flex items-center gap-1 overflow-x-auto no-scrollbar border-t border-slate-50 py-2 bg-white/50">
+             {tabs.map((tab) => (
+               <button
+                 key={tab.id}
+                 onClick={() => setActiveTab(tab.id)}
+                 className={`px-5 py-2.5 rounded-xl transition-all flex items-center gap-3 whitespace-nowrap ${
+                   activeTab === tab.id 
+                     ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' 
+                     : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'
+                 }`}
+               >
+                 <div className={`${activeTab === tab.id ? 'text-white' : 'text-slate-400'}`}>
+                    {React.cloneElement(tab.icon as any, { size: 16 })}
+                 </div>
+                 <span className="text-[10px] font-black uppercase tracking-widest">{tab.label}</span>
+               </button>
+             ))}
+          </div>
+      </header>
+
+      {/* CONTENT */}
+      <main className="flex-1 overflow-y-auto p-10 custom-scrollbar bg-[#F8FAFC]">
+         <AnimatePresence mode="wait">
+             <motion.div
+               key={activeTab}
+               initial={{ opacity: 0, y: 10 }}
+               animate={{ opacity: 1, y: 0 }}
+               exit={{ opacity: 0, y: -10 }}
+               transition={{ duration: 0.2 }}
+               className="h-full max-w-7xl mx-auto"
+             >
+               {activeTab === 'dashboard' && <DashboardView workflowId={workflowId} />}
+               {activeTab === 'overview' && <DashboardView workflowId={workflowId} />}
+               {activeTab === 'taskLog' && <TaskLogView workflowId={workflowId} />}
+               {activeTab === 'members' && <MembersView workflowId={workflowId} />}
+               {activeTab === 'operations' && <OperationsView workflowId={workflowId} />}
+               {activeTab === 'kanban' && <KanbanView workflowId={workflowId} />}
+               {activeTab === 'checklist' && <ChecklistView workflowId={workflowId} />}
+               {activeTab === 'visual' && <VisualFlowView workflowId={workflowId} workflow={workflow} />}
+             </motion.div>
+         </AnimatePresence>
       </main>
     </div>
   );

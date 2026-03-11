@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Formulaire Complet</title>
+</head>
+<body>
+
+  <h1>Formulaire d'inscription</h1>
+
+  <form action="/traitement.php" method="post" enctype="multipart/form-data" autocomplete="on" target="_self">
+
+    <fieldset>
+      <legend>Informations personnelles</legend>
+
+      <label for="nom">Nom :</label>
+      <input type="text" id="nom" name="nom" placeholder="Entrez votre nom" required><br><br>
+
+      <label for="email">Email :</label>
+      <input type="email" id="email" name="email" required><br><br>
+
+      <label for="mdp">Mot de passe :</label>
+      <input type="password" id="mdp" name="motdepasse" required minlength="6"><br><br>
+
+      <label for="date">Date de naissance :</label>
+      <input type="date" id="date" name="naissance"><br><br>
+
+      <label for="age">Âge :</label>
+      <input type="number" id="age" name="age" min="1" max="100"><br><br>
+
+      <label for="genre">Genre :</label><br>
+      <input type="radio" id="homme" name="genre" value="homme">
+      <label for="homme">Homme</label>
+      <input type="radio" id="femme" name="genre" value="femme">
+      <label for="femme">Femme</label><br><br>
+    </fieldset>
+
+    <fieldset>
+      <legend>Préférences</legend>
+
+      <label for="pays">Pays :</label>
+      <select name="pays" id="pays" required>
+        <option value="">-- Choisissez un pays --</option>
+        <option value="fr">France</option>
+        <option value="tn">Tunisie</option>
+        <option value="ma">Maroc</option>
+      </select><br><br>
+
+      <label for="interets">Centres d'intérêt :</label><br>
+      <input type="checkbox" id="musique" name="interets" value="musique">
+      <label for="musique">Musique</label><br>
+      <input type="checkbox" id="sport" name="interets" value="sport">
+      <label for="sport">Sport</label><br>
+      <input type="checkbox" id="lecture" name="interets" value="lecture">
+      <label for="lecture">Lecture</label><br><br>
+    </fieldset>
+
+    <fieldset>
+      <legend>Autres informations</legend>
+
+      <label for="site">Votre site web :</label>
+      <input type="url" id="site" name="site"><br><br>
+
+      <label for="fichier">Photo de profil :</label>
+      <input type="file" id="fichier" name="photo" accept="image/*" multiple><br><br>
+
+      <label for="couleur">Votre couleur préférée :</label>
+      <input type="color" id="couleur" name="couleur"><br><br>
+
+      <label for="message">Votre message :</label><br>
+      <textarea id="message" name="message" rows="5" cols="30" placeholder="Écrivez ici..."></textarea><br><br>
+
+      <label for="ville">Ville (avec suggestions) :</label>
+      <input list="villes" name="ville" id="ville">
+      <datalist id="villes">
+        <option value="Paris">
+        <option value="Tunis">
+        <option value="Rabat">
+      </datalist><br><br>
+
+      <!-- Champ caché -->
+      <input type="hidden" name="token" value="abc123">
+    </fieldset>
+
+    <br>
+    <button type="submit">Envoyer</button>
+    <button type="reset">Réinitialiser</button>
+
+  </form>
+
+</body>
+</html>

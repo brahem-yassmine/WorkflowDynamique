@@ -19,7 +19,8 @@ import {
   Copy,
   Briefcase,
   Play,
-  X
+  X,
+  LayoutGrid
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiService } from '@/service/api.service';
@@ -384,15 +385,21 @@ export default function WorkflowsPage() {
 
                 <div className="p-8 bg-slate-50 border-t border-slate-100 space-y-4">
                   <div className="flex gap-4">
-                    <Link href={`/create-workflow?id=${selectedWorkflow._id}`} className="flex-[2]">
+                    <Link href={`/admin/workflows/${selectedWorkflow._id}`} className="flex-1">
+                      <button className="w-full py-5 bg-slate-900 text-white rounded-[24px] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-slate-800 transition-all active:scale-95 shadow-xl shadow-slate-200">
+                        <LayoutGrid size={18} />
+                        Inspect Unit
+                      </button>
+                    </Link>
+                    <Link href={`/create-workflow?id=${selectedWorkflow._id}`} className="flex-1">
                       <button className="w-full py-5 bg-indigo-600 text-white rounded-[24px] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-indigo-700 transition-all active:scale-95 shadow-xl shadow-indigo-200">
                         <Layers size={18} />
-                        Architect Visual Flow
+                        Architect
                       </button>
                     </Link>
                     <button
                       onClick={() => handleInitialize(selectedWorkflow._id)}
-                      className="flex-1 py-5 bg-emerald-600 text-white rounded-[24px] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-emerald-700 transition-all active:scale-95 shadow-xl shadow-emerald-200"
+                      className="px-8 py-5 bg-emerald-600 text-white rounded-[24px] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-emerald-700 transition-all active:scale-95 shadow-xl shadow-emerald-200"
                     >
                       <Play size={18} fill="white" />
                       Launch

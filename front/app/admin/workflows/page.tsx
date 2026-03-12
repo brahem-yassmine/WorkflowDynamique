@@ -50,11 +50,13 @@ export default function WorkflowsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+
   const [editForm, setEditForm] = useState({ name: '', domain: 'HR', projectId: '' });
   const [isUpdating, setIsUpdating] = useState(false);
+  const [editingWorkflowId, setEditingWorkflowId] = useState<string | null>(null);
+
 
   const searchParams = useSearchParams();
   const projectIdFilter = searchParams.get('projectId');
@@ -105,8 +107,8 @@ export default function WorkflowsPage() {
       const response = await apiService.request(`/workflows/${id}`, { method: 'DELETE' });
       if (response.success) {
         setWorkflows(prev => prev.filter(w => w._id !== id));
-        if (selectedWorkflow?._id === id) setSelectedWorkflow(null);
       }
+
     } catch (error: any) {
       alert('Error during deletion: ' + error.message);
     }
@@ -128,20 +130,21 @@ export default function WorkflowsPage() {
   };
 
   const handleUpdateMetadata = async () => {
-    if (!selectedWorkflow || !editForm.name.trim()) return;
+    if (!editingWorkflowId || !editForm.name.trim()) return;
     try {
       setIsUpdating(true);
-      const response = await apiService.updateWorkflow(selectedWorkflow._id, {
+      const response = await apiService.updateWorkflow(editingWorkflowId, {
         name: editForm.name,
         domain: editForm.domain,
         projectId: editForm.projectId || undefined
       });
 
       if (response.success) {
-        setWorkflows(prev => prev.map(w => w._id === selectedWorkflow._id ? { ...w, ...response.data } : w));
-        setSelectedWorkflow({ ...selectedWorkflow, ...response.data });
+        setWorkflows(prev => prev.map(w => w._id === editingWorkflowId ? { ...w, ...response.data } : w));
         setShowEditModal(false);
+        setEditingWorkflowId(null);
       }
+
     } catch (error: any) {
       alert('Error updating: ' + error.message);
     } finally {
@@ -149,16 +152,17 @@ export default function WorkflowsPage() {
     }
   };
 
-  const openEditModal = () => {
-    if (!selectedWorkflow) return;
+  const openEditModal = (workflow: Workflow) => {
     setEditForm({
-      name: selectedWorkflow.name,
-      domain: selectedWorkflow.domain,
-      projectId: selectedWorkflow.projectId || ''
+      name: workflow.name,
+      domain: workflow.domain,
+      projectId: workflow.projectId || ''
     });
+    setEditingWorkflowId(workflow._id);
     setShowEditModal(true);
-    setSelectedWorkflow(null);
   };
+
+
 
   const filteredWorkflows = workflows.filter(w =>
     w.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -274,9 +278,9 @@ export default function WorkflowsPage() {
                           key={workflow._id}
                           workflow={workflow}
                           projectName={project.name}
-                          isSelected={selectedWorkflow?._id === workflow._id}
-                          onClick={() => setSelectedWorkflow(workflow)}
+                          onClick={() => router.push(`/admin/workflows/${workflow._id}`)}
                         />
+
                       ))}
                     </div>
                   </div>
@@ -307,9 +311,9 @@ export default function WorkflowsPage() {
                         key={workflow._id}
                         workflow={workflow}
                         projectName="No Project"
-                        isSelected={selectedWorkflow?._id === workflow._id}
-                        onClick={() => setSelectedWorkflow(workflow)}
+                        onClick={() => router.push(`/admin/workflows/${workflow._id}`)}
                       />
+
                     ))}
                   </div>
                 </div>
@@ -318,115 +322,8 @@ export default function WorkflowsPage() {
           )}
         </div>
 
-        {/* Workflow Inspector Modal */}
-        <AnimatePresence>
-          {selectedWorkflow && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setSelectedWorkflow(null)}
-                className="absolute inset-0 bg-slate-900/60 backdrop-blur-lg"
-              />
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                className="bg-white rounded-[40px] shadow-2xl w-full max-w-2xl relative z-10 overflow-hidden border border-white/20 flex flex-col max-h-[90vh]"
-              >
-                <div className="p-8 flex-grow overflow-y-auto custom-scrollbar">
-                  <div className="flex justify-between items-start mb-8">
-                    <div className={`px-4 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-widest ${getStatusStyles(selectedWorkflow.status)}`}>
-                      {selectedWorkflow.status} Status
-                    </div>
-                    <button
-                      onClick={() => setSelectedWorkflow(null)}
-                      className="p-3 bg-slate-50 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-2xl transition-all"
-                    >
-                      <X size={20} />
-                    </button>
-                  </div>
-
-                  <div className="flex flex-col md:flex-row gap-8 items-start mb-10">
-                    <div className="bg-indigo-600 w-24 h-24 rounded-[32px] flex items-center justify-center text-white shadow-xl shadow-indigo-200 shrink-0">
-                      <GitBranch size={40} />
-                    </div>
-                    <div className="space-y-2">
-                      <h2 className="text-3xl font-black text-slate-800 tracking-tight leading-none uppercase">{selectedWorkflow.name}</h2>
-                      <p className="text-xs font-bold text-indigo-500 uppercase tracking-[0.2em]">Process Lattice Schema</p>
-                      <p className="text-sm font-medium text-slate-500 leading-relaxed mt-4">
-                        {selectedWorkflow.description || 'This schema defines the sequential and parallel logic for organizational operations.'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                    <div className="p-6 bg-slate-50 rounded-[28px] space-y-4">
-                      <DetailRow label="Strategic Domain" icon={<Layers size={16} />}>
-                        <span className="text-sm font-bold text-slate-700 bg-white px-3 py-1 rounded-lg border border-slate-100 shadow-sm">{selectedWorkflow.domain}</span>
-                      </DetailRow>
-                      <DetailRow label="Project" icon={<Briefcase size={16} />}>
-                        <span className="text-sm font-bold text-slate-700">{getWorkflowProjectName(selectedWorkflow.projectId)}</span>
-                      </DetailRow>
-                    </div>
-                    <div className="p-6 bg-slate-50 rounded-[28px] space-y-4">
-                      <DetailRow label="Node Logic" icon={<CheckCircle2 size={16} />}>
-                        <span className="text-sm font-bold text-slate-700">{selectedWorkflow.nodes.length} Blocks</span>
-                      </DetailRow>
-                      <DetailRow label="Protocol Version" icon={<Calendar size={16} />}>
-                        <span className="text-sm font-bold text-slate-700">
-                          {new Date(selectedWorkflow.updatedAt).toLocaleDateString()}
-                        </span>
-                      </DetailRow>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-8 bg-slate-50 border-t border-slate-100 space-y-4">
-                  <div className="flex gap-4">
-                    <Link href={`/admin/workflows/${selectedWorkflow._id}`} className="flex-1">
-                      <button className="w-full py-5 bg-slate-900 text-white rounded-[24px] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-slate-800 transition-all active:scale-95 shadow-xl shadow-slate-200">
-                        <LayoutGrid size={18} />
-                        Inspect Unit
-                      </button>
-                    </Link>
-                    <Link href={`/create-workflow?id=${selectedWorkflow._id}`} className="flex-1">
-                      <button className="w-full py-5 bg-indigo-600 text-white rounded-[24px] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-indigo-700 transition-all active:scale-95 shadow-xl shadow-indigo-200">
-                        <Layers size={18} />
-                        Architect
-                      </button>
-                    </Link>
-                    <button
-                      onClick={() => handleInitialize(selectedWorkflow._id)}
-                      className="px-8 py-5 bg-emerald-600 text-white rounded-[24px] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-emerald-700 transition-all active:scale-95 shadow-xl shadow-emerald-200"
-                    >
-                      <Play size={18} fill="white" />
-                      Launch
-                    </button>
-                  </div>
-                  <div className="flex gap-4">
-                    <button
-                      onClick={() => handleDuplicate(selectedWorkflow._id)}
-                      disabled={duplicatingId === selectedWorkflow._id}
-                      className="flex-1 py-4 bg-white border border-slate-200 text-slate-600 rounded-[20px] font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-50 transition-all disabled:opacity-50"
-                    >
-                      <Copy size={16} />
-                      {duplicatingId === selectedWorkflow._id ? 'Cloning...' : 'Duplicate Schema'}
-                    </button>
-                    <button
-                      onClick={() => handleDelete(selectedWorkflow._id)}
-                      className="px-6 py-4 bg-rose-50 text-rose-600 rounded-[20px] hover:bg-rose-500 hover:text-white transition-all border border-rose-100 flex items-center justify-center"
-                    >
-                      <Trash2 size={20} />
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
       </div>
+
 
       {/* Edit Metadata Modal */}
       <AnimatePresence>
@@ -518,7 +415,8 @@ export default function WorkflowsPage() {
   );
 }
 
-function WorkflowCard({ workflow, projectName, isSelected, onClick }: { workflow: Workflow; projectName: string; isSelected: boolean; onClick: () => void }) {
+function WorkflowCard({ workflow, projectName, onClick }: { workflow: Workflow; projectName: string; onClick: () => void }) {
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active': return 'bg-emerald-500';
@@ -532,7 +430,8 @@ function WorkflowCard({ workflow, projectName, isSelected, onClick }: { workflow
     <motion.div
       whileHover={{ y: -5 }}
       onClick={onClick}
-      className={`bg-white p-6 rounded-3xl border transition-all cursor-pointer group relative overflow-hidden ${isSelected ? 'border-indigo-500 ring-4 ring-indigo-50 shadow-xl' : 'border-slate-100 hover:border-indigo-200 shadow-sm'}`}
+      className={`bg-white p-6 rounded-3xl border transition-all cursor-pointer group relative overflow-hidden border-slate-100 hover:border-indigo-200 shadow-sm hover:shadow-xl hover:shadow-indigo-50`}
+
     >
       <div className={`absolute top-0 left-0 w-1.5 h-full ${getStatusColor(workflow.status)}`}></div>
 

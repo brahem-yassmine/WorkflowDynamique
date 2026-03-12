@@ -18,33 +18,57 @@ import {
   Zap,
   ChevronRight,
   ListTodo,
-  Activity
+  Activity,
+  Briefcase,
+  LifeBuoy
 } from 'lucide-react';
 
-const menuItems = [
-  { icon: LayoutDashboard, label: "Command Center", href: "/admin" },
-  { icon: Activity, label: "Live Operations", href: "/admin/operations" },
-  { icon: Users, label: "User Network", href: "/admin/userManagement" },
-  { icon: LayoutGrid, label: "Structural Domains", href: "/admin/domains" },
-  { icon: ShieldCheck, label: "Authority Roles", href: "/admin/roles" },
-  { icon: FolderKanban, label: "Strategic Projects", href: "/admin/projects" },
-  { icon: GitBranch, label: "All Workflows", href: "/admin/workflows" },
-  { icon: FolderKanban, label: "Kanban Boards", href: "/admin/AllKanban" },
-  { icon: ListTodo, label: "All Checklists", href: "/admin/AllCheck" },
-  { icon: CreditCard, label: "Fiscal / Billing", href: "/admin/billing" },
-  { icon: FileText, label: "System Logs", href: "/admin/logs" },
-  { icon: FileText, label: "Forms", href: "/admin/AllForms" },
-  { icon: UserCircle, label: "Personal Node", href: "/admin/profile" },
+
+
+const menuGroups = [
+  {
+    title: "Global",
+    items: [
+      { icon: LayoutDashboard, label: "Command Center", href: "/admin" },
+      { icon: Activity, label: "Live Operations Global", href: "/admin/operations" },
+      { icon: GitBranch, label: "All workflows", href: "/admin/workflows" },
+      { icon: ListTodo, label: "Checklists", href: "/admin/AllCheck" },
+      { icon: FileText, label: "Formulaires", href: "/admin/AllForms" },
+      { icon: FolderKanban, label: "Kanbans", href: "/admin/AllKanban" },
+    ]
+  },
+  {
+    title: "Spécifique",
+    items: [
+      { icon: Briefcase, label: "Project workspace", href: "/admin/projects" },
+      { icon: Zap, label: "Standard Flows", href: "/admin/workflows/standard" },
+    ]
+  },
+  {
+    title: "Configuration and Security",
+    items: [
+      { icon: UserCircle, label: "Profile", href: "/admin/profile" },
+      { icon: FileText, label: "Logs", href: "/admin/logs" },
+      { icon: CreditCard, label: "Billing", href: "/admin/billing" },
+      { icon: LifeBuoy, label: "Reports", href: "/admin/reports" },
+    ]
+
+  },
+  {
+    title: "Permission and User",
+    items: [
+      { icon: LayoutGrid, label: "Domain", href: "/admin/domains" },
+      { icon: ShieldCheck, label: "Roles", href: "/admin/roles" },
+      { icon: Users, label: "User", href: "/admin/userManagement" },
+    ]
+  }
 ];
-
-
-
 
 function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-64 bg-indigo-700 text-white flex flex-col h-full shadow-2xl relative overflow-hidden">
+    <aside className="w-72 bg-indigo-700 text-white flex flex-col h-full shadow-2xl relative overflow-hidden">
       {/* Decorative background elements */}
       <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl"></div>
       <div className="absolute bottom-0 left-0 w-24 h-24 bg-indigo-900/20 rounded-full -ml-12 -mb-12 blur-xl"></div>
@@ -61,31 +85,46 @@ function Sidebar() {
         </div>
       </div>
 
-      <nav className="flex-1 mt-4 overflow-y-auto px-4 space-y-1 relative z-10 custom-scrollbar">
-        {menuItems.map((item, index) => {
-          const isActive = pathname === item.href;
-          return (
-            <Link
-              key={index}
-              href={item.href}
-              className={`
-                flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 group relative
-                ${isActive ? 'bg-white text-indigo-700 shadow-xl shadow-indigo-900/20' : 'text-indigo-100 hover:bg-white/10 hover:text-white'}
-              `}
-            >
-              <item.icon size={18} className={`${isActive ? 'text-indigo-600' : 'text-indigo-300 group-hover:text-white'} transition-colors`} />
-              <span className={`text-xs font-bold tracking-tight flex-1 ${isActive ? 'font-black' : ''}`}>
-                {item.label}
-              </span>
-              {isActive && (
-                <motion.div layoutId="activeDot" className="w-1.5 h-1.5 bg-indigo-600 rounded-full shadow-sm"></motion.div>
-              )}
-              {!isActive && (
-                <ChevronRight size={14} className="opacity-0 group-hover:opacity-40 transition-opacity" />
-              )}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 mt-2 overflow-y-auto px-4 space-y-8 relative z-10 custom-scrollbar pb-10">
+        {menuGroups.map((group, groupIndex) => (
+          <div key={groupIndex} className="space-y-2">
+            <h2 className="px-4 text-[10px] font-black text-indigo-200/60 uppercase tracking-widest flex items-center gap-2">
+              <span className="w-1 h-1 bg-white/40 rounded-full"></span>
+              {group.title}
+            </h2>
+            <div className="space-y-1">
+              {group.items.map((item, index) => {
+                const isActive = pathname === item.href;
+                return (
+                  <Link
+                    key={index}
+                    href={item.href}
+                    className={`
+                      flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 group relative
+                      ${isActive 
+                        ? 'bg-white text-indigo-700 shadow-xl shadow-indigo-900/20' 
+                        : 'text-indigo-100 hover:bg-white/10 hover:text-white'}
+                    `}
+                  >
+                    <item.icon size={18} className={`${isActive ? 'text-indigo-600' : 'text-indigo-300 group-hover:text-white'} transition-colors`} />
+                    <span className={`text-xs font-bold tracking-tight flex-1 ${isActive ? 'font-black' : ''}`}>
+                      {item.label}
+                    </span>
+                    {isActive && (
+                      <motion.div 
+                        layoutId="activeIndicator" 
+                        className="absolute left-0 w-1 h-6 bg-indigo-500 rounded-r-full"
+                      />
+                    )}
+                    {!isActive && (
+                      <ChevronRight size={14} className="opacity-0 group-hover:opacity-40 transition-opacity" />
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
       <div className="p-6 mt-auto relative z-10">
@@ -104,11 +143,13 @@ function Sidebar() {
           </button>
         </Link>
       </div>
+
     </aside>
   );
 }
 
 import { motion } from 'framer-motion';
+
 export default Sidebar;
 
 

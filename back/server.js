@@ -25,8 +25,10 @@ const boardRoutes = require('./src/routes/boardRoutes');
 const notificationRoutes = require('./src/routes/notificationRoutes');
 const tenantRoleRoutes = require('./src/routes/tenant/role.routes');
 const tenantDomainRoutes = require('./src/routes/tenant/domain.routes');
+const reportRoutes = require('./src/routes/reportRoutes');
 
 const app = express();
+
 
 // ========================
 // MIDDLEWARES
@@ -65,6 +67,8 @@ masterConnection.once('connected', () => {
     require('./src/models/master/SuperAdmin')(masterConnection);
     require('./src/models/master/permission.model')(masterConnection);
     require('./src/models/master/Role')(masterConnection);
+    require('./src/models/master/SystemReport')(masterConnection);
+
 
     console.log('📦 Modèles master chargés:', Object.keys(masterConnection.models).join(', '));
 
@@ -153,7 +157,9 @@ app.use('/api/checklists', checklistRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/boards', boardRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/reports', reportRoutes);
 app.use('/api/tenant/roles', tenantRoleRoutes);
+
 app.use('/api/tenant/domains', tenantDomainRoutes);
 app.use('/api/form-responses', formRoutes);
 

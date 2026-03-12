@@ -14,7 +14,16 @@ import {
   ChevronDown,
   FileText,
   ClipboardList,
-  AlertCircle
+  AlertCircle,
+  Mail,
+  Eye,
+  MessageSquare,
+  X,
+  Play,
+  Flag,
+  GitMerge,
+  GitFork,
+  Paperclip
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -30,6 +39,7 @@ export default function TaskLogView({ workflowId }: TaskLogViewProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [workflow, setWorkflow] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
+  const [selectedTask, setSelectedTask] = useState<any>(null);
 
   useEffect(() => {
     fetchData();
@@ -55,6 +65,8 @@ export default function TaskLogView({ workflowId }: TaskLogViewProps) {
           // Add Completed/Rejected tasks from executionPath
           inst.executionPath?.forEach((path: any) => {
             const nodeDef = wfRes.data.nodes?.find((n: any) => n.id === path.nodeId);
+            if (nodeDef?.type === 'syncJoin' || nodeDef?.type === 'parallelStart') return;
+            
             aggregatedTasks.push({
               id: `${inst._id}-${path.nodeId}-${path.timestamp}`,
               instanceId: inst._id,
@@ -64,17 +76,28 @@ export default function TaskLogView({ workflowId }: TaskLogViewProps) {
               status: path.action === 'rejected' ? 'REJECTED' : 'COMPLETED',
               performedBy: path.performedBy,
               timestamp: path.timestamp,
-              type: nodeDef?.data?.userAction || 'Complete Task',
-              assignmentType: nodeDef?.data?.assignmentType || 'SINGLE',
+              type: nodeDef?.type === 'start' ? 'Début' : 
+                    nodeDef?.type === 'end' ? 'Fin' :
+                    nodeDef?.type === 'syncJoin' ? 'Sync Join' :
+                    nodeDef?.type === 'parallelStart' ? 'Start Parallel' :
+                    nodeDef?.data?.userAction === 'Fill Form' ? 'Formulaire' :
+                    nodeDef?.data?.userAction === 'Write Report' ? 'Texte' :
+                    nodeDef?.data?.userAction === 'Upload File' ? 'Fichier' :
+                    (nodeDef?.data?.userAction || 'Tâche'),
+              assignmentType: nodeDef?.data?.userAction === 'Approver' ? 'SINGLE' : (nodeDef?.data?.assignmentType || 'SINGLE'),
               responsibleDomain: nodeDef?.data?.responsibleDomain,
-              approvedBy: [path.performedBy], // Simplified for historical
-              nodeData: nodeDef?.data
+              approvedBy: [path.performedBy], 
+              nodeData: nodeDef?.data,
+              outputData: path.outputData,
+              comments: path.comments
             });
           });
 
           // Add In Progress tasks from currentNodes
           inst.currentNodes?.forEach((curr: any) => {
             const nodeDef = wfRes.data.nodes?.find((n: any) => n.id === curr.nodeId);
+            if (nodeDef?.type === 'syncJoin' || nodeDef?.type === 'parallelStart') return;
+
             aggregatedTasks.push({
               id: `${inst._id}-${curr.nodeId}`,
               instanceId: inst._id,
@@ -84,7 +107,14 @@ export default function TaskLogView({ workflowId }: TaskLogViewProps) {
               status: 'IN_PROGRESS',
               performedBy: null,
               timestamp: curr.startedAt,
-              type: nodeDef?.data?.userAction || 'Complete Task',
+              type: nodeDef?.type === 'start' ? 'Début' : 
+                    nodeDef?.type === 'end' ? 'Fin' :
+                    nodeDef?.type === 'syncJoin' ? 'Sync Join' :
+                    nodeDef?.type === 'parallelStart' ? 'Start Parallel' :
+                    nodeDef?.data?.userAction === 'Fill Form' ? 'Formulaire' :
+                    nodeDef?.data?.userAction === 'Write Report' ? 'Texte' :
+                    nodeDef?.data?.userAction === 'Upload File' ? 'Fichier' :
+                    (nodeDef?.data?.userAction || 'Tâche'),
               assignmentType: nodeDef?.data?.assignmentType || 'SINGLE',
               responsibleDomain: nodeDef?.data?.responsibleDomain,
               approvedBy: curr.approvedBy || [],
@@ -92,11 +122,9 @@ export default function TaskLogView({ workflowId }: TaskLogViewProps) {
             });
           });
           
-          // Note: "Not Started" tasks are those in Workflow nodes but NOT in executionPath or currentNodes for a GIVEN instance.
-          // For simplicity in a global log, we usually focus on active or historical actions. 
-          // But the user asked for "Not Started" too.
           wfRes.data.nodes?.forEach((node: any) => {
-             if (node.type === 'start' || node.type === 'end') return;
+             if (node.type === 'syncJoin' || node.type === 'parallelStart') return;
+             
              const isDone = inst.executionPath?.some((p: any) => p.nodeId === node.id);
              const isInProgress = inst.currentNodes?.some((c: any) => c.nodeId === node.id);
              
@@ -110,7 +138,14 @@ export default function TaskLogView({ workflowId }: TaskLogViewProps) {
                  status: 'NOT_STARTED',
                  performedBy: null,
                  timestamp: null,
-                 type: node.data?.userAction || 'Complete Task',
+                 type: node.type === 'start' ? 'Début' : 
+                       node.type === 'end' ? 'Fin' :
+                       node.type === 'syncJoin' ? 'Sync Join' :
+                       node.type === 'parallelStart' ? 'Start Parallel' :
+                       node.data?.userAction === 'Fill Form' ? 'Formulaire' :
+                       node.data?.userAction === 'Write Report' ? 'Texte' :
+                       node.data?.userAction === 'Upload File' ? 'Fichier' :
+                       (node.data?.userAction || 'Tâche'),
                  assignmentType: node.data?.assignmentType || 'SINGLE',
                  responsibleDomain: node.data?.responsibleDomain,
                  approvedBy: [],
@@ -231,8 +266,14 @@ export default function TaskLogView({ workflowId }: TaskLogViewProps) {
                     task.status === 'REJECTED' ? 'bg-rose-50 text-rose-600' :
                     task.status === 'IN_PROGRESS' ? 'bg-amber-50 text-amber-600' : 'bg-slate-50 text-slate-400'
                   }`}>
-                    {task.type === 'Fill Form' ? <ClipboardList size={28} /> : 
-                     task.type === 'Write Report' ? <FileText size={28} /> : <CheckCircle2 size={28} />}
+                    {task.type === 'Formulaire' ? <ClipboardList size={28} /> : 
+                     task.type === 'Texte' ? <FileText size={28} /> : 
+                     task.type === 'Fichier' ? <Paperclip size={28} /> :
+                     task.type === 'Début' ? <Play size={28} /> :
+                     task.type === 'Fin' ? <Flag size={28} /> :
+                     task.type === 'Sync Join' ? <GitMerge size={28} /> :
+                     task.type === 'Start Parallel' ? <GitFork size={28} /> :
+                     <CheckCircle2 size={28} />}
                   </div>
                   <div className="space-y-1">
                     <h4 className="text-lg font-black text-slate-800 tracking-tight leading-none uppercase">{task.name}</h4>
@@ -256,53 +297,31 @@ export default function TaskLogView({ workflowId }: TaskLogViewProps) {
                       )}
                    </div>
 
-                   {/* Team / Pool Info */}
-                   {(task.assignmentType === 'ALL' || task.assignmentType === 'ANY') && (
-                      <div className="px-6 border-l border-slate-50 flex items-center gap-4">
-                        <div className="text-right">
-                           <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">
-                             {task.assignmentType === 'ALL' ? 'Consensus' : 'Pool Search'}
-                           </p>
-                           <p className="text-xs font-black text-slate-800">
-                             {task.approvedBy?.length || 0} Participants
-                           </p>
-                        </div>
-                        
-                        <div className="flex -space-x-3 overflow-hidden p-1">
-                           {task.approvedBy?.slice(0, 3).map((uid: any, i: number) => (
-                             <div key={i} className="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-indigo-100 flex items-center justify-center text-[8px] font-black text-indigo-600 uppercase">
-                                {getUserName(uid).split(' ').map(n => n?.[0]).join('')}
-                             </div>
-                           ))}
-                           {task.approvedBy?.length > 3 && (
-                             <div className="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-slate-100 flex items-center justify-center text-[8px] font-black text-slate-600">
-                                +{task.approvedBy.length - 3}
-                             </div>
-                           )}
-                        </div>
-                      </div>
-                   )}
-
-                   {/* Pool Specific Action */}
-                   {(task.assignmentType === 'ALL') && task.status === 'IN_PROGRESS' && (
-                     <div className="flex items-center gap-3">
-                        <div className="text-right mr-2">
-                           <p className="text-[8px] font-black text-rose-400 uppercase tracking-tight">Missing</p>
-                           <p className="text-[10px] font-black text-slate-800">{getMissingAssignees(task).length} People</p>
-                        </div>
+                   {/* Action Buttons for Completed Tasks */}
+                   {(task.status === 'COMPLETED' || task.status === 'REJECTED') && (
+                      <div className="flex items-center gap-2 pl-6 border-l border-slate-100">
                         <button 
-                          onClick={() => handleNotify(task)}
-                          className="p-3 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
-                          title="Send reminder to missing person"
+                          onClick={() => setSelectedTask(task)}
+                          className="flex items-center gap-2 px-4 py-2.5 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest shadow-sm group"
                         >
-                          <Bell size={18} />
+                          <Eye size={14} className="group-hover:scale-110 transition-transform" />
+                          Consult Work
                         </button>
-                     </div>
-                   )}
+                        {task.performedBy && (
+                          <a 
+                            href={`mailto:${users.find(u => u._id === task.performedBy)?.email}?subject=Question about task: ${task.name}`}
+                            className="p-3 bg-slate-50 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all shadow-sm border border-transparent hover:border-emerald-100"
+                            title="Contact user"
+                          >
+                            <Mail size={16} />
+                          </a>
+                        )}
+                      </div>
+                    )}
                 </div>
               </div>
 
-              {/* Collapsible Pool Details (Optional extension) */}
+              {/* Pool Details */}
               {(task.assignmentType === 'ALL' || task.assignmentType === 'ANY') && (
                 <div className="px-8 pb-6 pt-2 bg-slate-50/30 border-t border-slate-50 flex flex-wrap gap-4">
                   <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest w-full">Detailed Tracking</span>
@@ -312,18 +331,128 @@ export default function TaskLogView({ workflowId }: TaskLogViewProps) {
                        <span className="text-[9px] font-bold text-slate-600">{getUserName(uid)}</span>
                     </div>
                   ))}
-                  {task.assignmentType === 'ALL' && task.status === 'IN_PROGRESS' && getMissingAssignees(task).map((u: any, i: number) => (
-                    <div key={i} className="flex items-center gap-2 px-3 py-1 bg-slate-50/50 rounded-lg border border-dashed border-slate-200 opacity-60">
-                       <Clock size={10} className="text-slate-400" />
-                       <span className="text-[9px] font-bold text-slate-400 italic">{u.firstName} {u.lastName}</span>
-                    </div>
-                  ))}
                 </div>
               )}
             </motion.div>
           ))
         )}
       </div>
+
+      {/* Task Detail Modal */}
+      <AnimatePresence>
+        {selectedTask && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedTask(null)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-lg"
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-white rounded-[40px] shadow-2xl w-full max-w-2xl relative z-10 overflow-hidden border border-white/20 flex flex-col max-h-[85vh]"
+            >
+              <div className="bg-indigo-600 p-10 text-white relative overflow-hidden shrink-0">
+                <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+                <button 
+                  onClick={() => setSelectedTask(null)}
+                  className="absolute right-8 top-8 p-3 hover:bg-white/10 rounded-2xl transition-all"
+                >
+                  <X size={20} />
+                </button>
+                <div className="flex items-center gap-4 mb-2">
+                   <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                      <FileText size={20} />
+                   </div>
+                   <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-80">Task Analysis Report</p>
+                </div>
+                <h2 className="text-4xl font-black tracking-tight uppercase leading-tight mb-2">{selectedTask.name}</h2>
+                <p className="text-indigo-100/70 font-bold text-sm tracking-wide lowercase">{selectedTask.instanceTitle}</p>
+              </div>
+
+              <div className="p-10 overflow-y-auto custom-scrollbar space-y-10 flex-grow">
+                {/* Metadata */}
+                <div className="grid grid-cols-2 gap-8">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Performed By</p>
+                    <p className="text-lg font-black text-slate-800 tracking-tight">{getUserName(selectedTask.performedBy)}</p>
+                    <p className="text-xs font-bold text-slate-400">{selectedTask.performedBy && users.find(u => u._id === selectedTask.performedBy)?.email}</p>
+                  </div>
+                  <div className="space-y-1 text-right">
+                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Completion Date</p>
+                    <p className="text-lg font-black text-slate-800 tracking-tight">{new Date(selectedTask.timestamp).toLocaleDateString()}</p>
+                    <p className="text-xs font-bold text-slate-400">{new Date(selectedTask.timestamp).toLocaleTimeString()}</p>
+                  </div>
+                </div>
+
+                {/* Work Data */}
+                <div className="space-y-6">
+                   <div className="flex items-center gap-3">
+                      <div className="h-[1px] flex-1 bg-slate-100"></div>
+                      <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest flex items-center gap-2">
+                         <ClipboardList size={12} /> Work Submission Details
+                      </span>
+                      <div className="h-[1px] flex-1 bg-slate-100"></div>
+                   </div>
+
+                   <div className="bg-slate-50/50 rounded-3xl p-8 border border-slate-100 space-y-6">
+                      {selectedTask.comments && (
+                         <div className="space-y-2">
+                            <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest flex items-center gap-2">
+                               <MessageSquare size={10} /> User Comments
+                            </p>
+                            <div className="p-5 bg-white rounded-2xl border border-slate-100 shadow-sm text-sm font-medium text-slate-600 italic leading-relaxed">
+                               "{selectedTask.comments}"
+                            </div>
+                         </div>
+                      )}
+
+                      {selectedTask.outputData && Object.keys(selectedTask.outputData).length > 0 ? (
+                        <div className="space-y-4">
+                           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Form / Data Payload</p>
+                           <div className="grid grid-cols-1 gap-3">
+                              {Object.entries(selectedTask.outputData).map(([key, value]: [string, any]) => (
+                                <div key={key} className="flex flex-col gap-1 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
+                                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">{key.replace(/_/g, ' ')}</span>
+                                   <span className="text-sm font-bold text-slate-700">
+                                     {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value)}
+                                   </span>
+                                </div>
+                              ))}
+                           </div>
+                        </div>
+                      ) : (
+                        <div className="text-center py-6">
+                           <CheckCircle2 size={32} className="mx-auto text-emerald-500 mb-3 opacity-30" />
+                           <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Task completed without additional data</p>
+                        </div>
+                      )}
+                   </div>
+                </div>
+              </div>
+
+              <div className="p-8 bg-slate-50 border-t border-slate-100 flex gap-4 shrink-0">
+                 <a 
+                   href={`mailto:${users.find(u => u._id === selectedTask.performedBy)?.email}?subject=Question about task: ${selectedTask.name}`}
+                   className="flex-1 py-4 bg-indigo-600 text-white rounded-[24px] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-indigo-700 transition-all active:scale-95 shadow-xl shadow-indigo-100"
+                 >
+                   <Mail size={18} />
+                   Send Clarification Email
+                 </a>
+                 <button 
+                   onClick={() => setSelectedTask(null)}
+                   className="px-8 py-4 bg-white border border-slate-200 text-slate-600 rounded-[20px] font-black text-[10px] uppercase tracking-widest flex items-center justify-center hover:bg-slate-50 transition-all"
+                 >
+                   Close
+                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

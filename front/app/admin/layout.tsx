@@ -40,9 +40,17 @@ const PAGE_METADATA: Record<string, { title: string, subtitle: string }> = {
         title: "All Kanbans",
         subtitle: "Manage and monitor your organizational throughput boards"
     },
+    '/admin/AllForms': {
+        title: "Global Form Repository",
+        subtitle: "Manage and monitor all dynamic forms across your organization."
+    },
     '/admin/workflows': {
         title: "Workflow Design Studio",
         subtitle: "Architect business logic, browse process inspirations, and orchestrate organizational flow."
+    },
+    '/admin/workflows/standard': {
+        title: "Standard Procedures",
+        subtitle: "Browse and deploy pre-defined organizational standard flows."
     },
     '/admin/billing': {
         title: "Fiscal Intelligence",
@@ -55,8 +63,13 @@ const PAGE_METADATA: Record<string, { title: string, subtitle: string }> = {
     '/admin/profile': {
         title: "Persona Node",
         subtitle: "Manage your administrative credentials and lattice preferences."
+    },
+    '/admin/reports': {
+        title: "Strategic Support",
+        subtitle: "Communicate directly with system architects and super administrators."
     }
 };
+
 
 export default function AdminLayout({
     children,
@@ -66,17 +79,18 @@ export default function AdminLayout({
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const pathname = usePathname();
     const isWorkflowDetail = pathname.match(/^\/admin\/workflows\/.+/);
-    const hideSidebar = isWorkflowDetail;
+    // Don't hide for standard flows
+    const hideSidebar = isWorkflowDetail && !pathname.includes('/standard');
     const metadata = PAGE_METADATA[pathname] || { title: "Axia Admin", subtitle: "Management Console" };
 
     return (
-        <div className="flex h-screen bg-gray-50 overflow-hidden">
+        <div className="flex h-screen bg-slate-50 overflow-hidden text-slate-900">
             {/* Sidebar with responsive overlay logic */}
             {!hideSidebar && (
                 <div className={`
                     fixed inset-y-0 left-0 z-50 transform bg-indigo-700 transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0
                     ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-                    w-64
+                    w-72
                 `}>
                     <Sidebar />
                     {/* Mobile Close Button */}
@@ -88,6 +102,8 @@ export default function AdminLayout({
                     </button>
                 </div>
             )}
+
+
 
             {/* Mobile Backdrop */}
             {isSidebarOpen && !hideSidebar && (

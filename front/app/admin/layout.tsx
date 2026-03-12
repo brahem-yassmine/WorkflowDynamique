@@ -105,7 +105,6 @@ export default function AdminLayout({
         };
     }, [pathname, router]);
     const { subscriptionExpired, loading } = useAuth();
-    const router = useRouter();
 
     useEffect(() => {
         if (!loading && subscriptionExpired && pathname !== '/admin/billing') {

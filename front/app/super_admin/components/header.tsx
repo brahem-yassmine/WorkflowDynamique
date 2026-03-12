@@ -1,8 +1,9 @@
 "use client";
 
 import React from 'react';
-import { Bell, Menu, UserCircle, Search, HelpCircle } from 'lucide-react';
+import { UserCircle, Search, HelpCircle, Menu } from 'lucide-react';
 import useUser from '@/hooks/useUser';
+import NotificationBell from '@/components/NotificationBell';
 
 interface HeaderProps {
   toggleSidebar: () => void;
@@ -41,10 +42,7 @@ export default function Header({ toggleSidebar }: HeaderProps) {
         </button>
 
         {/* Notifications */}
-        <button className="relative p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all group">
-          <Bell size={20} />
-          <span className="absolute top-2.5 right-2.5 bg-rose-500 w-2.5 h-2.5 rounded-full border-2 border-white animate-bounce group-hover:animate-none"></span>
-        </button>
+        <NotificationBell />
 
         {/* User Profile Section */}
         <div className="flex items-center gap-3 pl-4 border-l border-slate-100">
@@ -53,7 +51,13 @@ export default function Header({ toggleSidebar }: HeaderProps) {
               {user?.firstName || user?.name || user?.email?.split('@')[0] || 'Super Admin'}
             </p>
             <p className="text-[10px] text-indigo-500 mt-1 uppercase font-extrabold tracking-widest flex items-center justify-end gap-1">
-              Global Master <span className="w-1 h-1 bg-indigo-500 rounded-full"></span> Territory
+              {user?.role === 'super_admin' && (
+                <>
+                  <span>Super Admin</span>
+                  <span className="w-1 h-1 bg-indigo-500 rounded-full"></span>
+                </>
+              )}
+              {user?.role === 'super_admin' ? 'Global Master' : (user?.role || 'Admin')}
             </p>
           </div>
           <div className="relative group cursor-pointer">

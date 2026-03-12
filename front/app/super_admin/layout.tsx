@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import Header from './components/header';
 import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
+import useUser from '@/hooks/useUser';
+import { useRouter } from 'next/navigation';
 
 export default function SuperAdminLayout({
   children,
@@ -12,6 +14,15 @@ export default function SuperAdminLayout({
   children: React.ReactNode;
 }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { user, loading } = useUser();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && user && user.role !== 'super_admin') {
+      console.warn('🛑 Unauthorized access to Super Admin area. Redirecting...');
+      router.push('/admin');
+    }
+  }, [user, loading, router]);
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 

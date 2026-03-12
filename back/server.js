@@ -66,6 +66,7 @@ masterConnection.on('connected', () => {
     require('./src/models/master/SuperAdmin')(masterConnection);
     require('./src/models/master/permission.model')(masterConnection);
     require('./src/models/master/Role')(masterConnection);
+    require('./src/models/master/Notification')(masterConnection);
 
     console.log('📦 Modèles master chargés:', Object.keys(masterConnection.models).join(', '));
 

@@ -3,7 +3,7 @@
 const API_URL = 'http://localhost:5000/api';
 
 import { useState, FormEvent, ChangeEvent, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import axios, { AxiosError } from "axios";
 import { motion, AnimatePresence } from "framer-motion";
@@ -16,7 +16,6 @@ import {
   User,
   CheckCircle2
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 
 interface SignupFormData {
   companyName: string;
@@ -71,7 +70,6 @@ export default function SignupPage() {
     startDate: new Date().toISOString().split('T')[0], // Default to today
   });
 
-  const [startDate, setStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
   const [paymentDetails, setPaymentDetails] = useState<PaymentDetails>({
     cardNumber: "",
@@ -92,6 +90,9 @@ export default function SignupPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
   const [showDebug, setShowDebug] = useState<boolean>(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const role = searchParams.get('role') || 'admin';
+  const isSuperAdmin = role === 'super_admin';
 
   // ✅ LOAD PLANS AT STARTUP
   // ✅ LOAD PLANS AT STARTUP
@@ -215,12 +216,14 @@ export default function SignupPage() {
 
     const selectedPlan = plans.find(p => p._id === formData.planId);
 
-    // If paid plan selected, show payment modal
-    if (selectedPlan && selectedPlan.price > 0) {
+    // If super admin or free plan, proceed directly
+    if (isSuperAdmin || (selectedPlan && selectedPlan.price === 0)) {
+      await registerUser();
+    } else if (selectedPlan && selectedPlan.price > 0) {
       setSelectedPlan(selectedPlan);
       setShowPaymentModal(true);
     } else {
-      // For free/demo plan, proceed directly
+      // Default fallback
       await registerUser();
     }
   };
@@ -262,21 +265,29 @@ export default function SignupPage() {
   };
 
   const registerUser = async () => {
+    console.log('🔄 Registration triggered at:', new Date().toISOString());
     setLoading(true);
     try {
-      console.log("📤 Sending registration with plan:", formData.planId);
+      const endpoint = isSuperAdmin ? '/api/auth/register-super-admin' : '/api/auth/register';
+      const payload = isSuperAdmin ? {
+        email: formData.adminEmail,
+        password: formData.password,
+        firstName: formData.companyName || 'Super',
+        lastName: 'Admin'
+      } : {
+        companyName: formData.companyName,
+        adminEmail: formData.adminEmail,
+        industry: formData.industry,
+        password: formData.password,
+        planId: formData.planId,
+        startDate: formData.startDate
+      };
+
+      console.log(`📤 Sending ${role} registration to:`, endpoint);
 
       const response = await axios.post(
-        'http://localhost:5000/api/auth/register',
-        {
-          companyName: formData.companyName,
-          adminEmail: formData.adminEmail,
-          industry: formData.industry,
-          password: formData.password,
-          planId: formData.planId,
-          startDate: startDate
-          startDate: formData.startDate
-        },
+        `http://localhost:5000${endpoint}`,
+        payload,
         {
           headers: {
             'Content-Type': 'application/json'
@@ -289,12 +300,11 @@ export default function SignupPage() {
       if (response.data.success) {
         setSuccess("Company created successfully");
 
-        // Save plan info locally for immediate fallback
-        if (selectedPlan) {
-          localStorage.setItem('planStartDate', startDate);
         // Save plan info locally for immediate fallback on billing page
-        if (selectedPlan) {
+        if (formData.planId) {
           localStorage.setItem('planStartDate', formData.startDate || new Date().toISOString());
+          const planCode = plans.find(p => p._id === formData.planId)?.code.toLowerCase();
+          if (planCode) localStorage.setItem('selectedPlan', planCode);
         }
 
         setTimeout(() => {
@@ -305,11 +315,14 @@ export default function SignupPage() {
       const error = err as AxiosError<ApiErrorResponse>;
       console.error("❌ Registration error details:", {
         status: error.response?.status,
+        statusText: error.response?.statusText,
         data: error.response?.data,
         message: error.message,
-        stack: error.stack,
-        fullError: err
+        code: error.code,
+        url: error.config?.url
       });
+
+      console.dir(error);
 
       // Log the specific data being sent
       console.log("📤 Payload sent was:", {
@@ -318,7 +331,7 @@ export default function SignupPage() {
         industry: formData.industry,
         password: formData.password,
         planId: formData.planId,
-        startDate: startDate
+        startDate: formData.startDate
       });
 
       if (error.response?.data?.message) {
@@ -509,10 +522,10 @@ export default function SignupPage() {
             <div className="bg-white rounded-2xl shadow-xl p-8">
               <div className="text-center mb-8">
                 <h1 className="text-3xl font-bold text-gray-800 mb-2">
-                  Create Account
+                  {isSuperAdmin ? 'Create Super Admin Account' : 'Create Account'}
                 </h1>
                 <p className="text-gray-600">
-                  Start your 15-day free trial
+                  {isSuperAdmin ? 'Access the global control center' : 'Start your 15-day free trial'}
                 </p>
               </div>
 
@@ -533,14 +546,14 @@ export default function SignupPage() {
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Company Name *
+                    {isSuperAdmin ? 'Full Name *' : 'Company Name *'}
                   </label>
                   <input
                     type="text"
                     name="companyName"
                     value={formData.companyName}
                     onChange={handleChange}
-                    placeholder="Your company name"
+                    placeholder={isSuperAdmin ? "Your full name" : "Your company name"}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
                     required
                     disabled={loading}
@@ -548,51 +561,55 @@ export default function SignupPage() {
                 </div>
 
                 {/* DEBUG CALENDAR PROTOCOL */}
-                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
-                    <div 
-                        className="flex justify-between items-center cursor-pointer"
-                        onClick={() => setShowDebug(!showDebug)}
-                    >
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Debug Protocol: Start Date</span>
-                        <div className={`w-8 h-4 rounded-full transition-colors relative ${showDebug ? 'bg-indigo-600' : 'bg-slate-300'}`}>
-                            <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${showDebug ? 'right-0.5' : 'left-0.5'}`}></div>
-                        </div>
-                    </div>
-                    {showDebug && (
-                        <div className="mt-4 animate-in slide-in-from-top-2 duration-300">
-                            <input 
-                                type="date" 
-                                name="startDate"
-                                value={formData.startDate}
-                                onChange={handleChange}
-                                className="w-full px-4 py-2 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm font-bold text-slate-700 bg-white"
-                            />
-                            <p className="mt-2 text-[9px] text-indigo-500 font-bold uppercase tracking-tighter">
-                                Manual override for subscription timestamp
-                            </p>
-                        </div>
-                    )}
-                </div>
+                {!isSuperAdmin && (
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                      <div 
+                          className="flex justify-between items-center cursor-pointer"
+                          onClick={() => setShowDebug(!showDebug)}
+                      >
+                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Debug Protocol: Start Date</span>
+                          <div className={`w-8 h-4 rounded-full transition-colors relative ${showDebug ? 'bg-indigo-600' : 'bg-slate-300'}`}>
+                              <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${showDebug ? 'right-0.5' : 'left-0.5'}`}></div>
+                          </div>
+                      </div>
+                      {showDebug && (
+                          <div className="mt-4 animate-in slide-in-from-top-2 duration-300">
+                              <input 
+                                  type="date" 
+                                  name="startDate"
+                                  value={formData.startDate}
+                                  onChange={handleChange}
+                                  className="w-full px-4 py-2 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm font-bold text-slate-700 bg-white"
+                              />
+                              <p className="mt-2 text-[9px] text-indigo-500 font-bold uppercase tracking-tighter">
+                                  Manual override for subscription timestamp
+                              </p>
+                          </div>
+                      )}
+                  </div>
+                )}
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Industry *
-                  </label>
-                  <select
-                    name="industry"
-                    value={formData.industry}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
-                    required
-                    disabled={loading}
-                  >
-                    <option value="Construction & Engineering">Construction & Engineering</option>
-                    <option value="Information Technology & Software">Information Technology & Software</option>
-                    <option value="Corporate & Business Services">Corporate & Business Services</option>
-                    <option value="Healthcare">Healthcare</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
+                {!isSuperAdmin && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Industry *
+                    </label>
+                    <select
+                      name="industry"
+                      value={formData.industry}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
+                      required
+                      disabled={loading}
+                    >
+                      <option value="Construction & Engineering">Construction & Engineering</option>
+                      <option value="Information Technology & Software">Information Technology & Software</option>
+                      <option value="Corporate & Business Services">Corporate & Business Services</option>
+                      <option value="Healthcare">Healthcare</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -612,102 +629,75 @@ export default function SignupPage() {
 
                 {/* PLAN SELECTION - STYLED */}
                 {/* PLAN SELECTION - RESTORED */}
-                <div className="space-y-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Choose your plan *
-                  </label>
-                  {loadingPlans ? (
-                    <div className="flex items-center space-x-2 p-4 bg-gray-50 rounded-lg">
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-700"></div>
-                      <span className="text-gray-600">Loading plans...</span>
-                    </div>
-                  ) : plans.length === 0 ? (
-                    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                      <p className="text-yellow-600 text-sm">No plans available. Please contact support.</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {plans.map((plan) => (
-                        <label
-                          key={plan._id}
-                          onClick={() => handlePlanSelection(plan._id)}
-                          className={`block p-4 border-2 rounded-lg cursor-pointer transition-all ${formData.planId === plan._id
-                              ? 'border-indigo-700 bg-blue-50'
-                              : 'border-gray-200 hover:border-indigo-500'
-                            }`}
-                        >
-                          <input
-                            type="radio"
-                            name="planId"
-                            value={plan._id}
-                            checked={formData.planId === plan._id}
-                            onChange={() => { }}
-                            className="sr-only"
-                            required
-                          />
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <h3 className="font-semibold text-gray-900">{plan.name}</h3>
-                              <p className="text-sm text-gray-600">
-                                {plan.features?.maxStaff === -1
-                                  ? '👥 Unlimited staff'
-                                  : `👥 Up to ${plan.features?.maxStaff} staff`}
-                                {' • '}
-                                {plan.features?.analysis}
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-lg font-bold text-gray-900">
-                                {formatPrice(plan.price, plan.currency, plan.interval)}
-                              </p>
-                              {plan.price > 0 && (
-                                <p className="text-xs text-green-600">15-day free trial</p>
-                              )}
-                              {plan.price === 0 && (
-                                <p className="text-xs text-blue-600">7-day free trial</p>
-                              )}
-                            </div>
-                          </div>
-                          {plan.price > 0 && formData.planId === plan._id && (
-                            <div className="mt-2 flex items-center gap-1 text-xs text-indigo-700">
-                              <CreditCard size={14} />
-                              <span>Simulation: Secure payment required</span>
-                            </div>
-                          )}
-                        </label>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* TEMPORAL SYNC CALENDAR FOR TESTING */}
-                  {formData.planId && (
-                    <motion.div 
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      className="mt-6 bg-slate-50 rounded-2xl p-6 border border-slate-200"
-                    >
-                      <div className="flex items-center gap-3 mb-4">
-                        <Calendar className="text-indigo-600" size={20} />
-                        <span className="text-sm font-bold text-slate-700 uppercase tracking-wider">Sync Temporal Origin</span>
+                {!isSuperAdmin && (
+                  <div className="space-y-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Choose your plan *
+                    </label>
+                    {loadingPlans ? (
+                      <div className="flex items-center space-x-2 p-4 bg-gray-50 rounded-lg">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-700"></div>
+                        <span className="text-gray-600">Loading plans...</span>
                       </div>
+                    ) : plans.length === 0 ? (
+                      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <p className="text-yellow-600 text-sm">No plans available. Please contact support.</p>
+                      </div>
+                    ) : (
                       <div className="space-y-3">
-                        <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400">
-                          Plan Start Date (Testing/Simulation)
-                        </label>
-                        <input 
-                          type="date"
-                          value={startDate}
-                          onChange={(e) => setStartDate(e.target.value)}
-                          max={new Date().toISOString().split('T')[0]}
-                          className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-600 outline-none transition-all font-bold text-slate-700"
-                        />
-                        <p className="text-[10px] text-slate-400 italic">
-                          * Adjusting this date allows testing subscription expiry warnings in the billing dashboard.
-                        </p>
+                        {plans.map((plan) => (
+                          <label
+                            key={plan._id}
+                            onClick={() => handlePlanSelection(plan._id)}
+                            className={`block p-4 border-2 rounded-lg cursor-pointer transition-all ${formData.planId === plan._id
+                                ? 'border-indigo-700 bg-blue-50'
+                                : 'border-gray-200 hover:border-indigo-500'
+                              }`}
+                          >
+                            <input
+                              type="radio"
+                              name="planId"
+                              value={plan._id}
+                              checked={formData.planId === plan._id}
+                              onChange={() => { }}
+                              className="sr-only"
+                              required
+                            />
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <h3 className="font-semibold text-gray-900">{plan.name}</h3>
+                                <p className="text-sm text-gray-600">
+                                  {plan.features?.maxStaff === -1
+                                    ? '👥 Unlimited staff'
+                                    : `👥 Up to ${plan.features?.maxStaff} staff`}
+                                  {' • '}
+                                  {plan.features?.analysis}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-lg font-bold text-gray-900">
+                                  {formatPrice(plan.price, plan.currency, plan.interval)}
+                                </p>
+                                {plan.price > 0 && (
+                                 <p className="text-xs text-blue-600">7-day free trial</p>
+                                )}
+                                {plan.price === 0 && (
+                                  <p className="text-xs text-blue-600">7-day free trial</p>
+                                )}
+                              </div>
+                            </div>
+                            {plan.price > 0 && formData.planId === plan._id && (
+                              <div className="mt-2 flex items-center gap-1 text-xs text-indigo-700">
+                                <CreditCard size={14} />
+                                <span>Simulation: Secure payment required</span>
+                              </div>
+                            )}
+                          </label>
+                        ))}
                       </div>
-                    </motion.div>
-                  )}
-                </div>
+                    )}
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -797,118 +787,98 @@ export default function SignupPage() {
             </div>
 
             {/* RIGHT SIDE - PLANS PREVIEW (REVERTED) */}
-            <div className="bg-indigo-700 rounded-2xl shadow-xl p-8 text-white">
-              <div className="mb-8">
-                <h1 className="text-3xl font-bold mb-4">
-                  Choose the perfect plan for you
-                </h1>
-                <p className="text-blue-100">
-                  7 or 15-day free trial on all plans • No credit card required
-            {/* RIGHT SIDE - PLANS PREVIEW */}
             <div className="bg-indigo-700 rounded-2xl shadow-xl p-8 text-white relative overflow-hidden">
               <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32 blur-3xl"></div>
               
               <div className="relative z-10 mb-8">
                 <h1 className="text-3xl font-black mb-4 tracking-tight">
-                  Choose your protocol
+                  {isSuperAdmin ? 'Platform Control' : 'Choose your protocol'}
                 </h1>
                 <p className="text-blue-100 font-medium">
-                  Dynamic orchestration tiers for every stage of your workflow.
+                  {isSuperAdmin 
+                    ? 'Global administration and orchestration for the entire Axia Workflow ecosystem.' 
+                    : 'Dynamic orchestration tiers for every stage of your workflow.'}
                 </p>
               </div>
 
-              {/* Plans Preview */}
-              <div className="space-y-4">
-                {!loadingPlans && plans.map((plan) => (
-                  <div key={plan._id} className="bg-white/10 backdrop-blur-sm rounded-lg p-4 transition-all hover:bg-white/20">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <h3 className="font-semibold text-lg">{plan.name}</h3>
-                        <p className="text-sm text-blue-100">
-                          {plan.features?.maxStaff === -1
-                            ? 'Unlimited staff'
-                            : `Up to ${plan.features?.maxStaff} staff`}
-                          {' • '}
-                          {plan.features?.analysis || 'Standard Analysis'}
-                        </p>
+              {/* Plans Preview / Admin Features */}
+              <div className="space-y-4 relative z-10 w-full max-w-md">
+                {isSuperAdmin ? (
+                  <div className="space-y-6">
+                    <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 bg-white/10 rounded-lg">🛡️</div>
+                        <h3 className="font-bold text-lg">Tenant Management</h3>
                       </div>
-                      <div className="text-right">
-                        <p className="text-xl font-bold">
-                          {formatPrice(plan.price, plan.currency, plan.interval)}
-                        </p>
-              <div className="space-y-4 relative z-10">
-                {!loadingPlans && plans.map((plan) => {
-                  const isDemo = (plan.code || '').toLowerCase().includes('demo') || (plan.code || '').toLowerCase().includes('lattice');
-                  const trialDays = isDemo ? 7 : 15;
-                  
-                  return (
-                    <div key={plan._id} className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 group hover:bg-white/15 transition-all">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-black text-lg tracking-tight">{plan.name}</h3>
-                            <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${isDemo ? 'bg-indigo-500/30' : 'bg-emerald-500/30'}`}>
-                                {trialDays}-Day Cycle
-                            </span>
-                          </div>
-                          <p className="text-xs text-blue-100 font-medium">
-                            {plan.features?.maxStaff === -1
-                              ? 'Unlimited Node Entities'
-                              : `Up to ${plan.features?.maxStaff} Node Entities`}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xl font-black tracking-tighter">
-                            {formatPrice(plan.price, plan.currency, plan.interval)}
-                          </p>
-                        </div>
-                      </div>
-                      {plan.price > 0 && (
-                        <div className="mt-4 flex items-center gap-2 text-[10px] text-blue-200 font-bold uppercase tracking-widest">
-                          <CreditCard size={12} className="text-indigo-300" />
-                          <span>Security Verification Required</span>
-                        </div>
-                      )}
+                      <p className="text-sm text-blue-100 ml-11">Oversee all companies, monitor their status, and manage global subscriptions.</p>
                     </div>
-                    {(plan.price > 0 || plan.code === 'DEMO') && (
-                      <div className="mt-2 flex items-center gap-1 text-xs text-blue-200">
-                        <CreditCard size={12} />
-                        <span>{plan.price > 0 ? '15-day free trial' : '7-day free trial'}</span>
+                    <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 bg-white/10 rounded-lg">📊</div>
+                        <h3 className="font-bold text-lg">Global Analytics</h3>
                       </div>
-                    )}
+                      <p className="text-sm text-blue-100 ml-11">Access high-level metrics across all tenants and monitor system performance.</p>
+                    </div>
+                    <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 bg-white/10 rounded-lg">⚙️</div>
+                        <h3 className="font-bold text-lg">System Configuration</h3>
+                      </div>
+                      <p className="text-sm text-blue-100 ml-11">Configure global plans, roles, and platform-wide settings.</p>
+                    </div>
                   </div>
-                ))}
-              </div>
-
-              <div className="mt-6 bg-green-500/20 backdrop-blur-sm rounded-lg p-4 border border-green-400/30">
-                <p className="font-semibold">✨ All plans include:</p>
-                <ul className="mt-2 text-sm text-blue-100 space-y-1">
-                  <li>✓ Free trial period</li>
-                  <li>✓ Cancel anytime</li>
-                  <li>✓ Email support</li>
-                  <li>✓ Regular updates</li>
-                  );
-                })}
-              </div>
-
-              <div className="mt-8 relative z-10 bg-indigo-800/50 backdrop-blur-sm rounded-2xl p-6 border border-white/5">
-                <p className="font-black text-[10px] uppercase tracking-[0.2em] text-indigo-300 mb-4">Lattice Standards:</p>
-                <ul className="space-y-3">
-                  {[
-                    `Flexible Free trials (7-15 days)`,
-                    'Zero-friction cancellation',
-                    '24/7 Security support',
-                    'Regular protocol updates'
-                  ].map((text, i) => (
-                    <li key={i} className="flex items-center gap-3 text-xs font-bold text-blue-100">
-                      <div className="p-1 bg-indigo-500/30 rounded shadow-inner">
-                        <CheckCircle2 size={10} className="text-indigo-200" />
+                ) : (
+                  !loadingPlans && plans.map((plan) => {
+                    const isDemo = (plan.code || '').toLowerCase().includes('demo') || (plan.code || '').toLowerCase().includes('lattice');
+                    
+                    return (
+                      <div key={plan._id} className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 group hover:bg-white/15 transition-all">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-black text-lg tracking-tight">{plan.name}</h3>
+                              <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${isDemo ? 'bg-indigo-500/30' : 'bg-emerald-500/30'}`}>
+                                  {isDemo ? '7-Day Cycle' : '15-Day Cycle'}
+                              </span>
+                            </div>
+                            <p className="text-xs text-blue-100 font-medium">
+                              {plan.features?.maxStaff === -1
+                                ? 'Unlimited Node Entities'
+                                : `Up to ${plan.features?.maxStaff} Node Entities`}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xl font-black tracking-tighter">
+                              {formatPrice(plan.price, plan.currency, plan.interval)}
+                            </p>
+                          </div>
+                        </div>
                       </div>
-                      {text}
-                    </li>
-                  ))}
-                </ul>
+                    );
+                  })
+                )}
               </div>
+
+              {!isSuperAdmin && (
+                <div className="mt-8 relative z-10 bg-indigo-800/50 backdrop-blur-sm rounded-2xl p-6 border border-white/5">
+                  <p className="font-black text-[10px] uppercase tracking-[0.2em] text-indigo-300 mb-4">Lattice Standards:</p>
+                  <ul className="space-y-3">
+                    {[
+                      `Flexible Free trials (7-15 days)`,
+                      'Zero-friction cancellation',
+                      '24/7 Security support',
+                      'Regular protocol updates'
+                    ].map((text, i) => (
+                      <li key={i} className="flex items-center gap-3 text-xs font-bold text-blue-100">
+                        <div className="p-1 bg-indigo-500/30 rounded shadow-inner">
+                          <CheckCircle2 size={10} className="text-indigo-200" />
+                        </div>
+                        {text}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           </div>
         </div>

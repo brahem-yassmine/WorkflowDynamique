@@ -15,8 +15,8 @@ const superAdminSchema = new mongoose.Schema({
     required: true
   },
 
-  firstName: { type: String, default: 'Super' },
-  lastName: { type: String, default: 'Admin' },
+  firstName: { type: String, default: 'Axia' },
+  lastName: { type: String, default: 'Solutions' },
 
   role: {
     type: String,

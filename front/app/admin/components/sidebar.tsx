@@ -1,5 +1,6 @@
 'use client';
 
+import { motion } from 'framer-motion';
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -104,10 +105,6 @@ function Sidebar({ isExpired = false }: { isExpired?: boolean }) {
       </nav>
 
       <div className="p-6 mt-auto relative z-10">
-        <div className={`bg-indigo-800/50 rounded-2xl p-4 border border-indigo-400/20 mb-6 transition-all duration-500 ${isExpired ? 'grayscale blur-[2px] opacity-40' : ''}`}>
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></div>
-            <span className="text-[9px] font-black text-indigo-200 uppercase tracking-widest">Lattice Security</span>
         {subscriptionExpired ? (
           <div className="bg-rose-500/10 rounded-2xl p-4 border border-rose-400/30 mb-6 animate-pulse">
             <div className="flex items-center gap-2 mb-2 text-rose-300">
@@ -146,7 +143,6 @@ function Sidebar({ isExpired = false }: { isExpired?: boolean }) {
   );
 }
 
-import { motion } from 'framer-motion';
 export default Sidebar;
 
 

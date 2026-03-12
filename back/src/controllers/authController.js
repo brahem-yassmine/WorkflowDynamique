@@ -88,11 +88,6 @@ const createTenantDatabase = async (tenantId, dbName, plan, adminEmail, hashedPa
       });
 
       await subscription.save();
-      console.log(' Subscription created successfully');
-<<<<<<< HEAD
-=======
-
->>>>>>> e6314a902f52656002db49b7c9c2223bf17d346f
       console.log('✅ Subscription created successfully');
 
       // Update admin user to reflect plan selection if it was done at signup
@@ -132,7 +127,13 @@ const login = async (req, res) => {
     let role = 'super_admin';
     let tenantId = null;
 
-    // 2. If not found, search in tenants (Owners/Admins)
+    // SECURITY CHECK: Only axia@gmail.com can be Super Admin
+    if (user && email.toLowerCase() !== 'axia@gmail.com') {
+      console.warn(`🛑 Unauthorized Super Admin login attempt: ${email}`);
+      user = null; // Important: Clear user so it fallbacks to admin/user search
+    }
+
+    // 2. If not found (or unauthorized above), search in tenants (Owners/Admins)
     if (!user) {
       const TenantModel = getTenantModel(req);
       user = await TenantModel.findOne({ email: email.toLowerCase() });
@@ -343,9 +344,6 @@ const login = async (req, res) => {
 // ====================================
 const registerTenant = async (req, res) => {
   try {
-    const { companyName, adminEmail, password, planId, industry, paymentDetails, startDate } = req.body;
-
-    console.log('📝 registerTenant Request received:', {
     const {
       companyName,
       adminEmail,
@@ -353,8 +351,6 @@ const registerTenant = async (req, res) => {
       planId,
       industry,
       startDate,
-      hasPassword,
-      hasPayment,
       paymentDetails
     } = req.body;
 
@@ -366,16 +362,6 @@ const registerTenant = async (req, res) => {
       startDate,
       hasPassword: !!password,
       hasPayment: !!paymentDetails
-    });
-
-    if (!companyName || !adminEmail || !password || !planId || !industry) {
-      console.log('❌ registerTenant Validation failed: Missing fields');
-<<<<<<< HEAD
-=======
-
->>>>>>> e6314a902f52656002db49b7c9c2223bf17d346f
-      hasPassword,
-      hasPayment
     });
 
     if (!companyName || !adminEmail || !password || !planId || !industry) {
@@ -398,15 +384,6 @@ const registerTenant = async (req, res) => {
       });
     }
 
-    let plan = null;
-    if (planId) {
-      plan = await Plan.findById(planId);
-      if (!plan) {
-        return res.status(404).json({
-          success: false,
-          message: 'Selected plan not found'
-        });
-      }
     const plan = await Plan.findById(planId);
     if (!plan) {
       console.warn(`⚠️ Registration failed: Plan ID ${planId} not found`);
@@ -444,9 +421,6 @@ const registerTenant = async (req, res) => {
 
     // Create the tenant database and admin user
     try {
-      await createTenantDatabase(tenant._id, dbName, plan, adminEmail, hashedPassword, paymentDetails, startDate);
-    } catch (dbError) {
-      console.error('❌ database creation failed:', dbError);
       console.log('🚀 Initiating tenant database creation...');
       await createTenantDatabase(tenant._id, dbName, plan, adminEmail, hashedPassword, paymentDetails, startDate);
       console.log('✅ Tenant database and admin user created successfully');
@@ -506,13 +480,22 @@ const registerTenant = async (req, res) => {
 const registerSuperAdmin = async (req, res) => {
   try {
     const { email, password, firstName, lastName } = req.body;
+
+    // STRICT SECURITY: Only axia@gmail.com can be registered as Super Admin
+    if (email.toLowerCase() !== 'axia@gmail.com') {
+      return res.status(403).json({
+        success: false,
+        message: 'Registration of other Super Admin accounts is strictly forbidden.'
+      });
+    }
+
     const SuperAdmin = getSuperAdminModel(req);
 
     const existingUser = await SuperAdmin.findOne({ email: email.toLowerCase() });
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: 'Email already in use'
+        message: 'Super Admin already exists.'
       });
     }
 

@@ -9,10 +9,12 @@ import {
   Settings,
   LogOut,
   X,
-  Zap
+  Zap,
+  MessageSquare
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
+import useUser from '@/hooks/useUser';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -24,12 +26,14 @@ const menuItems = [
   { icon: Building2, label: "Company Management", href: "/super_admin/companies" },
   { icon: CreditCard, label: "Subscriptions & Payments", href: "/super_admin/payments" },
   { icon: ShieldCheck, label: "Security & Logs", href: "/super_admin/security" },
+  { icon: MessageSquare, label: "Companies Feedback", href: "/super_admin/feedback" },
   { icon: Settings, label: "Platform Settings", href: "/super_admin/settings" },
 ];
 
 export default function Sidebar({ isOpen, toggle }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const { user } = useUser();
 
   const handleLogout = () => {
     try {
@@ -69,7 +73,7 @@ export default function Sidebar({ isOpen, toggle }: SidebarProps) {
               Axia Solutions
             </h1>
             <p className="text-[10px] text-indigo-200 uppercase tracking-widest mt-1 font-bold opacity-80">
-              Super Admin
+              {user?.role === 'super_admin' ? 'Super Admin' : (user?.role || 'Admin')}
             </p>
           </div>
 

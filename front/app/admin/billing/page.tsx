@@ -75,8 +75,9 @@ const PLANS: { id: PlanType; name: string; price: string; features: string[] }[]
   { id: 'pro',     name: 'Pro Plan',      price: '299D/month', features: ['Unlimited staff', 'Advanced AI'] },
 ];
 
-const fmtDate = (d: Date | null) =>
-  d ? d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
+
+const fmtDate = (date: Date | null) =>
+  date ? date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
 
 const FISCAL_DATA = [
     { month: 'Oct', amount: 4500 },
@@ -110,6 +111,39 @@ export default function BillingPage() {
         expiryDate: "",
         cvv: ""
     });
+
+    const handleDownloadManifest = () => {
+        if (history.length === 0) {
+            toast.error("No transaction records to export");
+            return;
+        }
+
+        const headers = ["Reference", "Plan", "Date", "Amount", "Status"];
+        const csvContent = [
+            headers.join(","),
+            ...history.map(inv => {
+                const date = fmtDate(new Date(inv.currentPeriodStart || inv.trialStartDate || inv.startDate || inv.createdAt || Date.now()));
+                return [
+                    `#${inv._id.slice(-8).toUpperCase()}`,
+                    inv.planName,
+                    date,
+                    `${inv.price}D`,
+                    inv.status
+                ].join(",");
+            })
+        ].join("\n");
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `fiscal_manifest_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success("Manifest exported successfully");
+    };
 
     useEffect(() => {
         const fetchContext = async () => {
@@ -223,7 +257,7 @@ export default function BillingPage() {
 
     useEffect(() => {
         if (!loading && plan) {
-            const isNowExpired = days >= (plan === 'demo' ? 7 : 15);
+            const isNowExpired = days >= 7;
             
             if (isNowExpired) {
                 setTimeout(() => {
@@ -361,7 +395,7 @@ export default function BillingPage() {
                         <div className="p-2.5 bg-indigo-600 rounded-2xl shadow-lg shadow-indigo-100">
                             <Zap size={20} className="text-white fill-white/20" />
                         </div>
-                        <span className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.3em]">System Level: Administrative</span>
+                        <span className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.3em]">System Level: admin</span>
                     </div>
                     <h1 className="text-5xl font-black text-slate-900 tracking-tight leading-none">Fiscal Matrix</h1>
                     <p className="text-slate-500 font-bold mt-4 uppercase text-[10px] tracking-[0.2em] flex items-center gap-2">
@@ -371,11 +405,20 @@ export default function BillingPage() {
                 </div>
                 
                 <div className="flex gap-3">
-                    <button className="px-6 py-4 bg-white border border-slate-100 rounded-2xl shadow-sm text-slate-600 font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center gap-2">
+                    <button 
+                        onClick={() => {
+                            const el = document.getElementById('ledger-registry');
+                            if (el) el.scrollIntoView({ behavior: 'smooth' });
+                        }}
+                        className="px-6 py-4 bg-white border border-slate-100 rounded-2xl shadow-sm text-slate-600 font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center gap-2"
+                    >
                         <Calendar size={14} />
                         Cycle Report
                     </button>
-                    <button className="px-6 py-4 bg-slate-900 text-white rounded-2xl shadow-lg shadow-slate-200 font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all active:scale-95">
+                    <button 
+                        onClick={handleDownloadManifest}
+                        className="px-6 py-4 bg-slate-900 text-white rounded-2xl shadow-lg shadow-slate-200 font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all active:scale-95"
+                    >
                         Download Manifest
                     </button>
                 </div>
@@ -408,26 +451,32 @@ export default function BillingPage() {
             )}
 
             {/* Dashboard Lattice */}
-            <div className="grid grid-cols-1 lg:grid-cols-10 gap-8">
-                <div className="lg:col-span-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <StatsLedger 
-                        label="Fiscal Status" 
-                        value={isExpired ? "Restricted" : "Active"} 
-                        trend={isExpired ? "Critical Delay" : "Optimal Sync"} 
-                        icon={<Activity size={24} />} 
-                        color={isExpired ? "text-rose-500" : "text-emerald-500"}
-                    />
-                    <StatsLedger 
-                        label="Renewal Window" 
-                        value={isExpired ? "0 Days" : `${daysRemaining} Days`} 
-                        trend={isExpired ? "TERMINAL" : "Approaching"} 
-                        icon={<Clock size={24} />} 
-                        color={isExpired ? "text-rose-600" : (daysRemaining <= 3 ? "text-rose-500" : "text-amber-500")} 
-                    />
+            <div className="grid grid-cols-1 lg:grid-cols-10 gap-8 items-start">
+                <div className="lg:col-span-6 space-y-8">
+                    {/* Stats above chart */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <StatsLedger 
+                            label="Fiscal Status" 
+                            value={isExpired ? "Restricted" : "Active"} 
+                            trend={isExpired ? "Critical Delay" : "Optimal Sync"} 
+                            icon={<Activity size={24} />} 
+                            color={isExpired ? "text-rose-500" : "text-emerald-500"}
+                        />
+                        <StatsLedger 
+                            label="Renewal Window" 
+                            value={isExpired ? "0 Days" : `${daysRemaining} Days`} 
+                            trend={isExpired ? "TERMINAL" : "Approaching"} 
+                            icon={<Clock size={24} />} 
+                            color={isExpired ? "text-rose-600" : (daysRemaining <= 3 ? "text-rose-500" : "text-amber-500")} 
+                        />
+                    </div>
+                    
+                    {/* Re-implemented Statistic Chart */}
+                    <FiscalChart />
                 </div>
 
                 {/* Plan Manifest */}
-                <div className="lg:col-span-4 bg-indigo-700 rounded-[40px] p-10 text-white shadow-2xl relative overflow-hidden flex flex-col justify-between">
+                <div className="lg:col-span-4 bg-indigo-700 rounded-[40px] p-10 text-white shadow-2xl relative overflow-hidden flex flex-col min-h-[500px] justify-between h-full">
                     <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32 blur-3xl"></div>
                     <div className="relative z-10">
                         <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center mb-8 border border-white/20">
@@ -471,16 +520,13 @@ export default function BillingPage() {
                             </div>
                         </div>
                         <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden mb-8">
-                            <div className="h-full bg-white rounded-full transition-all duration-1000" style={{ width: `${Math.min(100, (days / (plan === 'demo' ? 7 : 15)) * 100)}%` }}></div>
+                            <div className="h-full bg-white rounded-full transition-all duration-1000" style={{ width: `${Math.min(100, (days / 7) * 100)}%` }}></div>
                         </div>
                         <button 
                             onClick={() => setConfirm(true)}
-                            disabled={plan === 'demo'}
-                            className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${
-                                plan === 'demo' ? 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5' : 'bg-rose-500 text-white hover:bg-rose-600 shadow-xl'
-                            }`}
+                            className="w-full py-4 bg-white/5 border border-white/10 text-white/40 hover:text-white hover:bg-white/10 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95"
                         >
-                            {plan === 'demo' ? "Session Termination Locked" : "Terminate Subscription"}
+                            Session Termination Locked
                         </button>
                     </div>
                 </div>
@@ -504,7 +550,7 @@ export default function BillingPage() {
                         return (
                             <div key={p.id} className={`rounded-[32px] border-2 p-8 transition-all relative overflow-hidden group ${
                                 isCurrent ? 'border-indigo-600 bg-indigo-50/50' : 'border-slate-50 bg-white hover:border-slate-200'
-                            } ${isRestricted ? 'opacity-75 grayscale-[0.5]' : ''}`}>
+                            }`}>
                                 {isCurrent && (
                                     <div className="absolute top-4 right-4 bg-indigo-600 text-white p-1 rounded-full">
                                         <CheckCircle2 size={12} />
@@ -561,7 +607,7 @@ export default function BillingPage() {
             </section>
 
             {/* Invoice Registry */}
-            <section className="bg-white rounded-[40px] shadow-sm border border-slate-100 overflow-hidden">
+            <section id="ledger-registry" className="bg-white rounded-[40px] shadow-sm border border-slate-100 overflow-hidden">
                 <div className="px-10 py-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/20">
                     <div>
                         <h3 className="text-xl font-black text-slate-800 tracking-tight">Ledger Registry</h3>
@@ -667,6 +713,74 @@ export default function BillingPage() {
                     </div>
                 </div>
             )}
+        </div>
+    );
+}
+
+function FiscalChart() {
+    return (
+        <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-100 h-[400px] relative overflow-hidden group transition-all duration-500 hover:shadow-xl hover:shadow-indigo-500/5">
+            <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.07] transition-opacity">
+                <TrendingUp size={120} />
+            </div>
+            <div className="flex justify-between items-center mb-10 relative z-10">
+                <div>
+                    <h3 className="text-lg font-black text-slate-800 tracking-tight">Fiscal Analytics</h3>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Resource Consumption Vectors</p>
+                </div>
+                <div className="flex gap-2">
+                    <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 rounded-full border border-emerald-100">
+                        <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
+                        <span className="text-[9px] font-black text-emerald-600 uppercase">Optimal Sync</span>
+                    </div>
+                </div>
+            </div>
+            <div className="h-[240px] w-full relative z-10">
+                <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={FISCAL_DATA}>
+                        <defs>
+                            <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.15}/>
+                                <stop offset="95%" stopColor="#4f46e5" stopOpacity={0.01}/>
+                            </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f8fafc" />
+                        <XAxis 
+                            dataKey="month" 
+                            axisLine={false} 
+                            tickLine={false} 
+                            tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700}}
+                            dy={10}
+                        />
+                        <YAxis 
+                            hide={true}
+                        />
+                        <Tooltip 
+                            contentStyle={{
+                                borderRadius: '20px', 
+                                border: 'none', 
+                                boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
+                                padding: '12px 16px'
+                            }}
+                            itemStyle={{
+                                fontWeight: 900,
+                                fontSize: '12px',
+                                textTransform: 'uppercase',
+                                color: '#4f46e5'
+                            }}
+                        />
+                        <Area 
+                            type="monotone" 
+                            dataKey="amount" 
+                            stroke="#4f46e5" 
+                            strokeWidth={4}
+                            fillOpacity={1} 
+                            fill="url(#colorAmount)" 
+                            animationDuration={2000}
+                        />
+                    </AreaChart>
+                </ResponsiveContainer>
+            </div>
         </div>
     );
 }

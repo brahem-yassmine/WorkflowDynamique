@@ -5,19 +5,30 @@ require('dotenv').config();
 
 async function createSuperAdmin() {
   try {
-    // Connection to MongoDB
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/your-database-name');
+    // Connection to MongoDB - Use the same as server.js
+    const MASTER_DB_URI = process.env.MASTER_DB_URI || 'mongodb://localhost:27017/workflow_master';
+    await mongoose.connect(MASTER_DB_URI);
 
-    const User = require('../src/models/User');
+    // Load SuperAdmin model instead of User if we want to update the super admin collection
+    const superAdminFactory = require('../src/models/master/SuperAdmin');
+    const SuperAdmin = superAdminFactory(mongoose.connection);
 
     // Check if super admin already exists
-    const existingSuperAdmin = await User.findOne({
+    const existingSuperAdmin = await SuperAdmin.findOne({
       email: 'axia@gmail.com',
       role: 'super_admin'
     });
 
     if (existingSuperAdmin) {
       console.log('Super admin already exists');
+
+      // Update name if it's still the default "Super Admin"
+      if (existingSuperAdmin.firstName === 'Super' || !existingSuperAdmin.firstName) {
+        existingSuperAdmin.firstName = 'Axia';
+        existingSuperAdmin.lastName = 'Solutions';
+        await existingSuperAdmin.save();
+        console.log('✅ Super admin name updated to Axia Solutions');
+      }
 
       // Optional: Update password if necessary
       if (!existingSuperAdmin.password.startsWith('$2b$')) {
@@ -35,7 +46,7 @@ async function createSuperAdmin() {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash('AxiaSolutions', salt);
 
-    const superAdmin = new User({
+    const superAdmin = new SuperAdmin({
       email: 'axia@gmail.com',
       password: hashedPassword,
       role: 'super_admin',

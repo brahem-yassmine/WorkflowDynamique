@@ -11,7 +11,7 @@ export const useAuth = () => {
   const [user, setUser] = useState(null);
   const [subscriptionExpired, setSubscriptionExpired] = useState(false);
   const [daysRemaining, setDaysRemaining] = useState(0);
-  const [subscriptionLimit, setSubscriptionLimit] = useState(15);
+  const [subscriptionLimit, setSubscriptionLimit] = useState(7);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -25,7 +25,7 @@ export const useAuth = () => {
     try {
       const plan = (localStorage.getItem('selectedPlan') || 'demo').toLowerCase();
       const startDateStr = localStorage.getItem('planStartDate') || userData.createdAt;
-      const limit = plan.includes('demo') ? 7 : 15;
+      const limit = 7; // Re-applied 7-day limit for all protocols (Refaire)
 
       if (startDateStr) {
         const start = new Date(startDateStr);

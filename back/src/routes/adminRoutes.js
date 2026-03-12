@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
 const { auth, requireRole } = require('../middleware/auth');
+const LogController = require('../controllers/master/logController');
 
 // All routes require authentication and super_admin role
 router.use(auth);
@@ -37,29 +38,66 @@ router.get('/tenants', async (req, res) => {
 
     // Add additional information
     const enrichedTenants = await Promise.all(tenants.map(async (tenant) => {
-      // Count users if possible
+      // Count users and check subscription if possible
       let userCount = 0;
+      let subscriptionExpired = false;
+      let actualStatus = tenant.status || 'inactive';
+
       try {
         if (tenant.databaseName) {
-          // Connection to tenant database to count users
+          // Connection to tenant database
           const tenantConn = mongoose.createConnection(tenant.databaseUri);
-          await new Promise((resolve) => tenantConn.once('connected', resolve));
+          await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error('Connection timeout')), 5000);
+            tenantConn.once('connected', () => {
+              clearTimeout(timeout);
+              resolve();
+            });
+            tenantConn.once('error', (err) => {
+              clearTimeout(timeout);
+              reject(err);
+            });
+          });
 
+          // Model for User
           const User = tenantConn.model('User', new mongoose.Schema({
             email: String,
             role: String
           }));
-
           userCount = await User.countDocuments();
+
+          // Model for Subscription
+          const Subscription = tenantConn.model('Subscription', new mongoose.Schema({
+            status: String,
+            currentPeriodEnd: Date,
+            trialEndDate: Date
+          }));
+
+          // Get latest subscription
+          const sub = await Subscription.findOne().sort({ createdAt: -1 });
+          if (sub) {
+            const now = new Date();
+            const endDate = sub.currentPeriodEnd || sub.trialEndDate;
+            if (endDate && now > endDate) {
+              subscriptionExpired = true;
+              // If subscription is expired, we display as suspended in the matrix unless it's already inactive
+              if (actualStatus === 'active') {
+                actualStatus = 'suspended';
+              }
+            }
+          }
+
           await tenantConn.close();
         }
       } catch (error) {
-        console.log(` Impossible to count users for ${tenant.name}`);
+        console.log(` Impossible to fetch detailed info for ${tenant.name}:`, error.message);
       }
 
       return {
         ...tenant.toObject(),
         userCount,
+        status: actualStatus, // Overwrite status with virtual status if expired
+        isExpired: subscriptionExpired,
         // Default values for frontend
         industry: tenant.industry || 'Not specified',
         adminName: tenant.adminName || (tenant.email ? tenant.email.split('@')[0] : 'Admin')
@@ -95,23 +133,54 @@ router.get('/tenants/:id', async (req, res) => {
       });
     }
 
-    // Count users
+    // Count users and check subscription
     let userCount = 0;
+    let subscriptionExpired = false;
+    let actualStatus = tenant.status || 'inactive';
+
     try {
       if (tenant.databaseName) {
         const tenantConn = mongoose.createConnection(tenant.databaseUri);
-        await new Promise((resolve) => tenantConn.once('connected', resolve));
+        await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => reject(new Error('Connection timeout')), 5000);
+          tenantConn.once('connected', () => {
+            clearTimeout(timeout);
+            resolve();
+          });
+          tenantConn.once('error', (err) => {
+            clearTimeout(timeout);
+            reject(err);
+          });
+        });
 
         const User = tenantConn.model('User', new mongoose.Schema({
           email: String,
           role: String
         }));
-
         userCount = await User.countDocuments();
+
+        const Subscription = tenantConn.model('Subscription', new mongoose.Schema({
+          status: String,
+          currentPeriodEnd: Date,
+          trialEndDate: Date
+        }));
+
+        const sub = await Subscription.findOne().sort({ createdAt: -1 });
+        if (sub) {
+          const now = new Date();
+          const endDate = sub.currentPeriodEnd || sub.trialEndDate;
+          if (endDate && now > endDate) {
+            subscriptionExpired = true;
+            if (actualStatus === 'active') {
+              actualStatus = 'suspended';
+            }
+          }
+        }
+
         await tenantConn.close();
       }
     } catch (error) {
-      console.log(` Impossible to count users`);
+      console.log(` Impossible to fetch detailed info:`, error.message);
     }
 
     res.json({
@@ -119,6 +188,8 @@ router.get('/tenants/:id', async (req, res) => {
       data: {
         ...tenant.toObject(),
         userCount,
+        status: actualStatus,
+        isExpired: subscriptionExpired,
         industry: tenant.industry || 'Not specified',
         adminName: tenant.adminName || (tenant.email ? tenant.email.split('@')[0] : 'Admin')
       }
@@ -134,7 +205,7 @@ router.get('/tenants/:id', async (req, res) => {
 });
 
 // PUT /api/admin/tenants/:id - Update a tenant
-router.get('/tenants/:id', async (req, res) => {
+router.put('/tenants/:id', async (req, res) => {
   try {
     const masterDb = req.app.locals.masterDb;
     const Tenant = masterDb.model('Tenant');
@@ -158,6 +229,53 @@ router.get('/tenants/:id', async (req, res) => {
         success: false,
         message: 'Tenant not found'
       });
+    }
+
+    // AUTOMATIC STATUS HANDLING
+    try {
+      const tenantConn = mongoose.createConnection(tenant.databaseUri);
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Connection timeout')), 5000);
+        tenantConn.once('connected', () => { clearTimeout(timeout); resolve(); });
+        tenantConn.once('error', (err) => { clearTimeout(timeout); reject(err); });
+      });
+
+      const Subscription = require('../models/tenant/Subscription')(tenantConn);
+      const latestSub = await Subscription.findOne().sort({ createdAt: -1 });
+
+      if (latestSub) {
+        const now = new Date();
+        let newEndDate;
+        let newStatus = req.body.status === 'active' ? 'active' : 'expired';
+
+        if (req.body.status === 'active') {
+          // Renew for 15 days from now
+          newEndDate = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000);
+          console.log(`✅ Automatically renewing subscription for ${tenant.name} -> ${newEndDate.toISOString()}`);
+        } else if (req.body.status === 'suspended') {
+          // Suspend: set end date to now (expired)
+          newEndDate = now;
+          console.log(`🛑 Automatically suspending subscription for ${tenant.name}`);
+        }
+
+        if (newEndDate) {
+          await Subscription.findByIdAndUpdate(latestSub._id, {
+            status: newStatus,
+            currentPeriodEnd: newEndDate,
+            trialEndDate: newEndDate
+          });
+
+          // Sync master tenant record
+          const Tenant = req.masterDb.model('Tenant');
+          await Tenant.findByIdAndUpdate(tenant._id, {
+            'subscription.status': newStatus,
+            'subscription.currentPeriodEnd': newEndDate
+          });
+        }
+      }
+      await tenantConn.close();
+    } catch (err) {
+      console.error(`❌ Subscription sync failed for ${tenant.name}:`, err.message);
     }
 
     res.json({
@@ -200,6 +318,49 @@ router.patch('/tenants/:id/status', async (req, res) => {
         success: false,
         message: 'Tenant not found'
       });
+    }
+
+    // AUTOMATIC STATUS HANDLING
+    try {
+      const tenantConn = mongoose.createConnection(tenant.databaseUri);
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Connection timeout')), 5000);
+        tenantConn.once('connected', () => { clearTimeout(timeout); resolve(); });
+        tenantConn.once('error', (err) => { clearTimeout(timeout); reject(err); });
+      });
+
+      const Subscription = require('../models/tenant/Subscription')(tenantConn);
+      const latestSub = await Subscription.findOne().sort({ createdAt: -1 });
+
+      if (latestSub) {
+        const now = new Date();
+        let newEndDate;
+        let newStatus = status === 'active' ? 'active' : 'expired';
+
+        if (status === 'active') {
+          newEndDate = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000);
+        } else if (status === 'suspended') {
+          newEndDate = now;
+        }
+
+        if (newEndDate) {
+          await Subscription.findByIdAndUpdate(latestSub._id, {
+            status: newStatus,
+            currentPeriodEnd: newEndDate,
+            trialEndDate: newEndDate
+          });
+
+          // Sync master tenant record
+          const Tenant = req.masterDb.model('Tenant');
+          await Tenant.findByIdAndUpdate(tenant._id, {
+            'subscription.status': newStatus,
+            'subscription.currentPeriodEnd': newEndDate
+          });
+        }
+      }
+      await tenantConn.close();
+    } catch (err) {
+      console.error(`❌ Subscription sync failed for ${tenant.name}:`, err.message);
     }
 
     res.json({
@@ -330,25 +491,55 @@ router.get('/stats', async (req, res) => {
       const planName = tenant.selectedPlan?.name || tenant.planDetails?.name || 'No plan';
       planCounts[planName] = (planCounts[planName] || 0) + 1;
 
-      // Try to count actual users
+      // Try to count actual users and check expiration
+      let isExpired = false;
       try {
         if (tenant.databaseName) {
           const tenantConn = mongoose.createConnection(tenant.databaseUri);
-          await new Promise((resolve) => tenantConn.once('connected', resolve));
+          await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error('Timeout')), 3000);
+            tenantConn.once('connected', () => {
+              clearTimeout(timeout);
+              resolve();
+            });
+            tenantConn.once('error', (err) => {
+              clearTimeout(timeout);
+              reject(err);
+            });
+          });
 
-          const User = tenantConn.model('User', new mongoose.Schema({
-            email: String,
-            role: String
-          }));
-
+          // Count users
+          const User = tenantConn.model('User', new mongoose.Schema({ email: String }));
           const userCount = await User.countDocuments();
           totalUsers += userCount;
+
+          // Check expiration
+          const Subscription = tenantConn.model('Subscription', new mongoose.Schema({
+            currentPeriodEnd: Date,
+            trialEndDate: Date
+          }));
+          const sub = await Subscription.findOne().sort({ createdAt: -1 });
+          if (sub) {
+            const now = new Date();
+            const endDate = sub.currentPeriodEnd || sub.trialEndDate;
+            if (endDate && now > endDate) {
+              isExpired = true;
+            }
+          }
 
           await tenantConn.close();
         }
       } catch (err) {
-        console.log(` Impossible to count for ${tenant.name}:`, err.message);
+        console.log(` Impossible to fetch detailed info for stats from ${tenant.name}:`, err.message);
       }
+
+      // Calculate virtual status for stats
+      let finalStatus = tenant.status || 'inactive';
+      if (isExpired && finalStatus === 'active') {
+        finalStatus = 'suspended';
+      }
+
+      tenant.virtualStatus = finalStatus; // Temporary property
     }
 
     // Convert objects to arrays for charts
@@ -369,9 +560,9 @@ router.get('/stats', async (req, res) => {
     // Calculated statistics
     const stats = {
       totalCompanies: tenants.length,
-      activeCompanies: tenants.filter(function (t) { return t.status === 'active'; }).length,
-      suspendedCompanies: tenants.filter(function (t) { return t.status === 'suspended'; }).length,
-      inactiveCompanies: tenants.filter(function (t) { return t.status === 'inactive'; }).length,
+      activeCompanies: tenants.filter(function (t) { return t.virtualStatus === 'active'; }).length,
+      suspendedCompanies: tenants.filter(function (t) { return t.virtualStatus === 'suspended'; }).length,
+      inactiveCompanies: tenants.filter(function (t) { return t.virtualStatus === 'inactive'; }).length,
 
       totalUsers: totalUsers,
       totalWorkflows: 876, // Replace with real data later
@@ -528,5 +719,16 @@ router.delete('/plans/:id', async (req, res) => {
     });
   }
 });
+
+// ========================
+// LOGS MANAGEMENT
+// ========================
+const getLogController = (req) => new LogController(req.app.locals.masterDb);
+
+router.get('/logs', (req, res) => getLogController(req).getLogs(req, res));
+router.get('/logs/stats', (req, res) => getLogController(req).getLogStats(req, res));
+router.get('/logs/export', (req, res) => getLogController(req).exportLogs(req, res));
+router.get('/logs/:id', (req, res) => getLogController(req).getLogById(req, res));
+router.post('/logs/clean', (req, res) => getLogController(req).cleanOldLogs(req, res));
 
 module.exports = router;

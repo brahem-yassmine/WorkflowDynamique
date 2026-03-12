@@ -47,6 +47,7 @@ type Company = {
   email: string;
   status: string;
   databaseName: string;
+  isExpired?: boolean;
 };
 
 export default function CompanyManagement() {
@@ -57,6 +58,7 @@ export default function CompanyManagement() {
   const [open, setOpen] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'suspended'>('all');
 
   const fetchCompanies = async () => {
     try {
@@ -82,7 +84,8 @@ export default function CompanyManagement() {
           adminName: tenant.adminName || tenant.email?.split('@')[0] || 'Admin',
           email: tenant.email || 'N/A',
           status: tenant.status || 'inactive',
-          databaseName: tenant.databaseName || 'system_node'
+          databaseName: tenant.databaseName || 'system_node',
+          isExpired: tenant.isExpired || false
         })));
       }
     } catch (error) {
@@ -106,7 +109,7 @@ export default function CompanyManagement() {
         body: JSON.stringify(selectedCompany)
       });
       if (response.ok) {
-        setCompanies(prev => prev.map(c => c.id === selectedCompany.id ? selectedCompany : c));
+        fetchCompanies();
         setOpen(false);
       }
     } catch (err) {
@@ -130,7 +133,7 @@ export default function CompanyManagement() {
       });
 
       if (response.ok) {
-        setCompanies(prev => prev.map(c => c.id === companyId ? { ...c, status: newStatus } : c));
+        fetchCompanies();
       }
     } catch (err) {
       console.error(err);
@@ -139,10 +142,12 @@ export default function CompanyManagement() {
 
   useEffect(() => { fetchCompanies(); }, []);
 
-  const filteredCompanies = companies.filter(c =>
-    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredCompanies = companies.filter(c => {
+    const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         c.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = filterStatus === 'all' || c.status === filterStatus;
+    return matchesSearch && matchesStatus;
+  });
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -166,9 +171,30 @@ export default function CompanyManagement() {
 
       {/* Quick Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <QuickStatCard label="Total Organizations" value={companies.length} icon={<Building2 size={20} />} color="bg-blue-50 text-blue-600" />
-        <QuickStatCard label="Live Instances" value={companies.filter(c => c.status === 'active').length} icon={<ShieldCheck size={20} />} color="bg-emerald-50 text-emerald-600" />
-        <QuickStatCard label="Suspended Clusters" value={companies.filter(c => c.status === 'suspended').length} icon={<ShieldAlert size={20} />} color="bg-rose-50 text-rose-600" />
+        <QuickStatCard
+          label="Total Organizations"
+          value={companies.length}
+          icon={<Building2 size={20} />}
+          color="bg-blue-50 text-blue-600"
+          isActive={filterStatus === 'all'}
+          onClick={() => setFilterStatus('all')}
+        />
+        <QuickStatCard
+          label="Live Instances"
+          value={companies.filter(c => c.status === 'active').length}
+          icon={<ShieldCheck size={20} />}
+          color="bg-emerald-50 text-emerald-600"
+          isActive={filterStatus === 'active'}
+          onClick={() => setFilterStatus('active')}
+        />
+        <QuickStatCard
+          label="Suspended Clusters"
+          value={companies.filter(c => c.status === 'suspended').length}
+          icon={<ShieldAlert size={20} />}
+          color="bg-rose-50 text-rose-600"
+          isActive={filterStatus === 'suspended'}
+          onClick={() => setFilterStatus('suspended')}
+        />
       </div>
 
       {/* Control Bar */}
@@ -234,13 +260,20 @@ export default function CompanyManagement() {
                     </div>
                   </td>
                   <td className="px-6 py-5">
-                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase border ${company.status === 'active'
-                        ? 'bg-emerald-50 text-emerald-600 border-emerald-100/50'
-                        : 'bg-rose-50 text-rose-600 border-rose-100/50'
-                      }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${company.status === 'active' ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></span>
-                      {company.status}
-                    </span>
+                    <div className="flex flex-col gap-1">
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase border ${company.status === 'active'
+                          ? 'bg-emerald-50 text-emerald-600 border-emerald-100/50'
+                          : 'bg-rose-50 text-rose-600 border-rose-100/50'
+                        }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${company.status === 'active' ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></span>
+                        {company.status}
+                      </span>
+                      {company.isExpired && (
+                        <span className="text-[9px] font-black text-rose-600 uppercase tracking-tighter animate-pulse text-center">
+                          ⚠️ SUBSCRIPTION EXPIRED
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-8 py-5 text-right">
                     <div className="flex items-center justify-end gap-2">
@@ -376,9 +409,22 @@ export default function CompanyManagement() {
   );
 }
 
-function QuickStatCard({ label, value, icon, color }: { label: string; value: string | number; icon: React.ReactNode; color: string }) {
+function QuickStatCard({ label, value, icon, color, isActive, onClick }: {
+  label: string;
+  value: string | number;
+  icon: React.ReactNode;
+  color: string;
+  isActive: boolean;
+  onClick: () => void;
+}) {
   return (
-    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex items-center gap-5">
+    <div
+      onClick={onClick}
+      className={`p-6 rounded-3xl shadow-sm border transition-all cursor-pointer flex items-center gap-5 ${isActive
+          ? 'bg-white border-indigo-500 ring-4 ring-indigo-50 shadow-md'
+          : 'bg-white border-slate-100 hover:border-indigo-200 hover:shadow-md'
+        }`}
+    >
       <div className={`p-4 rounded-2xl ${color}`}>{icon}</div>
       <div>
         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{label}</p>

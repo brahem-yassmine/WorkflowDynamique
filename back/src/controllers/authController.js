@@ -3,6 +3,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const { recordActivity } = require('../services/auditLogger');
+const crypto = require('crypto');
+const { sendResetPasswordEmail } = require('../services/mailService');
 
 // Helper to get models from a specific connection
 const getModel = (conn, modelName, factoryPath) => {
@@ -17,13 +19,16 @@ const getTenantModel = (req) => getModel(req.masterDb, 'Tenant', '../models/mast
 const getPlanModel = (req) => getModel(req.masterDb, 'Plan', '../models/master/Plan');
 const getSuperAdminModel = (req) => getModel(req.masterDb, 'SuperAdmin', '../models/master/SuperAdmin');
 const getRoleModel = (conn) => getModel(conn, 'Role', '../models/master/Role');
+const getSubscriptionModel = (conn) => getModel(conn, 'Subscription', '../models/tenant/Subscription');
 
-// ====================================
 // FUNCTION TO CREATE TENANT DATABASE
 // ====================================
-const createTenantDatabase = async (tenantId, dbName, plan, adminEmail, hashedPassword) => {
+const createTenantDatabase = async (tenantId, dbName, plan, adminEmail, hashedPassword, paymentDetails = null, startDate = null) => {
   try {
-    console.log(` Creating database: ${dbName}`);
+    console.log(`🚀 createTenantDatabase started for ${dbName}`, {
+      plan: plan?.name,
+      startDate
+    });
 
     const dbUri = `mongodb://localhost:27017/${dbName}`;
     const tenantConn = mongoose.createConnection(dbUri, {
@@ -54,27 +59,50 @@ const createTenantDatabase = async (tenantId, dbName, plan, adminEmail, hashedPa
     await adminUser.save();
     console.log('✅ Admin created in tenant database');
 
-    // Create subscription
-    const subscription = new Subscription({
-      tenantId: tenantId.toString(),
-      planId: plan._id.toString(),
-      planName: plan.name,
-      planCode: plan.code,
-      price: plan.price,
-      status: 'trial',
-      selectedBy: adminUser._id,
-      trialStartDate: new Date(),
-      trialEndDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)
-    });
+    // Create subscription if plan is provided
+    let subscription = null;
+    if (plan) {
+      const start = startDate ? new Date(startDate) : new Date();
+      const planCode = (plan.code || '').toLowerCase();
+      // Demo/Lattice = 7 days, others 15 days
+      const trialDays = (planCode.includes('demo') || planCode.includes('lattice')) ? 7 : 15;
 
-    await subscription.save();
-    console.log(' Subscription created');
+      const trialEndDate = new Date(start.getTime() + trialDays * 24 * 60 * 60 * 1000);
+
+      console.log(`📋 Creating subscription for ${plan.name}`, {
+        start,
+        trialEndDate,
+        trialDays
+      });
+
+      subscription = new Subscription({
+        planId: plan._id.toString(),
+        planName: plan.name,
+        planCode: plan.code,
+        price: plan.price,
+        status: 'trial',
+        selectedBy: adminUser._id,
+        trialStartDate: start,
+        trialEndDate: trialEndDate,
+        currentPeriodStart: start,
+        currentPeriodEnd: trialEndDate,
+        paymentInfo: paymentDetails
+      });
+
+      await subscription.save();
+      console.log('✅ Subscription created successfully');
+
+      // Update admin user to reflect plan selection if it was done at signup
+      adminUser.hasSelectedPlan = true;
+      adminUser.selectedPlan = plan.name;
+      await adminUser.save();
+    }
 
     await tenantConn.close();
     return { adminUser, subscription };
 
   } catch (error) {
-    console.error(' Tenant database creation error:', error);
+    console.error('❌ Tenant database creation error:', error);
     throw error;
   }
 };
@@ -180,6 +208,7 @@ const login = async (req, res) => {
         id: user._id,
         userId: user._id,
         email: user.email,
+        name: user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : (user.name || user.username),
         role: role,
         tenantId: tenantId,
         domain: user.domain || 'HR',
@@ -189,7 +218,11 @@ const login = async (req, res) => {
       { expiresIn: '30d' }
     );
 
-    // 4. Record Activity (if not super_admin)
+    // 4. Record Activity & Check Subscription
+    let subscriptionExpired = false;
+    let daysLeft = 0;
+    let currentPlan = null;
+
     if (role !== 'super_admin' && tenantId) {
       try {
         const { getTenantConnection } = require('../services/tenantConnection');
@@ -197,29 +230,72 @@ const login = async (req, res) => {
         const tenant = await TenantModel.findById(tenantId);
 
         if (tenant) {
-          // Get connection for recordActivity
           const tenantConn = await getTenantConnection(tenant.domain, tenant.databaseName);
+          const Subscription = getSubscriptionModel(tenantConn);
 
-          // Mimic request object parts for recordActivity
-          const mockReq = {
-            tenantConn,
-            user: {
+          const sub = await Subscription.findOne().sort({ createdAt: -1 });
+
+          if (sub) {
+            currentPlan = sub.planName;
+            let endDate = sub.currentPeriodEnd || sub.trialEndDate;
+
+            if (req.body.debugStartDate) {
+              const debugStart = new Date(req.body.debugStartDate);
+              if (!isNaN(debugStart.getTime())) {
+                const planCode = (sub.planCode || '').toLowerCase();
+                const duration = (planCode.includes('demo') || planCode.includes('lattice')) ? 7 : 15;
+                endDate = new Date(debugStart.getTime() + duration * 24 * 60 * 60 * 1000);
+              }
+            }
+
+            const now = new Date();
+            subscriptionExpired = now > endDate;
+            daysLeft = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
+
+            const warningSoon = !subscriptionExpired && daysLeft <= 3;
+
+            const mockReq = {
+              tenantConn,
+              user: {
+                id: user._id,
+                email: user.email,
+                name: user.name || user.firstName || (role === 'admin' ? user.name : 'User'),
+                role: role
+              },
+              ip: req.ip || req.connection.remoteAddress
+            };
+
+            await recordActivity(mockReq, 'SIGN_IN', {
+              type: 'Session',
               id: user._id,
-              email: user.email,
-              name: user.name || user.firstName || (role === 'admin' ? user.name : 'User'),
-              role: role
-            },
-            ip: req.ip || req.connection.remoteAddress
-          };
+              name: 'User Login'
+            });
 
-          await recordActivity(mockReq, 'SIGN_IN', {
-            type: 'Session',
-            id: user._id,
-            name: 'User Login'
-          });
+            return res.json({
+              success: true,
+              data: {
+                token,
+                user: {
+                  id: user._id,
+                  _id: user._id,
+                  email: user.email,
+                  name: user.name || user.firstName,
+                  role: role,
+                  tenantId,
+                  domain: user.domain,
+                  hasSelectedPlan: user.hasSelectedPlan ?? false,
+                  subscriptionExpired,
+                  warningSoon,
+                  daysLeft: Math.max(0, daysLeft),
+                  currentPlan
+                },
+                tenantId: tenantId
+              }
+            });
+          }
         }
       } catch (logErr) {
-        console.error('❌ Failed to log SIGN_IN:', logErr.message);
+        console.error('❌ Failed to check subscription/log SIGN_IN:', logErr.message);
       }
     }
 
@@ -232,9 +308,12 @@ const login = async (req, res) => {
           email: user.email,
           role: role,
           name: user.name || user.firstName || (role === 'admin' ? user.name : 'Admin'),
-          hasSelectedPlan: role === 'admin' ? true : true,
+          hasSelectedPlan: user.hasSelectedPlan ?? (role === 'super_admin' ? true : false),
           tenantId: tenantId,
-          domain: user.domain || 'HR'
+          domain: user.domain || 'HR',
+          subscriptionExpired,
+          daysLeft,
+          currentPlan
         },
         tenantId: tenantId
       }
@@ -249,14 +328,29 @@ const login = async (req, res) => {
   }
 };
 
-// ====================================
 // REGISTER NEW TENANT
 // ====================================
 const registerTenant = async (req, res) => {
   try {
-    const { companyName, adminEmail, password, planId, industry } = req.body;
+    const {
+      companyName,
+      adminEmail,
+      password,
+      planId,
+      industry,
+      startDate,
+      paymentDetails
+    } = req.body;
 
-    console.log('📝 Tenant registration:', { companyName, adminEmail, planId });
+    console.log('📝 Incoming Tenant Registration Request:', {
+      companyName,
+      adminEmail,
+      planId,
+      industry,
+      startDate,
+      hasPassword: !!password,
+      hasPayment: !!paymentDetails
+    });
 
     if (!companyName || !adminEmail || !password || !planId || !industry) {
       return res.status(400).json({
@@ -300,17 +394,19 @@ const registerTenant = async (req, res) => {
       status: 'active',
       industry: industry || 'Other',
       adminName: adminEmail.split('@')[0],
-      selectedPlan: plan._id,
+      selectedPlan: plan ? plan._id : null,
       databaseName: dbName,
       databaseUri: dbUri
     });
 
     await tenant.save();
+    console.log('✅ Tenant record created in master database');
 
-    // Create the tenant database and admin user
     try {
-      await createTenantDatabase(tenant._id, dbName, plan, adminEmail, hashedPassword);
+      await createTenantDatabase(tenant._id, dbName, plan, adminEmail, hashedPassword, paymentDetails, startDate);
+      console.log('✅ Tenant database and admin user created successfully');
     } catch (dbError) {
+      console.error('❌ Database initialization failed. Rolling back tenant record.');
       await Tenant.findByIdAndDelete(tenant._id);
       return res.status(500).json({
         success: false,
@@ -402,9 +498,6 @@ const registerSuperAdmin = async (req, res) => {
   }
 };
 
-const crypto = require('crypto');
-const { sendResetPasswordEmail } = require('../services/mailService');
-
 // ====================================
 // FORGOT PASSWORD
 // ====================================
@@ -415,7 +508,6 @@ const forgotPassword = async (req, res) => {
 
     console.log('🔍 Forgot password request for:', email);
 
-    // 1. Search in master models first
     const SuperAdmin = getSuperAdminModel(req);
     const TenantModel = getTenantModel(req);
 
@@ -430,7 +522,6 @@ const forgotPassword = async (req, res) => {
       }
     }
 
-    // 2. Search in tenant databases
     if (!user) {
       const allTenants = await TenantModel.find({ status: 'active' });
       for (const t of allTenants) {
@@ -451,16 +542,13 @@ const forgotPassword = async (req, res) => {
     }
 
     if (!user) {
-      // For security, don't reveal if user exists
       return res.json({ success: true, message: 'Si un compte existe, un email a été envoyé.' });
     }
 
-    // 3. Generate reset token
     const resetToken = crypto.randomBytes(20).toString('hex');
     user.resetPasswordToken = resetToken;
-    user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
+    user.resetPasswordExpires = Date.now() + 3600000;
 
-    // 4. Save user (handling tenant DB connection if needed)
     if (modelType === 'User') {
       const tenant = await TenantModel.findById(targetTenantId);
       const conn = mongoose.createConnection(tenant.databaseUri);
@@ -474,7 +562,6 @@ const forgotPassword = async (req, res) => {
       await user.save();
     }
 
-    // 5. Send email
     const resetLink = `http://localhost:3000/reset-password?token=${resetToken}`;
     await sendResetPasswordEmail(email, resetLink);
 
@@ -494,13 +581,9 @@ const resetPassword = async (req, res) => {
     const { token, password } = req.body;
     if (!token || !password) return res.status(400).json({ success: false, message: 'Token and password required' });
 
-    console.log('🔄 Reset password attempt with token:', token);
-
-    // Hash new password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // 1. Check Master DB
     const SuperAdmin = getSuperAdminModel(req);
     const TenantModel = getTenantModel(req);
 
@@ -516,7 +599,6 @@ const resetPassword = async (req, res) => {
       });
     }
 
-    // 2. Check Tenant DBs if not found
     if (!user) {
       const allTenants = await TenantModel.find({ status: 'active' });
       for (const t of allTenants) {
@@ -545,7 +627,6 @@ const resetPassword = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Token invalide ou expiré.' });
     }
 
-    // 3. Update Master DB user
     user.password = hashedPassword;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
@@ -564,20 +645,43 @@ const resetPassword = async (req, res) => {
 // ====================================
 const getProfile = async (req, res) => {
   try {
-    // req.user is populated by the auth middleware
-    if (!req.user) {
-      return res.status(401).json({
+    const { id, role, tenantId } = req.user;
+    let user = null;
+
+    if (role === 'super_admin') {
+      const SuperAdmin = getSuperAdminModel(req);
+      user = await SuperAdmin.findById(id).select('-password');
+    } else if (role === 'admin') {
+      const TenantModel = getTenantModel(req);
+      user = await TenantModel.findById(tenantId || id).select('-password');
+    } else if (tenantId) {
+      const TenantModel = getTenantModel(req);
+      const tenant = await TenantModel.findById(tenantId);
+      if (tenant) {
+        const conn = mongoose.createConnection(tenant.databaseUri);
+        const TenantUser = require('../models/tenant/User')(conn);
+        user = await TenantUser.findById(id).select('-password');
+        await conn.close();
+      }
+    }
+
+    if (!user) {
+      return res.status(404).json({
         success: false,
-        message: 'Not authenticated'
+        message: 'User not found'
       });
     }
 
     res.json({
       success: true,
-      data: req.user
+      data: {
+        ...user.toObject(),
+        role: role,
+        tenantId: tenantId
+      }
     });
   } catch (error) {
-    console.error('❌ getProfile Error:', error);
+    console.error('❌ getProfile error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error: ' + error.message

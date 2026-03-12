@@ -142,7 +142,7 @@ export default function AllFormsPage() {
             <h2 className="text-xl font-bold text-gray-800">No forms found</h2>
             <p className="text-gray-500 mt-2 max-w-sm mb-8">Start by creating your first dynamic form to automate your workflow.</p>
             <Link
-              href="/form"
+              href="/admin/form"
               className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 flex items-center gap-2"
             >
               <Plus className="w-5 h-5" /> Start Building

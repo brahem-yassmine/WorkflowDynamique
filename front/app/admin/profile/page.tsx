@@ -13,9 +13,12 @@ import {
   Bell,
   Globe,
   History,
-  Camera
+  Camera,
+  Building
 } from 'lucide-react';
+import Link from 'next/link';
 import { api } from '../../services/api';
+import { apiService } from '@/service/api.service';
 import { toast, Toaster } from 'sonner';
 
 export default function ProfilePage() {
@@ -25,8 +28,8 @@ export default function ProfilePage() {
   const [formData, setFormData] = useState({
     name: 'Loading...',
     email: '',
-    password: '',
-    role: 'User'
+    role: 'User',
+    companyName: ''
   });
 
   useEffect(() => {
@@ -35,12 +38,12 @@ export default function ProfilePage() {
       if (storedUser) {
         const user = JSON.parse(storedUser);
         setUserId(user._id || user.id);
-        const syncPass = localStorage.getItem('user_pass_sync') || '';
+        const tenant = JSON.parse(localStorage.getItem('tenant') || '{}');
         setFormData({
           name: user.name || (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : (user.firstName || 'Admin')),
           email: user.email || '',
-          password: syncPass,
-          role: user.role === 'super_admin' ? 'Master Administrator' : (user.role === 'admin' ? 'Infrastructure Admin' : 'Agent Node')
+          role: user.role === 'super_admin' ? 'Master Administrator' : (user.role === 'admin' ? 'Infrastructure Admin' : 'Agent Node'),
+          companyName: tenant.name || ''
         });
       }
     }
@@ -56,35 +59,43 @@ export default function ProfilePage() {
     
     setIsSaving(true);
     try {
+      // 1. Update User Profile
       const names = formData.name.split(' ');
       const firstName = names[0];
       const lastName = names.slice(1).join(' ') || '';
 
-      const payload: any = {
+      const userPayload: any = {
         firstName,
         lastName,
         email: formData.email,
         name: formData.name
       };
 
-      if (formData.password) {
-        payload.password = formData.password;
+      const userRes = await api.put(`/api/users/${userId}`, userPayload);
+
+      if (userRes.data.success) {
+        // Update localStorage user
+        const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+        const updatedUser = { ...storedUser, ...userRes.data.data };
+        localStorage.setItem('user', JSON.stringify(updatedUser));
       }
 
-      const res = await api.put(`/api/users/${userId}`, payload);
+      // 2. Update Company Profile if Admin
+      const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+      if (storedUser.role === 'admin' && formData.companyName.trim()) {
+        const tenantRes = await api.put('/api/tenants/info', {
+          name: formData.companyName
+        });
 
-      if (res.data.success) {
-        toast.success("Profile synchronized successfully!");
-        // Update localStorage
-        const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-        const updatedUser = { ...storedUser, ...res.data.data };
-        localStorage.setItem('user', JSON.stringify(updatedUser));
-        
-        // Update synced password if changed
-        if (formData.password) {
-          localStorage.setItem('user_pass_sync', formData.password);
+        if (tenantRes.data.success) {
+          localStorage.setItem('tenant', JSON.stringify(tenantRes.data.data));
         }
       }
+
+      toast.success("Profile synchronized successfully!");
+      // Reload to reflect changes in Header
+      window.location.reload();
+
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Sync error detected.");
     } finally {
@@ -172,22 +183,16 @@ export default function ProfilePage() {
               </div>
 
               <InputGroup label="Access Key (Password)" icon={<Lock size={16} />}>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    placeholder={showPassword ? "Type new password..." : "•••••••• "}
-                    className="w-full h-12 bg-slate-50 border-none rounded-xl px-4 font-bold text-slate-700 focus:ring-4 focus:ring-indigo-50 transition-all outline-none pr-12"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 outline-none"
+                <div className="flex items-center gap-4">
+                  <div className="flex-1 h-12 bg-slate-50 border-none rounded-xl px-4 flex items-center font-bold text-slate-400">
+                    ••••••••
+                  </div>
+                  <Link 
+                    href="/forget"
+                    className="px-6 py-3 bg-slate-100 text-indigo-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all shadow-sm active:scale-95 whitespace-nowrap"
                   >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
+                    Forget Password?
+                  </Link>
                 </div>
               </InputGroup>
 
@@ -206,6 +211,34 @@ export default function ProfilePage() {
               </div>
             </div>
           </section>
+
+          {/* Company section (Admin only) */}
+          {formData.role.includes('Admin') && (
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 animate-in slide-in-from-right duration-500">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                  <Building size={20} />
+                </div>
+                <h3 className="text-xl font-black text-slate-800 tracking-tight">Company Blueprint</h3>
+              </div>
+
+              <div className="space-y-6">
+                <InputGroup label="Enterprise Identity (Company Name)" icon={<Globe size={16} />}>
+                  <input
+                    type="text"
+                    name="companyName"
+                    value={formData.companyName}
+                    onChange={handleChange}
+                    className="w-full h-12 bg-slate-50 border-none rounded-xl px-4 font-bold text-slate-700 focus:ring-4 focus:ring-blue-50 transition-all outline-none"
+                    placeholder="Enter your company name..."
+                  />
+                </InputGroup>
+                <p className="text-[10px] text-slate-400 font-medium px-2 leading-relaxed">
+                  Note: Updating the enterprise identity affects the lattice headers and protocol assets for all associated nodes.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Preference sections */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

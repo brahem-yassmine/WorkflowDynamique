@@ -90,7 +90,7 @@ exports.checkPlanSelection = async (req, res) => {
       });
     }
 
-    const requiresPlanSelection = user.role === 'admin' && !user.hasSelectedPlan;
+    const requiresPlanSelection = !user.hasSelectedPlan;
 
     console.log('✅ Verification completed:', { requiresPlanSelection, role: user.role });
 
@@ -176,8 +176,16 @@ exports.selectPlan = async (req, res) => {
       });
     }
 
+    // Handle Start Date and Duration
+    const start = req.body.startDate ? new Date(req.body.startDate) : new Date();
+    const planCode = plan.code ? plan.code.toLowerCase() : '';
+    const trialDays = (planCode.includes('demo') || planCode.includes('lattice')) ? 7 : 15;
+
+    const trialEndDate = new Date(start.getTime() + trialDays * 24 * 60 * 60 * 1000);
+
     user.hasSelectedPlan = true;
     user.planSelectedAt = new Date();
+    user.selectedPlan = plan.name;
     await user.save();
 
     // Create subscription
@@ -185,14 +193,19 @@ exports.selectPlan = async (req, res) => {
       tenantId,
       planId: plan._id,
       planName: plan.name,
+      planCode: plan.code,
       billingCycle: billingCycle || 'monthly',
       price: plan.price,
       status: 'trial',
       selectedBy: userId,
+      trialStartDate: start,
+      trialEndDate: trialEndDate,
+      currentPeriodStart: start,
+      currentPeriodEnd: trialEndDate
       trialStartDate: new Date(),
-      trialEndDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+      trialEndDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
       currentPeriodStart: new Date(),
-      currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      currentPeriodEnd: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)
     });
 
     await subscription.save();
@@ -207,12 +220,17 @@ exports.selectPlan = async (req, res) => {
         code: plan.code,
         price: plan.price,
         currency: plan.currency,
-        interval: plan.interval,
         features: plan.features
       };
       tenant.trialPeriod = {
+        startDate: start,
+        endDate: trialEndDate,
+<<<<<<< HEAD
+=======
+
+>>>>>>> e6314a902f52656002db49b7c9c2223bf17d346f
         startDate: new Date(),
-        endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        endDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
         isActive: true
       };
       await tenant.save();

@@ -24,6 +24,7 @@ router.get('/', getForms);
 router.get('/:formId', getFormById);
 router.post('/', createForm);
 router.put('/:formId', updateForm);
+router.patch('/:formId', updateForm);
 router.delete('/:formId', deleteForm);
 router.patch('/:formId/status', updateFormStatus);
 router.post('/:formId/submit', submitForm);

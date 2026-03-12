@@ -1,9 +1,7 @@
 // back/src/controllers/workflowController.js
 const fs = require('fs');
 const path = require('path');
-const Workflow = require('../models/tenant/Workflow.js');
 const notificationController = require('./notificationController');
-const User = require('../models/tenant/User');
 const { recordActivity } = require('../services/auditLogger');
 
 // ============================================
@@ -11,14 +9,11 @@ const { recordActivity } = require('../services/auditLogger');
 // ============================================
 exports.getWorkflows = async (req, res) => {
   try {
-    const { domain, status } = req.query;
+    const { domain, status, projectId } = req.query;
 
-    // Get models from tenant connection
     const Workflow = req.tenantConn.model('Workflow');
-    const Project = req.tenantConn.model('Project');
     const user = req.user;
 
-    const { projectId } = req.query;
     let query = {};
 
     // 1. Visibility for non-admin users
@@ -27,18 +22,13 @@ exports.getWorkflows = async (req, res) => {
       if (user.domain === 'HR' || user.domain === 'RH') {
         domainsToMatch.push(user.domain === 'HR' ? 'RH' : 'HR');
       }
-
-      // Simple Visibility: Show workflows in your domain
       query.domain = { $in: domainsToMatch };
     } else {
-      // Admin/SuperAdmin sees everything, but can filter by projectId
       if (projectId) query.projectId = projectId;
       if (domain) query.domain = domain;
     }
 
-    if (status) {
-      query.status = status;
-    }
+    if (status) query.status = status;
 
     const workflows = await Workflow.find(query).sort({ createdAt: -1 });
 
@@ -63,10 +53,7 @@ exports.getWorkflows = async (req, res) => {
 exports.getWorkflowById = async (req, res) => {
   try {
     const { workflowId } = req.params;
-
     const Workflow = req.tenantConn.model('Workflow');
-
-    // REMOVE tenantId from filter
     const workflow = await Workflow.findById(workflowId);
 
     if (!workflow) {
@@ -95,8 +82,7 @@ exports.getWorkflowById = async (req, res) => {
 // ============================================
 exports.createWorkflow = async (req, res) => {
   try {
-    const { name, description, domain, nodes, edges, projectId } = req.body;
-
+    const { name, description, domain, nodes, edges, projectId, status } = req.body;
     const Workflow = req.tenantConn.model('Workflow');
 
     if (!name) {
@@ -107,7 +93,6 @@ exports.createWorkflow = async (req, res) => {
     }
 
     const workflowDomain = domain || req.user.domain;
-
     let workflowNodes = nodes || [];
     let workflowEdges = edges || [];
 
@@ -138,40 +123,22 @@ exports.createWorkflow = async (req, res) => {
     if (workflowNodes.length === 0) {
       const startId = 'node_start_' + Date.now();
       const endId = 'node_end_' + Date.now();
-
       workflowNodes = [
-        {
-          id: startId,
-          type: 'start',
-          position: { x: 100, y: 100 },
-          data: { label: 'Start' }
-        },
-        {
-          id: endId,
-          type: 'end',
-          position: { x: 100, y: 300 },
-          data: { label: 'End' }
-        }
+        { id: startId, type: 'start', position: { x: 100, y: 100 }, data: { label: 'Start' } },
+        { id: endId, type: 'end', position: { x: 100, y: 300 }, data: { label: 'End' } }
       ];
-
       workflowEdges = [
-        {
-          id: 'edge_' + Date.now(),
-          source: startId,
-          target: endId,
-          type: 'default'
-        }
+        { id: 'edge_' + Date.now(), source: startId, target: endId, type: 'default' }
       ];
     }
 
-    // ADD createdBy (user who creates the template)
     const workflow = new Workflow({
       name,
       description: description || '',
       domain: workflowDomain,
       nodes: workflowNodes,
       edges: workflowEdges,
-      status: req.body.status || 'draft',
+      status: status || 'draft',
       projectId: projectId || null,
       createdBy: req.user.id
     });
@@ -191,10 +158,12 @@ exports.createWorkflow = async (req, res) => {
       }
     }
 
+    // 🚀 AUTOMATIC CHECKLIST GENERATION
+    await _triggerAutomaticChecklist(req, workflow);
+
     // Trigger Notification for Admins
     const UserModel = req.tenantConn.model('User');
     const admins = await UserModel.find({ role: 'admin' });
-
     for (const admin of admins) {
       await notificationController.createInternalNotification(req.tenantConn, {
         recipient: admin._id,
@@ -210,16 +179,13 @@ exports.createWorkflow = async (req, res) => {
     if (workflowDomain === 'HR' || workflowDomain === 'RH') {
       searchDomains.push(workflowDomain === 'HR' ? 'RH' : 'HR');
     }
-
     const domainUsers = await UserModel.find({
       domain: { $in: searchDomains },
-      role: { $ne: 'admin' } // admins already notified
+      role: { $ne: 'admin' }
     });
 
     for (const user of domainUsers) {
-      // Don't notify the creator twice
       if (user._id.toString() === req.user.id.toString()) continue;
-
       await notificationController.createInternalNotification(req.tenantConn, {
         recipient: user._id,
         title: 'New Workflow Template',
@@ -229,7 +195,6 @@ exports.createWorkflow = async (req, res) => {
       });
     }
 
-    // Log the activity
     await recordActivity(req, 'CREATE_WORKFLOW', {
       type: 'Workflow',
       id: workflow._id,
@@ -244,21 +209,7 @@ exports.createWorkflow = async (req, res) => {
 
   } catch (error) {
     console.error('❌ createWorkflow Error:', error);
-
-    if (error.name === 'ValidationError') {
-      const errors = Object.values(error.errors).map(err => err.message);
-      return res.status(400).json({
-        success: false,
-        message: 'Validation error: ' + errors.join(', '),
-        errors: errors
-      });
-    }
-
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
 
@@ -269,17 +220,15 @@ exports.updateWorkflow = async (req, res) => {
   try {
     const { workflowId } = req.params;
     const updates = req.body;
-
     const Workflow = req.tenantConn.model('Workflow');
-
     const workflow = await Workflow.findById(workflowId);
 
     if (!workflow) {
-      return res.status(404).json({
-        success: false,
-        message: 'Workflow not found'
-      });
+      return res.status(404).json({ success: false, message: 'Workflow not found' });
     }
+
+    const oldStatus = workflow.status;
+    const newStatus = updates.status || oldStatus;
 
     // Process base64 attachments in nodes
     if (updates.nodes && Array.isArray(updates.nodes)) {
@@ -306,18 +255,8 @@ exports.updateWorkflow = async (req, res) => {
       }
     }
 
-    // Implicit Mongoose validation for nodes/edges if provided
-    if (updates.nodes) workflow.nodes = updates.nodes;
-    if (updates.edges) workflow.edges = updates.edges;
-
-    // REMOVE tenantId protection (no longer needed)
-    const oldStatus = workflow.status;
-    const newStatus = updates.status || oldStatus;
-
     Object.keys(updates).forEach(key => {
-      if (key !== '_id') {
-        workflow[key] = updates[key];
-      }
+      if (key !== '_id') workflow[key] = updates[key];
     });
 
     await workflow.save();
@@ -335,19 +274,19 @@ exports.updateWorkflow = async (req, res) => {
       }
     }
 
-    // Log the activity
+    // 🚀 AUTOMATIC CHECKLIST SYNC
+    await _triggerAutomaticChecklist(req, workflow);
+
     await recordActivity(req, 'UPDATE_WORKFLOW', {
       type: 'Workflow',
       id: workflow._id,
       name: workflow.name
     });
 
-    // Trigger Notification for Admins and Team
+    // Trigger Notifications
     try {
       const UserModel = req.tenantConn.model('User');
       const workflowDomain = workflow.domain;
-
-      // 1. Notify Admins
       const admins = await UserModel.find({ role: 'admin' });
       for (const admin of admins) {
         if (admin._id.toString() === req.user.id.toString()) continue;
@@ -360,17 +299,9 @@ exports.updateWorkflow = async (req, res) => {
         });
       }
 
-      // 2. Notify Domain Users
       const searchDomains = [workflowDomain];
-      if (workflowDomain === 'HR' || workflowDomain === 'RH') {
-        searchDomains.push(workflowDomain === 'HR' ? 'RH' : 'HR');
-      }
-
-      const domainUsers = await UserModel.find({
-        domain: { $in: searchDomains },
-        role: { $ne: 'admin' }
-      });
-
+      if (workflowDomain === 'HR' || workflowDomain === 'RH') searchDomains.push(workflowDomain === 'HR' ? 'RH' : 'HR');
+      const domainUsers = await UserModel.find({ domain: { $in: searchDomains }, role: { $ne: 'admin' } });
       for (const user of domainUsers) {
         if (user._id.toString() === req.user.id.toString()) continue;
         await notificationController.createInternalNotification(req.tenantConn, {
@@ -385,28 +316,11 @@ exports.updateWorkflow = async (req, res) => {
       console.warn('Notification failed:', notifErr.message);
     }
 
-    res.json({
-      success: true,
-      message: 'Workflow updated',
-      data: workflow
-    });
+    res.json({ success: true, message: 'Workflow updated', data: workflow });
 
   } catch (error) {
     console.error('❌ updateWorkflow Error:', error);
-
-    if (error.name === 'ValidationError') {
-      const errors = Object.values(error.errors).map(err => err.message);
-      return res.status(400).json({
-        success: false,
-        message: 'Validation error',
-        errors: errors
-      });
-    }
-
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
@@ -416,36 +330,25 @@ exports.updateWorkflow = async (req, res) => {
 exports.deleteWorkflow = async (req, res) => {
   try {
     const { workflowId } = req.params;
-
     const Workflow = req.tenantConn.model('Workflow');
     const WorkflowInstance = req.tenantConn.model('WorkflowInstance');
+    const Checklist = req.tenantConn.model('Checklist');
 
-    // Check if there are linked instances
-    const instancesCount = await WorkflowInstance.countDocuments({ workflowId });
-
-    if (instancesCount > 0) {
-      return res.status(400).json({
-        success: false,
-        message: `Deletion impossible: ${instancesCount} instance(s) exist. Archive first.`
-      });
-    }
+    await WorkflowInstance.deleteMany({ workflowId });
+    await Checklist.deleteMany({ workflowId });
 
     const workflow = await Workflow.findByIdAndDelete(workflowId);
 
     if (workflow) {
-      // Log the activity
       await recordActivity(req, 'DELETE_WORKFLOW', {
         type: 'Workflow',
         id: workflow._id,
         name: workflow.name
       });
 
-      // Trigger Notification for Admins and Team
+      // Notify Admins and Team
       try {
         const UserModel = req.tenantConn.model('User');
-        const workflowDomain = workflow.domain;
-
-        // 1. Notify Admins
         const admins = await UserModel.find({ role: 'admin' });
         for (const admin of admins) {
           if (admin._id.toString() === req.user.id.toString()) continue;
@@ -456,51 +359,15 @@ exports.deleteWorkflow = async (req, res) => {
             type: 'system'
           });
         }
-
-        // 2. Notify Domain Users
-        const searchDomains = [workflowDomain];
-        if (workflowDomain === 'HR' || workflowDomain === 'RH') {
-          searchDomains.push(workflowDomain === 'HR' ? 'RH' : 'HR');
-        }
-
-        const domainUsers = await UserModel.find({
-          domain: { $in: searchDomains },
-          role: { $ne: 'admin' }
-        });
-
-        for (const user of domainUsers) {
-          if (user._id.toString() === req.user.id.toString()) continue;
-          await notificationController.createInternalNotification(req.tenantConn, {
-            recipient: user._id,
-            title: 'Workflow Template Removed',
-            message: `The template "${workflow.name}" is no longer available.`,
-            type: 'system'
-          });
-        }
-      } catch (notifErr) {
-        console.warn('Notification failed:', notifErr.message);
-      }
+      } catch (notifErr) {}
     }
 
-    if (!workflow) {
-      return res.status(404).json({
-        success: false,
-        message: 'Workflow not found'
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Workflow deleted successfully',
-      data: { id: workflowId }
-    });
+    if (!workflow) return res.status(404).json({ success: false, message: 'Workflow not found' });
+    res.json({ success: true, message: 'Workflow deleted successfully' });
 
   } catch (error) {
     console.error('❌ deleteWorkflow Error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
@@ -510,40 +377,27 @@ exports.deleteWorkflow = async (req, res) => {
 exports.executeWorkflow = async (req, res) => {
   try {
     const { workflowId } = req.params;
-
     const Workflow = req.tenantConn.model('Workflow');
     const workflow = await Workflow.findById(workflowId);
 
-    if (!workflow) {
-      return res.status(404).json({ success: false, message: 'Workflow not found' });
-    }
+    if (!workflow) return res.status(404).json({ success: false, message: 'Workflow not found' });
 
     const instance = await _internalStartInstance(req.tenantConn, workflow, req.user, {
       title: req.body.title,
       description: req.body.description,
-      priority: req.body.priority,
+      priority: req.body.priority || 'medium',
       dueDate: req.body.dueDate,
       data: req.body.data
     });
 
     res.status(201).json({
       success: true,
-      message: 'Workflow executed successfully',
-      data: {
-        workflowId: workflow._id,
-        instanceId: instance._id,
-        status: instance.status,
-        startedAt: instance.timeStarted,
-        currentNodes: instance.currentNodes
-      }
+      data: instance
     });
 
   } catch (error) {
     console.error('❌ executeWorkflow Error:', error);
-    res.status(error.status || 500).json({
-      success: false,
-      message: error.message || 'Server error'
-    });
+    res.status(error.status || 500).json({ success: false, message: error.message || 'Server error' });
   }
 };
 
@@ -555,17 +409,9 @@ async function _internalStartInstance(tenantConn, workflow, user, options = {}) 
   const UserModel = tenantConn.model('User');
   const RoleModel = tenantConn.model('Role');
 
-  // GRAPH INITIALIZATION
-  // Find start node (type: 'start')
   const startNode = workflow.nodes.find(n => n.type === 'start');
+  if (!startNode) throw new Error('Workflow has no start node');
 
-  if (!startNode) {
-    const error = new Error('Workflow has no start node (type: start)');
-    error.status = 400;
-    throw error;
-  }
-
-  // Skip the Start node: Find the next nodes automatically
   const nextEdges = workflow.edges.filter(e => e.source === startNode.id);
   const initialNodes = [];
 
@@ -580,93 +426,55 @@ async function _internalStartInstance(tenantConn, workflow, user, options = {}) 
         nodeId: targetNode.id,
         status: 'in_progress',
         startedAt: new Date(),
-        responsibleUser: selType === 'user' ? (ids[0]) : null,
+        responsibleUser: selType === 'user' ? ids[0] : null,
         responsibleDomain: data.responsibleDomain || null,
         assignees: ids
       });
     }
   });
 
-  // If no next nodes, we might as well just end or start with Start (fallback)
-  // but following user's request, we expect at least one next node.
   const finalInitialNodes = initialNodes.length > 0 ? initialNodes : [{
     nodeId: startNode.id,
     status: 'in_progress',
-    startedAt: new Date(),
-    responsibleUser: startNode.data?.assignedUser || null,
-    responsibleDomain: startNode.data?.responsibleDomain || null,
-    assignees: startNode.data?.assigneeIds || []
+    startedAt: new Date()
   }];
 
   const instance = new WorkflowInstance({
     workflowId: workflow._id,
     createdBy: user.id,
-    title: options.title || `Instance de ${workflow.name}`,
+    title: options.title || `Instance: ${workflow.name}`,
     description: options.description || workflow.description,
-
-    // Start with the nodes AFTER the start node
     currentNodes: finalInitialNodes,
-
     variables: options.data || {},
-
     executionPath: [
       {
         nodeId: startNode.id,
         nodeType: 'start',
         action: 'completed',
         performedBy: user.id,
-        comments: 'Workflow démarré (Start sauté)',
         timestamp: new Date()
-      },
-      ...finalInitialNodes.map(n => ({
-        nodeId: n.nodeId,
-        nodeType: workflow.nodes.find(wn => wn.id === n.nodeId)?.type || 'action',
-        action: 'activated',
-        timestamp: new Date()
-      }))
+      }
     ],
-
     status: 'in_progress',
     priority: options.priority || 'medium',
     dueDate: options.dueDate || null,
-    timeStarted: new Date(),
-
-    history: [{
-      action: 'instance_created',
-      title: 'Démarrage automatique',
-      performedBy: user.id,
-      comments: `Instance créée - ${finalInitialNodes.length} nœuds activés`
-    }]
+    timeStarted: new Date()
   });
 
   await instance.save();
 
-  // Trigger Notifications for all active nodes
+  // Notifications
   try {
-    const UserModel = tenantConn.model('User');
-    const RoleModel = tenantConn.model('Role');
-
     for (const currentNode of instance.currentNodes) {
       const nodeDef = workflow.nodes.find(n => n.id === currentNode.nodeId);
-
-      // 1. Collect target users (direct and by role)
       const targetUsers = new Set();
       if (currentNode.responsibleUser) targetUsers.add(currentNode.responsibleUser.toString());
-      if (currentNode.assignees) {
-        currentNode.assignees.forEach(id => targetUsers.add(id.toString()));
-      }
+      if (currentNode.assignees) currentNode.assignees.forEach(id => targetUsers.add(id.toString()));
 
-      // If assigned by ROLE
       if (nodeDef?.data?.assigneeSelectionType === 'role' && currentNode.assignees?.length > 0) {
         const rolesMatching = await RoleModel.find({ _id: { $in: currentNode.assignees } });
         const roleNames = rolesMatching.map(r => r.name);
-
-        const roleUsers = await UserModel.find({
-          $or: [
-            { role: { $in: roleNames } },
-            { role: { $in: currentNode.assignees.map(id => id.toString()) } }
-          ]
-        });
+        const roleUsers = await UserModel.find({ $or: [{ role: { $in: roleNames } }, { role: { $in: currentNode.assignees.map(id => id.toString()) } }] });
         roleUsers.forEach(u => targetUsers.add(u._id.toString()));
       }
 
@@ -674,46 +482,13 @@ async function _internalStartInstance(tenantConn, workflow, user, options = {}) 
         await notificationController.createInternalNotification(tenantConn, {
           recipient: userId,
           title: 'New Task Assigned',
-          message: `You have a new task "${nodeDef?.data?.label || 'Step'}" in workflow "${instance.title}".`,
+          message: `Task "${nodeDef?.data?.label || 'Step'}" activated in "${instance.title}".`,
           type: 'task_assigned',
           link: `/Workflows/instances/${instance._id}`
         });
       }
-
-      // 2. Notify Domain/Department
-      if (currentNode.responsibleDomain) {
-        const domain = currentNode.responsibleDomain;
-        const searchDomains = [domain];
-        if (domain === 'HR' || domain === 'RH') searchDomains.push(domain === 'HR' ? 'RH' : 'HR');
-
-        const domainUsers = await UserModel.find({ domain: { $in: searchDomains } });
-        for (const user of domainUsers) {
-          if (targetUsers.has(user._id.toString())) continue;
-          await notificationController.createInternalNotification(tenantConn, {
-            recipient: user._id,
-            title: 'New Department Task',
-            message: `A new task for the ${domain} department is available in "${instance.title}".`,
-            type: 'task_assigned',
-            link: `/Workflows/instances/${instance._id}`
-          });
-        }
-      }
     }
-
-    // 3. Notify Admins (once per instance)
-    const admins = await UserModel.find({ role: 'admin' });
-    for (const admin of admins) {
-      await notificationController.createInternalNotification(tenantConn, {
-        recipient: admin._id,
-        title: 'New Workflow Instance',
-        message: `An instance of "${workflow.name}" has been started by ${user.email}.`,
-        type: 'system',
-        link: `/Workflows/instances/${instance._id}`
-      });
-    }
-  } catch (err) {
-    console.error('Notification Error:', err);
-  }
+  } catch (err) {}
 
   return instance;
 }
@@ -725,92 +500,21 @@ exports.changeWorkflowStatus = async (req, res) => {
   try {
     const { workflowId } = req.params;
     const { status } = req.body;
-
     const Workflow = req.tenantConn.model('Workflow');
 
-    if (!status || !['draft', 'active', 'archived'].includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid status. Accepted values: draft, active, archived'
-      });
-    }
+    if (!['draft', 'active', 'archived'].includes(status)) return res.status(400).json({ success: false, message: 'Invalid status' });
 
-    const workflow = await Workflow.findById(workflowId);
+    const workflow = await Workflow.findByIdAndUpdate(workflowId, { status }, { new: true });
+    if (!workflow) return res.status(404).json({ success: false, message: 'Workflow not found' });
 
-    if (!workflow) {
-      return res.status(404).json({
-        success: false,
-        message: 'Workflow not found'
-      });
-    }
-
-    workflow.status = status;
-    await workflow.save();
-
-    // Trigger Notifications for Status Change
-    try {
-      const UserModel = req.tenantConn.model('User');
-      const workflowDomain = workflow.domain;
-
-      // 1. Notify Admins
-      const admins = await UserModel.find({ role: 'admin' });
-      for (const admin of admins) {
-        if (admin._id.toString() === req.user.id.toString()) continue;
-        await notificationController.createInternalNotification(req.tenantConn, {
-          recipient: admin._id,
-          title: `Workflow Status: ${status.toUpperCase()}`,
-          message: `The workflow "${workflow.name}" is now set to ${status}.`,
-          type: 'system',
-          link: `/admin/workflows?id=${workflow._id}`
-        });
-      }
-
-      // 2. Notify Domain Users (Publication or Archival)
-      if (status === 'active' || status === 'archived') {
-        const searchDomains = [workflowDomain];
-        if (workflowDomain === 'HR' || workflowDomain === 'RH') {
-          searchDomains.push(workflowDomain === 'HR' ? 'RH' : 'HR');
-        }
-
-        const domainUsers = await UserModel.find({
-          domain: { $in: searchDomains },
-          role: { $ne: 'admin' }
-        });
-
-        for (const user of domainUsers) {
-          if (user._id.toString() === req.user.id.toString()) continue;
-          await notificationController.createInternalNotification(req.tenantConn, {
-            recipient: user._id,
-            title: status === 'active' ? 'New Workflow Available' : 'Workflow Archived',
-            message: status === 'active'
-              ? `The template "${workflow.name}" is now ready for use.`
-              : `The template "${workflow.name}" has been removed from active duty.`,
-            type: 'system',
-            link: status === 'active' ? `/User/Workflows` : null
-          });
-        }
-      }
-    } catch (notifErr) {
-      console.warn('Status notification failed:', notifErr.message);
-    }
-
-    res.json({
-      success: true,
-      message: `Workflow status changed to "${status}"`,
-      data: workflow
-    });
-
+    res.json({ success: true, data: workflow });
   } catch (error) {
-    console.error('❌ changeWorkflowStatus Error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
 // ============================================
-// 10. GET WORKFLOW MEMBERS (ADMIN VIEW)
+// 10. GET WORKFLOW MEMBERS
 // ============================================
 exports.getWorkflowMembers = async (req, res) => {
   try {
@@ -822,62 +526,24 @@ exports.getWorkflowMembers = async (req, res) => {
     const workflow = await Workflow.findById(workflowId);
     if (!workflow) return res.status(404).json({ success: false, message: 'Workflow not found' });
 
-    // 1. Get users assigned in Template
     const templateUserIds = new Set();
     workflow.nodes.forEach(node => {
-      if (node.data?.assigneeIds) {
-        node.data.assigneeIds.forEach(id => templateUserIds.add(id.toString()));
-      }
+      if (node.data?.assigneeIds) node.data.assigneeIds.forEach(id => templateUserIds.add(id.toString()));
       if (node.data?.assignedUser) templateUserIds.add(node.data.assignedUser.toString());
     });
 
-    // 2. Get users assigned in Instances
     const instances = await WorkflowInstance.find({ workflowId, status: 'in_progress' });
     const instanceUserIds = new Set();
-    const userTasks = {}; // userId -> array of tasks
+    instances.forEach(inst => inst.currentNodes.forEach(node => {
+      if (node.responsibleUser) instanceUserIds.add(node.responsibleUser.toString());
+      if (node.assignees) node.assignees.forEach(id => instanceUserIds.add(id.toString()));
+    }));
 
-    instances.forEach(inst => {
-      inst.currentNodes.forEach(node => {
-        const ids = [];
-        if (node.responsibleUser) ids.push(node.responsibleUser.toString());
-        if (node.assignees) node.assignees.forEach(id => ids.push(id.toString()));
-
-        ids.forEach(uid => {
-          instanceUserIds.add(uid);
-          if (!userTasks[uid]) userTasks[uid] = [];
-          userTasks[uid].push({
-            instanceId: inst._id,
-            instanceTitle: inst.title,
-            nodeId: node.nodeId,
-            nodeLabel: workflow.nodes.find(n => n.id === node.nodeId)?.data?.label || 'Step',
-            status: node.status,
-            startedAt: node.startedAt
-          });
-        });
-      });
-    });
-
-    // 3. Combine and Fetch User Details
     const allUserIds = Array.from(new Set([...templateUserIds, ...instanceUserIds]));
-    const users = await User.find({ _id: { $in: allUserIds } }).select('name email role domain avatar');
+    const users = await User.find({ _id: { $in: allUserIds } }).select('name email role domain avatar firstName lastName');
 
-    const members = users.map(user => {
-      const uid = user._id.toString();
-      return {
-        ...user.toObject(),
-        isTemplateMember: templateUserIds.has(uid),
-        isActiveMember: instanceUserIds.has(uid),
-        tasks: userTasks[uid] || []
-      };
-    });
-
-    res.json({
-      success: true,
-      data: members
-    });
-
+    res.json({ success: true, data: users });
   } catch (error) {
-    console.error('❌ getWorkflowMembers Error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
@@ -888,49 +554,53 @@ exports.getWorkflowMembers = async (req, res) => {
 exports.duplicateWorkflow = async (req, res) => {
   try {
     const { workflowId } = req.params;
-
     const Workflow = req.tenantConn.model('Workflow');
-
     const original = await Workflow.findById(workflowId);
+    if (!original) return res.status(404).json({ success: false, message: 'Workflow not found' });
 
-    if (!original) {
-      return res.status(404).json({
-        success: false,
-        message: 'Workflow not found'
-      });
-    }
-
-    // Create a copy
     const duplicate = new Workflow({
       name: `${original.name} (copy)`,
       description: original.description,
       domain: original.domain,
-      nodes: original.nodes.map(node => ({ ...node })), // Basic deep copy
-      edges: original.edges.map(edge => ({ ...edge })), // Basic deep copy
+      nodes: original.nodes,
+      edges: original.edges,
       status: 'draft',
       createdBy: req.user.id
     });
 
     await duplicate.save();
+    await _triggerAutomaticChecklist(req, duplicate);
 
-    // Log the activity
-    await recordActivity(req, 'CLONE_WORKFLOW', {
-      type: 'Workflow',
-      id: duplicate._id,
-      name: duplicate.name
-    }, { originalWorkflowId: workflowId });
-
-    res.status(201).json({
-      success: true,
-      message: 'Workflow duplicated successfully',
-      data: duplicate
-    });
-
+    res.status(201).json({ success: true, data: duplicate });
   } catch (error) {
-    console.error('❌ duplicateWorkflow Error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
+
+/**
+ * PRIVATE HELPER: Automatically generates/syncs checklist
+ */
+async function _triggerAutomaticChecklist(req, workflow) {
+  try {
+    if (req.user?.role !== 'admin' && req.user?.role !== 'super_admin') return;
+    const nodesToInclude = (workflow.nodes || []).filter(n => n.type === 'action' || n.type === 'condition');
+    if (nodesToInclude.length === 0) return;
+
+    const Checklist = req.tenantConn.model('Checklist');
+    const checklistName = `Workflow: ${workflow.name}`;
+    const checklistTasks = nodesToInclude.map(n => ({
+      id: n.id,
+      title: n.data?.label || (n.type === 'action' ? 'Task' : 'Condition'),
+      completed: false,
+      priority: 'medium'
+    }));
+
+    await Checklist.findOneAndUpdate(
+      { name: checklistName },
+      { tasks: checklistTasks, description: `Tracking for ${workflow.name}`, createdBy: req.user.id },
+      { upsne: true, new: true, upsert: true }
+    );
+  } catch (error) {
+    console.error('Checklist Generation Error:', error.message);
+  }
+}

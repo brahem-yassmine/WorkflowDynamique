@@ -12,6 +12,7 @@ router.get('/:id', checklistController.getChecklistById);
 router.post('/', checklistController.createChecklist);
 router.put('/:id', checklistController.updateChecklist);
 router.post('/:id/clone', checklistController.cloneChecklist);
+router.patch('/:id/tasks/:taskId/toggle', checklistController.toggleTaskStatus);
 router.delete('/:id', checklistController.deleteChecklist);
 
 module.exports = router;

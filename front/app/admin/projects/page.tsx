@@ -17,6 +17,7 @@ import {
     X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast, Toaster } from 'sonner';
 import { apiService } from '@/service/api.service';
 import Link from 'next/link';
 
@@ -105,24 +106,25 @@ export default function ProjectsPage() {
                     domain: '',
                     color: '#6366f1'
                 });
+                toast.success('Project created successfully');
             }
         } catch (error: any) {
-            alert('Error creating project: ' + error.message);
+            toast.error('Error creating project: ' + error.message);
         }
     };
 
-    const handleDelete = async (id: string) => {
-        if (!window.confirm('Are you sure you want to delete this project? It must have no linked workflows.')) return;
-        try {
-            const response = await apiService.deleteProject(id);
-            if (response.success) {
-                setProjects(prev => prev.filter(p => p._id !== id));
-                if (selectedProject?._id === id) setSelectedProject(null);
-            }
-        } catch (error: any) {
-            alert('Error during deletion: ' + error.message);
-        }
-    };
+  const handleDelete = async (id: string) => {
+    try {
+      const response = await apiService.deleteProject(id);
+      if (response.success) {
+        toast.success('Project deleted successfully');
+        setProjects(prev => prev.filter(p => p._id !== id));
+        if (selectedProject?._id === id) setSelectedProject(null);
+      }
+    } catch (error: any) {
+      toast.error('Error during deletion: ' + error.message);
+    }
+  };
 
     const startEditing = (project: any) => {
         setNewProject({
@@ -166,6 +168,7 @@ export default function ProjectsPage() {
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
+            <Toaster position="top-right" richColors />
             {/* Control Bar */}
             <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
                 <div className="relative w-full md:max-w-md group">

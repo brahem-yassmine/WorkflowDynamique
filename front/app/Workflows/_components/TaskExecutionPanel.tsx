@@ -25,12 +25,26 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
     const [variables, setVariables] = useState<any>({});
     const [isUploading, setIsUploading] = useState(false);
     const [localAttachments, setLocalAttachments] = useState<any[]>([]);
+    const [currentUser, setCurrentUser] = useState<any>(null);
 
     useEffect(() => {
         if (instance?.attachments) {
             setLocalAttachments(instance.attachments);
         }
     }, [instance]);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const userStr = localStorage.getItem('user');
+            if (userStr) {
+                try {
+                    setCurrentUser(JSON.parse(userStr));
+                } catch (e) {
+                    console.error('Error parsing current user:', e);
+                }
+            }
+        }
+    }, []);
 
     const data = node?.data || {};
     const {
@@ -41,6 +55,18 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
         deadline,
         taskType = 'normal'
     } = data;
+
+    const isLocked = !!instance?.lockedBy;
+    const isLockedByMe = instance?.lockedBy === currentUser?._id;
+    const isAnyAssignment = data.assignmentType === 'ANY';
+    const canPerformAny = isAnyAssignment && (!isLocked || isLockedByMe);
+    const needsLock = isAnyAssignment && !isLocked;
+
+    const isActive = instance?.status === 'active';
+    const isInstanceActive = !instance || instance.status === 'in_progress';
+    const canPerform = isActive || node.type === 'start';
+    const canValidate = canPerform && isInstanceActive;
+    const showButtons = canPerform || canValidate;
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -73,34 +99,6 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
             }
         };
     };
-
-    // Auth data
-    const [currentUser, setCurrentUser] = useState<any>(null);
-
-    useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const userStr = localStorage.getItem('user');
-            if (userStr) {
-                try {
-                    setCurrentUser(JSON.parse(userStr));
-                } catch (e) {
-                    console.error('Error parsing current user:', e);
-                }
-            }
-        }
-    }, []);
-
-    // Logic for assignment & locking
-    const isLocked = !!instance?.lockedBy;
-    const isLockedByMe = instance?.lockedBy === currentUser?._id;
-    const isAnyAssignment = data.assignmentType === 'ANY';
-    const isAllAssignment = data.assignmentType === 'ALL';
-    const canPerformAny = isAnyAssignment && (!isLocked || isLockedByMe);
-    const needsLock = isAnyAssignment && !isLocked;
-
-    // Permissions check
-    const canValidate = true; // For now assuming admin/validator access for demo
-    const canPerform = canPerformAny || !isAnyAssignment;
 
     const handleLockTask = async () => {
         if (!instance?._id || !node?.id) return;
@@ -169,9 +167,6 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
         }
     };
 
-    const isActive = instance?.status === 'active';
-    const showButtons = canPerform || canValidate;
-
     return (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
             <motion.div
@@ -200,8 +195,8 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                             userAction === 'Approve / Reject' || taskType === 'validation' ? <ShieldCheck size={28} /> :
                                                 <AlertCircle size={28} strokeWidth={3} />}
                             </div>
-                            <button onClick={onClose} className="p-3 hover:bg-slate-100 rounded-2xl transition-all border-0 outline-none bg-transparent">
-                                <X size={24} className="text-slate-300 group-hover:text-slate-600" />
+                            <button onClick={onClose} className="p-3 hover:bg-slate-100 rounded-2xl transition-all border-0 outline-none bg-transparent text-slate-400 hover:text-slate-600">
+                                <X size={24} />
                             </button>
                         </div>
 
@@ -247,6 +242,49 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                 </div>
                             )}
                         </div>
+
+                        {/* Resource Output Section */}
+                        {data.linkedObjectId && (
+                            <div className="mt-8 space-y-4">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-500/80 flex items-center gap-2">
+                                    <ClipboardList size={14} /> Linked Assets & Tasks
+                                </p>
+
+                                <div className={`group relative p-6 border rounded-[28px] transition-all duration-300 ${isActive ? 'bg-emerald-50/50 border-emerald-200 shadow-lg shadow-emerald-500/5' : 'bg-slate-50 border-slate-100'}`}>
+                                    <div className="flex items-center justify-between mb-5">
+                                        <div className="flex items-center gap-4">
+                                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm transition-transform duration-500 group-hover:scale-110 ${isActive ? 'bg-white text-emerald-500' : 'bg-slate-100 text-slate-400'}`}>
+                                                {data.taskType === 'form' ? <ClipboardList size={22} /> : <ListChecks size={22} />}
+                                            </div>
+                                            <div>
+                                                <h4 className={`text-sm font-black ${isActive ? 'text-emerald-900' : 'text-slate-600'}`}>
+                                                    Dynamic {data.taskType?.toUpperCase() || 'ASSET'}
+                                                </h4>
+                                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">External Integration Bound</p>
+                                            </div>
+                                        </div>
+                                        <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${isActive ? 'bg-emerald-500 text-white animate-pulse' : 'bg-indigo-50 text-indigo-600'}`}>
+                                            {isActive ? 'Active' : 'Accessible'}
+                                        </div>
+                                    </div>
+
+                                    <Link
+                                        href={
+                                            data.taskType === 'form' ? `/form/form2?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}` :
+                                                data.taskType === 'checklist' ? `/checklist?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}` :
+                                                    `/${data.taskType}s/${data.linkedObjectId}?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}`
+                                        }
+                                        className={`w-full h-12 rounded-[18px] flex items-center justify-center gap-3 text-[11px] font-black uppercase tracking-[0.1em] transition-all ${
+                                            isActive 
+                                            ? 'bg-emerald-600 text-white hover:bg-emerald-700 hover:shadow-xl hover:shadow-emerald-200' 
+                                            : 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-xl hover:shadow-indigo-200'
+                                        }`}
+                                    >
+                                        {isActive ? 'Execute Task Now' : 'View/Fill Asset'} <ArrowRight size={16} strokeWidth={3} />
+                                    </Link>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -321,7 +359,6 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
 
                     {/* TASK SPECIFIC SECTIONS */}
                     <div className="space-y-6">
-                        {/* 1. CONTENT PRESENTATION */}
                         {taskContent === 'Form' && (
                             <div className="p-6 border-2 border-indigo-100 bg-indigo-50/30 rounded-[28px] space-y-4">
                                 <div className="flex items-center gap-4">
@@ -448,6 +485,15 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                             )}
                         </div>
                     </div>
+
+                    {!isInstanceActive && (
+                        <div className="p-4 rounded-2xl border flex items-center justify-center gap-3 shadow-sm bg-slate-50 border-slate-200/60 text-slate-400">
+                            <AlertCircle size={18} />
+                            <span className="text-[10px] font-black uppercase tracking-widest">
+                                Workflow {instance?.status?.toUpperCase() || 'FINALISED'} - Read Only
+                            </span>
+                        </div>
+                    )}
                 </div>
 
                 {/* FOOTER BUTTONS */}

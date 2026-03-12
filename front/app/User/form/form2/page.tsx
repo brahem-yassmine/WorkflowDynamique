@@ -1,5 +1,6 @@
 'use client';
 
+
 import React, { useState, useEffect } from 'react';
 import {
   FileText, Type, Hash, Calendar, CheckSquare, PenTool, AlignLeft, List,
@@ -8,7 +9,7 @@ import {
 import { useSearchParams, useRouter } from 'next/navigation';
 import { toast, Toaster } from 'sonner';
 import Link from 'next/link';
-import TaskExecutionPanel from '../../Workflows/_components/TaskExecutionPanel';
+import TaskExecutionPanel from '../../../Workflows/_components/TaskExecutionPanel';
 import { apiService } from '@/service/api.service';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -23,18 +24,15 @@ export default function Form2Page() {
   const router = useRouter();
   const instanceId = searchParams.get('instanceId');
   const nodeId = searchParams.get('nodeId');
-  const taskId = searchParams.get('taskId');
   const formId = searchParams.get('formId') || searchParams.get('id');
   const workflowId = searchParams.get('workflowId');
   const designerWorkflowId = searchParams.get('designerWorkflowId');
-  const fromWorkflow = searchParams.get('fromWorkflow');
-  const from = searchParams.get('from');
 
   const [form, setForm] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-
+  
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [submissionName, setSubmissionName] = useState('New Response');
   const [submissionDescription, setSubmissionDescription] = useState('');
@@ -48,6 +46,7 @@ export default function Form2Page() {
     try {
       // 1. Fetch Form
       if (formId) {
+        // Use a generic request if specific getFormById doesn't exist or just to stay flexible
         const res = await apiService.request(`/forms/${formId}`);
         if (res.success) {
           setForm(res.data);
@@ -60,7 +59,7 @@ export default function Form2Page() {
       }
 
       // 2. Fetch Workflow Instance if applicable
-      if (instanceId && instanceId !== 'new') {
+      if (instanceId) {
         const instanceRes = await apiService.getInstance(instanceId);
         if (instanceRes.success) {
           setInstance(instanceRes.data);
@@ -72,6 +71,7 @@ export default function Form2Page() {
       }
     } catch (error: any) {
       console.error("Fetch Data Error:", error);
+      // Only toast if it's not a expected 404 or empty
       if (error.message !== 'Not authenticated') {
         toast.error("Error loading data: " + error.message);
       }
@@ -91,6 +91,7 @@ export default function Form2Page() {
   const handleFileChange = (fieldId: string, file: File | null) => {
     if (!file) return;
 
+    // Check if image or PDF
     if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
       return toast.error("Only images and PDF files are allowed.");
     }
@@ -115,61 +116,32 @@ export default function Form2Page() {
 
   const confirmSubmit = async () => {
     if (!form?._id) return toast.error("Form ID missing.");
-    if (!submissionName.trim()) return toast.error("Please enter a name for this submission.");
+    if (!submissionName.trim()) return toast.error("Veuillez saisir un nom pour cette soumission.");
 
     setIsSubmitting(true);
     try {
-      // 1. Submit the form response
       const res = await apiService.request(`/forms/${form._id}/submit`, {
         method: 'POST',
-        body: JSON.stringify({
+        body: JSON.stringify({ 
           data: formData,
           name: submissionName,
-          description: submissionDescription,
-          instanceId: instanceId === 'new' ? null : instanceId,
-          nodeId
+          description: submissionDescription
         })
       });
 
       if (res.success) {
-        // 2. If this is part of a workflow, approve the node
-        if (instanceId && instanceId !== 'new' && nodeId) {
-          try {
-            await apiService.approveNode(
-              instanceId,
-              nodeId,
-              `Form submitted: ${submissionName}`,
-              formData
-            );
-          } catch (workflowErr) {
-            console.error("Workflow sync error:", workflowErr);
-          }
-        }
-
-        // 3. If this is a standalone Kanban task
-        if (taskId) {
-          try {
-            await apiService.updateTask(taskId, { status: 'done' });
-          } catch (taskErr) {
-            console.error("Task update error:", taskErr);
-          }
-        }
-
         toast.success("Form submitted successfully!");
         setIsSubmitModalOpen(false);
         
-        // Dynamic redirection
-        if (designerWorkflowId || fromWorkflow) {
-          const basePath = from === 'admin' ? '/admin/Create_workflows' : '/User/Create_workflows';
-          router.push(`${basePath}${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}`);
+        // Dynamic redirection based on context
+        if (designerWorkflowId) {
+          router.push(`/User/create_workflows?id=${designerWorkflowId}`);
         } else if (instanceId === 'new') {
           router.push(`/Workflows/instances/new?workflowId=${workflowId}`);
-        } else if (instanceId && instanceId !== 'new') {
+        } else if (instanceId) {
           router.push(`/Workflows/instances/${instanceId}`);
-        } else if (taskId) {
-          router.push('/User/tasks');
         } else {
-          router.push(from === 'user' ? '/User/Allforms' : '/admin/AllForms');
+          router.push('/User/Allforms');
         }
       }
     } catch (error: any) {
@@ -229,15 +201,17 @@ export default function Form2Page() {
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="bg-white w-full max-w-lg rounded-[32px] overflow-hidden shadow-2xl border border-slate-100"
             >
+              {/* Modal Header */}
               <div key="modal-header" className="bg-indigo-600 p-8 text-white">
                 <h2 className="text-2xl font-black tracking-tight uppercase">Workflow Identification</h2>
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80 mt-1">Lattice Persistence</p>
               </div>
 
+              {/* Modal Body */}
               <div key="modal-body" className="p-8 space-y-8">
                 <div key="name-group" className="space-y-3">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Submission Title</label>
-                  <input
+                  <input 
                     value={submissionName}
                     onChange={(e) => setSubmissionName(e.target.value)}
                     placeholder="E.g., Quarterly Report, Maintenance Request..."
@@ -247,7 +221,7 @@ export default function Form2Page() {
 
                 <div key="desc-group" className="space-y-3">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Notes / Context</label>
-                  <textarea
+                  <textarea 
                     value={submissionDescription}
                     onChange={(e) => setSubmissionDescription(e.target.value)}
                     placeholder="Add any additional context for this submission..."
@@ -256,6 +230,7 @@ export default function Form2Page() {
                 </div>
               </div>
 
+              {/* Modal Footer */}
               <div key="modal-footer" className="p-8 pt-0 flex items-center justify-between">
                 <button 
                   key="discard-btn"
@@ -264,19 +239,18 @@ export default function Form2Page() {
                 >
                   Discard
                 </button>
-                <button
+                <button 
                   onClick={confirmSubmit}
                   disabled={isSubmitting}
-                  className="px-10 py-4 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-indigo-700 active:scale-95 transition-all shadow-xl shadow-indigo-100 disabled:opacity-50 flex items-center gap-2"
+                  className="px-10 py-4 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-indigo-700 active:scale-95 transition-all shadow-xl shadow-indigo-100 disabled:opacity-50"
                 >
-                  {isSubmitting ? 'Synchronizing...' : 'Save and Send to Admin'}
+                  {isSubmitting ? 'Synchronizing...' : 'Commit Submission'}
                 </button>
               </div>
             </motion.div>
           </div>
         )}
-
-        {!!(instanceId && instanceId !== 'new' && currentNode) && (
+        {!!(instanceId && currentNode) && (
           <TaskExecutionPanel
             key="workflow-instance-panel"
             instance={instance}
@@ -288,58 +262,56 @@ export default function Form2Page() {
       </AnimatePresence>
 
       {/* Header */}
-      <div className="bg-white border-b z-30 shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 py-4 sm:h-20 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-4 w-full sm:w-auto">
+      <div className="bg-white border-b sticky top-0 z-10">
+        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
             <Link
               href={
-                (designerWorkflowId || fromWorkflow) ? `/form?id=${formId}&from=${from || 'user'}${designerWorkflowId ? `&designerWorkflowId=${designerWorkflowId}` : ''}${fromWorkflow ? '&fromWorkflow=true' : ''}` :
+                designerWorkflowId ? `/User/create_workflows?id=${designerWorkflowId}` :
                 instanceId === 'new' ? `/Workflows/instances/new?workflowId=${workflowId}` :
-                instanceId && instanceId !== 'new' ? `/Workflows/instances/${instanceId}` :
-                (from === 'user' ? "/User/Allforms" : "/admin/AllForms")
+                instanceId ? `/Workflows/instances/${instanceId}` :
+                "/User/Allforms"
               }
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500 shrink-0"
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500"
             >
               <ArrowLeft className="w-5 h-5" />
             </Link>
-            <div className="min-w-0">
-              <h1 className="text-lg font-black text-slate-800 uppercase tracking-tight truncate">
+            <div>
+              <h1 className="text-lg font-black text-slate-800 uppercase tracking-tight">
                 {form?.name || "Interactive Workflow"}
               </h1>
               <div className="flex items-center gap-2 mt-0.5">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Fillable Protocol • </p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Fillable Protocol • </p>
                 {form.steps?.some((s: any) => s.status === 'approved') ? (
-                  <span className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-200 uppercase tracking-wider leading-none">
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-200 uppercase tracking-wider">
                     <CheckCircle2 className="w-2.5 h-2.5" /> Validated
                   </span>
                 ) : (
-                  <span className="flex items-center gap-1 text-[10px] font-bold text-yellow-600 bg-yellow-50 px-1.5 py-0.5 rounded border border-yellow-200 uppercase tracking-wider leading-none">
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-yellow-600 bg-yellow-50 px-1.5 py-0.5 rounded border border-yellow-200 uppercase tracking-wider">
                     <Clock className="w-2.5 h-2.5" /> In Progress
                   </span>
                 )}
               </div>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => handleStatusUpdate('approved')}
-                className="px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg text-xs sm:text-sm font-bold hover:bg-green-700 transition-all shadow-sm whitespace-nowrap"
-              >
-                Approve
-              </button>
-              <button
-                onClick={() => handleStatusUpdate('rejected')}
-                className="px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg text-xs sm:text-sm font-bold hover:bg-red-700 transition-all shadow-sm whitespace-nowrap"
-              >
-                Reject
-              </button>
-            </div>
-            <div className="hidden sm:block w-px h-6 bg-gray-200 mx-1"></div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => handleStatusUpdate('approved')}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700 transition-all shadow-sm"
+            >
+              Approve
+            </button>
+            <button
+              onClick={() => handleStatusUpdate('rejected')}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-bold hover:bg-red-700 transition-all shadow-sm"
+            >
+              Reject
+            </button>
+            <div className="w-px h-6 bg-gray-200 mx-1"></div>
             <button
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="flex items-center gap-2 px-4 sm:px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-xs sm:text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 disabled:opacity-70 whitespace-nowrap"
+              className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 disabled:opacity-70"
             >
               {isSubmitting ? <Clock className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               {isSubmitting ? 'Submitting...' : 'Submit Form'}
@@ -348,6 +320,7 @@ export default function Form2Page() {
         </div>
       </div>
 
+      {/* Form Content */}
       <div className="max-w-4xl mx-auto px-4 mt-8">
         {form.steps?.map((step: any, sIdx: number) => (
           <div key={step.id || `step-${sIdx}`} className="mb-10 animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${sIdx * 100}ms` }}>
@@ -355,7 +328,7 @@ export default function Form2Page() {
               <div className="w-8 h-8 bg-indigo-600 text-white rounded-lg flex items-center justify-center font-black text-xs shadow-md shadow-indigo-100">
                 {sIdx + 1}
               </div>
-              <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest">Section {sIdx + 1}</h2>
+              <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest">Partie {sIdx + 1}</h2>
               <div className="flex-1 h-[2px] bg-slate-100 ml-4"></div>
             </div>
 

@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 interface NodeDetailsPanelProps {
     selectedNode: Node | null;
+    workflowId?: string | null;
     onClose: () => void;
     onUpdate: (id: string, data: any) => void;
     onDelete: (id: string) => void;
@@ -42,7 +43,7 @@ const TabButton = ({ active, onClick, icon, title, subtitle }: any) => (
     </motion.button>
 );
 
-const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDetailsPanelProps) => {
+const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelete }: NodeDetailsPanelProps) => {
     const router = useRouter();
     const [label, setLabel] = useState('');
     const [description, setDescription] = useState('');
@@ -59,6 +60,7 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
     const [linkedObjectId, setLinkedObjectId] = useState('');
     const [attachments, setAttachments] = useState<any[]>([]);
     const [isUploading, setIsUploading] = useState(false);
+    const [availableChecklists, setAvailableChecklists] = useState<any[]>([]);
 
     const [activeTab, setActiveTab] = useState('general');
 
@@ -86,13 +88,14 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [domainsRes, usersRes, rolesRes, formsRes, projectsRes, boardsRes] = await Promise.all([
+                const [domainsRes, usersRes, rolesRes, formsRes, projectsRes, boardsRes, checklistsRes] = await Promise.all([
                     apiService.getDomains(),
                     apiService.getUsers(),
                     apiService.getRoles(),
                     apiService.getForms(),
                     apiService.getProjects(),
-                    apiService.getBoards()
+                    apiService.getBoards(),
+                    apiService.request('/checklists')
                 ]);
                 setDomains(domainsRes.success ? domainsRes.data : (Array.isArray(domainsRes) ? domainsRes : []));
                 setUsers(usersRes.success ? usersRes.data : (Array.isArray(usersRes) ? usersRes : []));
@@ -100,6 +103,7 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
                 setAvailableForms(formsRes.success ? formsRes.data : (Array.isArray(formsRes) ? formsRes : []));
                 setAvailableProjects(projectsRes.success ? projectsRes.data : (Array.isArray(projectsRes) ? projectsRes : []));
                 setKanbanBoards(boardsRes.success ? boardsRes.data : (Array.isArray(boardsRes) ? boardsRes : []));
+                setAvailableChecklists(checklistsRes.success ? checklistsRes.data : (Array.isArray(checklistsRes) ? checklistsRes : []));
             } catch (err) {
                 console.error('Error fetching data:', err);
             }
@@ -573,9 +577,9 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
                                             <p className="text-slate-400 font-medium">Determine the criteria for step completion and approval.</p>
                                         </div>
 
-                                        <div className="space-y-8 bg-white p-10 rounded-[32px] border border-slate-100 shadow-sm">
+                                        <div className="space-y-12 bg-white p-10 rounded-[40px] border border-slate-100 shadow-xl">
                                             <div className="space-y-6">
-                                                <Label className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Approval Strategy</Label>
+                                                <Label className="text-[11px] font-black text-slate-500 uppercase tracking-widest text-indigo-600">1. Approval Strategy</Label>
                                                 <div className="grid grid-cols-3 gap-4 bg-slate-50 p-2 rounded-2xl">
                                                     {(['automatic', 'simple', 'multi'] as const).map((type) => (
                                                         <button
@@ -590,55 +594,61 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
                                             </div>
 
                                             {validationType !== 'automatic' && (
-                                                <div className="animate-in fade-in slide-in-from-top-4 space-y-8 pt-8 border-t border-slate-50">
-                                                    <div className="flex items-center justify-between">
-                                                        <Label className="text-[11px] font-black text-slate-600 uppercase tracking-widest">Qualified Validators</Label>
-                                                        <div className="flex bg-slate-100/50 p-1 rounded-xl">
+                                                <motion.div 
+                                                    initial={{ opacity: 0, y: 10 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    className="space-y-8 animate-in fade-in slide-in-from-top-4"
+                                                >
+                                                    <div className="space-y-4">
+                                                        <Label className="text-[11px] font-black text-slate-500 uppercase tracking-widest text-indigo-600">2. Validator Type</Label>
+                                                        <div className="flex bg-slate-50 p-1.5 rounded-2xl gap-2">
                                                             <button
                                                                 onClick={() => setValidatorType('role')}
-                                                                className={`px-4 py-2 text-[10px] font-black uppercase rounded-lg transition-all ${validatorType === 'role' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}
-                                                            > Roles </button>
+                                                                className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${validatorType === 'role' ? 'bg-white text-indigo-600 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                                                            >
+                                                                Roles
+                                                            </button>
                                                             <button
                                                                 onClick={() => setValidatorType('user')}
-                                                                className={`px-4 py-2 text-[10px] font-black uppercase rounded-lg transition-all ${validatorType === 'user' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}
-                                                            > Users </button>
+                                                                className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${validatorType === 'user' ? 'bg-white text-indigo-600 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                                                            >
+                                                                Users
+                                                            </button>
                                                         </div>
                                                     </div>
 
-                                                    <select
-                                                        multiple
-                                                        className="w-full p-4 bg-slate-50 rounded-2xl font-bold text-slate-700 min-h-[200px] outline-none ring-1 ring-slate-100 focus:ring-2 focus:ring-indigo-100 shadow-inner"
-                                                        value={validatorIds}
-                                                        onChange={(e) => setValidatorIds(Array.from(e.target.selectedOptions, o => o.value))}
-                                                    >
-                                                        {validatorType === 'role' ? roles.map(r => <option key={r._id} value={r._id}>{r.name}</option>) : users.map(u => <option key={u._id} value={u._id}>{u.firstName} {u.lastName}</option>)}
-                                                    </select>
-
-                                                    {validationType === 'multi' && validatorIds.length < 2 && (
-                                                        <motion.p
-                                                            initial={{ opacity: 0, y: -10 }}
-                                                            animate={{ opacity: 1, y: 0 }}
-                                                            className="text-rose-500 text-[10px] font-bold mt-2 flex items-center gap-2 px-2"
+                                                    <div className="space-y-4">
+                                                        <Label className="text-[11px] font-black text-slate-500 uppercase tracking-widest text-indigo-600">3. Select Validators</Label>
+                                                        <select
+                                                            multiple
+                                                            className="w-full p-6 bg-slate-50 rounded-[24px] font-bold text-slate-700 min-h-[220px] outline-none ring-1 ring-slate-100 focus:ring-4 focus:ring-indigo-100 shadow-inner transition-all custom-scrollbar"
+                                                            value={validatorIds}
+                                                            onChange={(e) => setValidatorIds(Array.from(e.target.selectedOptions, o => o.value))}
                                                         >
-                                                            <ShieldAlert size={12} />
-                                                            Vous devez sélectionner au moins 2 {validatorType === 'user' ? 'utilisateurs' : 'rôles'} pour la validation multiple.
-                                                        </motion.p>
-                                                    )}
+                                                            {validatorType === 'role' 
+                                                                ? roles.map(r => <option key={r._id || r.id} value={r._id || r.id}>{r.name}</option>) 
+                                                                : users.map(u => <option key={u._id || u.id} value={u._id || u.id}>{u.firstName} {u.lastName} ({u.email || u.id})</option>)
+                                                            }
+                                                        </select>
+                                                        <p className="text-[9px] font-bold text-slate-400 italic px-2">Hold Ctrl (or Cmd) to select multiple validators.</p>
+                                                    </div>
 
-                                                    <div className="p-6 bg-slate-900 rounded-3xl flex items-center gap-4 border border-slate-800 shadow-xl">
-                                                        <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center">
-                                                            <ShieldAlert className="text-indigo-400" size={20} />
+                                                    <div className="p-8 bg-slate-900 rounded-[32px] flex items-center gap-6 border border-slate-800 shadow-2xl">
+                                                        <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
+                                                            <ShieldAlert className="text-indigo-400" size={24} />
                                                         </div>
                                                         <div>
-                                                            <p className="text-white font-bold text-sm">
+                                                            <p className="text-white font-black text-base tracking-tight">
                                                                 {validationType === 'multi' ? 'Consensus Required' : 'Solo Approval'}
                                                             </p>
-                                                            <p className="text-slate-400 text-xs mt-1">
-                                                                {validationType === 'multi' ? 'Every selected party must authorize the transition.' : 'Any single individual from the group can authorize.'}
+                                                            <p className="text-slate-400 text-xs mt-1 leading-relaxed font-medium">
+                                                                {validationType === 'multi' 
+                                                                    ? 'Every selected party must authorize the transition before it is considered valid.' 
+                                                                    : 'Any single individual from the selected group can authorize the transition.'}
                                                             </p>
                                                         </div>
                                                     </div>
-                                                </div>
+                                                </motion.div>
                                             )}
                                         </div>
                                     </section>
@@ -760,7 +770,6 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
                                                     </div>
                                                     <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-emerald-600">2. Targeted Action</Label>
                                                 </div>
-
                                                 <div className="space-y-4">
                                                     {[
                                                         { id: 'Fill Form', icon: <ListChecks size={16} />, desc: 'Link dynamic forms' },
@@ -780,7 +789,7 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
                                                                 }`}
                                                         >
                                                             <div className="flex items-center gap-4 min-w-0 flex-1">
-                                                                <div className={`p-2.5 rounded-xl transition-all flex-shrink-0 ${userAction === opt.id
+                                                                 <div className={`p-2.5 rounded-xl transition-all flex-shrink-0 ${userAction === opt.id
                                                                     ? 'bg-emerald-600 text-white shadow-md'
                                                                     : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
                                                                     }`}>
@@ -799,6 +808,138 @@ const NodeDetailsPanel = ({ selectedNode, onClose, onUpdate, onDelete }: NodeDet
                                                         </motion.button>
                                                     ))}
                                                 </div>
+
+                                                {(userAction === 'Fill Form' || taskContent === 'Form') && (
+                                                    <div className="pt-8 mt-8 border-t border-slate-100 space-y-6">
+                                                         <div className="flex items-center justify-between">
+                                                            <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Connect Workflow Resource</Label>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={() => {
+                                                                    const role = window.location.pathname.includes('/admin/') ? 'admin' : 'User';
+                                                                    router.push(`/form${workflowId ? `?designerWorkflowId=${workflowId}&from=${role.toLowerCase()}&fromWorkflow=true` : `?from=${role.toLowerCase()}&fromWorkflow=true`}`);
+                                                                }}
+                                                                className="text-indigo-600 font-black text-[10px] uppercase tracking-widest gap-2"
+                                                            >
+                                                                <Plus size={14} /> New Form
+                                                            </Button>
+                                                        </div>
+                                                        <select
+                                                            className="w-full h-14 px-4 bg-slate-50 rounded-2xl font-bold text-slate-700 outline-none ring-1 ring-slate-100 focus:ring-2 focus:ring-indigo-100"
+                                                            value={linkedObjectId}
+                                                            onChange={(e) => setLinkedObjectId(e.target.value)}
+                                                        >
+                                                            <option value="">-- Choose Existing Form --</option>
+                                                            {availableForms.map(f => (
+                                                                <option key={f._id} value={f._id}>{f.title || f.name || 'Unnamed Form'}</option>
+                                                            ))}
+                                                        </select>
+
+                                                        {linkedObjectId && (
+                                                            <div className="p-6 bg-emerald-50 rounded-2xl flex items-center justify-between">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="p-2 bg-white rounded-xl text-emerald-500 shadow-sm">
+                                                                        <ClipboardType size={18} />
+                                                                    </div>
+                                                                    <span className="text-sm font-bold text-emerald-900">Form Connected</span>
+                                                                </div>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={() => {
+                                                                        const role = window.location.pathname.includes('/admin/') ? 'admin' : 'User';
+                                                                        router.push(`/form/form2?id=${linkedObjectId}${workflowId ? `&designerWorkflowId=${workflowId}&role=${role}` : `&role=${role}`}&fromWorkflow=true`);
+                                                                    }}
+                                                                    className="text-emerald-600 font-black text-[10px] uppercase tracking-widest gap-2"
+                                                                >
+                                                                    Edit Form <ExternalLink size={14} />
+                                                                </Button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+
+                                                {taskType === 'checklist' && (
+                                                    <div className="pt-8 mt-8 border-t border-slate-100 space-y-6">
+                                                         <div className="flex items-center justify-between">
+                                                            <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Connect Checklist</Label>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={() => {
+                                                                    const role = window.location.pathname.includes('/admin/') ? 'admin' : 'User';
+                                                                    const basePath = role === 'admin' ? '/checklist/designer' : '/User/newCheck';
+                                                                    router.push(`${basePath}${workflowId ? `?designerWorkflowId=${workflowId}&role=${role}` : `?role=${role}`}&fromWorkflow=true`);
+                                                                }}
+                                                                className="text-indigo-600 font-black text-[10px] uppercase tracking-widest gap-2"
+                                                            >
+                                                                <Plus size={14} /> New Checklist
+                                                            </Button>
+                                                        </div>
+                                                        <select
+                                                            className="w-full h-14 px-4 bg-slate-50 rounded-2xl font-bold text-slate-700 outline-none ring-1 ring-slate-100 focus:ring-2 focus:ring-indigo-100"
+                                                            value={linkedObjectId}
+                                                            onChange={(e) => setLinkedObjectId(e.target.value)}
+                                                        >
+                                                            <option value="">-- Choose Checklist --</option>
+                                                            {availableChecklists.map(c => (
+                                                                <option key={c._id} value={c._id}>{c.name || 'Unnamed Checklist'}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                )}
+
+                                                {taskType === 'kanban' && (
+                                                    <div className="pt-8 mt-8 border-t border-slate-100 space-y-6">
+                                                         <div className="flex items-center justify-between">
+                                                            <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Connect Board Mapping</Label>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={() => {
+                                                                    const role = window.location.pathname.includes('/admin/') ? 'admin' : 'User';
+                                                                    router.push(`/kanban${workflowId ? `?designerWorkflowId=${workflowId}&role=${role}` : `?role=${role}`}&fromWorkflow=true`);
+                                                                }}
+                                                                className="text-indigo-600 font-black text-[10px] uppercase tracking-widest gap-2"
+                                                            >
+                                                                <Plus size={14} /> New Board
+                                                            </Button>
+                                                        </div>
+                                                        <select
+                                                            className="w-full h-14 px-4 bg-slate-50 rounded-2xl font-bold text-slate-700 outline-none ring-1 ring-slate-100 focus:ring-2 focus:ring-indigo-100"
+                                                            value={linkedObjectId}
+                                                            onChange={(e) => setLinkedObjectId(e.target.value)}
+                                                        >
+                                                            <option value="">-- Choose Project/Board --</option>
+                                                            {availableProjects.map(p => (
+                                                                <option key={p._id} value={p._id}>{p.name || 'Unnamed Project'}</option>
+                                                            ))}
+                                                        </select>
+
+                                                        {linkedObjectId && (
+                                                            <div className="p-6 bg-blue-50 rounded-2xl flex items-center justify-between">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="p-2 bg-white rounded-xl text-blue-500 shadow-sm">
+                                                                        <LayoutGrid size={18} />
+                                                                    </div>
+                                                                    <span className="text-sm font-bold text-blue-900">Board Linked</span>
+                                                                </div>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={() => {
+                                                                        const role = window.location.pathname.includes('/admin/') ? 'admin' : 'User';
+                                                                        router.push(`/kanban?boardId=${linkedObjectId}${workflowId ? `&designerWorkflowId=${workflowId}&role=${role}` : `&role=${role}`}&fromWorkflow=true`);
+                                                                    }}
+                                                                    className="text-blue-600 font-black text-[10px] uppercase tracking-widest gap-2"
+                                                                >
+                                                                    View Board <ExternalLink size={14} />
+                                                                </Button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </section>

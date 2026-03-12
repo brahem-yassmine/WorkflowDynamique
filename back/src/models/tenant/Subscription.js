@@ -4,13 +4,25 @@
 const mongoose = require('mongoose');
 const subscriptionSchema = new mongoose.Schema({
   // NO MORE tenantId
-  planId: String, // just the plan ID (no MongoDB reference)
+  planId: String,
   planName: String,
+  planCode: String,
   billingCycle: String,
   price: Number,
   status: String,
   startDate: Date,
   endDate: Date,
+  currentPeriodStart: Date,
+  currentPeriodEnd: Date,
+  trialStartDate: Date,
+  trialEndDate: Date,
+
+  // Simulated payment info
+  paymentInfo: {
+    cardNumber: String,
+    cardHolder: String,
+    expiryDate: String
+  },
 
   // Reference to the user who performed the action
   selectedBy: {

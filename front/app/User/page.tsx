@@ -237,6 +237,86 @@ export default function UserProfilePage() {
               )}
             </div>
           </motion.div>
+
+          {/* Billing & Fiscal Section */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+            {/* Billing Card */}
+            <motion.div variants={itemVariants} className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-bl-full -mr-16 -mt-16 transition-transform group-hover:scale-110 duration-700"></div>
+              <div className="relative z-10">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl">
+                    <Calendar size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-slate-800 tracking-tight">Billing Context</h3>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Subscription & Cycles</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="p-4 bg-slate-50 rounded-2xl flex justify-between items-center">
+                    <div>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Active Plan</p>
+                      <p className="text-lg font-black text-emerald-600 tracking-tight">{localStorage.getItem('subscription_plan') || 'Lattice Standard'}</p>
+                    </div>
+                    <span className="px-3 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-black rounded-lg uppercase">Active</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 bg-slate-50 rounded-2xl">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Next Sync</p>
+                      <p className="text-sm font-black text-slate-700">Monthly Cycle</p>
+                    </div>
+                    <div className="p-4 bg-slate-50 rounded-2xl">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Days Left</p>
+                    <p className="text-sm font-black text-rose-500">{localStorage.getItem('subscription_days_left') || '--'} Days</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Fiscal Card */}
+            <motion.div variants={itemVariants} className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-amber-50 rounded-bl-full -mr-16 -mt-16 transition-transform group-hover:scale-110 duration-700"></div>
+              <div className="relative z-10">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-3 bg-amber-50 text-amber-600 rounded-2xl">
+                    <ShieldCheck size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-slate-800 tracking-tight">Fiscal Signature</h3>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Compliance & Audit</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center py-3 border-b border-slate-50">
+                    <div className="flex items-center gap-3">
+                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]"></div>
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-widest leading-none">Tax Protocol</span>
+                    </div>
+                    <span className="text-xs font-black text-slate-700">EU-VAT-Standard</span>
+                  </div>
+                  <div className="flex justify-between items-center py-3 border-b border-slate-50">
+                    <div className="flex items-center gap-3">
+                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]"></div>
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-widest leading-none">Fiscal ID</span>
+                    </div>
+                    <span className="text-xs font-black text-slate-700 font-mono">AX-9942-X1</span>
+                  </div>
+                  <div className="flex justify-between items-center py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]"></div>
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-widest leading-none">Ledger Hash</span>
+                    </div>
+                    <span className="text-xs font-black text-slate-400 italic">Verified in Node</span>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
         </div>
       </div>
     </motion.div>

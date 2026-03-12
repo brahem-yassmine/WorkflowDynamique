@@ -12,6 +12,7 @@ const userRoutes = require('./src/routes/userRoutes');
 const authRoutes = require('./src/routes/authRoutes');
 const tenantRoutes = require('./src/routes/tenantRoutes');
 const planRoutes = require('./src/routes/planRoutes');
+const subscriptionService = require('./src/services/subscriptionService');
 const workflowRoutes = require('./src/routes/workflowRoutes');
 const projectRoutes = require('./src/routes/projectRoutes');
 const workflowInstanceRoutes = require('./src/routes/WorkflowInstanceRoutes');
@@ -38,8 +39,12 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// REQUEST LOGGER
 app.use((req, res, next) => {
-  console.log(`📡 [${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+  console.log(`📡 [HTTP] ${req.method} ${req.originalUrl}`);
+  res.on('finish', () => {
+    console.log(`🏁 [HTTP] ${req.method} ${req.originalUrl} - ${res.statusCode}`);
+  });
   next();
 });
 
@@ -89,6 +94,13 @@ masterConnection.once('connected', () => {
   📊 DB: workflow_master
   ✅ Status: Connected
       `);
+
+      // Start subscription check
+      subscriptionService.checkExpiringSubscriptions(masterConnection);
+      // Run every 24 hours
+      setInterval(() => {
+        subscriptionService.checkExpiringSubscriptions(masterConnection);
+      }, 24 * 60 * 60 * 1000);
     });
   } catch (error) {
     console.error('❌ Erreur lors du chargement des modèles:', error);

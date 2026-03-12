@@ -1,10 +1,10 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000/api';
 
 class ApiService {
-  private getToken(): string | null {
+  getToken(): string | null {
     if (typeof window === 'undefined') return null;
-    return localStorage.getItem('token') ||
-      localStorage.getItem('auth_token') ||
+    return localStorage.getItem('auth_token') ||
+      localStorage.getItem('token') ||
       localStorage.getItem('accessToken');
   }
 
@@ -52,6 +52,7 @@ class ApiService {
     const response = await fetch(`${API_URL}${endpoint}`, {
       ...options,
       headers,
+      cache: 'no-store',
     });
 
     const data = await response.json();
@@ -244,9 +245,28 @@ class ApiService {
     return this.request('/forms');
   }
 
+  updateForm(id: string, data: any) {
+    return this.request(`/forms/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
   // Checklist Management
   getChecklists() {
     return this.request('/checklists');
+  }
+
+  toggleTaskStatus(id: string, taskId: string) {
+    return this.request(`/checklists/${id}/tasks/${taskId}/toggle`, {
+      method: 'PATCH'
+    });
+  }
+
+  deleteChecklist(id: string) {
+    return this.request(`/checklists/${id}`, {
+      method: 'DELETE'
+    });
   }
 
   // Notification Management
@@ -307,9 +327,16 @@ class ApiService {
     });
   }
 
+  deleteInstance(instanceId: string) {
+    return this.request(`/workflow-instances/${instanceId}`, {
+      method: 'DELETE'
+    });
+  }
+
   // Board Management
-  getBoards() {
-    return this.request('/boards');
+  getBoards(params?: any) {
+    const query = params ? `?${new URLSearchParams(params).toString()}` : '';
+    return this.request(`/boards${query}`);
   }
 
   createBoard(data: any) {

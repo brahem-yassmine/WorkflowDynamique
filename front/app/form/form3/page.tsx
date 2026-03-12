@@ -1,5 +1,6 @@
 'use client';
 
+
 import React, { useState, useEffect } from 'react';
 import {
   FileText, Type, Hash, Calendar, CheckSquare, PenTool, AlignLeft, List,
@@ -23,18 +24,16 @@ export default function Form2Page() {
   const router = useRouter();
   const instanceId = searchParams.get('instanceId');
   const nodeId = searchParams.get('nodeId');
-  const taskId = searchParams.get('taskId');
   const formId = searchParams.get('formId') || searchParams.get('id');
   const workflowId = searchParams.get('workflowId');
   const designerWorkflowId = searchParams.get('designerWorkflowId');
   const fromWorkflow = searchParams.get('fromWorkflow');
-  const from = searchParams.get('from');
 
   const [form, setForm] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-
+  
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [submissionName, setSubmissionName] = useState('New Response');
   const [submissionDescription, setSubmissionDescription] = useState('');
@@ -48,6 +47,7 @@ export default function Form2Page() {
     try {
       // 1. Fetch Form
       if (formId) {
+        // Use a generic request if specific getFormById doesn't exist or just to stay flexible
         const res = await apiService.request(`/forms/${formId}`);
         if (res.success) {
           setForm(res.data);
@@ -60,7 +60,7 @@ export default function Form2Page() {
       }
 
       // 2. Fetch Workflow Instance if applicable
-      if (instanceId && instanceId !== 'new') {
+      if (instanceId) {
         const instanceRes = await apiService.getInstance(instanceId);
         if (instanceRes.success) {
           setInstance(instanceRes.data);
@@ -72,6 +72,7 @@ export default function Form2Page() {
       }
     } catch (error: any) {
       console.error("Fetch Data Error:", error);
+      // Only toast if it's not a expected 404 or empty
       if (error.message !== 'Not authenticated') {
         toast.error("Error loading data: " + error.message);
       }
@@ -91,6 +92,7 @@ export default function Form2Page() {
   const handleFileChange = (fieldId: string, file: File | null) => {
     if (!file) return;
 
+    // Check if image or PDF
     if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
       return toast.error("Only images and PDF files are allowed.");
     }
@@ -115,61 +117,32 @@ export default function Form2Page() {
 
   const confirmSubmit = async () => {
     if (!form?._id) return toast.error("Form ID missing.");
-    if (!submissionName.trim()) return toast.error("Please enter a name for this submission.");
+    if (!submissionName.trim()) return toast.error("Veuillez saisir un nom pour cette soumission.");
 
     setIsSubmitting(true);
     try {
-      // 1. Submit the form response
       const res = await apiService.request(`/forms/${form._id}/submit`, {
         method: 'POST',
-        body: JSON.stringify({
+        body: JSON.stringify({ 
           data: formData,
           name: submissionName,
-          description: submissionDescription,
-          instanceId: instanceId === 'new' ? null : instanceId,
-          nodeId
+          description: submissionDescription
         })
       });
 
       if (res.success) {
-        // 2. If this is part of a workflow, approve the node
-        if (instanceId && instanceId !== 'new' && nodeId) {
-          try {
-            await apiService.approveNode(
-              instanceId,
-              nodeId,
-              `Form submitted: ${submissionName}`,
-              formData
-            );
-          } catch (workflowErr) {
-            console.error("Workflow sync error:", workflowErr);
-          }
-        }
-
-        // 3. If this is a standalone Kanban task
-        if (taskId) {
-          try {
-            await apiService.updateTask(taskId, { status: 'done' });
-          } catch (taskErr) {
-            console.error("Task update error:", taskErr);
-          }
-        }
-
         toast.success("Form submitted successfully!");
         setIsSubmitModalOpen(false);
         
-        // Dynamic redirection
+        // Dynamic redirection based on context
         if (designerWorkflowId || fromWorkflow) {
-          const basePath = from === 'admin' ? '/admin/Create_workflows' : '/User/Create_workflows';
-          router.push(`${basePath}${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}`);
+          router.push(`/admin/create_workflows${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}`);
         } else if (instanceId === 'new') {
           router.push(`/Workflows/instances/new?workflowId=${workflowId}`);
-        } else if (instanceId && instanceId !== 'new') {
+        } else if (instanceId) {
           router.push(`/Workflows/instances/${instanceId}`);
-        } else if (taskId) {
-          router.push('/User/tasks');
         } else {
-          router.push(from === 'user' ? '/User/Allforms' : '/admin/AllForms');
+          router.push('/admin/AllForms');
         }
       }
     } catch (error: any) {
@@ -229,15 +202,17 @@ export default function Form2Page() {
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="bg-white w-full max-w-lg rounded-[32px] overflow-hidden shadow-2xl border border-slate-100"
             >
+              {/* Modal Header */}
               <div key="modal-header" className="bg-indigo-600 p-8 text-white">
                 <h2 className="text-2xl font-black tracking-tight uppercase">Workflow Identification</h2>
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80 mt-1">Lattice Persistence</p>
               </div>
 
+              {/* Modal Body */}
               <div key="modal-body" className="p-8 space-y-8">
                 <div key="name-group" className="space-y-3">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Submission Title</label>
-                  <input
+                  <input 
                     value={submissionName}
                     onChange={(e) => setSubmissionName(e.target.value)}
                     placeholder="E.g., Quarterly Report, Maintenance Request..."
@@ -247,7 +222,7 @@ export default function Form2Page() {
 
                 <div key="desc-group" className="space-y-3">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Notes / Context</label>
-                  <textarea
+                  <textarea 
                     value={submissionDescription}
                     onChange={(e) => setSubmissionDescription(e.target.value)}
                     placeholder="Add any additional context for this submission..."
@@ -256,6 +231,7 @@ export default function Form2Page() {
                 </div>
               </div>
 
+              {/* Modal Footer */}
               <div key="modal-footer" className="p-8 pt-0 flex items-center justify-between">
                 <button 
                   key="discard-btn"
@@ -264,19 +240,18 @@ export default function Form2Page() {
                 >
                   Discard
                 </button>
-                <button
+                <button 
                   onClick={confirmSubmit}
                   disabled={isSubmitting}
-                  className="px-10 py-4 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-indigo-700 active:scale-95 transition-all shadow-xl shadow-indigo-100 disabled:opacity-50 flex items-center gap-2"
+                  className="px-10 py-4 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-indigo-700 active:scale-95 transition-all shadow-xl shadow-indigo-100 disabled:opacity-50"
                 >
-                  {isSubmitting ? 'Synchronizing...' : 'Save and Send to Admin'}
+                  {isSubmitting ? 'Synchronizing...' : 'Commit Submission'}
                 </button>
               </div>
             </motion.div>
           </div>
         )}
-
-        {!!(instanceId && instanceId !== 'new' && currentNode) && (
+        {!!(instanceId && currentNode) && (
           <TaskExecutionPanel
             key="workflow-instance-panel"
             instance={instance}
@@ -293,10 +268,10 @@ export default function Form2Page() {
           <div className="flex items-center gap-4 w-full sm:w-auto">
             <Link
               href={
-                (designerWorkflowId || fromWorkflow) ? `/form?id=${formId}&from=${from || 'user'}${designerWorkflowId ? `&designerWorkflowId=${designerWorkflowId}` : ''}${fromWorkflow ? '&fromWorkflow=true' : ''}` :
+                (designerWorkflowId || fromWorkflow) ? `/form?id=${formId}${designerWorkflowId ? `&designerWorkflowId=${designerWorkflowId}` : ''}${fromWorkflow ? '&fromWorkflow=true' : ''}` :
                 instanceId === 'new' ? `/Workflows/instances/new?workflowId=${workflowId}` :
-                instanceId && instanceId !== 'new' ? `/Workflows/instances/${instanceId}` :
-                (from === 'user' ? "/User/Allforms" : "/admin/AllForms")
+                instanceId ? `/Workflows/instances/${instanceId}` :
+                "/admin/AllForms"
               }
               className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500 shrink-0"
             >
@@ -348,6 +323,7 @@ export default function Form2Page() {
         </div>
       </div>
 
+      {/* Form Content */}
       <div className="max-w-4xl mx-auto px-4 mt-8">
         {form.steps?.map((step: any, sIdx: number) => (
           <div key={step.id || `step-${sIdx}`} className="mb-10 animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${sIdx * 100}ms` }}>
@@ -355,7 +331,7 @@ export default function Form2Page() {
               <div className="w-8 h-8 bg-indigo-600 text-white rounded-lg flex items-center justify-center font-black text-xs shadow-md shadow-indigo-100">
                 {sIdx + 1}
               </div>
-              <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest">Section {sIdx + 1}</h2>
+              <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest">Partie {sIdx + 1}</h2>
               <div className="flex-1 h-[2px] bg-slate-100 ml-4"></div>
             </div>
 

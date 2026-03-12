@@ -27,13 +27,38 @@ interface Board {
 
 export default function AllKanbanPage() {
   const [boards, setBoards] = useState<Board[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [workflows, setWorkflows] = useState<any[]>([]);
+  const [selectedProject, setSelectedProject] = useState("");
+  const [selectedWorkflow, setSelectedWorkflow] = useState("");
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const router = useRouter();
 
+  const fetchFilters = async () => {
+    try {
+      const [projRes, wfRes] = await Promise.all([
+        apiService.getProjects(),
+        apiService.getWorkflows()
+      ]);
+      if (projRes.success) setProjects(projRes.data);
+      if (wfRes.success) setWorkflows(wfRes.data);
+    } catch (error) {
+      console.error("Fetch filters error:", error);
+    }
+  };
+
   const fetchBoards = async () => {
     try {
-      const response = await apiService.getBoards();
+      setLoading(true);
+      const params: any = {};
+      if (selectedWorkflow) {
+        params.workflowId = selectedWorkflow;
+      } else if (selectedProject) {
+        params.projectId = selectedProject;
+      }
+
+      const response = await apiService.getBoards(params);
       if (response.success) {
         setBoards(response.data);
       }
@@ -46,8 +71,12 @@ export default function AllKanbanPage() {
   };
 
   useEffect(() => {
-    fetchBoards();
+    fetchFilters();
   }, []);
+
+  useEffect(() => {
+    fetchBoards();
+  }, [selectedProject, selectedWorkflow]);
 
   const handleCreateBoard = () => {
     router.push('/kanban');
@@ -95,6 +124,42 @@ export default function AllKanbanPage() {
         </button>
       </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 px-2">
+        <div className="flex flex-col gap-2">
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Filter by Project</label>
+          <select 
+            className="w-full p-4 bg-white border border-slate-100 rounded-2xl shadow-sm focus:outline-none focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 appearance-none"
+            value={selectedProject}
+            onChange={(e) => {
+              setSelectedProject(e.target.value);
+              setSelectedWorkflow(""); // Reset workflow when project changes
+            }}
+          >
+            <option value="">All Projects</option>
+            {projects.map((p: any) => (
+              <option key={p._id} value={p._id}>{p.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Filter by Workflow</label>
+          <select 
+            className="w-full p-4 bg-white border border-slate-100 rounded-2xl shadow-sm focus:outline-none focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 appearance-none"
+            value={selectedWorkflow}
+            onChange={(e) => setSelectedWorkflow(e.target.value)}
+          >
+            <option value="">All Workflows</option>
+            {workflows
+              .filter((w: any) => !selectedProject || w.projectId === selectedProject)
+              .map((w: any) => (
+                <option key={w._id} value={w._id}>{w.name}</option>
+              ))
+            }
+          </select>
+        </div>
+      </div>
+
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1,2,3].map(i => (
@@ -138,9 +203,28 @@ export default function AllKanbanPage() {
                 {board.name}
               </h3>
               
-              <p className="text-xs text-slate-400 mb-8 font-medium line-clamp-2">
+              <p className="text-xs text-slate-400 mb-4 font-medium line-clamp-2">
                 {board.description || "Standard organizational throughput management board."}
               </p>
+
+              {(board as any).workflowId && (
+                <div className="flex flex-col gap-1.5 mb-6 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <Layers size={14} className="text-indigo-500" />
+                    <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">
+                      {(board as any).workflowId.name}
+                    </span>
+                  </div>
+                  {(board as any).workflowId.projectId && (
+                    <div className="flex items-center gap-2 pt-1.5 border-t border-slate-100">
+                      <LayoutGrid size={12} className="text-slate-400" />
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                        {(board as any).workflowId.projectId.name}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="flex items-center justify-between mt-auto pt-5 border-t border-slate-50">
                 <div className="flex items-center gap-1">

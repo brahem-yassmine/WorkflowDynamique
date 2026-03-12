@@ -11,7 +11,9 @@ import {
   HelpCircle,
   Zap,
   LogOut,
-  CheckSquare
+  CheckSquare,
+  Layers,
+  ListTodo
 } from 'lucide-react';
 
 function UserSidebar() {
@@ -35,10 +37,12 @@ function UserSidebar() {
   const menuItems = [
     { icon: User, label: "My Profile", href: "/User" },
     { icon: CheckSquare, label: "My Tasks", href: "/User/tasks" },
-    { icon: Plus, label: "My Workflows", href: "/User/Workflows?tab=registry", active: (p: string) => p === "/User/Workflows" && !isDesignMode },
+    { icon: Plus, label: "New Workflow", href: "/User/create_workflows" },
     { icon: Bell, label: "Alert Inbox", href: "/User/Notifications" },
-    { icon: GitBranch, label: "Start Process", href: "/User/Workflows?mode=design", active: (p: string) => p === "/User/Workflows" && isDesignMode },
+    { icon: GitBranch, label: "My Workflows", href: "/User/Workflows" },
     { icon: Users, label: "Invite Matrix", href: "/User/InviteTeam" },
+    { icon: Layers, label: "All Forms", href: "/User/Allforms", color: "text-indigo-300" },
+    { icon: ListTodo, label: "All Checklists", href: "/User/Allchecks", color: "text-emerald-400" },
     { icon: Zap, label: "AI Autopilot", href: "/User/AIGenerate", color: "text-amber-400" },
   ];
 
@@ -52,7 +56,7 @@ function UserSidebar() {
       <nav className="flex-1 mt-6 overflow-y-auto px-4">
         <div className="space-y-1">
           {menuItems.map((item, idx) => {
-            const activeMatch = item.active ? item.active(pathname) : pathname === item.href;
+            const activeMatch = pathname === item.href;
             return (
               <Link
                 key={idx}

@@ -7,6 +7,23 @@ const tenantResolver = async (req, res, next) => {
     let tenantId = req.headers['x-tenant-id'] || req.query.tenantId;
     console.log(`🔍 [TenantResolver] URL: ${req.url} | TenantID: ${tenantId}`);
 
+    // If no tenantId, try to get it from JWT if Authorization header exists
+    if (!tenantId && req.headers.authorization) {
+      try {
+        const token = req.headers.authorization.split(' ')[1];
+        const jwt = require('jsonwebtoken');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'votre_secret_jwt');
+        if (decoded && decoded.tenantId) {
+          tenantId = decoded.tenantId;
+          console.log(`🔑 [TenantResolver] Resolved tenant from JWT: ${tenantId}`);
+        }
+      } catch (e) {
+        // Token invalid, ignore and proceed
+      }
+    }
+
+    console.log(`🔌 [TenantResolver] Resolving tenant for path: ${req.path}, ID: ${tenantId}`);
+
     if (!tenantId) {
       console.warn('⚠️ [TenantResolver] No TenantID found in headers or query');
       return next();

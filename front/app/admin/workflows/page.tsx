@@ -23,6 +23,7 @@ import {
   LayoutGrid
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast, Toaster } from 'sonner';
 import { apiService } from '@/service/api.service';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -95,22 +96,22 @@ export default function WorkflowsPage() {
       if (wfRes.success) setWorkflows(wfRes.data);
       if (projRes.success) setProjects(projRes.data);
     } catch (error) {
-      console.error('Error fetching workflows:', error);
+      // Error fetching workflows
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this workflow?')) return;
     try {
       const response = await apiService.request(`/workflows/${id}`, { method: 'DELETE' });
       if (response.success) {
+        toast.success('Workflow deleted successfully');
         setWorkflows(prev => prev.filter(w => w._id !== id));
       }
 
     } catch (error: any) {
-      alert('Error during deletion: ' + error.message);
+      toast.error('Error during deletion: ' + error.message);
     }
   };
 
@@ -120,10 +121,10 @@ export default function WorkflowsPage() {
       const response = await apiService.duplicateWorkflow(id);
       if (response.success) {
         setWorkflows([response.data, ...workflows]);
-        alert('Workflow cloned successfully! You can find it as a "(copy)" version.');
+        toast.success('Workflow cloned successfully!');
       }
     } catch (error: any) {
-      alert('Error duplicating: ' + error.message);
+      toast.error('Error duplicating: ' + error.message);
     } finally {
       setDuplicatingId(null);
     }
@@ -143,10 +144,11 @@ export default function WorkflowsPage() {
         setWorkflows(prev => prev.map(w => w._id === editingWorkflowId ? { ...w, ...response.data } : w));
         setShowEditModal(false);
         setEditingWorkflowId(null);
+        toast.success('Workflow updated successfully');
       }
 
     } catch (error: any) {
-      alert('Error updating: ' + error.message);
+      toast.error('Error updating: ' + error.message);
     } finally {
       setIsUpdating(false);
     }
@@ -196,6 +198,7 @@ export default function WorkflowsPage() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
+      <Toaster position="top-right" richColors />
       {/* Control Bar */}
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative w-full md:max-w-md group">

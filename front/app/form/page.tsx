@@ -193,7 +193,10 @@ export default function FormBuilder() {
 
   const searchParams = useSearchParams();
   const router = useRouter();
+  const from = searchParams.get('from');
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
+  const designerWorkflowId = searchParams.get('designerWorkflowId');
+  const fromWorkflow = searchParams.get('fromWorkflow');
   const currentStep = steps[currentStepIndex];
 
   useEffect(() => {
@@ -206,23 +209,15 @@ export default function FormBuilder() {
 
   const fetchFormData = async (id: string) => {
     try {
-      const token = localStorage.getItem('auth_token');
-      const tenantId = localStorage.getItem('tenantId');
-
-      const res = await axios.get(`http://localhost:5000/api/forms/${id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'x-tenant-id': tenantId
-        }
-      });
-      if (res.data.success) {
-        setSteps(res.data.data.steps || []);
-        setFormName(res.data.data.name || 'New Form');
-        setFormDescription(res.data.data.description || '');
+      const res = await apiService.request(`/forms/${id}`);
+      if (res.success) {
+        setSteps(res.data.steps || []);
+        setFormName(res.data.name || 'New Form');
+        setFormDescription(res.data.description || '');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching form:", error);
-      toast.error("Failed to load form data");
+      toast.error("Failed to load form data: " + error.message);
     }
   };
 
@@ -237,7 +232,7 @@ export default function FormBuilder() {
     setSteps(prev => prev.map((s, i) => i === currentStepIndex ? { ...s, fields: [...s.fields, f] } : s));
   };
 
-  const handleSave = async () => {
+  const handleSave = async (shouldNavigate: boolean = false) => {
     setIsSaving(true);
     try {
       const payload = {
@@ -260,18 +255,23 @@ export default function FormBuilder() {
 
       if (res.success) {
         toast.success(formId ? "Architecture updated!" : "Architecture saved!");
-
-        const redirectPath = searchParams.get('redirect');
-        if (redirectPath) {
-          toast.info("Returning to workflow editor...");
-          setTimeout(() => {
-            router.push(redirectPath);
-          }, 1500);
-          return;
+        const newId = formId || res.data?._id;
+        
+        if (!formId && res.data?._id) {
+          setFormId(res.data._id);
         }
 
-        if (!formId && res.data?._id) {
-          router.push(`/form?id=${res.data._id}`);
+        if (shouldNavigate && newId) {
+          const targetPage = from === 'user' ? '/form/form2' : '/form/form3';
+          let redirectUrl = `${targetPage}?id=${newId}${from === 'user' ? '&from=user' : ''}`;
+          if (designerWorkflowId) redirectUrl += `&designerWorkflowId=${designerWorkflowId}`;
+          if (fromWorkflow) redirectUrl += `&fromWorkflow=true`;
+          router.push(redirectUrl);
+        } else if (!formId && res.data?._id) {
+          let redirectUrl = `/form?id=${res.data._id}${from === 'user' ? '&from=user' : ''}`;
+          if (designerWorkflowId) redirectUrl += `&designerWorkflowId=${designerWorkflowId}`;
+          if (fromWorkflow) redirectUrl += `&fromWorkflow=true`;
+          router.push(redirectUrl, { scroll: false });
         }
       }
     } catch (error: any) {
@@ -280,7 +280,6 @@ export default function FormBuilder() {
       setIsSaving(false);
     }
   };
-
 
   const handleUpdateField = (id: string, updates: any) => {
     setSteps(prev => prev.map((s, i) => i === currentStepIndex ? { ...s, fields: s.fields.map((f: any) => f.id === id ? { ...f, ...updates } : f) } : s));
@@ -312,33 +311,62 @@ export default function FormBuilder() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Toaster position="top-right" richColors />
-      <AnimatePresence>
-      </AnimatePresence>
-      <div className="bg-indigo-600 text-white p-4 shadow-md">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link
-              href="/admin/AllForms"
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-              title="Back to All Forms"
+      <div className="bg-indigo-600 text-white z-30 shadow-md">
+        <div className="max-w-7xl mx-auto px-4 py-4 sm:h-20 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-4 w-full sm:w-auto">
+            <Link 
+              href={
+                designerWorkflowId ? `${from === 'admin' ? '/admin' : '/User'}/create_workflows?id=${designerWorkflowId}` : 
+                (fromWorkflow ? `${from === 'admin' ? '/admin' : '/User'}/create_workflows` : 
+                (from === 'user' ? "/User/Allforms" : "/admin/AllForms"))
+              } 
+              className="p-2 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
+              title="Back"
             >
               <ArrowLeft className="w-5 h-5" />
             </Link>
-            <div className="flex items-center gap-2">
-              <FileText className="w-5 h-5" />
-              <h1 className="text-xl font-bold">Form Builder</h1>
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div className="p-2 bg-white/10 rounded-xl hidden sm:block">
+                <FileText className="w-5 h-5 text-indigo-100" />
+              </div>
+              <div className="flex flex-col min-w-0 flex-1">
+                <input 
+                  type="text" 
+                  value={formName} 
+                  onChange={(e) => setFormName(e.target.value)}
+                  className="bg-transparent border-none outline-none text-lg sm:text-xl font-black text-white placeholder:text-indigo-300 w-full p-0 focus:ring-0 leading-tight truncate"
+                  placeholder="Untitled Protocol"
+                />
+                <input 
+                  type="text" 
+                  value={formDescription} 
+                  onChange={(e) => setFormDescription(e.target.value)}
+                  className="bg-transparent border-none outline-none text-[9px] sm:text-[10px] font-bold text-indigo-200 uppercase tracking-widest opacity-70 w-full p-0 focus:ring-0 truncate"
+                  placeholder="Add form description..."
+                />
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            {formId && (
+          <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+            { (designerWorkflowId || fromWorkflow) && (
               <Link
-                href={`/form/form2?id=${formId}`}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-500 text-white rounded-lg font-semibold hover:bg-indigo-400 transition-all shadow-sm"
+                href={`${from === 'admin' ? '/admin' : '/User'}/create_workflows${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}`}
+                className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white/10 text-white rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-white/20 transition-all border border-white/10 active:scale-95"
               >
-                Next <ArrowRight className="w-4 h-4" />
+                Back to Workflow
               </Link>
             )}
-            <button onClick={handleSave} disabled={isSaving} className={`flex items-center gap-2 px-4 py-2 bg-white text-indigo-600 rounded-lg font-semibold hover:bg-indigo-50 ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}>
+            <button 
+              onClick={() => handleSave(true)} 
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-500 text-white rounded-lg font-semibold hover:bg-indigo-400 transition-all shadow-sm active:scale-95 whitespace-nowrap"
+            >
+              Next <ArrowRight className="w-4 h-4" />
+            </button>
+            <button 
+              onClick={() => handleSave(false)} 
+              disabled={isSaving} 
+              className={`flex items-center gap-2 px-4 py-2 bg-white text-indigo-600 rounded-lg font-semibold hover:bg-indigo-50 active:scale-95 whitespace-nowrap ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
+            >
               {isSaving ? <Clock className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}{isSaving ? 'Saving...' : 'Save Form'}
             </button>
           </div>
@@ -361,47 +389,70 @@ export default function FormBuilder() {
           ))}
         </div>
 
-        <div className="grid grid-cols-12 gap-4">
+        <div className="grid grid-cols-12 gap-6">
           <div className="col-span-12 md:col-span-3">
-            <div className="bg-white rounded-lg shadow-sm p-3 sticky top-4">
-              <h2 className="font-semibold text-gray-800 mb-3 text-sm flex items-center gap-1"><Settings className="w-3 h-3" /> Fields</h2>
-              <div className="space-y-1.5">
+            <div className="bg-white rounded-[32px] shadow-2xl shadow-slate-200/50 border border-slate-100 p-6 sticky top-8">
+              <div className="flex items-center gap-2 mb-6">
+                <div className="p-2 bg-indigo-50 rounded-xl">
+                  <Plus className="w-4 h-4 text-indigo-600" />
+                </div>
+                <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Components</h2>
+              </div>
+              
+              <div className="grid grid-cols-1 gap-3">
                 {FIELD_TYPES.map(t => (
-                  <div
+                  <button
                     key={t.id}
-                    draggable
-                    onDragStart={(e) => e.dataTransfer.setData('text', t.id)}
-                    className="flex flex-col gap-1 p-3 border rounded-xl cursor-move hover:border-indigo-300 hover:shadow-md text-sm group transition-all bg-white"
+                    onClick={() => addField(t)}
+                    className="flex items-center gap-4 p-4 border-2 border-slate-50 rounded-2xl cursor-pointer hover:border-indigo-100 hover:bg-indigo-50/30 text-left group transition-all"
                   >
-                    <div className="flex items-center gap-2">
-                      <t.icon className="w-4 h-4 text-gray-400 group-hover:text-indigo-600 transition-colors" />
-                      <span className="font-bold text-gray-700 group-hover:text-gray-900 transition-colors">{t.label}</span>
+                    <div className="p-2 bg-white rounded-xl shadow-sm text-slate-400 group-hover:text-indigo-600 transition-colors">
+                      <t.icon className="w-4 h-4" />
                     </div>
-                    <p className="text-[10px] text-gray-400 leading-tight group-hover:text-gray-500">{t.description}</p>
-                  </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-black text-slate-700 uppercase tracking-wide leading-none">{t.label}</span>
+                      <span className="text-[9px] text-slate-400 font-bold mt-1 tracking-tight">{t.description}</span>
+                    </div>
+                  </button>
                 ))}
               </div>
             </div>
           </div>
 
-          <div className="col-span-12 md:col-span-9 bg-white rounded-lg shadow-sm">
-            <div className="p-4 border-b flex flex-wrap items-center justify-between gap-4 bg-slate-50/50">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center font-black text-xs">
+          <div className="col-span-12 md:col-span-9 bg-white rounded-[40px] shadow-2xl shadow-slate-200/50 border border-slate-100 min-h-[600px] flex flex-col overflow-hidden">
+            <div className="p-8 border-b flex flex-wrap items-center justify-between gap-4 bg-slate-50/30">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-white text-indigo-600 rounded-[20px] shadow-lg shadow-indigo-100 flex items-center justify-center font-black text-lg border border-indigo-50">
                   {currentStepIndex + 1}
                 </div>
-                <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Active Phase</span>
+                <div className="flex flex-col">
+                  <input 
+                    value={currentStep.title} 
+                    onChange={(e) => setSteps(p => p.map((s, i) => i === currentStepIndex ? { ...s, title: e.target.value } : s))} 
+                    className="text-lg font-black text-slate-800 uppercase tracking-widest bg-transparent border-none outline-none focus:ring-0 p-0"
+                    placeholder="STEP TITLE"
+                  />
+                  <span className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em] mt-0.5">Define interaction logic here</span>
+                </div>
               </div>
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest bg-yellow-50 text-yellow-500 border border-yellow-200">
                 <Clock className="w-3.5 h-3.5" /> Drafting
               </div>
             </div>
 
-            <div className="p-4 min-h-[500px]" onDragOver={e => e.preventDefault()} onDrop={e => { const t = FIELD_TYPES.find(f => f.id === e.dataTransfer.getData('text')); if (t) addField(t); }}>
+            <div className="p-8 min-h-[500px]" onDragOver={e => e.preventDefault()} onDrop={e => { const t = FIELD_TYPES.find(f => f.id === e.dataTransfer.getData('text')); if (t) addField(t); }}>
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={currentStep.fields.map((f: any) => f.id)} strategy={rectSortingStrategy}>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {currentStep.fields.length ? renderFields() : <div className="col-span-full flex flex-col items-center justify-center h-64 text-gray-400 border-2 border-dashed rounded-lg"><Move className="w-8 h-8 mb-2" /><p className="text-sm">Drag fields here</p></div>}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {renderFields()}
+                    {currentStep.fields.length === 0 && (
+                      <div className="col-span-2 h-64 border-4 border-dashed border-slate-50 rounded-[40px] flex flex-col items-center justify-center text-slate-300 gap-4 group hover:border-indigo-100 hover:bg-indigo-50/10 transition-all">
+                        <div className="p-4 bg-white rounded-[24px] shadow-xl shadow-slate-100 group-hover:scale-110 transition-transform">
+                          <Plus size={32} />
+                        </div>
+                        <p className="font-black text-[10px] uppercase tracking-[0.3em]">Drop components here</p>
+                      </div>
+                    )}
                   </div>
                 </SortableContext>
               </DndContext>

@@ -77,7 +77,8 @@ exports.createUser = async (req, res) => {
       firstName: firstName || '',
       lastName: lastName || '',
       role: role || 'user',
-      domain: domain || 'HR'
+      domain: domain || 'HR',
+      hasSelectedPlan: false
     });
 
     await user.save();

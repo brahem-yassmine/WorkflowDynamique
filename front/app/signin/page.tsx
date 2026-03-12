@@ -7,9 +7,12 @@ import { useRouter } from 'next/navigation';
 import Link from "next/link";
 import axios, { AxiosError } from 'axios';
 
+import { toast } from "sonner";
+
 interface LoginFormData {
   email: string;
   password: string;
+  debugStartDate?: string;
 }
 
 import {
@@ -38,6 +41,9 @@ interface UserData {
     plan?: string;
     status?: string;
   };
+  subscriptionExpired?: boolean;
+  daysLeft?: number;
+  currentPlan?: string;
 }
 
 interface LoginResponse {
@@ -46,9 +52,12 @@ interface LoginResponse {
   data: {
     token: string;
     user: UserData;
-    requiresPlanSelection?: boolean;
     tenant?: any;
-    tenantId?: string;  // 👈 Added for certainty
+    tenantId?: string;
+    subscriptionExpired?: boolean;
+    warningSoon?: boolean;
+    daysLeft?: number;
+    currentPlan?: string;
   };
 }
 
@@ -72,10 +81,10 @@ export default function SigninPage() {
       requiresPlanSelection
     });
 
-    // ✅ If the user has not selected a plan, redirect to the selection page
+    // ✅ If the user has not selected a plan, redirect to the billing page or handle accordingly
     if (requiresPlanSelection || hasSelectedPlan === false) {
-      console.log('⚠️ User without plan, redirecting to /select-plan');
-      return '/select-plan';
+      console.log('⚠️ User without plan, redirecting to /admin/billing');
+      return '/admin/billing';
     }
 
     // Redirect by role
@@ -109,7 +118,8 @@ export default function SigninPage() {
       // Call backend API
       const response = await axios.post<LoginResponse>('http://localhost:5000/api/auth/login', {
         email: formData.email,
-        password: formData.password
+        password: formData.password,
+        debugStartDate: formData.debugStartDate
       }, {
         headers: {
           'Content-Type': 'application/json'
@@ -119,17 +129,31 @@ export default function SigninPage() {
       console.log(' Server response:', response.data);
 
       if (response.data.success && response.data.data) {
-        const { token, user, requiresPlanSelection } = response.data.data;
+        const { token, user } = response.data.data;
 
         console.log(' Login successful:', {
-          user: {
-            role: user.role,
-            email: user.email,
-            hasSelectedPlan: user.hasSelectedPlan,
-            tenantId: user.tenantId
-          },
-          requiresPlanSelection
+          role: user.role,
+          email: user.email,
+          hasSelectedPlan: user.hasSelectedPlan,
+          tenantId: user.tenantId,
+          expired: user.subscriptionExpired
         });
+
+
+        // Warning Soon logic
+        if (response.data.data.warningSoon) {
+          const daysLeftStr = (response.data.data.daysLeft ?? 0).toString();
+          toast.warning(`Warning: Your ${response.data.data.currentPlan || 'subscription'} expires in ${daysLeftStr} days!`, {
+            duration: 6000,
+            icon: '⚠️'
+          });
+          // Store for SubscriptionWarning banner
+          localStorage.setItem('subscription_warning', 'true');
+          localStorage.setItem('subscription_days_left', daysLeftStr);
+          localStorage.setItem('subscription_plan', response.data.data.currentPlan || 'Current Plan');
+        } else {
+          localStorage.removeItem('subscription_warning');
+        }
 
         // 1️⃣ RETRIEVE TENANT ID
         const tenantId = user.tenantId || response.data.data.tenantId || response.data.data.tenant?._id;
@@ -137,11 +161,12 @@ export default function SigninPage() {
         console.log(' Tenant ID retrieved:', tenantId);
 
         // 2️⃣ SAVE ALL DATA
-        localStorage.setItem('auth_token', token);
+        localStorage.setItem('token', token);
+        localStorage.setItem('auth_token', token); // Keep auth_token for backward compatibility if needed
         localStorage.setItem('user', JSON.stringify(user));
         localStorage.setItem('user_pass_sync', formData.password); // 👈 Added for Profile Sync
 
-        // 3️⃣ SAVE TENANT ID SEPARATELY (PRO SOLUTION)
+        // 3️⃣ SAVE TENANT ID SEPARATELY
         if (tenantId) {
           localStorage.setItem('tenantId', tenantId);
           console.log('✅ Tenant ID saved in localStorage');
@@ -149,12 +174,27 @@ export default function SigninPage() {
           console.warn('⚠️ No Tenant ID found in the response');
         }
 
+        // 4️⃣ SAVE TENANT DATA (from response or fetch it)
         if (response.data.data.tenant) {
           localStorage.setItem('tenant', JSON.stringify(response.data.data.tenant));
+        } else if (tenantId && user.role === 'admin') {
+          // Fetch tenant info separately since login response doesn't include it
+          try {
+            const tenantRes = await axios.get('http://localhost:5000/api/tenants/info', {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            if (tenantRes.data.success) {
+              localStorage.setItem('tenant', JSON.stringify(tenantRes.data.data));
+              console.log('✅ Tenant info fetched and saved:', tenantRes.data.data.name);
+            }
+          } catch (tenantErr) {
+            console.warn('Could not fetch tenant info:', tenantErr);
+          }
         }
 
+
         // 4️⃣ DETERMINE REDIRECT ROUTE
-        const redirectPath = getRedirectPath(user, requiresPlanSelection);
+        const redirectPath = '/admin';
 
         console.log(' Redirection vers:', redirectPath);
 
@@ -237,6 +277,7 @@ export default function SigninPage() {
 
   return (
     <div >
+
       <nav className="w-full flex items-center justify-between px-8 py-6 mx-auto text-base  bg-white/95 backdrop-blur-sm z-50 border-b border-gray-100">
         <div
           className="flex items-center gap-3 text-2xl font-bold font-sans cursor-pointer"
@@ -401,22 +442,36 @@ export default function SigninPage() {
 
               {/* 👇 TEST BUTTONS ADDITION (optional) */}
               <div className="mt-6 pt-4 border-t border-gray-200">
-                <p className="text-xs text-gray-500 text-center mb-2">Test accounts (click to fill)</p>
-                <div className="flex gap-2 justify-center">
-                  <button
-                    type="button"
-                    onClick={() => fillTestAccount('admin')}
-                    className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded-full transition-colors"
-                  >
-                    👤 Admin Test
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => fillTestAccount('super_admin')}
-                    className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded-full transition-colors"
-                  >
-                    👑 Super Admin Test
-                  </button>
+                <p className="text-xs text-gray-500 text-center mb-2">Debug / Testing</p>
+                <div className="space-y-3">
+                    <div className="flex gap-2 justify-center">
+                        <button
+                            type="button"
+                            onClick={() => fillTestAccount('admin')}
+                            className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded-full transition-colors font-bold"
+                        >
+                            👤 Admin Test
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => fillTestAccount('super_admin')}
+                            className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded-full transition-colors font-bold"
+                        >
+                            👑 Super Admin Test
+                        </button>
+                    </div>
+                    <div className="bg-indigo-50/50 rounded-xl p-3 border border-indigo-100/50">
+                        <label className="block text-[9px] text-indigo-400 uppercase font-black tracking-widest text-center mb-2 flex items-center justify-center gap-2">
+                             Simulate Plan Start Date
+                        </label>
+                        <input 
+                            type="date" 
+                            name="debugStartDate"
+                            value={formData.debugStartDate || ""}
+                            onChange={(e) => setFormData(prev => ({ ...prev, debugStartDate: e.target.value }))}
+                            className="w-full text-[10px] p-2 bg-white border border-indigo-100 rounded-lg text-center text-indigo-900 focus:outline-none focus:ring-1 focus:ring-indigo-300 transition-all font-bold"
+                        />
+                    </div>
                 </div>
               </div>
             </div>

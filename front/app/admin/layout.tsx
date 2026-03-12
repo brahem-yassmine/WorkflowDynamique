@@ -1,11 +1,12 @@
-'use client'
+'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from './components/sidebar';
 import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Header from './components/header';
+import { useAuth } from '@/hooks/useAuth';
 
 const PAGE_METADATA: Record<string, { title: string, subtitle: string }> = {
     '/admin': {
@@ -77,11 +78,51 @@ export default function AdminLayout({
     children: React.ReactNode;
 }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const { subscriptionExpired, loading } = useAuth();
+    const [isExpired, setIsExpired] = useState(false);
     const pathname = usePathname();
+    const router = useRouter();
+    
     const isWorkflowDetail = pathname.match(/^\/admin\/workflows\/.+/);
     // Don't hide for standard flows
     const hideSidebar = isWorkflowDetail && !pathname.includes('/standard');
+    
     const metadata = PAGE_METADATA[pathname] || { title: "Axia Admin", subtitle: "Management Console" };
+
+    useEffect(() => {
+        const checkSubscription = () => {
+            const userStr = localStorage.getItem('user');
+            if (!userStr) return;
+
+            try {
+                const user = JSON.parse(userStr);
+                const expired = user.subscriptionExpired === true;
+                setIsExpired(expired);
+
+                // Force redirect to billing if expired and on another page
+                if (expired && pathname !== '/admin/billing') {
+                    router.push('/admin/billing');
+                }
+            } catch (err) {
+                console.error('Error checking subscription in layout:', err);
+            }
+        };
+
+        checkSubscription();
+        
+        // Listen for custom events (for same-tab updates)
+        window.addEventListener('subscriptionChange', checkSubscription);
+        // Listen for storage events (for multi-tab updates)
+        window.addEventListener('storage', checkSubscription);
+
+        const internal = setInterval(checkSubscription, 10000); // 10s check
+        
+        return () => {
+            clearInterval(internal);
+            window.removeEventListener('subscriptionChange', checkSubscription);
+            window.removeEventListener('storage', checkSubscription);
+        };
+    }, [pathname, router]);
 
     return (
         <div className="flex h-screen bg-slate-50 overflow-hidden text-slate-900">
@@ -92,7 +133,7 @@ export default function AdminLayout({
                     ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
                     w-72
                 `}>
-                    <Sidebar />
+                    <Sidebar isExpired={isExpired} />
                     {/* Mobile Close Button */}
                     <button
                         onClick={() => setIsSidebarOpen(false)}
@@ -102,8 +143,6 @@ export default function AdminLayout({
                     </button>
                 </div>
             )}
-
-
 
             {/* Mobile Backdrop */}
             {isSidebarOpen && !hideSidebar && (

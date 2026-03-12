@@ -80,6 +80,30 @@ exports.createInstance = async (req, res) => {
       }]
     });
 
+    // Create associated checklist
+    const Checklist = req.tenantConn.model('Checklist');
+    const checklistTasks = workflow.nodes
+      .filter(node => node.type !== 'start' && node.type !== 'end')
+      .map(node => ({
+        id: node.id,
+        title: node.data?.label || node.id,
+        completed: false,
+        priority: node.data?.priority || 'medium'
+      }));
+
+    const checklist = new Checklist({
+      name: `Checklist: ${title}`,
+      description: `Auto-generated for workflow instance: ${title}`,
+      tasks: checklistTasks,
+      createdBy: req.user.id,
+      status: 'draft',
+      instanceId: instance._id,
+      workflowId: workflow._id
+    });
+
+    await checklist.save();
+    instance.checklistId = checklist._id;
+
     await instance.save();
 
     // Notification logic
@@ -433,6 +457,28 @@ exports.approveNode = async (req, res) => {
     }
 
     await instance.save();
+
+    // Update associated checklist task
+    /* 
+    if (instance.checklistId) {
+      try {
+        const ChecklistModel = req.tenantConn.model('Checklist');
+        const checklist = await ChecklistModel.findById(instance.checklistId);
+        if (checklist) {
+          const taskIndex = checklist.tasks.findIndex(t => t.id === nodeId);
+          if (taskIndex !== -1) {
+            checklist.tasks[taskIndex].completed = true;
+            if (isFlowFinished) {
+              checklist.status = 'completed';
+            }
+            await checklist.save();
+          }
+        }
+      } catch (err) {
+        console.error('Checklist Sync Error:', err);
+      }
+    }
+    */
 
     // Notifications
     try {
@@ -835,5 +881,34 @@ exports.getInstanceStats = async (req, res) => {
       success: false,
       message: 'Server error'
     });
+  }
+};
+
+// 9. DELETE INSTANCE
+exports.deleteInstance = async (req, res) => {
+  try {
+    const { instanceId } = req.params;
+    const WorkflowInstance = req.tenantConn.model('WorkflowInstance');
+    const Checklist = req.tenantConn.model('Checklist');
+
+    const instance = await WorkflowInstance.findById(instanceId);
+    if (!instance) {
+      return res.status(404).json({ success: false, message: 'Instance not found' });
+    }
+
+    // Delete associated checklist if exists
+    if (instance.checklistId) {
+      await Checklist.findByIdAndDelete(instance.checklistId);
+    } else {
+      // Sometimes we delete by instanceId in checklist too
+      await Checklist.deleteMany({ instanceId: instance._id });
+    }
+
+    await WorkflowInstance.findByIdAndDelete(instanceId);
+
+    res.json({ success: true, message: 'Instance and associated data deleted' });
+  } catch (error) {
+    console.error('❌ deleteInstance Error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };

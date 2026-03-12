@@ -15,8 +15,8 @@ api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
     // Try different token names
     const token =
-      localStorage.getItem('token') ||
       localStorage.getItem('auth_token') ||
+      localStorage.getItem('token') ||
       localStorage.getItem('accessToken');
 
     const tenantId = localStorage.getItem('tenantId');

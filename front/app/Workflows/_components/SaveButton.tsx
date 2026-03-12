@@ -14,7 +14,7 @@ interface SaveButtonProps {
   initialProjectId?: string;
 }
 
-const domains = ['HR', 'Finance', 'IT', 'Sales', 'Management'];
+// Removed hardcoded domains, using apiService.getDomains() instead
 
 const SaveButton = ({ onSave, isSaving, initialName = '', initialDomain = 'HR', initialProjectId = '' }: SaveButtonProps) => {
   const searchParams = useSearchParams();
@@ -26,6 +26,7 @@ const SaveButton = ({ onSave, isSaving, initialName = '', initialDomain = 'HR', 
   const [status, setStatus] = useState<'draft' | 'active'>('draft');
   const [showModal, setShowModal] = useState(false);
   const [projects, setProjects] = useState<any[]>([]);
+  const [availableDomains, setAvailableDomains] = useState<any[]>([]);
 
   // Update name if initialName changes (e.g. after loading)
   React.useEffect(() => {
@@ -43,8 +44,22 @@ const SaveButton = ({ onSave, isSaving, initialName = '', initialDomain = 'HR', 
   React.useEffect(() => {
     if (showModal) {
       fetchProjects();
+      fetchDomains();
     }
   }, [showModal]);
+
+  const fetchDomains = async () => {
+    try {
+      const response = await apiService.getDomains();
+      if (response.success) {
+        // Filter out domains that look like tenant URLs (e.g., axia-workflow.com)
+        const domains = response.data.filter((d: any) => !d.name.includes('.axia-workflow.com'));
+        setAvailableDomains(domains);
+      }
+    } catch (error) {
+      console.error('Error fetching domains:', error);
+    }
+  };
 
   const fetchProjects = async () => {
     try {
@@ -137,9 +152,14 @@ const SaveButton = ({ onSave, isSaving, initialName = '', initialDomain = 'HR', 
                       onChange={(e) => setDomain(e.target.value)}
                       className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-indigo-50 font-bold text-slate-700 outline-none transition-all"
                     >
-                      {domains.map(d => (
-                        <option key={d} value={d}>{d}</option>
+                      <option value="">Select Domain</option>
+                      {availableDomains.map(d => (
+                        <option key={d._id} value={d.name}>{d.name}</option>
                       ))}
+                      {/* Only show the current domain if it's not in the list and doesn't look like a tenant URL */}
+                      {domain && !availableDomains.find(d => d.name === domain) && !domain.includes('.axia-workflow.com') && (
+                        <option value={domain}>{domain}</option>
+                      )}
                     </select>
                   </div>
                   <div className="flex flex-col gap-1">
@@ -155,6 +175,7 @@ const SaveButton = ({ onSave, isSaving, initialName = '', initialDomain = 'HR', 
                     </select>
                   </div>
                 </div>
+
 
                 <div className="flex gap-3 pt-2">
                   <button

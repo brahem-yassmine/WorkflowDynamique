@@ -218,7 +218,7 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                 <div className="flex flex-col">
                                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Priority</span>
                                     <div className="flex items-center gap-2">
-                                        <div className={`w-2 h-2 rounded-full ${priority === 'high' ? 'bg-rose-500' : priority === 'medium' ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+                                        <div className={`w-2 h-2 rounded-full ${priority === 'critical' ? 'bg-red-600' : priority === 'high' ? 'bg-rose-500' : priority === 'medium' ? 'bg-amber-500' : 'bg-emerald-500'}`} />
                                         <span className="text-xs font-bold text-slate-700 capitalize">{priority}</span>
                                     </div>
                                 </div>

@@ -6,7 +6,6 @@ import { useState, FormEvent, ChangeEvent, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import axios, { AxiosError } from "axios";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   ChartNetwork,
   CreditCard,
@@ -93,7 +92,6 @@ export default function SignupPage() {
   const [showDebug, setShowDebug] = useState<boolean>(false);
   const router = useRouter();
 
-  // ✅ LOAD PLANS AT STARTUP
   // ✅ LOAD PLANS AT STARTUP
   useEffect(() => {
     const fetchPlans = async () => {
@@ -274,8 +272,7 @@ export default function SignupPage() {
           industry: formData.industry,
           password: formData.password,
           planId: formData.planId,
-          startDate: startDate
-          startDate: formData.startDate
+          startDate: startDate || formData.startDate
         },
         {
           headers: {
@@ -291,10 +288,7 @@ export default function SignupPage() {
 
         // Save plan info locally for immediate fallback
         if (selectedPlan) {
-          localStorage.setItem('planStartDate', startDate);
-        // Save plan info locally for immediate fallback on billing page
-        if (selectedPlan) {
-          localStorage.setItem('planStartDate', formData.startDate || new Date().toISOString());
+          localStorage.setItem('planStartDate', startDate || formData.startDate || new Date().toISOString());
         }
 
         setTimeout(() => {
@@ -796,14 +790,6 @@ export default function SignupPage() {
               </div>
             </div>
 
-            {/* RIGHT SIDE - PLANS PREVIEW (REVERTED) */}
-            <div className="bg-indigo-700 rounded-2xl shadow-xl p-8 text-white">
-              <div className="mb-8">
-                <h1 className="text-3xl font-bold mb-4">
-                  Choose the perfect plan for you
-                </h1>
-                <p className="text-blue-100">
-                  7 or 15-day free trial on all plans • No credit card required
             {/* RIGHT SIDE - PLANS PREVIEW */}
             <div className="bg-indigo-700 rounded-2xl shadow-xl p-8 text-white relative overflow-hidden">
               <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32 blur-3xl"></div>
@@ -818,24 +804,6 @@ export default function SignupPage() {
               </div>
 
               {/* Plans Preview */}
-              <div className="space-y-4">
-                {!loadingPlans && plans.map((plan) => (
-                  <div key={plan._id} className="bg-white/10 backdrop-blur-sm rounded-lg p-4 transition-all hover:bg-white/20">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <h3 className="font-semibold text-lg">{plan.name}</h3>
-                        <p className="text-sm text-blue-100">
-                          {plan.features?.maxStaff === -1
-                            ? 'Unlimited staff'
-                            : `Up to ${plan.features?.maxStaff} staff`}
-                          {' • '}
-                          {plan.features?.analysis || 'Standard Analysis'}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xl font-bold">
-                          {formatPrice(plan.price, plan.currency, plan.interval)}
-                        </p>
               <div className="space-y-4 relative z-10">
                 {!loadingPlans && plans.map((plan) => {
                   const isDemo = (plan.code || '').toLowerCase().includes('demo') || (plan.code || '').toLowerCase().includes('lattice');
@@ -869,15 +837,15 @@ export default function SignupPage() {
                           <span>Security Verification Required</span>
                         </div>
                       )}
+                      {(plan.price > 0 || plan.code === 'DEMO') && (
+                        <div className="mt-2 flex items-center gap-1 text-xs text-blue-200">
+                          <CreditCard size={12} />
+                          <span>{plan.price > 0 ? '15-day free trial' : '7-day free trial'}</span>
+                        </div>
+                      )}
                     </div>
-                    {(plan.price > 0 || plan.code === 'DEMO') && (
-                      <div className="mt-2 flex items-center gap-1 text-xs text-blue-200">
-                        <CreditCard size={12} />
-                        <span>{plan.price > 0 ? '15-day free trial' : '7-day free trial'}</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="mt-6 bg-green-500/20 backdrop-blur-sm rounded-lg p-4 border border-green-400/30">
@@ -887,8 +855,7 @@ export default function SignupPage() {
                   <li>✓ Cancel anytime</li>
                   <li>✓ Email support</li>
                   <li>✓ Regular updates</li>
-                  );
-                })}
+                </ul>
               </div>
 
               <div className="mt-8 relative z-10 bg-indigo-800/50 backdrop-blur-sm rounded-2xl p-6 border border-white/5">

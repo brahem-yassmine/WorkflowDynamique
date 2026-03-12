@@ -211,6 +211,13 @@ class ApiService {
     return this.request(`/workflows/${id}/members`);
   }
 
+  changeWorkflowStatus(id: string, status: string) {
+    return this.request(`/workflows/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status })
+    });
+  }
+
   // Project Management
   getProjects() {
     return this.request('/projects');

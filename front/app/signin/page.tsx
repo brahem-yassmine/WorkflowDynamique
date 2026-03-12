@@ -12,7 +12,6 @@ import { toast } from "sonner";
 interface LoginFormData {
   email: string;
   password: string;
-  debugStartDate?: string;
 }
 
 import {
@@ -102,6 +101,7 @@ export default function SigninPage() {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    console.log('🔄 HandleSubmit triggered at:', new Date().toISOString());
     setError('');
     setLoading(true);
 
@@ -118,8 +118,7 @@ export default function SigninPage() {
       // Call backend API
       const response = await axios.post<LoginResponse>('http://localhost:5000/api/auth/login', {
         email: formData.email,
-        password: formData.password,
-        debugStartDate: formData.debugStartDate
+        password: formData.password
       }, {
         headers: {
           'Content-Type': 'application/json'
@@ -131,12 +130,11 @@ export default function SigninPage() {
       if (response.data.success && response.data.data) {
         const { token, user } = response.data.data;
 
-        console.log(' Login successful:', {
+        console.log('✅ Login successful:', {
           role: user.role,
           email: user.email,
           hasSelectedPlan: user.hasSelectedPlan,
-          tenantId: user.tenantId,
-          expired: user.subscriptionExpired
+          tenantId: user.tenantId
         });
 
 
@@ -158,13 +156,13 @@ export default function SigninPage() {
         // 1️⃣ RETRIEVE TENANT ID
         const tenantId = user.tenantId || response.data.data.tenantId || response.data.data.tenant?._id;
 
-        console.log(' Tenant ID retrieved:', tenantId);
+        console.log('✅ Tenant ID retrieved:', tenantId);
 
         // 2️⃣ SAVE ALL DATA
         localStorage.setItem('token', token);
-        localStorage.setItem('auth_token', token); // Keep auth_token for backward compatibility if needed
+        localStorage.setItem('auth_token', token); 
         localStorage.setItem('user', JSON.stringify(user));
-        localStorage.setItem('user_pass_sync', formData.password); // 👈 Added for Profile Sync
+        localStorage.setItem('user_pass_sync', formData.password); 
 
         // 3️⃣ SAVE TENANT ID SEPARATELY
         if (tenantId) {
@@ -194,9 +192,9 @@ export default function SigninPage() {
 
 
         // 4️⃣ DETERMINE REDIRECT ROUTE
-        const redirectPath = '/admin';
+        const redirectPath = getRedirectPath(user);
 
-        console.log(' Redirection vers:', redirectPath);
+        console.log('🚀 Redirecting to:', redirectPath);
 
         // Small pause for the state to update
         setTimeout(() => {
@@ -208,11 +206,17 @@ export default function SigninPage() {
     } catch (err) {
       const error = err as AxiosError<ApiErrorResponse>;
 
-      console.error(' Login error:', {
+      console.error('❌ Login Error Detail:', {
         status: error.response?.status,
+        statusText: error.response?.statusText,
         data: error.response?.data,
-        message: error.message
+        message: error.message,
+        code: error.code,
+        url: error.config?.url
       });
+
+      // Log the full error object separately for deep inspection
+      console.dir(error);
 
       if (error.response) {
         switch (error.response.status) {
@@ -234,12 +238,12 @@ export default function SigninPage() {
           default:
             setError(error.response.data?.message || 'Login error');
         }
-      } else if (error.code === 'ECONNREFUSED') {
+      } else if (error.code === 'ECONNREFUSED' || error.message === 'Network Error') {
         setError('Cannot connect to server. Please check if backend is running on port 5000');
       } else if (error.request) {
         setError('Unable to reach server. Check your connection');
       } else {
-        setError('An error occurred');
+        setError(error.message || 'An error occurred');
       }
     } finally {
       setLoading(false);
@@ -274,6 +278,8 @@ export default function SigninPage() {
       });
     }
   };
+
+
 
   return (
     <div >
@@ -459,18 +465,6 @@ export default function SigninPage() {
                         >
                             👑 Super Admin Test
                         </button>
-                    </div>
-                    <div className="bg-indigo-50/50 rounded-xl p-3 border border-indigo-100/50">
-                        <label className="block text-[9px] text-indigo-400 uppercase font-black tracking-widest text-center mb-2 flex items-center justify-center gap-2">
-                             Simulate Plan Start Date
-                        </label>
-                        <input 
-                            type="date" 
-                            name="debugStartDate"
-                            value={formData.debugStartDate || ""}
-                            onChange={(e) => setFormData(prev => ({ ...prev, debugStartDate: e.target.value }))}
-                            className="w-full text-[10px] p-2 bg-white border border-indigo-100 rounded-lg text-center text-indigo-900 focus:outline-none focus:ring-1 focus:ring-indigo-300 transition-all font-bold"
-                        />
                     </div>
                 </div>
               </div>

@@ -168,13 +168,18 @@ exports.updateUser = async (req, res) => {
       updates.password = await bcrypt.hash(updates.password, 10);
     }
 
-    // Field Mapping for Tenant (Owner) model: adminName vs firstName/lastName
+    // Field Mapping for Models with different name fields
+    if (updates.name && !updates.firstName && !updates.lastName) {
+      const parts = updates.name.trim().split(/\s+/);
+      updates.firstName = parts[0] || '';
+      updates.lastName = parts.slice(1).join(' ') || '';
+    }
+
     if (userModelName === 'Tenant') {
-      if (updates.firstName || updates.lastName || updates.name) {
-        const fName = updates.firstName || (updates.name ? updates.name.split(' ')[0] : (targetUser.adminName ? targetUser.adminName.split(' ')[0] : 'Admin'));
-        const lName = updates.lastName || (updates.name ? updates.name.split(' ').slice(1).join(' ') : (targetUser.adminName ? targetUser.adminName.split(' ').slice(1).join(' ') : ''));
-        updates.adminName = `${fName} ${lName}`.trim();
-      }
+      // For Tenant model, we use adminName
+      const fName = updates.firstName || targetUser.adminName?.split(' ')[0] || 'Admin';
+      const lName = updates.lastName || targetUser.adminName?.split(' ').slice(1).join(' ') || '';
+      updates.adminName = `${fName} ${lName}`.trim();
     }
 
     // Apply updates

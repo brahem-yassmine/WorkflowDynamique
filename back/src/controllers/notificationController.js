@@ -2,8 +2,13 @@
 
 exports.getNotifications = async (req, res) => {
     try {
-        const Notification = req.tenantConn.model('Notification');
-        const notifications = await Notification.find({ recipient: req.user.userId })
+        const conn = req.tenantConn || req.masterDb;
+        if (!conn) return res.status(503).json({ success: false, message: 'Database not available' });
+
+        const Notification = conn.model('Notification');
+        const userId = req.user.userId || req.user.id; // Support both token formats
+
+        const notifications = await Notification.find({ recipient: userId })
             .sort({ createdAt: -1 })
             .limit(50);
 
@@ -13,17 +18,19 @@ exports.getNotifications = async (req, res) => {
         });
     } catch (error) {
         console.error('❌ getNotifications Error:', error);
-        res.status(500).json({ success: false, message: 'Server error' });
+        res.status(500).json({ success: false, message: 'Server error: ' + error.message });
     }
 };
 
 exports.markAsRead = async (req, res) => {
     try {
         const { id } = req.params;
-        const Notification = req.tenantConn.model('Notification');
+        const conn = req.tenantConn || req.masterDb;
+        const Notification = conn.model('Notification');
+        const userId = req.user.userId || req.user.id;
 
         const notification = await Notification.findOneAndUpdate(
-            { _id: id, recipient: req.user.userId },
+            { _id: id, recipient: userId },
             { read: true },
             { new: true }
         );
@@ -37,9 +44,12 @@ exports.markAsRead = async (req, res) => {
 
 exports.markAllAsRead = async (req, res) => {
     try {
-        const Notification = req.tenantConn.model('Notification');
+        const conn = req.tenantConn || req.masterDb;
+        const Notification = conn.model('Notification');
+        const userId = req.user.userId || req.user.id;
+
         await Notification.updateMany(
-            { recipient: req.user.userId, read: false },
+            { recipient: userId, read: false },
             { read: true }
         );
 

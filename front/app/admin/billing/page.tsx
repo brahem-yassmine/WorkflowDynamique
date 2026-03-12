@@ -75,8 +75,8 @@ const PLANS: { id: PlanType; name: string; price: string; features: string[] }[]
     { id: 'pro', name: 'Pro Plan', price: '299/month', features: ['Unlimited staff', 'Full Enterprise Access', '24/7 Forensic Support'] },
 ];
 
-const fmtDate = (d: Date | null) =>
-    d ? d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
+const fmtDate = (date: Date | null) =>
+  date ? date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
 
 const FISCAL_DATA = [
     { month: 'Oct', amount: 4500 },
@@ -91,7 +91,7 @@ export default function BillingPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const upgradeRequest = searchParams.get('upgrade') as PlanType;
-    const { subscriptionExpired: isExpired, daysRemaining, subscriptionLimit: limit } = useAuth();
+    const { subscriptionExpired: isAuthExpired, daysRemaining, subscriptionLimit: limit } = useAuth();
 
     const [plan, setPlan] = useState<PlanType>('demo');
     const [days, setDays] = useState(0);
@@ -110,22 +110,53 @@ export default function BillingPage() {
         cvv: ""
     });
 
+    const isExpired = isAuthExpired || days >= (plan === 'demo' ? 7 : 15);
+
+    const handleDownloadManifest = () => {
+        if (history.length === 0) {
+            toast.error("No transaction records to export");
+            return;
+        }
+
+        const headers = ["Reference", "Plan", "Date", "Amount", "Status"];
+        const csvContent = [
+            headers.join(","),
+            ...history.map(inv => {
+                const date = fmtDate(new Date(inv.currentPeriodStart || inv.trialStartDate || inv.startDate || inv.createdAt || Date.now()));
+                return [
+                    `#${inv._id.slice(-8).toUpperCase()}`,
+                    inv.planName,
+                    date,
+                    `${inv.price}D`,
+                    inv.status
+                ].join(",");
+            })
+        ].join("\n");
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `fiscal_manifest_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success("Manifest exported successfully");
+    };
+
     useEffect(() => {
         const fetchContext = async () => {
             const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
             const tenantId = localStorage.getItem('tenantId');
             
-            // 1. Initial Local Check
-            const saved = localStorage.getItem('selectedPlan') as PlanType;
-            const savedDate = localStorage.getItem('planStartDate');
-            if (saved && PLANS.find(p => p.id === saved)) setPlan(saved);
-            const date = savedDate ? new Date(savedDate) : new Date();
-            setStart(date);
-            setDays(Math.ceil(Math.abs(Date.now() - date.getTime()) / 86400000));
+            try {
+                // 1. Fetch Plans
+                const plansRes = await axios.get(`${API_URL}/plans`);
+                if (plansRes.data.success) setDbPlans(plansRes.data.data);
 
-            if (token) {
-                try {
-                    // Fetch History
+                if (token) {
+                    // 2. Fetch History
                     const historyRes = await axios.get(`${API_URL}/subscriptions/history`, {
                         headers: { 
                             Authorization: `Bearer ${token}`,
@@ -136,18 +167,7 @@ export default function BillingPage() {
                         setHistory(historyRes.data.data);
                     }
 
-                    // Fetch Available Plans
-                    const plansRes = await axios.get(`${API_URL}/plans`, {
-                        headers: { 
-                            Authorization: `Bearer ${token}`,
-                            'x-tenant-id': tenantId
-                        }
-                    });
-                    if (plansRes.data.success) {
-                        setDbPlans(plansRes.data.data);
-                    }
-
-                    // Fetch Current Subscription
+                    // 3. Fetch Current Subscription
                     const currentRes = await axios.get(`${API_URL}/subscriptions/current`, {
                         headers: { 
                             Authorization: `Bearer ${token}`,
@@ -173,12 +193,27 @@ export default function BillingPage() {
                             localStorage.setItem('selectedPlan', mappedPlan);
                             localStorage.setItem('planStartDate', sDate.toISOString());
                         }
+                    } else {
+                        loadFromLocalStorage();
                     }
-                } catch (err) {
-                    console.error("Failed to fetch billing context:", err);
+                } else {
+                    loadFromLocalStorage();
                 }
+            } catch (err) {
+                console.error("Failed to fetch billing context:", err);
+                loadFromLocalStorage();
             }
             setLoading(false);
+        };
+
+        const loadFromLocalStorage = () => {
+            const saved = localStorage.getItem('selectedPlan') as PlanType;
+            const savedDate = localStorage.getItem('planStartDate');
+            if (saved && PLANS.find(p => p.id === saved)) setPlan(saved);
+            const date = savedDate ? new Date(savedDate) : new Date();
+            if (!savedDate) localStorage.setItem('planStartDate', date.toISOString());
+            setStart(date);
+            setDays(Math.ceil(Math.abs(Date.now() - date.getTime()) / 86400000));
         };
 
         fetchContext();
@@ -293,10 +328,14 @@ export default function BillingPage() {
 
                     const userStr = localStorage.getItem('user');
                     if (userStr) {
-                        const user = JSON.parse(userStr);
-                        user.subscriptionExpired = false;
-                        localStorage.setItem('user', JSON.stringify(user));
-                        window.dispatchEvent(new Event('subscriptionChange'));
+                        try {
+                            const user = JSON.parse(userStr);
+                            user.subscriptionExpired = false;
+                            localStorage.setItem('user', JSON.stringify(user));
+                            window.dispatchEvent(new Event('subscriptionChange'));
+                        } catch (e) {
+                            console.error("Failed to sync expiry state", e);
+                        }
                     }
 
                     setShowPaymentModal(false);
@@ -315,9 +354,11 @@ export default function BillingPage() {
                             setHistory(historyRes.data.data);
                         }
                     } catch (e) { console.error("Error refreshing history:", e); }
+                } else {
+                     toast.error(response.data.message || "Failed to change plan");
                 }
             } else {
-                // Fallback for local simulation
+                // Fallback for demo/no-backend
                 localStorage.setItem('selectedPlan', next);
                 localStorage.setItem('planStartDate', new Date().toISOString());
                 setPlan(next);
@@ -326,15 +367,19 @@ export default function BillingPage() {
                 
                 const userStr = localStorage.getItem('user');
                 if (userStr) {
-                    const user = JSON.parse(userStr);
-                    user.subscriptionExpired = false;
-                    localStorage.setItem('user', JSON.stringify(user));
-                    window.dispatchEvent(new Event('subscriptionChange'));
+                    try {
+                        const user = JSON.parse(userStr);
+                        user.subscriptionExpired = false;
+                        localStorage.setItem('user', JSON.stringify(user));
+                        window.dispatchEvent(new Event('subscriptionChange'));
+                    } catch (e) {
+                        console.error("Failed to sync expiry state", e);
+                    }
                 }
 
                 setShowPaymentModal(false);
                 setConfirm(false);
-                toast.success(`Plan switched to ${next} (Simulated)`);
+                toast.success(`Demo: Plan simulated as ${next}`);
             }
         } catch (err: any) {
             console.error("Plan change failed:", err);
@@ -354,12 +399,48 @@ export default function BillingPage() {
     const idx = PLANS.findIndex(p => p.id === plan);
 
     return (
-        <div className="space-y-10 animate-in fade-in duration-500">
+        <div className="p-8 max-w-7xl mx-auto space-y-12 bg-slate-50/30 min-h-screen">
             <Toaster position="top-right" richColors />
+            
+            {/* Header Protocol */}
+            <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
+                <div>
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="p-2.5 bg-indigo-600 rounded-2xl shadow-lg shadow-indigo-100">
+                            <Zap size={20} className="text-white fill-white/20" />
+                        </div>
+                        <span className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.3em]">System Level: admin</span>
+                    </div>
+                    <h1 className="text-5xl font-black text-slate-900 tracking-tight leading-none">Fiscal Matrix</h1>
+                    <p className="text-slate-500 font-bold mt-4 uppercase text-[10px] tracking-[0.2em] flex items-center gap-2">
+                        <ShieldCheck size={14} className="text-emerald-500" />
+                        Active Subscription & Resource Allocation Ledger
+                    </p>
+                </div>
+                
+                <div className="flex gap-3">
+                    <button 
+                        onClick={() => {
+                            const el = document.getElementById('ledger-registry');
+                            if (el) el.scrollIntoView({ behavior: 'smooth' });
+                        }}
+                        className="px-6 py-4 bg-white border border-slate-100 rounded-2xl shadow-sm text-slate-600 font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center gap-2"
+                    >
+                        <Calendar size={14} />
+                        Cycle Report
+                    </button>
+                    <button 
+                        onClick={handleDownloadManifest}
+                        className="px-6 py-4 bg-slate-900 text-white rounded-2xl shadow-lg shadow-slate-200 font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all active:scale-95"
+                    >
+                        Download Manifest
+                    </button>
+                </div>
+            </header>
 
-            {/* Expiration Banner */}
-            {(isExpired || days >= (plan === 'demo' ? 7 : 15)) && (
-                <div className="bg-rose-50 border-2 border-rose-200 rounded-[2rem] p-8 flex items-center justify-between shadow-xl shadow-rose-100/50 animate-in fade-in slide-in-from-top-4 duration-500">
+            {/* Dash Status */}
+            {isExpired && (
+                <div className="bg-rose-50 border-2 border-rose-200 rounded-[2rem] p-8 flex items-center justify-between shadow-xl shadow-rose-100/50">
                     <div className="flex items-center gap-6">
                         <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-[1.5rem] flex items-center justify-center shadow-inner">
                             <Lock size={32} />
@@ -367,118 +448,92 @@ export default function BillingPage() {
                         <div>
                             <h4 className="text-2xl font-black text-slate-900 tracking-tight">Subscription Expired</h4>
                             <p className="text-slate-600 font-bold mt-1">
-                                Your {plan} period has ended. Please <span className="text-rose-600 underline decoration-rose-200 underline-offset-4">{plan === 'demo' ? 'Upgrade' : 'Renew'}</span> your authorization to restore lattice uplink.
+                                Your current period has ended. Please renew to restore lattice uplink.
                             </p>
                         </div>
                     </div>
                     <button 
-                        onClick={() => document.getElementById('plans-protocol')?.scrollIntoView({ behavior: 'smooth' })}
-                        className="px-8 py-4 bg-rose-600 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-rose-700 transition-all active:scale-95 shadow-xl shadow-rose-200 flex items-center gap-3 transform hover:-translate-y-1"
+                         onClick={() => {
+                            const el = document.getElementById('plans-protocol');
+                            if (el) el.scrollIntoView({ behavior: 'smooth' });
+                        }}
+                        className="px-8 py-4 bg-rose-600 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-rose-700 transition-all active:scale-95 shadow-xl shadow-rose-200"
                     >
-                        <Zap size={16} fill="white" />
-                        {plan === 'demo' ? 'Upgrade Plan Now' : 'Renew Access Now'}
+                        Renew Access Now
                     </button>
                 </div>
             )}
 
-            {/* Stats Dashboard */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatsLedger label="Current Cycle" value="$7,200.00" trend="+14.2%" icon={<DollarSign size={20} />} />
-                <StatsLedger label="Node Licenses" value="24 Active" trend="Nominal" icon={<Activity size={20} />} />
-                <StatsLedger label="Resource Load" value="82.4 GB" trend="+5.1GB" icon={<Zap size={20} />} />
-                <StatsLedger 
-                    label="Renewal Window" 
-                    value={isExpired ? "0 Days" : `${daysRemaining || Math.max(0, (plan === 'demo' ? 7 : 15) - days)} Days`} 
-                    trend={isExpired ? "TERMINAL" : "Approaching"} 
-                    icon={<Clock size={20} />} 
-                    color={isExpired ? "text-rose-600" : (daysRemaining <= 3 ? "text-rose-500" : "text-amber-500")} 
-                />
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-                {/* Expenditure Graph */}
-                <div className="lg:col-span-8 bg-white rounded-[40px] p-10 shadow-sm border border-slate-100">
-                    <div className="flex justify-between items-center mb-10">
-                        <div>
-                            <h3 className="text-xl font-black text-slate-800 tracking-tight">Expenditure Trajectory</h3>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Lattice Consumption Analysis</p>
-                        </div>
-                        <select className="bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-black text-indigo-600 outline-none">
-                            <option>Last 6 Cycles</option>
-                            <option>Last 12 Cycles</option>
-                        </select>
+            {/* Dashboard Lattice */}
+            <div className="grid grid-cols-1 lg:grid-cols-10 gap-8 items-start">
+                <div className="lg:col-span-6 space-y-8">
+                    {/* Stats above chart */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <StatsLedger 
+                            label="Fiscal Status" 
+                            value={isExpired ? "Restricted" : "Active"} 
+                            trend={isExpired ? "Critical Delay" : "Optimal Sync"} 
+                            icon={<Activity size={24} />} 
+                            color={isExpired ? "text-rose-500" : "text-emerald-500"}
+                        />
+                        <StatsLedger 
+                            label="Renewal Window" 
+                            value={isExpired ? "0 Days" : `${daysRemaining || Math.max(0, (plan === 'demo' ? 7 : 15) - days)} Days`} 
+                            trend={isExpired ? "TERMINAL" : "Approaching"} 
+                            icon={<Clock size={24} />} 
+                            color={isExpired ? "text-rose-600" : (daysRemaining <= 3 ? "text-rose-500" : "text-amber-500")} 
+                        />
                     </div>
-                    <div className="h-[350px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={FISCAL_DATA}>
-                                <defs>
-                                    <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.1} />
-                                        <stop offset="95%" stopColor="#4f46e5" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 800 }} dy={10} />
-                                <YAxis hide />
-                                <Tooltip
-                                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontWeight: 'bold' }}
-                                />
-                                <Area type="monotone" dataKey="amount" stroke="#4f46e5" strokeWidth={4} fillOpacity={1} fill="url(#colorAmount)" />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                    </div>
+                    
+                    {/* Re-implemented Statistic Chart */}
+                    <FiscalChart />
                 </div>
 
                 {/* Plan Manifest */}
-                <div className="lg:col-span-4 bg-indigo-700 rounded-[40px] p-10 text-white shadow-2xl relative overflow-hidden flex flex-col justify-between">
+                <div className="lg:col-span-4 bg-indigo-700 rounded-[40px] p-10 text-white shadow-2xl relative overflow-hidden flex flex-col min-h-[500px] justify-between h-full">
                     <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32 blur-3xl"></div>
                     <div className="relative z-10">
                         <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center mb-8 border border-white/20">
                             <ShieldCheck size={32} />
                         </div>
                         <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-200">Current Authorization</h3>
-                        <h2 className="text-3xl font-black tracking-tight mt-2">{PLANS[idx].name}</h2>
+                        <h2 className="text-3xl font-black tracking-tight mt-2">{plan.toUpperCase()} Plan</h2>
                         <p className="text-indigo-100 text-sm font-medium mt-4 leading-relaxed opacity-80">
-                            {idx === 0 ? 'Basic orchestration nodes with fundamental support protocols.' : 
-                             idx === 1 ? 'Enhanced lattice throughput with priority uplink and API access.' : 
+                            {plan === 'demo' ? 'Basic orchestration nodes with fundamental support protocols.' : 
+                             plan === 'starter' ? 'Enhanced lattice throughput with priority uplink and API access.' : 
                              'Full enterprise-grade orchestration with 24/7 forensics and advanced analytics.'}
                         </p>
                     </div>
 
-                    <div className="relative z-10 pt-10 border-t border-white/10">
-                        <div className="grid grid-cols-2 gap-4 mb-6">
+                    <div className="relative z-10 pt-10 border-t border-white/10 mt-6">
+                        <div className="grid grid-cols-2 gap-4 mb-4">
                             <div 
                                 className="cursor-help hover:bg-white/5 p-1 rounded-lg transition-colors"
                                 onClick={() => setShowDebug(!showDebug)}
                             >
-                                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-300 flex items-center gap-1">
-                                    Sync Date {showDebug ? <ChevronUp size={10}/> : <ChevronDown size={10}/>}
-                                </p>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-300">Sync Date</p>
                                 <p className="text-sm font-black mt-1">{fmtDate(start)}</p>
-                                
                                 {showDebug && (
-                                    <div className="mt-2 animate-in fade-in slide-in-from-top-1 duration-200">
-                                        <input 
-                                            type="date" 
-                                            className="bg-indigo-900/50 border border-indigo-400/30 rounded px-2 py-1 text-[10px] text-white outline-none focus:ring-1 ring-white/50 w-full"
-                                            onChange={(e) => {
-                                                const newDate = new Date(e.target.value);
-                                                if (!isNaN(newDate.getTime())) {
-                                                    setStart(newDate);
-                                                    localStorage.setItem('planStartDate', newDate.toISOString());
-                                                    setDays(Math.ceil(Math.abs(Date.now() - newDate.getTime()) / 86400000));
-                                                    toast.info(`Debug: Start date updated to ${fmtDate(newDate)}`);
-                                                }
-                                            }}
-                                        />
-                                    </div>
+                                    <input 
+                                        type="date" 
+                                        className="mt-2 bg-indigo-900 border border-indigo-400 rounded px-2 py-1 text-[10px] text-white w-full"
+                                        onChange={(e) => {
+                                            const d = new Date(e.target.value);
+                                            if (!isNaN(d.getTime())) {
+                                                setStart(d);
+                                                localStorage.setItem('planStartDate', d.toISOString());
+                                                setDays(Math.ceil(Math.abs(Date.now() - d.getTime()) / 86400000));
+                                            }
+                                        }}
+                                    />
                                 )}
                             </div>
                             <div>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-300">Days Active</p>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-300">Active Time</p>
                                 <p className="text-sm font-black mt-1">{days} Days</p>
                             </div>
                         </div>
+
                         <div className="flex justify-between items-center mb-2">
                             <span className="text-indigo-200 text-[10px] font-black uppercase tracking-widest">Cycle Progress</span>
                             <span className="text-white text-[10px] font-black tracking-widest">
@@ -508,8 +563,11 @@ export default function BillingPage() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {PLANS.map((p, i) => {
-                        const isCurrent = i === idx;
+                    {PLANS.map((p) => {
+                        const isCurrent = p.id === plan;
+                        const isDemo = p.id === 'demo';
+                        const isRestricted = isDemo && plan !== 'demo';
+
                         return (
                             <div key={p.id} className={`rounded-[32px] border-2 p-8 transition-all relative overflow-hidden group ${
                                 isCurrent ? 'border-indigo-600 bg-indigo-50/50' : 'border-slate-50 bg-white hover:border-slate-200'
@@ -533,31 +591,53 @@ export default function BillingPage() {
                                 </ul>
                                 <button
                                     onClick={() => changePlan(p.id)}
-                                    disabled={isCurrent || loading || (p.id === 'demo' && plan !== 'demo')}
+                                    disabled={isCurrent || loading || isRestricted}
                                     className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 ${
                                         isCurrent 
                                         ? 'bg-slate-100 text-slate-400 cursor-default' 
-                                        : (p.id === 'demo' && plan !== 'demo')
-                                          ? 'bg-slate-50 text-slate-300 cursor-not-allowed opacity-50'
-                                          : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-100'
+                                        : isRestricted
+                                        ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
+                                        : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-100'
                                     }`}
                                 >
-                                    {isCurrent ? 'Active Protocol' : (p.id === 'demo' && plan !== 'demo') ? 'Restricted' : 'Sync Request'}
+                                    {isCurrent ? 'Active Protocol' : isRestricted ? 'Restricted' : 'Sync Request'}
                                 </button>
                             </div>
                         );
                     })}
                 </div>
+
+                <div className="mt-10 flex gap-4">
+                    <button
+                        onClick={() => idx > 0 && changePlan(PLANS[idx - 1].id)}
+                        disabled={idx === 0 || loading || (idx === 1 && plan !== 'demo')}
+                        className="flex-1 py-4 px-6 bg-slate-50 text-slate-600 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-100 transition-all disabled:opacity-50"
+                    >
+                        <ChevronDown size={14} />
+                        {idx === 1 && plan !== 'demo' ? 'Downgrade Restricted' : 'Downgrade Protocol'}
+                    </button>
+                    <button
+                        onClick={() => idx < PLANS.length - 1 && changePlan(PLANS[idx + 1].id)}
+                        disabled={idx === PLANS.length - 1 || loading}
+                        className="flex-1 py-4 px-6 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50"
+                    >
+                        <ChevronUp size={14} />
+                        Upgrade Matrix
+                    </button>
+                </div>
             </section>
 
-            {/* Invoices Table */}
-            <section className="bg-white rounded-[40px] shadow-sm border border-slate-100 overflow-hidden">
+            {/* Invoice Registry */}
+            <section id="ledger-registry" className="bg-white rounded-[40px] shadow-sm border border-slate-100 overflow-hidden">
                 <div className="px-10 py-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/20">
                     <div>
                         <h3 className="text-xl font-black text-slate-800 tracking-tight">Ledger Registry</h3>
                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Transaction History & Invoices</p>
                     </div>
-                    <button className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all shadow-lg active:scale-95">
+                    <button 
+                        onClick={handleDownloadManifest}
+                        className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all shadow-lg active:scale-95"
+                    >
                         <Download size={14} />
                         Export Full Ledger
                     </button>
@@ -567,41 +647,34 @@ export default function BillingPage() {
                         <thead>
                             <tr className="bg-slate-50/50">
                                 <th className="px-10 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">Reference</th>
-                                <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">Account ID</th>
-                                <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">Type</th>
+                                <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">Plan</th>
                                 <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">Period</th>
                                 <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">Amount</th>
-                                <th className="px-10 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">State</th>
+                                <th className="px-10 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Status</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
                             {history.length > 0 ? history.map((inv) => (
                                 <tr key={inv._id} className="hover:bg-slate-50/50 transition-colors">
                                     <td className="px-10 py-6 font-mono text-xs font-black text-slate-400">#{inv._id.slice(-8).toUpperCase()}</td>
-                                    <td className="px-6 py-6 font-bold text-xs text-indigo-600">
-                                        {inv.selectedBy?.firstName ? `${inv.selectedBy.firstName} ${inv.selectedBy.lastName || ''}` : (inv.selectedBy?.email || 'System')}
-                                    </td>
                                     <td className="px-6 py-6 font-bold text-sm text-slate-700">{inv.planName}</td>
                                     <td className="px-6 py-6 text-[10px] font-bold text-slate-500 whitespace-nowrap">
                                         <div className="flex flex-col gap-0.5">
-                                            <span className="flex items-center gap-1.5"><Calendar size={10} className="text-indigo-400"/> {fmtDate(new Date(inv.currentPeriodStart || inv.trialStartDate || inv.startDate || inv.createdAt))}</span>
-                                            { (inv.currentPeriodEnd || inv.trialEndDate || inv.endDate) && (
-                                                <span className="flex items-center gap-1.5 opacity-60 ml-3 text-[9px]"><ArrowUpRight size={10}/> {fmtDate(new Date((inv.currentPeriodEnd || inv.trialEndDate || inv.endDate) as string))}</span>
-                                            )}
+                                            <span className="flex items-center gap-1.5"><Calendar size={10} className="text-indigo-400"/> {fmtDate(new Date(inv.currentPeriodStart || inv.trialStartDate || inv.startDate || inv.createdAt || Date.now()))}</span>
                                         </div>
                                     </td>
                                     <td className="px-6 py-6 font-black text-sm text-slate-800">{inv.price}D</td>
                                     <td className="px-10 py-6 text-center">
                                         <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${inv.status === 'active' || inv.status === 'trial' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>
-                                            {inv.status === 'active' || inv.status === 'trial' ? <CheckCircle2 size={10} /> : <AlertCircle size={10} />}
+                                            {inv.status === 'active' || inv.status === 'trial' ? <CheckCircle2 size={10} /> : <Clock size={10} />}
                                             {inv.status}
                                         </span>
                                     </td>
                                 </tr>
                             )) : (
                                 <tr>
-                                    <td colSpan={6} className="px-10 py-12 text-center text-slate-400 font-bold text-xs uppercase tracking-[0.2em]">
-                                        No transaction records detected in current matrix
+                                    <td colSpan={5} className="px-10 py-12 text-center text-slate-400 font-bold text-xs uppercase tracking-[0.2em]">
+                                        No transaction records detected
                                     </td>
                                 </tr>
                             )}
@@ -610,149 +683,128 @@ export default function BillingPage() {
                 </div>
             </section>
 
+            {/* Confirm Termination Modal */}
+            {confirm && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[150] p-4">
+                    <div className="bg-white rounded-[40px] p-10 max-w-md w-full shadow-2xl">
+                        <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mb-6">
+                            <AlertCircle size={32} />
+                        </div>
+                        <h2 className="text-2xl font-black text-slate-800 tracking-tight mb-4">Terminate Protocol?</h2>
+                        <p className="text-sm text-slate-500 font-bold mb-8 leading-relaxed">
+                            Downgrading to Demo will restrict system capabilities. This action is recorded in the matrix logs.
+                        </p>
+                        <div className="grid grid-cols-2 gap-4">
+                            <button onClick={() => setConfirm(false)} className="py-4 bg-slate-50 text-slate-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-100">Abort</button>
+                            <button onClick={() => executePlanChange('demo')} className="py-4 bg-rose-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-rose-700 shadow-xl">Confirm</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Payment Modal */}
             {showPaymentModal && pendingPlan && (
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[150] p-4">
-                    <div className="bg-white rounded-[40px] p-10 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-200">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-black text-slate-800 tracking-tight">Security Protocol</h2>
-                            <button onClick={() => setShowPaymentModal(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
-                                <X size={24} />
-                            </button>
+                    <div className="bg-white rounded-[40px] p-10 max-w-md w-full shadow-2xl overflow-hidden">
+                        <div className="flex justify-between items-center mb-8">
+                            <h2 className="text-2xl font-black text-slate-800 tracking-tight">Payment Protocol</h2>
+                            <button onClick={() => setShowPaymentModal(false)} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
                         </div>
-
-                        <div className="mb-8 p-6 bg-indigo-50 rounded-[24px] border border-indigo-100">
-                            <div className="flex justify-between items-center">
-                                <div>
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400">Target Plan</p>
-                                    <p className="text-lg font-black text-slate-800 tracking-tight uppercase">{pendingPlan}</p>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400">Fiscal Unit</p>
-                                    <p className="text-lg font-black text-indigo-600 tracking-tight">{PLANS.find(p => p.id === pendingPlan)?.price}</p>
-                                </div>
+                        <form onSubmit={(e) => {
+                            e.preventDefault();
+                            executePlanChange(pendingPlan, paymentDetails);
+                        }} className="space-y-6">
+                            <div>
+                                <label className="block text-[10px] font-black uppercase text-slate-400 mb-2 ml-1">Card Number</label>
+                                <input name="cardNumber" value={paymentDetails.cardNumber} onChange={handlePaymentChange} required className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 ring-indigo-500" placeholder="0000 0000 0000 0000" />
                             </div>
-                        </div>
-
-                        <form onSubmit={(e) => { e.preventDefault(); executePlanChange(pendingPlan, paymentDetails); }} className="space-y-5">
-                            <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Card Number</label>
-                                    <div className="relative">
-                                        <input
-                                            type="text"
-                                            name="cardNumber"
-                                            value={paymentDetails.cardNumber}
-                                            onChange={handlePaymentChange}
-                                            placeholder="XXXX XXXX XXXX XXXX"
-                                            className="w-full px-6 py-4 pl-14 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all font-bold text-slate-700"
-                                            maxLength={19}
-                                            required
-                                        />
-                                        <CreditCard className="absolute left-5 top-1/2 -translate-y-1/2 text-indigo-500" size={20} />
-                                    </div>
+                                    <label className="block text-[10px] font-black uppercase text-slate-400 mb-2 ml-1">Expiry</label>
+                                    <input name="expiryDate" value={paymentDetails.expiryDate} onChange={handlePaymentChange} required className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold text-slate-700 outline-none placeholder:opacity-50" placeholder="MM/YY" />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Holder Name</label>
-                                    <div className="relative">
-                                        <input
-                                            type="text"
-                                            name="cardHolder"
-                                            value={paymentDetails.cardHolder}
-                                            onChange={handlePaymentChange}
-                                            placeholder="Full Name"
-                                            className="w-full px-6 py-4 pl-14 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all font-bold text-slate-700"
-                                            required
-                                        />
-                                        <User className="absolute left-5 top-1/2 -translate-y-1/2 text-indigo-500" size={20} />
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Expiry</label>
-                                        <input
-                                            type="text"
-                                            name="expiryDate"
-                                            value={paymentDetails.expiryDate}
-                                            onChange={handlePaymentChange}
-                                            placeholder="MM/YY"
-                                            className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all font-bold text-slate-700 text-center"
-                                            maxLength={5}
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">CVV</label>
-                                        <input
-                                            type="text"
-                                            name="cvv"
-                                            value={paymentDetails.cvv}
-                                            onChange={handlePaymentChange}
-                                            placeholder="***"
-                                            className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all font-bold text-slate-700 text-center"
-                                            maxLength={4}
-                                            required
-                                        />
-                                    </div>
+                                    <label className="block text-[10px] font-black uppercase text-slate-400 mb-2 ml-1">CVV</label>
+                                    <input name="cvv" value={paymentDetails.cvv} onChange={handlePaymentChange} required className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold text-slate-700 outline-none" placeholder="***" type="password" />
                                 </div>
                             </div>
-
-                            <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex gap-3">
-                                <ShieldCheck size={18} className="text-emerald-500 shrink-0 mt-0.5" />
-                                <p className="text-[10px] font-bold text-emerald-600 leading-relaxed italic">
-                                    Simulated encryption active. Any data entered will be confirmed into database metadata for demonstration.
-                                </p>
-                            </div>
-
-                            <div className="flex gap-4 pt-4">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPaymentModal(false)}
-                                    className="flex-1 py-4 bg-slate-50 text-slate-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-100 transition-all"
-                                >
-                                    Abort
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={loading}
-                                    className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 disabled:opacity-50"
-                                >
-                                    {loading ? 'Syncing...' : 'Confirm Uplink'}
+                            <div className="pt-4">
+                                <button type="submit" disabled={loading} className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 shadow-xl shadow-indigo-200">
+                                    {loading ? "Syncing..." : "Authorize Uplink"}
                                 </button>
                             </div>
                         </form>
                     </div>
                 </div>
             )}
+        </div>
+    );
+}
 
-            {/* Downgrade Confirm Modal */}
-            {confirm && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[150] p-4">
-                    <div className="bg-white rounded-[40px] p-10 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-200">
-                        <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mb-6">
-                            <AlertCircle size={32} />
-                        </div>
-                        <h3 className="text-2xl font-black text-slate-800 tracking-tight mb-2">Terminate Protocol?</h3>
-                        <p className="text-sm text-slate-500 font-bold leading-relaxed mb-8">
-                            Moving back to the Demo plan will limit your lattice access and throughput. Are you sure you wish to downgrade?
-                        </p>
-                        <div className="flex gap-4">
-                            <button 
-                                onClick={() => setConfirm(false)} 
-                                className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all"
-                            >
-                                Retain Plan
-                            </button>
-                            <button 
-                                onClick={() => executePlanChange('demo')} 
-                                className="flex-1 py-4 bg-rose-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-rose-700 transition-all shadow-lg shadow-rose-100"
-                            >
-                                Terminate
-                            </button>
-                        </div>
+function FiscalChart() {
+    return (
+        <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-100 h-[400px] relative overflow-hidden group transition-all duration-500 hover:shadow-xl hover:shadow-indigo-500/5">
+            <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.07] transition-opacity">
+                <TrendingUp size={120} />
+            </div>
+            <div className="flex justify-between items-center mb-10 relative z-10">
+                <div>
+                    <h3 className="text-lg font-black text-slate-800 tracking-tight">Fiscal Analytics</h3>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Resource Consumption Vectors</p>
+                </div>
+                <div className="flex gap-2">
+                    <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 rounded-full border border-emerald-100">
+                        <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
+                        <span className="text-[9px] font-black text-emerald-600 uppercase">Optimal Sync</span>
                     </div>
                 </div>
-            )}
+            </div>
+            <div className="h-[240px] w-full relative z-10">
+                <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={FISCAL_DATA}>
+                        <defs>
+                            <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.15}/>
+                                <stop offset="95%" stopColor="#4f46e5" stopOpacity={0.01}/>
+                            </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f8fafc" />
+                        <XAxis 
+                            dataKey="month" 
+                            axisLine={false} 
+                            tickLine={false} 
+                            tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700}}
+                            dy={10}
+                        />
+                        <YAxis 
+                            hide={true}
+                        />
+                        <Tooltip 
+                            contentStyle={{
+                                borderRadius: '20px', 
+                                border: 'none', 
+                                boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
+                                padding: '12px 16px'
+                            }}
+                            itemStyle={{
+                                fontWeight: 900,
+                                fontSize: '12px',
+                                textTransform: 'uppercase',
+                                color: '#4f46e5'
+                            }}
+                        />
+                        <Area 
+                            type="monotone" 
+                            dataKey="amount" 
+                            stroke="#4f46e5" 
+                            strokeWidth={4}
+                            fillOpacity={1} 
+                            fill="url(#colorAmount)" 
+                            animationDuration={2000}
+                        />
+                    </AreaChart>
+                </ResponsiveContainer>
+            </div>
         </div>
     );
 }

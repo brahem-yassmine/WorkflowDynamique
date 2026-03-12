@@ -1,11 +1,11 @@
 'use client';
 
+import { motion } from 'framer-motion';
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { motion } from 'framer-motion';
 import {
   LayoutDashboard,
   Users,

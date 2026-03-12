@@ -7,7 +7,10 @@ import {
   Card,
   CardContent,
 } from "@/components/ui/card";
-import { Loader2, AlertCircle, RefreshCw, TrendingUp, Users, Building2, Workflow, Cpu, DollarSign, Activity } from "lucide-react";
+import { 
+    Loader2, AlertCircle, RefreshCw, TrendingUp, Users, Building2, Workflow, Cpu, DollarSign, Activity
+} from "lucide-react";
+import ActivityRegistry from "./components/ActivityRegistry";
 import {
   BarChart,
   Bar,
@@ -94,16 +97,31 @@ export default function SuperAdminDashboard() {
         const suspendedCount = tenants.filter((t: any) => t.status === 'suspended').length;
 
         let totalUsers = 0;
+        let totalRevenue = 0;
         const sectorCounts: Record<string, number> = {};
         const planCounts: Record<string, number> = {};
 
         tenants.forEach((tenant: any) => {
           totalUsers += tenant.userCount || 0;
+          
+          // Calculate Revenue based on Plan
+          const planPrice = tenant.selectedPlan?.monthlyPrice || tenant.selectedPlan?.price;
+          if (typeof planPrice === 'number') {
+            totalRevenue += planPrice;
+          } else {
+            const planNameLower = (tenant.selectedPlan?.name || '').toLowerCase();
+            if (planNameLower.includes('pro')) totalRevenue += 299;
+            else if (planNameLower.includes('starter')) totalRevenue += 79;
+          }
+
           const sector = tenant.industry || 'General';
           sectorCounts[sector] = (sectorCounts[sector] || 0) + 1;
           const planName = tenant.selectedPlan?.name || 'Standard';
           planCounts[planName] = (planCounts[planName] || 0) + 1;
         });
+
+        // GPU usage calculation (Base 10% + 5% per active company + 1% per suspended company)
+        const gpuUsage = Math.min(100, 10 + (activeCount * 5) + (suspendedCount * 1));
 
         setSectorData(Object.entries(sectorCounts).map(([sector, value]) => ({ sector, value })));
         setPlanDistribution(Object.entries(planCounts).map(([name, value]) => ({ name, value })));
@@ -113,10 +131,10 @@ export default function SuperAdminDashboard() {
           activeCompanies: activeCount,
           suspendedCompanies: suspendedCount,
           totalUsers,
-          totalRevenue: 128450,
+          totalRevenue,
           totalWorkflows: 942,
           workflowExecutions: 24600,
-          averageGpuUsage: 72,
+          averageGpuUsage: gpuUsage,
           trialCompanies: planCounts['Demo'] || 5,
           paidCompanies: tenants.length - (planCounts['Demo'] || 5),
         });
@@ -280,6 +298,11 @@ export default function SuperAdminDashboard() {
             </BarChart>
           </ResponsiveContainer>
         </div>
+      </div>
+
+      {/* Global Activity Registry Section */}
+      <div className="pt-12 border-t border-slate-100">
+        <ActivityRegistry limit={5} />
       </div>
     </div>
   );

@@ -129,7 +129,13 @@ const login = async (req, res) => {
     let role = 'super_admin';
     let tenantId = null;
 
-    // 2. If not found, search in tenants (Owners/Admins)
+    // SECURITY CHECK: Only axia@gmail.com can be Super Admin
+    if (user && email.toLowerCase() !== 'axia@gmail.com') {
+      console.warn(`🛑 Unauthorized Super Admin login attempt: ${email}`);
+      user = null; // Important: Clear user so it fallbacks to admin/user search
+    }
+
+    // 2. If not found (or unauthorized above), search in tenants (Owners/Admins)
     if (!user) {
       const TenantModel = getTenantModel(req);
       user = await TenantModel.findOne({ email: email.toLowerCase() });
@@ -353,6 +359,7 @@ const registerTenant = async (req, res) => {
     });
 
     if (!companyName || !adminEmail || !password || !planId || !industry) {
+      console.warn('⚠️ Missing required fields in registration request');
       return res.status(400).json({
         success: false,
         message: 'All fields are required'
@@ -403,6 +410,7 @@ const registerTenant = async (req, res) => {
     console.log('✅ Tenant record created in master database');
 
     try {
+      console.log('🚀 Initiating tenant database creation...');
       await createTenantDatabase(tenant._id, dbName, plan, adminEmail, hashedPassword, paymentDetails, startDate);
       console.log('✅ Tenant database and admin user created successfully');
     } catch (dbError) {
@@ -461,13 +469,22 @@ const registerTenant = async (req, res) => {
 const registerSuperAdmin = async (req, res) => {
   try {
     const { email, password, firstName, lastName } = req.body;
+
+    // STRICT SECURITY: Only axia@gmail.com can be registered as Super Admin
+    if (email.toLowerCase() !== 'axia@gmail.com') {
+      return res.status(403).json({
+        success: false,
+        message: 'Registration of other Super Admin accounts is strictly forbidden.'
+      });
+    }
+
     const SuperAdmin = getSuperAdminModel(req);
 
     const existingUser = await SuperAdmin.findOne({ email: email.toLowerCase() });
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: 'Email already in use'
+        message: 'Super Admin already exists.'
       });
     }
 

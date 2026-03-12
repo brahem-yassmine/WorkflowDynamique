@@ -108,11 +108,7 @@ function Sidebar({ isExpired = false }: { isExpired?: boolean }) {
           <div className="flex items-center gap-2 mb-2">
             <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></div>
             <span className="text-[9px] font-black text-indigo-200 uppercase tracking-widest">Lattice Security</span>
-<<<<<<< HEAD
         {subscriptionExpired ? (
-=======
-=        {subscriptionExpired ? (
->>>>>>> e6314a902f52656002db49b7c9c2223bf17d346f
           <div className="bg-rose-500/10 rounded-2xl p-4 border border-rose-400/30 mb-6 animate-pulse">
             <div className="flex items-center gap-2 mb-2 text-rose-300">
               <Zap size={14} className="fill-rose-400" />

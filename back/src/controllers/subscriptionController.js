@@ -137,19 +137,13 @@ exports.changePlan = async (req, res) => {
       planId: plan._id,
       planName: plan.name,
       planCode: plan.code,
-      billingCycle,
-      price: plan.price,
-      status: 'active', // No more trial if already a customer
-      currentPeriodStart: new Date(),
-      currentPeriodEnd: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
-      selectedBy: userId,
-      paymentInfo: paymentInfo // Save payment info
       billingCycle: billingCycle || 'monthly',
       price: plan.price,
       status: 'active', // No more trial if already a customer
       currentPeriodStart: new Date(),
       currentPeriodEnd: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000), // 15 days per user rules
-      selectedBy: tenantUserId
+      selectedBy: tenantUserId,
+      paymentInfo: paymentInfo // Save payment info
     });
 
     try {
@@ -161,21 +155,6 @@ exports.changePlan = async (req, res) => {
     }
 
     // 3️⃣ UPDATE TENANT
-    await Tenant.findByIdAndUpdate(tenantId, {
-      selectedPlan: plan._id,
-      currentSubscription: subscription._id,
-      'planDetails': {
-        name: plan.name,
-        code: plan.code,
-        price: plan.price,
-        currency: plan.currency || 'D',
-        features: plan.features
-      },
-      'subscription.status': 'active',
-      'subscription.billingCycle': billingCycle,
-      'subscription.currentPeriodStart': subscription.currentPeriodStart,
-      'subscription.currentPeriodEnd': subscription.currentPeriodEnd
-    });
     console.log('🔄 [ChangePlan] Updating tenant fields:', tenantId);
     try {
       const updateData = {

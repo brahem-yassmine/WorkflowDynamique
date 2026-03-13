@@ -17,6 +17,7 @@ import {
   Calendar,
   Database,
   User,
+  Users,
   ShieldCheck,
   ShieldAlert,
   Building2
@@ -137,6 +138,30 @@ export default function CompanyManagement() {
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const deleteCompany = async (companyId: string) => {
+    if (!window.confirm("Are you sure you want to permanently ARCHIVE this organization? This action is irreversible.")) return;
+
+    try {
+      setUpdating(true);
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`http://localhost:5000/api/admin/tenants/${companyId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        fetchCompanies();
+        setOpen(false);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -347,16 +372,28 @@ export default function CompanyManagement() {
                 </div>
               </div>
 
-              <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Connectivity Endpoint (Admin Email)</label>
-                <div className="relative flex items-center">
-                  <Mail className="absolute left-3 text-slate-300" size={16} />
-                  <Input
-                    className="pl-10 h-12 bg-slate-50 border-slate-100 rounded-xl focus:ring-4 focus:ring-indigo-50 font-bold text-slate-700"
-                    type="email"
-                    value={selectedCompany.email}
-                    onChange={(e) => setSelectedCompany({ ...selectedCompany, email: e.target.value })}
-                  />
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Connectivity Endpoint (Admin Email)</label>
+                  <div className="relative flex items-center">
+                    <Mail className="absolute left-3 text-slate-300" size={16} />
+                    <Input
+                      className="pl-10 h-12 bg-slate-50 border-slate-100 rounded-xl focus:ring-4 focus:ring-indigo-50 font-bold text-slate-700"
+                      type="email"
+                      value={selectedCompany.email}
+                      onChange={(e) => setSelectedCompany({ ...selectedCompany, email: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">User Population</label>
+                  <div className="relative flex items-center">
+                    <Users className="absolute left-4 text-indigo-500" size={18} />
+                    <div className="w-full h-12 flex items-center pl-12 bg-indigo-50 border border-indigo-100 rounded-xl">
+                      <span className="text-xl font-black text-indigo-700">{selectedCompany.users}</span>
+                      <span className="ml-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest">Authorized Nodes</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -388,17 +425,26 @@ export default function CompanyManagement() {
             </div>
           )}
 
-          <DialogFooter className="p-8 pt-0 flex gap-4">
+          <DialogFooter className="p-8 pt-0 flex flex-col sm:flex-row gap-4">
+            <button
+              onClick={() => selectedCompany && deleteCompany(selectedCompany.id)}
+              disabled={updating}
+              className="px-6 py-3 bg-rose-50 text-rose-600 font-bold rounded-xl border border-rose-100 hover:bg-rose-100 transition-all flex items-center justify-center gap-2"
+            >
+              <ShieldAlert size={18} />
+              Remove Identity
+            </button>
+            <div className="flex-grow"></div>
             <button
               onClick={() => setOpen(false)}
-              className="flex-1 py-3 text-slate-400 font-bold hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"
+              className="py-3 px-6 bg-emerald-50 text-emerald-600 font-bold border border-emerald-100 rounded-xl hover:bg-emerald-100 transition-all"
             >
-              Discard Changes
+              Discard
             </button>
             <button
               onClick={updateCompany}
               disabled={updating}
-              className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 disabled:opacity-50"
+              className="py-3 px-10 bg-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 disabled:opacity-50"
             >
               {updating ? <Loader2 size={18} className="animate-spin inline mr-2" /> : "Synchronize Node"}
             </button>

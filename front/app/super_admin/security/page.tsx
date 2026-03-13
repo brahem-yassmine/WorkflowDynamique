@@ -28,41 +28,90 @@ import {
   ResponsiveContainer,
   CartesianGrid,
   AreaChart,
-  Area
+  Area,
+  Radar,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis
 } from "recharts";
 import { toast } from "sonner";
 import axios from "axios";
 
+// Threat Vector Mock Data
+const threatVectorData = [
+  { subject: 'Brute Force', A: 120, fullMark: 150 },
+  { subject: 'API Anomaly', A: 98, fullMark: 150 },
+  { subject: 'Privilege Esc', A: 86, fullMark: 150 },
+  { subject: 'SQLi Attempt', A: 99, fullMark: 150 },
+  { subject: 'Zero Day', A: 85, fullMark: 150 },
+  { subject: 'DOS Vector', A: 65, fullMark: 150 },
+];
+
+// Fallback mock data
 const loginAttemptsData = [
-  { day: "Mon", attempts: 2400 },
-  { day: "Tue", attempts: 1398 },
-  { day: "Wed", attempts: 9800 },
-  { day: "Thu", attempts: 3908 },
-  { day: "Fri", attempts: 4800 },
-  { day: "Sat", attempts: 3800 },
-  { day: "Sun", attempts: 4300 },
+  { day: "Mon", attempts: 0 },
+  { day: "Tue", attempts: 0 },
+  { day: "Wed", attempts: 0 },
+  { day: "Thu", attempts: 0 },
+  { day: "Fri", attempts: 0 },
+  { day: "Sat", attempts: 0 },
+  { day: "Sun", attempts: 0 },
 ];
 
 export default function SecurityLogsPage() {
   const [logs, setLogs] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
+  const [chartData, setChartData] = useState<any[]>([]);
 
   useEffect(() => {
-    const fetchLogs = async () => {
+    const fetchData = async () => {
       try {
         const token = localStorage.getItem('auth_token');
-        const res = await fetch(`http://localhost:5000/api/admin/logs?limit=100`, {
+        
+        // Fetch logs for export
+        const logsRes = await fetch(`http://localhost:5000/api/admin/logs?limit=100`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        const data = await res.json();
-        if (data.success) {
-          setLogs(data.data.logs);
+        const logsData = await logsRes.json();
+        if (logsData.success) {
+          setLogs(logsData.data.logs);
+        }
+
+        // Fetch log stats
+        const statsRes = await fetch(`http://localhost:5000/api/admin/logs/stats`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const statsData = await statsRes.json();
+        if (statsData.success) {
+          setStats(statsData.data);
+          
+          if (statsData.data.byHour && Array.isArray(statsData.data.byHour)) {
+            const hourly = statsData.data.byHour.map((h: any) => ({
+              day: `${h._id}h`,
+              attempts: h.count
+            }));
+            setChartData(hourly.length > 0 ? hourly : loginAttemptsData);
+          } else {
+            setChartData(loginAttemptsData);
+          }
         }
       } catch (e) {
-        console.error('Error fetching logs for export:', e);
+        console.error('Error fetching security data:', e);
       }
     };
-    fetchLogs();
+    fetchData();
   }, []);
+
+  // Calculate Real Threat Vector Data
+  const realThreatVectorData = [
+    { subject: 'Brute Force', A: stats?.byActionType?.find((a:any) => a._id === 'LOGIN_FAILED')?.count || 0, fullMark: 100 },
+    { subject: 'System Error', A: stats?.byActionType?.find((a:any) => a._id === 'ERROR')?.count || 0, fullMark: 100 },
+    { subject: 'Unauth Acc', A: stats?.byActionType?.find((a:any) => a._id === 'UNAUTHORIZED_ACCESS')?.count || 0, fullMark: 100 },
+    { subject: 'Data Leak', A: 0, fullMark: 100 },
+    { subject: 'API Anomaly', A: stats?.byActionType?.find((a:any) => a._id === 'API_ANOMALY')?.count || 0, fullMark: 100 },
+    { subject: 'XSS/SQli', A: 0, fullMark: 100 },
+  ];
 
   const exportPDF = async () => {
     if (logs.length === 0) {
@@ -74,7 +123,7 @@ export default function SecurityLogsPage() {
       // @ts-ignore
       const { jsPDF } = await import('jspdf');
       // @ts-ignore
-      await import('jspdf-autotable');
+      const autoTable = (await import('jspdf-autotable')).default;
       
       const doc = new jsPDF();
       doc.setFontSize(18);
@@ -91,7 +140,7 @@ export default function SecurityLogsPage() {
       ]);
 
       // @ts-ignore
-      doc.autoTable({
+      autoTable(doc, {
         head: [tableColumn],
         body: tableRows,
         startY: 35,
@@ -109,15 +158,15 @@ export default function SecurityLogsPage() {
   };
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-500">
+    <div className="space-y-10 animate-in fade-in duration-500 px-4 md:px-0">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
         <div>
           <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight flex items-center gap-3">
             Cyber Defense Hub
-            <span className="px-3 py-1 bg-indigo-100 text-indigo-600 text-[10px] font-black rounded-full uppercase tracking-widest animate-pulse">Live Audit</span>
+            <span className="px-3 py-1 bg-rose-100 text-rose-600 text-[10px] font-black rounded-full uppercase tracking-widest animate-pulse">Lattice Monitor</span>
           </h1>
-          <p className="text-slate-500 font-medium mt-1">Lattice-wide cryptographic integrity and administrative forensics.</p>
+          <p className="text-slate-500 font-medium mt-1">Advanced administrative forensics and lattice-wide integrity tracking.</p>
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -132,43 +181,87 @@ export default function SecurityLogsPage() {
 
       {/* Security Pulse Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <PulseCard label="System Integrity" value="OPTIMAL" status="secure" icon={<ShieldCheck size={20} />} />
-        <PulseCard label="Active Threats" value="0" status="secure" icon={<Activity size={20} />} />
-        <PulseCard label="Encryption Depth" value="4096-bit" status="info" icon={<Fingerprint size={20} />} />
-        <PulseCard label="Lattice Nodes" value="1,240" status="info" icon={<Globe size={20} />} />
+        <PulseCard label="Detection Latency" value="< 12ms" status="secure" icon={<Cpu size={20} />} />
+        <PulseCard 
+          label="Unauthorized Origins" 
+          value={stats?.byTopIPs?.length || "0"} 
+          status={ (stats?.byTopIPs?.length > 0) ? 'warning' : 'secure' } 
+          icon={<ShieldAlert size={20} />} 
+        />
+        <PulseCard 
+          label="Failed Attemps" 
+          value={stats?.byActionType?.find((a:any) => a._id === 'LOGIN_FAILED')?.count || "0"} 
+          status="info" 
+          icon={<ShieldX size={20} />} 
+        />
+        <PulseCard label="System Criticals" value={stats?.byActionType?.find((a:any) => a._id === 'ERROR')?.count || "0"} status={ (stats?.byActionType?.find((a:any) => a._id === 'ERROR')?.count > 0) ? 'warning' : 'info' } icon={<Activity size={20} />} />
       </div>
 
-      {/* Analytics Chart */}
-      <div className="bg-white rounded-3xl p-10 shadow-sm border border-slate-100 overflow-hidden relative group">
-        <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
-          <Terminal size={140} className="text-indigo-900" />
-        </div>
-        <div className="flex justify-between items-center mb-10 relative z-10">
-          <div>
-            <h3 className="text-xl font-black text-slate-800 tracking-tight">Access Frequency</h3>
-            <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Global Authentication Attempts (7D)</p>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Radar Analysis */}
+        <div className="lg:col-span-2 bg-white rounded-3xl p-10 shadow-sm border border-slate-100 relative group overflow-hidden">
+          <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+            <Globe size={140} className="text-indigo-900" />
           </div>
-          <div className="px-3 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-black rounded-lg">99.9% VALIDATED</div>
+          <div className="flex justify-between items-center mb-10 relative z-10">
+            <div>
+              <h3 className="text-xl font-black text-slate-800 tracking-tight">Threat Vector Analysis</h3>
+              <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Lattice-wide attack surface monitoring</p>
+            </div>
+          </div>
+          <div className="h-80 relative z-10">
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart cx="50%" cy="50%" outerRadius="80%" data={realThreatVectorData}>
+                <PolarGrid stroke="#f1f5f9" />
+                <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fontWeight: 800, fill: '#64748b' }} />
+                <PolarRadiusAxis angle={30} domain={[0, Math.max(...realThreatVectorData.map(d => d.A)) + 10]} tick={false} axisLine={false} />
+                <Radar
+                  name="Threat Level"
+                  dataKey="A"
+                  stroke="#f43f5e"
+                  strokeWidth={3}
+                  fill="#f43f5e"
+                  fillOpacity={0.15}
+                />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
-        <div className="h-72 relative z-10">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={loginAttemptsData}>
-              <defs>
-                <linearGradient id="colorAttempts" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.1} />
-                  <stop offset="95%" stopColor="#4f46e5" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 700, fill: '#94a3b8' }} dy={10} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 700, fill: '#94a3b8' }} />
-              <Tooltip
-                contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                itemStyle={{ fontWeight: 700, color: '#4f46e5' }}
-              />
-              <Area type="monotone" dataKey="attempts" stroke="#4f46e5" strokeWidth={4} fillOpacity={1} fill="url(#colorAttempts)" />
-            </AreaChart>
-          </ResponsiveContainer>
+
+        {/* Top Malicious Actors */}
+        <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
+          <h3 className="text-lg font-black text-slate-800 tracking-tight mb-6 flex items-center gap-2">
+            <Fingerprint className="text-rose-500" size={20} />
+            Suspected Actors
+          </h3>
+          <div className="space-y-5">
+              {stats?.byTopActors?.length > 0 ? (
+                  stats.byTopActors.map((actor: any, idx: number) => (
+                      <div key={idx} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-rose-200 transition-colors group">
+                          <div className="flex justify-between items-start mb-2">
+                              <span className="text-[10px] font-mono font-bold text-slate-500 group-hover:text-rose-600 transition-colors">
+                                  {actor.lastIP}
+                              </span>
+                              <span className={`text-[8px] font-black px-2 py-0.5 rounded text-white ${actor.count > 10 ? 'bg-rose-600' : actor.count > 5 ? 'bg-orange-500' : 'bg-amber-400'}`}>
+                                  {actor.count > 10 ? 'CRITICAL' : actor.count > 5 ? 'HIGH' : 'MEDIUM'}
+                              </span>
+                          </div>
+                          <p className="text-xs font-black text-slate-800 truncate">{actor._id || 'Unknown'}</p>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">{actor.count} Failed attempts</p>
+                      </div>
+                  ))
+              ) : (
+                <div className="py-12 text-center text-slate-400 text-xs font-bold uppercase tracking-widest">
+                    No threats detected.
+                </div>
+              )}
+          </div>
+          <button className="w-full mt-6 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-rose-600 transition-colors">
+              Full Actor Investigation
+          </button>
         </div>
       </div>
 
@@ -185,12 +278,25 @@ export default function SecurityLogsPage() {
               <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Real-time cryptographic audit trail</p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Live Stream Matrix</span>
+              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Live Forensics Matrix</span>
             </div>
           </div>
 
-          <ActivityRegistry showTitle={false} limit={50} />
+          <ActivityRegistry 
+            showTitle={false} 
+            limit={50} 
+            includeActions={['ERROR', 'LOGIN_FAILED']}
+            customTabLabels={{
+              LOG: 'Security Alerts',
+              HISTORY: 'Threat History',
+              AUDIT: 'Forensic Audit'
+            }}
+            defaultTab="LOG"
+            variant="light"
+            useMonospace={true}
+            isSecurityView={true}
+          />
         </div>
       </div>
     </div>

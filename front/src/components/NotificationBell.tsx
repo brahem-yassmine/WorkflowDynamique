@@ -77,7 +77,9 @@ export default function NotificationBell() {
             case 'workflow_created': return <GitBranch size={16} className="text-indigo-500" />;
             case 'task_assigned': return <Briefcase size={16} className="text-amber-500" />;
             case 'workflow_completed': return <Check size={16} className="text-emerald-500" />;
-            case 'warning' as any: return <ShieldAlert size={16} className="text-rose-500" />;
+            case 'warning':
+            case 'security': return <ShieldAlert size={16} className="text-rose-500" />;
+            case 'system': return <ShieldAlert size={16} className="text-indigo-500" />;
             default: return <ShieldAlert size={16} className="text-blue-500" />;
         }
     };

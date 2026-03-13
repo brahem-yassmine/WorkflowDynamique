@@ -22,7 +22,7 @@ const notificationSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ['workflow_created', 'task_assigned', 'workflow_completed', 'system', 'tenant_created'],
+        enum: ['workflow_created', 'task_assigned', 'workflow_completed', 'system', 'tenant_created', 'security'],
         default: 'system'
     },
     link: {

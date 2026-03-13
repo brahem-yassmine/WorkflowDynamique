@@ -93,7 +93,7 @@ function Sidebar({ isExpired = false }: { isExpired?: boolean }) {
       <nav className="flex-1 mt-2 overflow-y-auto px-4 space-y-8 relative z-10 custom-scrollbar pb-10">
         {menuGroups.map((group, groupIndex) => (
           <div key={groupIndex} className="space-y-2">
-            <h2 className="px-4 text-[10px] font-black text-indigo-200/60 uppercase tracking-widest flex items-center gap-2">
+            <h2 className="px-4 text-[14px] font-black text-indigo-200/60 uppercase tracking-widest flex items-center gap-2">
               <span className="w-1 h-1 bg-white/40 rounded-full"></span>
               {group.title}
             </h2>

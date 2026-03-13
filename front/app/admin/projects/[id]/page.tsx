@@ -88,7 +88,7 @@ export default function ProjectWorkflowsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-6">
           <button 
-            onClick={() => router.back()}
+            onClick={() => router.push('/admin/projects')}
             className="p-3 bg-white border border-slate-100 rounded-2xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all shadow-sm"
           >
             <ArrowLeft size={20} />

@@ -23,14 +23,14 @@ const CustomNode = ({ data, selected }: any) => {
   const isCompleted = stats.completed > 0 && stats.working === 0 && stats.rejected === 0;
 
   const getStyle = () => {
-    if (data.type === 'start') return 'bg-emerald-500 border-emerald-600 shadow-emerald-100';
-    if (data.type === 'end') return 'bg-rose-500 border-rose-600 shadow-rose-100';
+    if (data.type === 'start') return 'bg-emerald-50 border-emerald-100 text-emerald-700 shadow-sm';
+    if (data.type === 'end') return 'bg-rose-50 border-rose-100 text-rose-700 shadow-sm';
     
-    if (isWorking) return 'bg-amber-500 border-amber-600 shadow-amber-200 border-dashed';
-    if (isRejected) return 'bg-rose-600 border-rose-700 shadow-rose-200';
-    if (isCompleted) return 'bg-emerald-600 border-emerald-700 shadow-emerald-200';
+    if (isWorking) return 'bg-amber-50 border-amber-200 text-amber-800 border-dashed shadow-md';
+    if (isRejected) return 'bg-rose-100 border-rose-200 text-rose-800 shadow-sm';
+    if (isCompleted) return 'bg-emerald-100 border-emerald-200 text-emerald-800 shadow-sm';
     
-    return 'bg-slate-300 border-slate-400 text-slate-500 shadow-sm opacity-50'; // Global pending node
+    return 'bg-slate-50 border-slate-200 text-slate-400 shadow-none opacity-60'; // Global pending node
   };
 
   return (
@@ -51,31 +51,31 @@ const CustomNode = ({ data, selected }: any) => {
          </div>
       </div>
 
-      <div className={`px-5 py-3 rounded-2xl border-[3px] text-white font-black text-[11px] uppercase tracking-widest flex items-center gap-4 min-w-[180px] shadow-xl transition-all ${getStyle()} ${selected ? 'ring-4 ring-indigo-200 z-50' : ''} ${isWorking ? 'animate-pulse text-white' : ''}`}>
+      <div className={`px-4 py-2.5 rounded-2xl border-2 font-black text-[10px] uppercase tracking-widest flex items-center gap-3 min-w-[170px] transition-all ${getStyle()} ${selected ? 'border-indigo-400 z-50' : ''} ${isWorking ? 'animate-pulse' : ''}`}>
         <Handle type="target" position={Position.Top} className="w-2.5 h-2.5 bg-white !border-none shadow-sm" />
         
-        <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border border-white/10 ${isWorking ? 'bg-white/20' : 'bg-slate-500/20'}`}>
+        <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border border-black/5 ${isWorking ? 'bg-white' : 'bg-black/5'}`}>
           {data.type === 'start' ? 'S' : data.type === 'end' ? 'E' : data.type === 'condition' ? '?' : <Layers size={14} />}
         </div>
 
         <div className="flex flex-col">
-          <span className="truncate max-w-[110px] drop-shadow-sm">{data.label || 'Unnamed Node'}</span>
+          <span className="truncate max-w-[100px] drop-shadow-none">{data.label || 'Unnamed Node'}</span>
           {isWorking ? (
-             <span className="text-[7px] text-white/80 flex items-center gap-1 mt-0.5">
-                <Clock size={8} /> Process Active
+             <span className="text-[6px] text-amber-600 flex items-center gap-1 mt-0.5">
+                <Clock size={6} /> Active
              </span>
           ) : (
-             <span className={`text-[7px] flex items-center gap-1 mt-0.5 ${isCompleted ? 'text-white/80' : 'text-slate-400'}`}>
-                {isCompleted ? <CheckCircle2 size={10} /> : <div className="w-1 h-1 bg-slate-300 rounded-full" />}
-                {isCompleted ? 'Finished Unit' : 'Awaiting Flow'}
+             <span className={`text-[6px] flex items-center gap-1 mt-0.5 ${isCompleted ? 'text-emerald-600' : 'text-slate-400'}`}>
+                {isCompleted ? <CheckCircle2 size={8} /> : <div className="w-1 h-1 bg-slate-300 rounded-full" />}
+                {isCompleted ? 'Finished' : 'Waiting'}
              </span>
           )}
         </div>
         
         {/* Active Mini Indicators */}
         <div className="ml-auto flex flex-col gap-1">
-           {isWorking && <div className="w-2 h-2 bg-white rounded-full animate-ping group-hover:animate-none" />}
-           {!isWorking && stats.completed > 0 && <CheckCircle2 size={12} className="text-white/40" />}
+           {isWorking && <div className="w-2 h-2 bg-amber-400 rounded-full animate-ping group-hover:animate-none" />}
+           {!isWorking && stats.completed > 0 && <CheckCircle2 size={12} className="text-emerald-400" />}
         </div>
 
         <Handle type="source" position={Position.Bottom} className="w-2.5 h-2.5 bg-white !border-none shadow-sm" />
@@ -161,6 +161,8 @@ export default function VisualFlowView({ workflowId, workflow }: { workflowId: s
   const [nodes, setNodes, onNodesChange] = useNodesState(nodesWithStats);
   const [edges, setEdges, onEdgesChange] = useEdgesState(workflow?.edges || []);
 
+  const [isLocked, setIsLocked] = useState(false);
+
   // Update nodes when nodesWithStats changed
   useEffect(() => {
     setNodes(nodesWithStats);
@@ -171,7 +173,7 @@ export default function VisualFlowView({ workflowId, workflow }: { workflowId: s
   }, [workflow?.edges, setEdges]);
 
   return (
-    <div className="h-full flex flex-col space-y-8 min-h-[850px]">
+    <div className="h-full flex flex-col space-y-6">
       <div className="flex items-center justify-between shrink-0">
          <div className="space-y-1">
             <h3 className="text-xl font-black text-slate-800 tracking-tight uppercase">Architectural Logic Graph</h3>
@@ -212,10 +214,16 @@ export default function VisualFlowView({ workflowId, workflow }: { workflowId: s
             elementsSelectable={false}
             nodesDraggable={false}
             nodesConnectable={false}
-            panOnScroll
+            panOnScroll={!isLocked}
+            panOnDrag={!isLocked}
+            zoomOnScroll={!isLocked}
+            zoomOnPinch={!isLocked}
          >
             <Background color="#f1f5f9" gap={25} size={2} />
-            <Controls className="!bg-white !border-slate-100 !shadow-2xl !rounded-2xl overflow-hidden !m-6" />
+            <Controls 
+              onInteractiveChange={(interactive) => setIsLocked(!interactive)}
+              className="!bg-white !border-slate-100 !shadow-2xl !rounded-2xl overflow-hidden !m-6" 
+            />
             <MiniMap 
               className="!bg-white/80 !backdrop-blur-md !border-slate-100 !shadow-2xl !rounded-3xl !m-6" 
               nodeColor={(n) => {
@@ -225,26 +233,6 @@ export default function VisualFlowView({ workflowId, workflow }: { workflowId: s
               }} 
             />
          </ReactFlow>
-         
-         {/* Live Legend */}
-         <div className="absolute top-8 right-8 p-8 bg-slate-900 text-white rounded-[40px] border border-white/10 shadow-2xl z-10 space-y-6 min-w-[240px]">
-            <div className="flex items-center justify-between">
-               <div className="flex items-center gap-3">
-                  <Activity size={20} className="text-indigo-400" />
-                  <span className="text-[11px] font-black uppercase tracking-widest">Heatmap Feed</span>
-               </div>
-               <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-            </div>
-            <div className="space-y-3">
-               <div className="flex justify-between items-center bg-white/5 p-4 rounded-2xl border border-white/5">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Instances</span>
-                  <span className="text-xl font-black text-white">{instances.length}</span>
-               </div>
-               <div className="px-1 text-[9px] font-bold text-slate-500 italic leading-relaxed text-center">
-                  Lattice view synchronized with real-time operations. Use hover for throughput metrics.
-               </div>
-            </div>
-         </div>
       </div>
     </div>
   );

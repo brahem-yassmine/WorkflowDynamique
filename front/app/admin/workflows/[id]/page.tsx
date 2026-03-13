@@ -51,6 +51,14 @@ function WorkflowAdminDetailsContent() {
   const initialTab = searchParams.get('tab') || 'overview';
   const [activeTab, setActiveTab] = useState(initialTab);
 
+  // Sync activeTab with searchParams
+  useEffect(() => {
+    const tabFromUrl = searchParams.get('tab');
+    if (tabFromUrl && tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [searchParams, activeTab]);
+
   useEffect(() => {
     if (workflowId) {
       fetchBaseData();
@@ -130,7 +138,15 @@ function WorkflowAdminDetailsContent() {
           <div className="h-20 px-10 flex items-center justify-between">
             <div className="flex items-center gap-6">
                 <button 
-                  onClick={() => router.back()}
+                  onClick={() => {
+                    if (project?._id) {
+                      router.push(`/admin/projects/${project._id}`);
+                    } else if (workflow?.projectId) {
+                      router.push(`/admin/projects/${workflow.projectId}`);
+                    } else {
+                      router.push('/admin/workflows');
+                    }
+                  }}
                   className="w-10 h-10 bg-white hover:bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 transition-all border border-slate-100 shadow-sm active:scale-95 group"
                 >
                   <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />

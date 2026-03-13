@@ -19,22 +19,22 @@ const ActionNode = ({ data }: any) => {
     const Icon = domainIcons[data.responsibleDomain as keyof typeof domainIcons] || <ClipboardList size={8} />;
 
     return (
-        <div className="px-1 py-1 shadow-sm rounded bg-white border border-slate-200 min-w-[90px] max-w-[110px] hover:border-blue-400 transition-all">
-            <Handle type="target" position={Position.Left} className="w-1 h-1 bg-blue-500 border-none" />
+        <div className="px-2 py-1.5 shadow-lg rounded-xl bg-white border-2 border-indigo-50 min-w-[120px] hover:border-indigo-200 transition-all group">
+            <Handle type="target" position={Position.Left} className="!w-1.5 !h-1.5 !bg-indigo-300 !border-none" />
 
-            <div className="flex items-center gap-1">
-                <div className="rounded-sm w-4 h-4 flex-none flex items-center justify-center bg-slate-50 text-slate-400 border border-slate-100">
+            <div className="flex items-center gap-2">
+                <div className="rounded-lg w-6 h-6 flex-none flex items-center justify-center bg-indigo-50 text-indigo-500 border border-indigo-100 group-hover:scale-110 transition-transform">
                     {data.taskType ? (domainIcons[data.taskType as keyof typeof domainIcons] || Icon) : Icon}
                 </div>
                 <div className="flex-1 min-w-0">
-                    <div className="text-[8px] font-bold text-slate-800 leading-none truncate">{data.label || 'Task'}</div>
-                    <div className="text-[6px] text-slate-300 uppercase tracking-tighter truncate">
-                        {data.responsibleDomain || 'N/A'}
+                    <div className="text-[9px] font-black text-slate-700 leading-tight truncate uppercase tracking-tight">{data.label || 'Task'}</div>
+                    <div className="text-[6px] text-slate-400 font-bold uppercase tracking-widest mt-0.5 truncate">
+                        {data.responsibleDomain || 'Standard'}
                     </div>
                 </div>
             </div>
 
-            <Handle type="source" position={Position.Right} className="w-1 h-1 bg-blue-500 border-none" />
+            <Handle type="source" position={Position.Right} className="!w-1.5 !h-1.5 !bg-indigo-300 !border-none" />
         </div>
     );
 };

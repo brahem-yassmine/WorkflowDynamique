@@ -13,40 +13,41 @@ interface ConditionNodeProps {
 
 const ConditionNode = ({ data }: ConditionNodeProps) => {
   return (
-    <div className="px-1 py-1 shadow-sm rounded bg-white border border-amber-400 min-w-[80px] max-w-[100px]">
+    <div className="px-3 py-2 shadow-lg rounded-xl bg-amber-50 border-2 border-amber-100 min-w-[120px] group transition-all hover:border-amber-200">
       <Handle
         type="target"
         position={Position.Left}
-        className="bg-amber-400"
-        style={{ width: '4px', height: '4px' }}
+        className="!bg-amber-300 !border-none !w-1.5 !h-1.5"
       />
 
       <div className="flex flex-col">
-        <div className="text-[8px] font-bold text-slate-800 truncate">
+        <div className="text-[9px] font-black text-amber-900 uppercase tracking-widest leading-none">
           {data.label || 'Condition'}
         </div>
-        <div className="text-[6px] text-amber-600 font-medium truncate opacity-70">
-          ? {data.condition || 'No rule'}
+        <div className="text-[6px] text-amber-600/60 font-black uppercase tracking-widest mt-0.5 opacity-70">
+          ? {data.condition || 'Logic'}
         </div>
       </div>
 
-      <div className="flex flex-col gap-1 mt-1 pl-1 border-l border-slate-100">
-        <div className="flex items-center justify-between relative h-2">
-          <span className="text-[6px] font-bold text-emerald-500">Y</span>
+      <div className="flex flex-col gap-1 mt-2 pt-1.5 border-t border-amber-100/50">
+        <div className="flex items-center justify-between relative h-2.5">
+          <span className="text-[7px] font-black text-emerald-500 uppercase">Yes</span>
           <Handle
             type="source"
             position={Position.Right}
             id="yes"
-            style={{ top: '50%', background: '#10b981', width: '5px', height: '5px', border: '1px solid white', right: '-10px' }}
+            className="!bg-emerald-400 !border-none !w-1.5 !h-1.5"
+            style={{ top: '50%', right: '-3px' }}
           />
         </div>
-        <div className="flex items-center justify-between relative h-2">
-          <span className="text-[6px] font-bold text-rose-500">N</span>
+        <div className="flex items-center justify-between relative h-2.5">
+          <span className="text-[7px] font-black text-rose-500 uppercase">No</span>
           <Handle
             type="source"
             position={Position.Right}
             id="no"
-            style={{ top: '50%', background: '#ef4444', width: '5px', height: '5px', border: '1px solid white', right: '-10px' }}
+            className="!bg-rose-400 !border-none !w-1.5 !h-1.5"
+            style={{ top: '50%', right: '-3px' }}
           />
         </div>
       </div>

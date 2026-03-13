@@ -93,7 +93,15 @@ export default function WorkflowAdminDetails() {
       <aside className="w-80 bg-white border-r border-slate-100 flex flex-col shadow-xl z-20">
         <div className="p-8 border-b border-slate-50">
           <button 
-            onClick={() => router.back()}
+            onClick={() => {
+              if (project?._id) {
+                router.push(`/admin/projects/${project._id}`);
+              } else if (workflow?.projectId) {
+                router.push(`/admin/projects/${workflow.projectId}`);
+              } else {
+                router.push('/admin/workflows');
+              }
+            }}
             className="flex items-center gap-2 text-slate-400 hover:text-indigo-600 transition-colors mb-8 text-[10px] font-black uppercase tracking-[0.2em]"
           >
             <ArrowLeft size={14} />

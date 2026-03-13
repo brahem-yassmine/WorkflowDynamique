@@ -4,16 +4,17 @@ import { Play } from 'lucide-react';
 
 const StartNode = ({ data }: any) => {
     return (
-        <div className="px-1.5 py-1 shadow-sm rounded bg-white border border-green-500 min-w-[70px] max-w-[90px]">
-            <div className="flex items-center">
-                <div className="rounded-sm w-4 h-4 flex items-center justify-center bg-green-50 text-green-600 mr-1.5">
-                    <Play size={8} />
+        <div className="px-3 py-2 shadow-lg rounded-xl bg-emerald-50 border-2 border-emerald-100 min-w-[100px] group transition-all hover:border-emerald-200">
+            <div className="flex items-center gap-2">
+                <div className="rounded-lg w-6 h-6 flex items-center justify-center bg-white text-emerald-500 shadow-sm border border-emerald-100 group-hover:rotate-12 transition-transform">
+                    <Play size={8} fill="currentColor" />
                 </div>
                 <div>
-                    <div className="text-[8px] font-bold text-slate-800 uppercase tracking-tighter">{data.label || 'Start'}</div>
+                    <div className="text-[9px] font-black text-emerald-800 uppercase tracking-widest leading-none">{data.label || 'Start'}</div>
+                    <div className="text-[6px] text-emerald-600/50 font-bold uppercase tracking-tighter mt-0.5">Entry</div>
                 </div>
             </div>
-            <Handle type="source" position={Position.Right} className="bg-green-500" style={{ width: '5px', height: '5px' }} />
+            <Handle type="source" position={Position.Right} className="!bg-emerald-300 !border-none !w-1.5 !h-1.5" />
         </div>
     );
 };

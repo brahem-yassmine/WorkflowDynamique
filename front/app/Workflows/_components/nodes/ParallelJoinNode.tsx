@@ -4,36 +4,33 @@ import { Merge } from 'lucide-react';
 
 const ParallelJoinNode = ({ data }: any) => {
     return (
-        <div className="px-4 py-4 shadow-2xl rounded-[24px] bg-slate-900 border-2 border-slate-700 min-w-[140px] hover:border-indigo-500 transition-all group overflow-visible relative">
-            {/* Background Glow Effect */}
-            <div className="absolute inset-0 bg-indigo-500/10 rounded-[22px] blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
-
-            {/* 🎯 TARGET HANDLE (LEFT): Optimized for multiple incoming connections */}
+        <div className="px-4 py-3 shadow-lg rounded-[24px] bg-indigo-50 border-2 border-indigo-100 min-w-[130px] hover:border-indigo-300 transition-all group overflow-visible relative">
+            {/* 🎯 TARGET HANDLE (LEFT) */}
             <Handle
                 type="target"
                 position={Position.Left}
-                className="!w-3 !h-16 !bg-indigo-500 hover:!bg-indigo-400 !border-2 !border-slate-900 !rounded-full -left-1.5"
+                className="!w-1.5 !h-10 !bg-indigo-300 !border-none !rounded-full -left-0.5"
                 style={{ top: '50%', transform: 'translateY(-50%)', zIndex: 1000 }}
                 isConnectable={true}
             />
 
-            <div className="flex flex-col items-center gap-3 relative z-10 px-2">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 flex items-center justify-center text-indigo-400 border border-indigo-500/30 group-hover:scale-110 transition-transform shadow-lg">
-                    <Merge size={24} />
+            <div className="flex flex-col items-center gap-2 relative z-10">
+                <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-indigo-500 border border-indigo-100 group-hover:scale-110 transition-transform shadow-sm">
+                    <Merge size={16} />
                 </div>
                 <div className="text-center">
-                    <div className="text-[11px] font-black text-white uppercase tracking-widest leading-none">{data.label || 'Sync Join'}</div>
-                    <div className="text-[8px] text-slate-500 font-bold uppercase tracking-tight mt-1.5 px-2 bg-slate-800/80 py-1 rounded-md border border-slate-700">
-                        Wait for all paths
+                    <div className="text-[10px] font-black text-indigo-900 uppercase tracking-widest leading-none">{data.label || 'Sync'}</div>
+                    <div className="text-[6px] text-indigo-400 font-bold uppercase tracking-tight mt-1 px-3 py-0.5 bg-white rounded-full border border-indigo-50">
+                        Join
                     </div>
                 </div>
             </div>
 
-            {/* 🚀 SOURCE HANDLE (RIGHT): To continue the workflow */}
+            {/* 🚀 SOURCE HANDLE (RIGHT) */}
             <Handle
                 type="source"
                 position={Position.Right}
-                className="!w-4 !h-4 !bg-indigo-500 !border-2 !border-slate-900 !rounded-full -right-2 hover:scale-125 transition-transform"
+                className="!w-2.5 !h-2.5 !bg-indigo-400 !border-none !rounded-full -right-1"
                 style={{ top: '50%', transform: 'translateY(-50%)', zIndex: 1000 }}
                 isConnectable={true}
             />

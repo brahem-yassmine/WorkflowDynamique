@@ -14,17 +14,20 @@ const WorkflowArchitectContent = () => {
 
     const handleBack = () => {
         console.log('Back button clicked. Context:', { flowId, projectId });
+        
+        // If we have history to go back to, use it to avoid loops
+        if (typeof window !== 'undefined' && window.history.length > 2) {
+            router.back();
+            return;
+        }
+
+        // Fallback for direct entry or no history
         if (flowId) {
             router.push(`/admin/workflows/${flowId}?tab=visual`);
         } else if (projectId) {
             router.push(`/admin/projects/${projectId}`);
         } else {
-            console.log('No specific context, attempting history back or redirect to list');
-            if (window.history.length > 2) {
-                router.back();
-            } else {
-                router.push('/admin/workflows');
-            }
+            router.push('/admin/workflows');
         }
     };
 

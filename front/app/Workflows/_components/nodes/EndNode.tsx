@@ -4,14 +4,15 @@ import { Square } from 'lucide-react';
 
 const EndNode = ({ data }: any) => {
     return (
-        <div className="px-1.5 py-1 shadow-sm rounded bg-white border border-red-500 min-w-[70px] max-w-[90px]">
-            <Handle type="target" position={Position.Left} className="bg-red-500" style={{ width: '5px', height: '5px' }} />
-            <div className="flex items-center">
-                <div className="rounded-sm w-4 h-4 flex-center flex items-center justify-center bg-red-50 text-red-600 mr-1.5">
-                    <Square size={8} />
+        <div className="px-3 py-2 shadow-lg rounded-xl bg-rose-50 border-2 border-rose-100 min-w-[100px] group transition-all hover:border-rose-200">
+            <Handle type="target" position={Position.Left} className="!bg-rose-300 !border-none !w-1.5 !h-1.5" />
+            <div className="flex items-center gap-2">
+                <div className="rounded-lg w-6 h-6 flex items-center justify-center bg-white text-rose-500 shadow-sm border border-rose-100 group-hover:scale-90 transition-transform">
+                    <Square size={8} fill="currentColor" />
                 </div>
                 <div>
-                    <div className="text-[8px] font-bold text-slate-800 uppercase tracking-tighter">{data.label || 'End'}</div>
+                    <div className="text-[9px] font-black text-rose-800 uppercase tracking-widest leading-none">{data.label || 'End'}</div>
+                    <div className="text-[6px] text-rose-600/50 font-bold uppercase tracking-tighter mt-0.5">Exit</div>
                 </div>
             </div>
         </div>

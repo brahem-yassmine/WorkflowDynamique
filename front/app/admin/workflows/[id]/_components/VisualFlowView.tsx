@@ -51,23 +51,23 @@ const CustomNode = ({ data, selected }: any) => {
          </div>
       </div>
 
-      <div className={`px-4 py-2.5 rounded-2xl border-2 font-black text-[10px] uppercase tracking-widest flex items-center gap-3 min-w-[170px] transition-all ${getStyle()} ${selected ? 'border-indigo-400 z-50' : ''} ${isWorking ? 'animate-pulse' : ''}`}>
-        <Handle type="target" position={Position.Top} className="w-2.5 h-2.5 bg-white !border-none shadow-sm" />
+      <div className={`px-3 py-1.5 rounded-xl border-2 font-black text-[9px] uppercase tracking-widest flex items-center gap-2 min-w-[130px] transition-all ${getStyle()} ${selected ? 'border-indigo-400 z-50' : ''} ${isWorking ? 'animate-pulse' : ''}`}>
+        <Handle type="target" position={Position.Top} className="w-1.5 h-1.5 bg-white !border-none shadow-sm" />
         
-        <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border border-black/5 ${isWorking ? 'bg-white' : 'bg-black/5'}`}>
-          {data.type === 'start' ? 'S' : data.type === 'end' ? 'E' : data.type === 'condition' ? '?' : <Layers size={14} />}
+        <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 border border-black/5 ${isWorking ? 'bg-white' : 'bg-black/5'}`}>
+          {data.type === 'start' ? 'S' : data.type === 'end' ? 'E' : data.type === 'condition' ? '?' : <Layers size={12} />}
         </div>
 
         <div className="flex flex-col">
-          <span className="truncate max-w-[100px] drop-shadow-none">{data.label || 'Unnamed Node'}</span>
+          <span className="truncate max-w-[80px] drop-shadow-none">{data.label || 'Node'}</span>
           {isWorking ? (
-             <span className="text-[6px] text-amber-600 flex items-center gap-1 mt-0.5">
-                <Clock size={6} /> Active
+             <span className="text-[5px] text-amber-600 flex items-center gap-1 mt-0">
+                <Clock size={5} /> Active
              </span>
           ) : (
-             <span className={`text-[6px] flex items-center gap-1 mt-0.5 ${isCompleted ? 'text-emerald-600' : 'text-slate-400'}`}>
-                {isCompleted ? <CheckCircle2 size={8} /> : <div className="w-1 h-1 bg-slate-300 rounded-full" />}
-                {isCompleted ? 'Finished' : 'Waiting'}
+             <span className={`text-[5px] flex items-center gap-1 mt-0 ${isCompleted ? 'text-emerald-600' : 'text-slate-400'}`}>
+                {isCompleted ? <CheckCircle2 size={6} /> : <div className="w-0.5 h-0.5 bg-slate-300 rounded-full" />}
+                {isCompleted ? 'Done' : 'Wait'}
              </span>
           )}
         </div>
@@ -78,7 +78,7 @@ const CustomNode = ({ data, selected }: any) => {
            {!isWorking && stats.completed > 0 && <CheckCircle2 size={12} className="text-emerald-400" />}
         </div>
 
-        <Handle type="source" position={Position.Bottom} className="w-2.5 h-2.5 bg-white !border-none shadow-sm" />
+        <Handle type="source" position={Position.Bottom} className="w-1.5 h-1.5 bg-white !border-none shadow-sm" />
       </div>
     </div>
   );

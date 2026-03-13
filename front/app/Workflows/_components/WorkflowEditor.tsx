@@ -321,6 +321,8 @@ function WorkflowEditorContent() {
         }
     }, [nodes, edges, currentWorkflowId]);
 
+    const [isLocked, setIsLocked] = useState(false);
+
     return (
         <div className="flex flex-row h-full w-full relative">
             <Sidebar />
@@ -353,8 +355,12 @@ function WorkflowEditorContent() {
                     fitViewOptions={{ maxZoom: 1 }}
                     snapToGrid={true}
                     snapGrid={[15, 15]}
+                    panOnScroll={!isLocked}
+                    panOnDrag={!isLocked}
+                    zoomOnScroll={!isLocked}
+                    zoomOnPinch={!isLocked}
                 >
-                    <Controls />
+                    <Controls onInteractiveChange={(interactive) => setIsLocked(!interactive)} />
                     <MiniMap />
                     <Background variant={BackgroundVariant.Dots} gap={15} size={1} />
                 </ReactFlow>

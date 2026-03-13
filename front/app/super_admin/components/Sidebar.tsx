@@ -10,7 +10,9 @@ import {
   LogOut,
   X,
   Zap,
-  MessageSquare
+  MessageSquare,
+  Activity,
+  BarChart4
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
@@ -24,8 +26,10 @@ interface SidebarProps {
 const menuItems = [
   { icon: LayoutDashboard, label: "Global Dashboard", href: "/super_admin" },
   { icon: Building2, label: "Company Management", href: "/super_admin/companies" },
-  { icon: CreditCard, label: "Subscriptions & Payments", href: "/super_admin/payments" },
-  { icon: ShieldCheck, label: "Security & Logs", href: "/super_admin/security" },
+  { icon: CreditCard, label: "Payment", href: "/super_admin/payments" },
+  { icon: ShieldCheck, label: "Security", href: "/super_admin/security" },
+  { icon: Activity, label: "Log", href: "/super_admin/Log" },
+  { icon: BarChart4, label: "Statistics", href: "/super_admin/statistics" },
   { icon: MessageSquare, label: "Companies Feedback", href: "/super_admin/feedback" },
   { icon: Settings, label: "Platform Settings", href: "/super_admin/settings" },
 ];

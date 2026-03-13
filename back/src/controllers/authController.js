@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const { recordActivity } = require('../services/auditLogger');
+const LogService = require('../services/logService');
 
 // Helper to get models from a specific connection
 const getModel = (conn, modelName, factoryPath) => {
@@ -111,6 +112,7 @@ const createTenantDatabase = async (tenantId, dbName, plan, adminEmail, hashedPa
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    const logService = new LogService(req.masterDb);
 
     console.log('🔑 Login attempt:', email);
 
@@ -130,6 +132,7 @@ const login = async (req, res) => {
     // SECURITY CHECK: Only axia@gmail.com can be Super Admin
     if (user && email.toLowerCase() !== 'axia@gmail.com') {
       console.warn(`🛑 Unauthorized Super Admin login attempt: ${email}`);
+      await logService.logLoginFailed(email, req, 'Unauthorized Super Admin access attempt');
       user = null; // Important: Clear user so it fallbacks to admin/user search
     }
 
@@ -170,6 +173,7 @@ const login = async (req, res) => {
     }
 
     if (!user) {
+      await logService.logLoginFailed(email, req, 'Incorrect email or password');
       return res.status(401).json({
         success: false,
         message: 'Incorrect email or password'
@@ -179,6 +183,7 @@ const login = async (req, res) => {
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
+      await logService.logLoginFailed(email, req, 'Incorrect email or password');
       return res.status(401).json({
         success: false,
         message: 'Incorrect email or password'
@@ -221,6 +226,15 @@ const login = async (req, res) => {
       process.env.JWT_SECRET || 'your_jwt_secret',
       { expiresIn: '30d' }
     );
+
+    // Record Success Login in Master DB
+    await logService.logLoginSuccess({
+      _id: user._id,
+      email: user.email,
+      role: role,
+      firstName: user.firstName || user.name || (role === 'admin' ? user.name : 'User'),
+      lastName: user.lastName || ''
+    }, req);
 
     // 4. Record Activity & Check Subscription (if not super_admin)
     let subscriptionExpired = false;

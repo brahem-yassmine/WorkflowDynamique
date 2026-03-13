@@ -3,6 +3,9 @@ const mongoose = require('mongoose');
 class LogService {
   constructor(connection) {
     this.Log = require('../models/master/Log')(connection);
+    this.Notification = require('../models/master/Notification')(connection);
+    this.SuperAdmin = require('../models/master/SuperAdmin')(connection);
+    this.connection = connection;
   }
 
   // Success login log
@@ -32,9 +35,31 @@ class LogService {
     });
   }
 
+  // Internal helper to notify all Super Admins
+  async _notifySuperAdmins(title, message, link = '/super_admin/security') {
+    try {
+      const superAdmins = await this.SuperAdmin.find({ isActive: true });
+      const notifications = superAdmins.map(admin => ({
+        recipient: admin._id,
+        recipientModel: 'SuperAdmin',
+        title,
+        message,
+        type: 'security',
+        link,
+        read: false
+      }));
+
+      if (notifications.length > 0) {
+        await this.Notification.insertMany(notifications);
+      }
+    } catch (err) {
+      console.error('❌ Failed to broadcast security notification:', err.message);
+    }
+  }
+
   // Failed login log
   async logLoginFailed(email, req, errorMessage) {
-    return this.Log.createLog({
+    const log = await this.Log.createLog({
       userId: null,
       userEmail: email,
       userRole: 'tenant_admin',
@@ -54,6 +79,50 @@ class LogService {
       errorMessage,
       requestId: req.requestId
     });
+
+    // Notify Super Admins
+    await this._notifySuperAdmins(
+      'Security Alert: Failed Login',
+      `Suspicious attempt detected for ${email} from ${req.clientInfo.ipAddress}`
+    );
+
+    return log;
+  }
+
+  // Error log
+  async logError(user, error, req, context = {}) {
+    const log = await this.Log.createLog({
+      userId: user ? user._id : null,
+      userModel: user ? (user.role === 'super_admin' ? 'SuperAdmin' : 'Tenant') : null,
+      userEmail: user ? user.email : 'system',
+      userRole: user ? (user.role === 'super_admin' ? 'super_admin' : 'tenant_admin') : 'tenant_admin',
+      actionType: 'ERROR',
+      entityType: 'OTHER',
+      description: `Error: ${error.message}`,
+      details: {
+        context,
+        stack: error.stack
+      },
+      ipAddress: req ? req.clientInfo.ipAddress : '',
+      userAgent: req ? req.clientInfo.userAgent : '',
+      browser: req ? req.clientInfo.browser : '',
+      os: req ? req.clientInfo.os : '',
+      device: req ? req.clientInfo.device : '',
+      status: 'FAILED',
+      errorMessage: error.message,
+      errorStack: error.stack,
+      requestId: req ? req.requestId : null,
+      sessionId: req ? req.sessionID : null,
+      tenantId: user && user.role !== 'super_admin' ? user._id : null
+    });
+
+  // Notify Super Admins of system criticals
+    await this._notifySuperAdmins(
+      'System Alert: Critical Error',
+      `Unexpected error detected: ${error.message}. Check forensics for details.`
+    );
+
+    return log;
   }
 
   // Logout log
@@ -158,35 +227,6 @@ class LogService {
       tenantId: user.role !== 'super_admin' ? user._id : null
     });
   }
-
-  // Error log
-  async logError(user, error, req, context = {}) {
-    return this.Log.createLog({
-      userId: user ? user._id : null,
-      userModel: user ? (user.role === 'super_admin' ? 'SuperAdmin' : 'Tenant') : null,
-      userEmail: user ? user.email : 'system',
-      userRole: user ? (user.role === 'super_admin' ? 'super_admin' : 'tenant_admin') : 'tenant_admin',
-      actionType: 'ERROR',
-      entityType: 'OTHER',
-      description: `Error: ${error.message}`,
-      details: {
-        context,
-        stack: error.stack
-      },
-      ipAddress: req ? req.clientInfo.ipAddress : '',
-      userAgent: req ? req.clientInfo.userAgent : '',
-      browser: req ? req.clientInfo.browser : '',
-      os: req ? req.clientInfo.os : '',
-      device: req ? req.clientInfo.device : '',
-      status: 'FAILED',
-      errorMessage: error.message,
-      errorStack: error.stack,
-      requestId: req ? req.requestId : null,
-      sessionId: req ? req.sessionID : null,
-      tenantId: user && user.role !== 'super_admin' ? user._id : null
-    });
-  }
-
   // Fetch logs with filters
   async getLogs(filters = {}, page = 1, limit = 50) {
     const query = {};
@@ -259,6 +299,9 @@ class LogService {
           byStatus: [
             { $group: { _id: '$status', count: { $sum: 1 } } }
           ],
+          totalLogs: [
+            { $count: 'total' }
+          ],
           byHour: [
             {
               $group: {
@@ -268,8 +311,31 @@ class LogService {
             },
             { $sort: { _id: 1 } }
           ],
-          totalLogs: [
-            { $count: 'total' }
+          byDay: [
+            {
+              $group: {
+                _id: { $dateToString: { format: "%Y-%m-%d", date: "$timestamp" } },
+                count: { $sum: 1 }
+              }
+            },
+            { $sort: { _id: 1 } }
+          ],
+          latestLog: [
+            { $sort: { timestamp: -1 } },
+            { $limit: 1 },
+            { $project: { timestamp: 1 } }
+          ],
+          byTopActors: [
+            { $match: { actionType: { $in: ['LOGIN_FAILED', 'ERROR'] } } },
+            { $group: { _id: '$userEmail', count: { $sum: 1 }, lastIP: { $first: '$ipAddress' }, lastStatus: { $first: '$status' } } },
+            { $sort: { count: -1 } },
+            { $limit: 5 }
+          ],
+          byTopIPs: [
+            { $match: { actionType: { $in: ['LOGIN_FAILED', 'ERROR'] } } },
+            { $group: { _id: '$ipAddress', count: { $sum: 1 }, lastUser: { $first: '$userEmail' } } },
+            { $sort: { count: -1 } },
+            { $limit: 5 }
           ]
         }
       }

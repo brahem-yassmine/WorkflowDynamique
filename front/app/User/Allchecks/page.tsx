@@ -288,12 +288,22 @@ export default function AllChecklistsPage() {
                   </div>
 
                   <div className="space-y-2 flex-grow">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full ${
                         checklist.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'
                       }`}>
                         {checklist.status || 'Active'}
                       </span>
+                      {checklist.workflowId && !checklist.instanceId && (
+                        <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
+                          Workflow Template
+                        </span>
+                      )}
+                      {checklist.instanceId && (
+                        <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-amber-50 text-amber-600 border border-amber-100">
+                          Live Instance
+                        </span>
+                      )}
                     </div>
                     <h3 className="text-xl font-black text-slate-900 group-hover:text-indigo-600 transition-colors leading-tight truncate">
                       {checklist.name}
@@ -331,11 +341,11 @@ export default function AllChecklistsPage() {
 
                   <div className="mt-8 pt-6 border-t border-slate-50">
                     <Link 
-                      href={checklist.instanceId ? `/Workflows/instances/${checklist.instanceId}` : `/User/newCheck?id=${checklist._id}`}
+                      href={checklist.instanceId ? `/Workflows/instances/${checklist.instanceId}` : (checklist.workflowId ? `/admin/workflows/${checklist.workflowId}` : `/User/newCheck?id=${checklist._id}`)}
                       className="flex items-center justify-between w-full group/btn"
                     >
                       <span className="text-[11px] font-black uppercase tracking-widest text-slate-900 group-hover/btn:text-indigo-600 transition-colors">
-                        {checklist.instanceId ? "View Workflow Task" : "View Detailed Log"}
+                        {checklist.instanceId ? "View Workflow Task" : (checklist.workflowId ? "View Workflow Designer" : "View Detailed Log")}
                       </span>
                       <div className="p-2 bg-slate-50 text-slate-400 group-hover/btn:bg-indigo-600 group-hover/btn:text-white rounded-xl transition-all duration-300">
                         <ArrowRight size={18} />

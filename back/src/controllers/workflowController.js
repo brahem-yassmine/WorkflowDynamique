@@ -140,7 +140,7 @@ exports.createWorkflow = async (req, res) => {
       edges: workflowEdges,
       status: status || 'draft',
       projectId: projectId || null,
-      createdBy: req.user.id
+      createdBy: req.user.id || req.user.userId || req.user._id
     });
 
     await workflow.save();
@@ -441,7 +441,7 @@ async function _internalStartInstance(tenantConn, workflow, user, options = {}) 
 
   const instance = new WorkflowInstance({
     workflowId: workflow._id,
-    createdBy: user.id,
+    createdBy: user.id || user.userId || user._id,
     title: options.title || `Instance: ${workflow.name}`,
     description: options.description || workflow.description,
     currentNodes: finalInitialNodes,
@@ -582,25 +582,42 @@ exports.duplicateWorkflow = async (req, res) => {
  */
 async function _triggerAutomaticChecklist(req, workflow) {
   try {
+    // We only automate for admins creating templates
     if (req.user?.role !== 'admin' && req.user?.role !== 'super_admin') return;
-    const nodesToInclude = (workflow.nodes || []).filter(n => n.type === 'action' || n.type === 'condition');
+    
+    // Include actions and conditions as checklist items
+    const nodesToInclude = (workflow.nodes || []).filter(n => 
+      n.type === 'action' || n.type === 'condition' || n.type === 'task'
+    );
+    
     if (nodesToInclude.length === 0) return;
 
     const Checklist = req.tenantConn.model('Checklist');
+    
+    // Use a unique identifier or name for the template's checklist
     const checklistName = `Workflow: ${workflow.name}`;
+    
     const checklistTasks = nodesToInclude.map(n => ({
       id: n.id,
-      title: n.data?.label || (n.type === 'action' ? 'Task' : 'Condition'),
+      title: n.data?.label || (n.type === 'action' ? 'Task' : n.type === 'condition' ? 'Condition' : 'Step'),
       completed: false,
-      priority: 'medium'
+      priority: n.data?.priority || 'medium'
     }));
 
     await Checklist.findOneAndUpdate(
-      { name: checklistName },
-      { tasks: checklistTasks, description: `Tracking for ${workflow.name}`, createdBy: req.user.id },
-      { upsne: true, new: true, upsert: true }
+      { workflowId: workflow._id }, // Better to find by workflowId than name
+      { 
+        name: checklistName, 
+        tasks: checklistTasks, 
+        description: `Automated checklist for workflow "${workflow.name}"`, 
+        createdBy: req.user.id,
+        workflowId: workflow._id 
+      },
+      { new: true, upsert: true }
     );
+    
+    console.log(`✅ Automatic checklist for workflow: ${workflow.name} (ID: ${workflow._id})`);
   } catch (error) {
-    console.error('Checklist Generation Error:', error.message);
+    console.error('❌ Automatic Checklist Generation Error:', error.message);
   }
 }

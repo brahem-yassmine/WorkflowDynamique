@@ -13,35 +13,26 @@ const WorkflowArchitectContent = () => {
     const flowId = searchParams.get('id');
 
     const handleBack = () => {
-        console.log('Back button clicked. Context:', { flowId, projectId });
-        
-        // If we have history to go back to, use it to avoid loops
-        if (typeof window !== 'undefined' && window.history.length > 2) {
-            router.back();
-            return;
-        }
-
-        // Fallback for direct entry or no history
         if (flowId) {
-            router.push(`/admin/workflows/${flowId}?tab=visual`);
+            window.location.href = `/admin/workflows/${flowId}?tab=visual`;
         } else if (projectId) {
-            router.push(`/admin/projects/${projectId}`);
+            window.location.href = `/admin/projects/${projectId}`;
         } else {
-            router.push('/admin/workflows');
+            window.location.href = '/admin/workflows';
         }
     };
 
     return (
-        <div className="flex flex-col h-screen w-full bg-[#fdfdfd] overflow-hidden">
+        <div className="flex flex-col h-screen w-full bg-[#fdfdfd] overflow-hidden isolate">
             {/* Top Navigation Bar - Premium Dark Theme */}
-            <div className="bg-[#1e1b4b] px-10 py-5 flex items-center justify-between shadow-2xl z-[100] relative">
+            <div className="bg-[#1e1b4b] px-10 py-5 flex items-center justify-between shadow-[0_10px_50px_rgba(0,0,0,0.3)] z-[99999] relative">
                 {/* Visual Glow Ornament */}
-                <div className="absolute top-0 left-1/4 w-96 h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-50"></div>
+                <div className="absolute top-0 left-1/4 w-96 h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-50 pointer-events-none"></div>
                 
                 <div className="flex items-center gap-10">
                     <button
                         onClick={handleBack}
-                        className="flex items-center gap-3 px-6 py-2.5 bg-white/5 border border-white/10 rounded-2xl text-white/70 hover:text-white hover:bg-white/10 transition-all group cursor-pointer backdrop-blur-md"
+                        className="flex items-center gap-3 px-6 py-2.5 bg-white/5 border border-white/10 rounded-2xl text-white/70 hover:text-white hover:bg-white/10 transition-all group cursor-pointer backdrop-blur-md relative z-[100000] pointer-events-auto"
                     >
                         <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
                         <span className="text-[10px] font-black uppercase tracking-[0.2em] pt-0.5">Exit Architect</span>

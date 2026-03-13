@@ -83,10 +83,10 @@ exports.createInstance = async (req, res) => {
     // Create associated checklist
     const Checklist = req.tenantConn.model('Checklist');
     const checklistTasks = workflow.nodes
-      .filter(node => node.type !== 'start' && node.type !== 'end')
+      .filter(node => node.type === 'action' || node.type === 'condition' || node.type === 'task')
       .map(node => ({
         id: node.id,
-        title: node.data?.label || node.id,
+        title: node.data?.label || (node.type === 'action' ? 'Task' : node.type === 'condition' ? 'Condition' : 'Step'),
         completed: false,
         priority: node.data?.priority || 'medium'
       }));
@@ -459,7 +459,6 @@ exports.approveNode = async (req, res) => {
     await instance.save();
 
     // Update associated checklist task
-    /* 
     if (instance.checklistId) {
       try {
         const ChecklistModel = req.tenantConn.model('Checklist');
@@ -478,7 +477,6 @@ exports.approveNode = async (req, res) => {
         console.error('Checklist Sync Error:', err);
       }
     }
-    */
 
     // Notifications
     try {

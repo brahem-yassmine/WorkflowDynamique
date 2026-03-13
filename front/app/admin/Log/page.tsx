@@ -20,7 +20,7 @@ type Category = 'LOG' | 'HISTORY' | 'AUDIT';
 
 export default function LogsPage() {
     const [logs, setLogs] = useState<any[]>([]);
-    const [activeTab, setActiveTab] = useState<Category>('LOG');
+    const [activeTab, setActiveTab] = useState<Category>('HISTORY');
     const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState('');
 

@@ -96,6 +96,6 @@ router.get('/stats', requirePlan, async (req, res) => {
 });
 
 // Activity logs
-router.get('/logs', requirePlan, getActivityLogs);
+router.get('/logs', getActivityLogs);
 
 module.exports = router;

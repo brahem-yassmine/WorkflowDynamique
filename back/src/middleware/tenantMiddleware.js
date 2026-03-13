@@ -26,6 +26,10 @@ const tenantResolver = async (req, res, next) => {
 
     if (!tenantId) {
       console.warn('⚠️ [TenantResolver] No TenantID found in headers or query');
+      
+      // If it's a super_admin trying to access something without tenantId, 
+      // we might want to let it pass if the controller can handle it, 
+      // but for workflows/tasks, it will definitely crash.
       return next();
     }
 
@@ -35,23 +39,30 @@ const tenantResolver = async (req, res, next) => {
     if (req.masterDb) {
       const TenantModel = req.masterDb.model('Tenant');
       if (!mongoose.Types.ObjectId.isValid(tenantId)) {
+        console.warn(`⚠️ [TenantResolver] Invalid Tenant ID format: ${tenantId}`);
         return res.status(400).json({ success: false, message: 'Format de Tenant ID invalide' });
       }
 
       const tenant = await TenantModel.findById(tenantId);
       if (!tenant) {
+        console.warn(`⚠️ [TenantResolver] Tenant not found for ID: ${tenantId}`);
         return res.status(404).json({ success: false, message: 'Tenant non trouvé' });
       }
 
       req.tenant = tenant;
-      const tenantConn = await getTenantConnection(tenant.domain, tenant.databaseName);
-      req.tenantConn = tenantConn;
+      try {
+        const tenantConn = await getTenantConnection(tenant.domain, tenant.databaseName);
+        req.tenantConn = tenantConn;
+      } catch (connErr) {
+        console.error(`❌ [TenantResolver] Failed to connect to tenant DB:`, connErr.message);
+        return res.status(503).json({ success: false, message: 'Erreur de connexion à la base du tenant' });
+      }
     }
 
     next();
   } catch (error) {
-    console.error('❌ [TenantResolver] Error:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    console.error('❌ [TenantResolver] Critical Error:', error);
+    res.status(500).json({ success: false, message: 'Internal server error during tenant resolution' });
   }
 };
 

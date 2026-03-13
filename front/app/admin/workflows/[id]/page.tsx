@@ -123,17 +123,17 @@ function WorkflowAdminDetailsContent() {
   ];
 
   return (
-    <div className="flex flex-col h-screen bg-[#F8FAFC] overflow-hidden">
+    <div className="flex flex-col h-full bg-[#F8FAFC] overflow-hidden isolate relative">
       <Toaster position="top-right" richColors />
       
       {/* HEADER */}
-      <header className="bg-white border-b border-indigo-100 shrink-0 z-20 shadow-sm relative overflow-hidden">
+      <header className="bg-white border-b border-indigo-100 shrink-0 z-[100] shadow-sm relative">
           {/* Top accent line */}
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-600 via-blue-500 to-indigo-600 z-30" />
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-600 via-blue-500 to-indigo-600 z-30 pointer-events-none" />
           
           {/* Subtle Background Glows */}
-          <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-indigo-50/50 to-transparent -z-10" />
-          <div className="absolute top-0 left-0 w-1/4 h-full bg-gradient-to-r from-blue-50/50 to-transparent -z-10" />
+          <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-indigo-50/50 to-transparent -z-10 pointer-events-none" />
+          <div className="absolute top-0 left-0 w-1/4 h-full bg-gradient-to-r from-blue-50/50 to-transparent -z-10 pointer-events-none" />
 
           <div className="h-20 px-10 flex items-center justify-between">
             <div className="flex items-center gap-6">
@@ -182,7 +182,7 @@ function WorkflowAdminDetailsContent() {
           </div>
 
           {/* COMPACT NAVIGATION STRIP */}
-          <div className="px-10 flex items-center gap-1 overflow-x-auto no-scrollbar border-t border-slate-50 py-2 bg-slate-50/30">
+          <div className="px-10 flex items-center gap-1 overflow-x-auto no-scrollbar border-t border-slate-50 py-2 bg-slate-50/30 relative z-[101]">
              {tabs.map((tab) => (
                <button
                  key={tab.id}
@@ -193,7 +193,7 @@ function WorkflowAdminDetailsContent() {
                      setActiveTab(tab.id);
                    }
                  }}
-                 className={`px-5 py-2.5 rounded-xl transition-all flex items-center gap-3 whitespace-nowrap ${
+                  className={`px-5 py-2.5 rounded-xl transition-all flex items-center gap-3 whitespace-nowrap cursor-pointer relative z-[200] pointer-events-auto ${
                    activeTab === tab.id 
                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' 
                      : 'text-slate-400 hover:bg-white hover:text-indigo-600 hover:shadow-sm'

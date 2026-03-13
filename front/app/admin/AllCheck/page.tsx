@@ -24,6 +24,8 @@ interface Checklist {
   tasks: any[];
   status: 'draft' | 'completed';
   createdAt: string;
+  workflowId?: string;
+  instanceId?: string;
 }
 
 export default function AllChecklistsPage() {
@@ -151,6 +153,19 @@ export default function AllChecklistsPage() {
                 {checklist.name}
               </h3>
 
+              <div className="flex items-center gap-2 mb-4 flex-wrap">
+                {checklist.workflowId && !checklist.instanceId && (
+                  <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100">
+                    Workflow Template
+                  </span>
+                )}
+                {checklist.instanceId && (
+                  <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg bg-amber-50 text-amber-600 border border-amber-100">
+                    Live Instance
+                  </span>
+                )}
+              </div>
+
               <div className="flex items-center gap-4 mb-8">
                 <div className="flex flex-col">
                   <span className="text-[9px] uppercase font-black text-slate-400 tracking-[0.2em]">Tasks</span>
@@ -177,9 +192,17 @@ export default function AllChecklistsPage() {
                     <Copy size={18} />
                   </button>
                   <button
-                    onClick={() => router.push(`/checklist/designer?id=${checklist._id}`)}
+                    onClick={() => {
+                      if (checklist.instanceId) {
+                        router.push(`/Workflows/instances/${checklist.instanceId}`);
+                      } else if (checklist.workflowId) {
+                        router.push(`/admin/workflows/${checklist.workflowId}`);
+                      } else {
+                        router.push(`/checklist/designer?id=${checklist._id}`);
+                      }
+                    }}
                     className="p-2.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                    title="Edit Checklist"
+                    title={checklist.instanceId ? "View Instance" : checklist.workflowId ? "View Workflow" : "Edit Checklist"}
                   >
                     <Edit3 size={18} />
                   </button>
@@ -193,7 +216,15 @@ export default function AllChecklistsPage() {
                 </div>
 
                 <button
-                  onClick={() => router.push(`/checklist/designer?id=${checklist._id}`)}
+                  onClick={() => {
+                    if (checklist.instanceId) {
+                      router.push(`/Workflows/instances/${checklist.instanceId}`);
+                    } else if (checklist.workflowId) {
+                      router.push(`/admin/workflows/${checklist.workflowId}`);
+                    } else {
+                      router.push(`/checklist/designer?id=${checklist._id}`);
+                    }
+                  }}
                   className="w-10 h-10 bg-slate-50 text-slate-300 group-hover:bg-indigo-600 group-hover:text-white rounded-2xl flex items-center justify-center transition-all shadow-sm border border-transparent group-hover:shadow-lg group-hover:shadow-indigo-100 active:scale-90"
                 >
                   <ArrowRight size={18} />

@@ -5,7 +5,6 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { 
   Users, 
-  Activity, 
   LayoutDashboard, 
   CheckSquare, 
   GitBranch,
@@ -17,7 +16,8 @@ import {
   BarChart3,
   Search,
   LayoutGrid,
-  ClipboardList
+  ClipboardList,
+  Copy
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiService } from '@/service/api.service';
@@ -25,7 +25,6 @@ import { toast, Toaster } from 'sonner';
 
 // Sub-components
 import MembersView from './_components/MembersView';
-import OperationsView from './_components/OperationsView';
 import KanbanView from './_components/KanbanView';
 import ChecklistView from './_components/ChecklistView';
 import VisualFlowView from './_components/VisualFlowView';
@@ -79,6 +78,21 @@ function WorkflowAdminDetailsContent() {
     }
   };
 
+  const handleClone = async () => {
+    try {
+      toast.loading('Initializing cloning protocol...');
+      const res = await apiService.duplicateWorkflow(workflowId);
+      toast.dismiss();
+      if (res.success) {
+        toast.success('Unit cloned successfully. Entering modification mode...');
+        router.push(`/create-workflow?id=${res.data._id}`);
+      }
+    } catch (e) {
+      toast.dismiss();
+      toast.error('Cloning operation failed');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh] bg-slate-50 rounded-[40px]">
@@ -96,8 +110,8 @@ function WorkflowAdminDetailsContent() {
     { id: 'kanban', label: 'Kanban Boards', description: 'Manage operational tasks in a grid view', icon: <LayoutDashboard size={24} />, color: 'bg-amber-500' },
     { id: 'visual', label: 'Visual Flow', description: 'Analyze the workflow structural lattice', icon: <GitBranch size={24} />, color: 'bg-indigo-500' },
     { id: 'members', label: 'Team Members', description: 'Manage personnel assigned to this unit', icon: <Users size={24} />, color: 'bg-fuchsia-500' },
-    { id: 'operations', label: 'Live Operations', description: 'Track real-time execution instances', icon: <Activity size={24} />, color: 'bg-rose-500' },
     { id: 'checklist', label: 'Checklists', description: 'Verify standard operational procedures', icon: <CheckSquare size={24} />, color: 'bg-slate-500' },
+    { id: 'architect', label: 'Architect', description: 'Modify structural lattice', icon: <GitBranch size={24} />, color: 'bg-indigo-600' },
   ];
 
   return (
@@ -105,19 +119,27 @@ function WorkflowAdminDetailsContent() {
       <Toaster position="top-right" richColors />
       
       {/* HEADER */}
-      <header className="bg-white border-b border-slate-200 shrink-0 z-10 shadow-sm">
+      <header className="bg-white border-b border-indigo-100 shrink-0 z-20 shadow-sm relative overflow-hidden">
+          {/* Top accent line */}
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-600 via-blue-500 to-indigo-600 z-30" />
+          
+          {/* Subtle Background Glows */}
+          <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-indigo-50/50 to-transparent -z-10" />
+          <div className="absolute top-0 left-0 w-1/4 h-full bg-gradient-to-r from-blue-50/50 to-transparent -z-10" />
+
           <div className="h-20 px-10 flex items-center justify-between">
             <div className="flex items-center gap-6">
                 <button 
                   onClick={() => router.back()}
-                  className="w-10 h-10 bg-slate-50 hover:bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 transition-all border border-slate-100 shadow-sm active:scale-95 group"
+                  className="w-10 h-10 bg-white hover:bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 transition-all border border-slate-100 shadow-sm active:scale-95 group"
                 >
                   <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
                 </button>
                 
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-100">
-                      <Layers size={20} />
+                  <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-100 relative group/icon">
+                      <div className="absolute inset-0 bg-indigo-400 blur-lg opacity-0 group-hover/icon:opacity-40 transition-opacity" />
+                      <Layers size={20} className="relative z-10" />
                   </div>
                   <div>
                       <h1 className="text-lg font-black text-slate-800 tracking-tight uppercase leading-none">
@@ -134,25 +156,31 @@ function WorkflowAdminDetailsContent() {
 
             <div className="flex items-center gap-3">
                <button 
-                 onClick={() => router.push(`/create-workflow?id=${workflowId}`)}
-                 className="px-6 py-2.5 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-[0.2em] hover:bg-slate-800 shadow-xl transition-all active:scale-95 flex items-center gap-2"
+                 onClick={handleClone}
+                 className="px-6 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] hover:bg-slate-50 hover:border-indigo-200 shadow-sm transition-all active:scale-95 flex items-center gap-2 group"
                >
-                 <GitBranch size={14} />
-                 Architect
+                 <Copy size={14} className="group-hover:rotate-12 transition-transform text-indigo-500" />
+                 Clone Protocol
                </button>
             </div>
           </div>
 
           {/* COMPACT NAVIGATION STRIP */}
-          <div className="px-10 flex items-center gap-1 overflow-x-auto no-scrollbar border-t border-slate-50 py-2 bg-white/50">
+          <div className="px-10 flex items-center gap-1 overflow-x-auto no-scrollbar border-t border-slate-50 py-2 bg-slate-50/30">
              {tabs.map((tab) => (
                <button
                  key={tab.id}
-                 onClick={() => setActiveTab(tab.id)}
+                 onClick={() => {
+                   if (tab.id === 'architect') {
+                     router.push(`/create-workflow?id=${workflowId}`);
+                   } else {
+                     setActiveTab(tab.id);
+                   }
+                 }}
                  className={`px-5 py-2.5 rounded-xl transition-all flex items-center gap-3 whitespace-nowrap ${
                    activeTab === tab.id 
                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' 
-                     : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'
+                     : 'text-slate-400 hover:bg-white hover:text-indigo-600 hover:shadow-sm'
                  }`}
                >
                  <div className={`${activeTab === tab.id ? 'text-white' : 'text-slate-400'}`}>
@@ -179,7 +207,6 @@ function WorkflowAdminDetailsContent() {
                {activeTab === 'overview' && <DashboardView workflowId={workflowId} />}
                {activeTab === 'taskLog' && <TaskLogView workflowId={workflowId} />}
                {activeTab === 'members' && <MembersView workflowId={workflowId} />}
-               {activeTab === 'operations' && <OperationsView workflowId={workflowId} />}
                {activeTab === 'kanban' && <KanbanView workflowId={workflowId} />}
                {activeTab === 'checklist' && <ChecklistView workflowId={workflowId} />}
                {activeTab === 'visual' && <VisualFlowView workflowId={workflowId} workflow={workflow} />}

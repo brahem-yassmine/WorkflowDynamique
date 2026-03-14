@@ -13,7 +13,23 @@ export default function SuperAdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1024) {
+        setIsSidebarOpen(false);
+      } else {
+        setIsSidebarOpen(true);
+      }
+    };
+    
+    // Set initial state
+    handleResize();
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
   const { user, loading } = useUser();
   const router = useRouter();
 
@@ -31,9 +47,8 @@ export default function SuperAdminLayout({
 
       {/* Sidebar with responsive behavior */}
       <div className={`
-        fixed inset-y-0 left-0 z-50 transform bg-indigo-700 transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0
-        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-        w-64 flex-none
+        fixed inset-y-0 left-0 z-50 bg-indigo-700 transition-all duration-300 ease-in-out lg:relative flex-none
+        ${isSidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0 lg:-ml-64 w-64'}
       `}>
         <Sidebar isOpen={isSidebarOpen} toggle={toggleSidebar} />
         {/* Mobile Close Button Overlay */}
@@ -55,17 +70,6 @@ export default function SuperAdminLayout({
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
-        {/* Mobile Navbar Header */}
-        <div className="lg:hidden h-16 bg-white border-b border-slate-100 px-6 flex items-center justify-between shadow-sm flex-none">
-          <button
-            onClick={() => setIsSidebarOpen(true)}
-            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-          >
-            <MenuIcon />
-          </button>
-          <span className="text-sm font-extrabold text-slate-800 tracking-tighter uppercase">Super Admin</span>
-        </div>
-
         {/* Desktop/Common Header */}
         <Header toggleSidebar={toggleSidebar} />
 

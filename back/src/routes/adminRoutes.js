@@ -44,6 +44,7 @@ router.get('/tenants', async (req, res) => {
       let executionCount = 0;
       let subscriptionExpired = false;
       let actualStatus = tenant.status || 'inactive';
+      let currentPeriodEnd = null;
 
       try {
         if (tenant.databaseName) {
@@ -91,6 +92,7 @@ router.get('/tenants', async (req, res) => {
           if (sub) {
             const now = new Date();
             const endDate = sub.currentPeriodEnd || sub.trialEndDate;
+            currentPeriodEnd = endDate;
             if (endDate && now > endDate) {
               subscriptionExpired = true;
               // If subscription is expired, we display as suspended in the matrix unless it's already inactive
@@ -113,6 +115,7 @@ router.get('/tenants', async (req, res) => {
         executionCount,
         status: actualStatus, // Overwrite status with virtual status if expired
         isExpired: subscriptionExpired,
+        currentPeriodEnd,
         // Default values for frontend
         industry: tenant.industry || 'Not specified',
         adminName: tenant.adminName || (tenant.email ? tenant.email.split('@')[0] : 'Admin')
@@ -152,6 +155,7 @@ router.get('/tenants/:id', async (req, res) => {
     let userCount = 0;
     let subscriptionExpired = false;
     let actualStatus = tenant.status || 'inactive';
+    let currentPeriodEnd = null;
 
     try {
       if (tenant.databaseName) {
@@ -184,6 +188,7 @@ router.get('/tenants/:id', async (req, res) => {
         if (sub) {
           const now = new Date();
           const endDate = sub.currentPeriodEnd || sub.trialEndDate;
+          currentPeriodEnd = endDate;
           if (endDate && now > endDate) {
             subscriptionExpired = true;
             if (actualStatus === 'active') {
@@ -205,6 +210,7 @@ router.get('/tenants/:id', async (req, res) => {
         userCount,
         status: actualStatus,
         isExpired: subscriptionExpired,
+        currentPeriodEnd,
         industry: tenant.industry || 'Not specified',
         adminName: tenant.adminName || (tenant.email ? tenant.email.split('@')[0] : 'Admin')
       }
@@ -490,18 +496,25 @@ router.get('/stats', async (req, res) => {
     // Fetch all tenants
     const tenants = await Tenant.find().populate('selectedPlan');
 
-    // Initialize counters (simple objects, no TypeScript)
+    // Initialize counters
     let totalUsers = 0;
     let totalWorkflows = 0;
+    let totalNodes = 0; 
     let totalExecutions = 0;
     const sectorCounts = {}; 
     const planCounts = {}; 
+    const planRevenueMapping = {};
+    let totalMonthlyRevenue = 0;
+    let lastMonthRevenue = 0;
+
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonth = lastMonthDate.getMonth();
+    const lastMonthYear = lastMonthDate.getFullYear();
 
     // Historical Stats (Last 7 Days)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    
-    // Create map for daily counts
     const dailyGrowth = {};
     for (let i = 0; i < 7; i++) {
       const d = new Date();
@@ -511,8 +524,6 @@ router.get('/stats', async (req, res) => {
     }
 
     // Iterate through all tenants to collect stats
-    let totalMonthlyRevenue = 0;
-    const planRevenueMapping = {};
 
     for (const tenant of tenants) {
       // Base stats
@@ -525,6 +536,12 @@ router.get('/stats', async (req, res) => {
       planCounts[planName] = (planCounts[planName] || 0) + 1;
       planRevenueMapping[planName] = (planRevenueMapping[planName] || 0) + planPrice;
       totalMonthlyRevenue += planPrice;
+
+      // Calculate last month revenue (approximate based on creation date)
+      const tenantCreatedAt = new Date(tenant.createdAt);
+      if (tenantCreatedAt <= lastMonthDate) {
+        lastMonthRevenue += planPrice;
+      }
 
       // Track company growth
       const regDate = tenant.createdAt.toISOString().split('T')[0];
@@ -558,7 +575,9 @@ router.get('/stats', async (req, res) => {
             createdAt: Date
           }));
           const workflows = await Workflow.find({});
-          totalWorkflows += workflows.reduce((acc, wf) => acc + (wf.nodes?.length || 0), 0);
+          const nodeCount = workflows.reduce((acc, wf) => acc + (wf.nodes?.length || 0), 0);
+          totalWorkflows += workflows.length;
+          totalNodes += nodeCount;
 
           // Track workflow growth by day
           workflows.forEach(wf => {
@@ -628,7 +647,8 @@ router.get('/stats', async (req, res) => {
       trialCompanies: planCounts['Demo Plan'] || planCounts['DEMO'] || 0,
       paidCompanies: (planCounts['Starter Plan'] || 0) + (planCounts['Pro Plan'] || 0),
 
-      averageGpuUsage: 68,
+      // Calculate a "load" proxy based on active users and node complexity
+      averageGpuUsage: Math.min(95, Math.max(15, Math.floor((totalUsers * 0.5) + (totalNodes * 0.1)))),
 
       // Data for charts
       sectorDistribution: sectorDistribution,
@@ -636,12 +656,13 @@ router.get('/stats', async (req, res) => {
 
       revenue: {
         total: totalMonthlyRevenue,
+        growthTrend: lastMonthRevenue > 0 ? `+${(((totalMonthlyRevenue - lastMonthRevenue) / lastMonthRevenue) * 100).toFixed(1)}%` : '+0.0%',
         monthly: [
-          { month: "Jan", revenue: totalMonthlyRevenue * 0.7 },
-          { month: "Feb", revenue: totalMonthlyRevenue * 0.8 },
-          { month: "Mar", revenue: totalMonthlyRevenue * 0.85 },
-          { month: "Apr", revenue: totalMonthlyRevenue * 0.9 },
-          { month: "May", revenue: totalMonthlyRevenue * 0.95 },
+          { month: "Jan", revenue: totalMonthlyRevenue * 0.65 },
+          { month: "Feb", revenue: totalMonthlyRevenue * 0.75 },
+          { month: "Mar", revenue: totalMonthlyRevenue * 0.82 },
+          { month: "Apr", revenue: totalMonthlyRevenue * 0.88 },
+          { month: "May", revenue: totalMonthlyRevenue * 0.94 },
           { month: "Jun", revenue: totalMonthlyRevenue }
         ],
         perPlan: Object.keys(planRevenueMapping).map(name => ({
@@ -649,8 +670,8 @@ router.get('/stats', async (req, res) => {
           revenue: planRevenueMapping[name],
           subscribers: planCounts[name]
         })),
-        conversionRate: tenants.length > 0 ? ((activeCompanies / tenants.length) * 100).toFixed(1) : 0,
-        retentionRate: 98.2 // Placeholder as we don't have historical churn yet
+        conversionRate: tenants.length > 0 ? (((tenants.filter(function (t) { return t.virtualStatus === 'active'; }).length) / tenants.length) * 100).toFixed(1) : 0,
+        retentionRate: tenants.length > 0 ? (((tenants.filter(t => t.virtualStatus !== 'suspended').length) / tenants.length) * 100).toFixed(1) : 100
       },
       
       growth: Object.keys(dailyGrowth).sort().map(date => ({

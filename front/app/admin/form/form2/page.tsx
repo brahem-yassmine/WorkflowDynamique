@@ -19,7 +19,7 @@ const FIELD_ICONS: Record<string, any> = {
   signature: PenTool, checkbox: CheckSquare
 };
 
-export default function Form2Page() {
+const Form2PageContent = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
   const instanceId = searchParams.get('instanceId');
@@ -135,7 +135,7 @@ export default function Form2Page() {
         
         // Dynamic redirection based on context
         if (designerWorkflowId) {
-          router.push(`/admin/create_workflows?id=${designerWorkflowId}`);
+          router.push(`/create-workflow?id=${designerWorkflowId}`);
         } else if (instanceId === 'new') {
           router.push(`/Workflows/instances/new?workflowId=${workflowId}`);
         } else if (instanceId) {
@@ -266,7 +266,11 @@ export default function Form2Page() {
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link
-              href="/admin/AllForms"
+              href={
+                designerWorkflowId ? `/create-workflow?id=${designerWorkflowId}` :
+                (instanceId === 'new' ? `/Workflows/instances/new?workflowId=${workflowId}` :
+                (instanceId && instanceId !== 'new' ? `/Workflows/instances/${instanceId}` : "/admin/AllForms"))
+              }
               className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -464,5 +468,13 @@ export default function Form2Page() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function Form2Page() {
+  return (
+    <React.Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center">Loading form...</div>}>
+      <Form2PageContent />
+    </React.Suspense>
   );
 }

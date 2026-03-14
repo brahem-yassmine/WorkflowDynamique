@@ -58,6 +58,7 @@ const getId = (type: string) => `node_${type}_${Date.now()}_${Math.floor(Math.ra
 function WorkflowEditorContent() {
     const searchParams = useSearchParams();
     const workflowId = searchParams.get('id');
+    const designerNodeId = searchParams.get('designerNodeId');
     const reactFlowWrapper = useRef<HTMLDivElement>(null);
     const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -142,6 +143,19 @@ function WorkflowEditorContent() {
         };
         loadWorkflow();
     }, [workflowId, setNodes, setEdges]);
+
+    // 2. Auto-select Node Return Logic
+    useEffect(() => {
+        if (designerNodeId && nodes.length > 0) {
+            const nodeToSelect = nodes.find(n => n.id === designerNodeId);
+            if (nodeToSelect) {
+                console.log('[Designer] Auto-selecting node from redirect:', designerNodeId);
+                setSelectedNode(nodeToSelect);
+                // Optionally remove the query param so refresh doesn't keep selecting it
+                window.history.replaceState({}, '', `/create-workflow?id=${workflowId || ''}`);
+            }
+        }
+    }, [designerNodeId, nodes.length]);
 
     // Mark as dirty when nodes/edges change (after initial load) + persist draft to localStorage
     const isFirstRender = useRef(true);

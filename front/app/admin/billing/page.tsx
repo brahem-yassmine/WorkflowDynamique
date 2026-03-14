@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
     CreditCard,
@@ -87,7 +87,7 @@ const FISCAL_DATA = [
     { month: 'Mar', amount: 7200 },
 ];
 
-export default function BillingPage() {
+function BillingPageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const upgradeRequest = searchParams.get('upgrade') as PlanType;
@@ -827,5 +827,12 @@ function StatsLedger({ label, value, trend, icon, color = "text-indigo-600" }: {
                 </div>
             </div>
         </div>
+    );
+}
+export default function BillingPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center p-8 bg-slate-50 relative overflow-hidden font-black text-indigo-600 uppercase tracking-widest text-[10px]">Loading Fiscal Protocol...</div>}>
+            <BillingPageContent />
+        </Suspense>
     );
 }

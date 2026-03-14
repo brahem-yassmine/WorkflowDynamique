@@ -19,7 +19,7 @@ const FIELD_ICONS: Record<string, any> = {
   signature: PenTool, checkbox: CheckSquare
 };
 
-export default function Form2Page() {
+const Form2PageContent = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
   const instanceId = searchParams.get('instanceId');
@@ -469,5 +469,13 @@ export default function Form2Page() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function Form2Page() {
+  return (
+    <React.Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center">Loading form...</div>}>
+      <Form2PageContent />
+    </React.Suspense>
   );
 }

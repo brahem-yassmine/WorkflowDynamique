@@ -135,7 +135,14 @@ export default function AllChecklistsPage() {
           {filteredChecklists.map((checklist) => (
             <div
               key={checklist._id}
-              className="group bg-white rounded-[32px] border border-slate-100 p-6 hover:shadow-2xl hover:shadow-indigo-500/10 hover:border-indigo-100 transition-all relative overflow-hidden flex flex-col"
+              onClick={() => {
+                if (checklist.instanceId) {
+                  router.push(`/Workflows/instances/${checklist.instanceId}`);
+                } else {
+                  router.push(`/checklist/designer?id=${checklist._id}`);
+                }
+              }}
+              className="cursor-pointer group bg-white rounded-[32px] border border-slate-100 p-6 hover:shadow-2xl hover:shadow-indigo-500/10 hover:border-indigo-100 transition-all relative overflow-hidden flex flex-col"
             >
               <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
 
@@ -185,29 +192,35 @@ export default function AllChecklistsPage() {
               <div className="flex items-center justify-between mt-auto pt-5 border-t border-slate-50">
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={() => handleClone(checklist._id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleClone(checklist._id);
+                    }}
                     className="p-2.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
                     title="Clone Checklist"
                   >
                     <Copy size={18} />
                   </button>
                   <button
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       if (checklist.instanceId) {
                         router.push(`/Workflows/instances/${checklist.instanceId}`);
-                      } else if (checklist.workflowId) {
-                        router.push(`/admin/workflows/${checklist.workflowId}`);
                       } else {
+                        // Always go to checklist designer for templates, even if it has a workflowId
                         router.push(`/checklist/designer?id=${checklist._id}`);
                       }
                     }}
                     className="p-2.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                    title={checklist.instanceId ? "View Instance" : checklist.workflowId ? "View Workflow" : "Edit Checklist"}
+                    title={checklist.instanceId ? "View Instance" : "Edit Checklist"}
                   >
                     <Edit3 size={18} />
                   </button>
                   <button
-                    onClick={() => handleDelete(checklist._id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(checklist._id);
+                    }}
                     className="p-2.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
                     title="Delete Checklist"
                   >
@@ -216,11 +229,13 @@ export default function AllChecklistsPage() {
                 </div>
 
                 <button
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     if (checklist.instanceId) {
                       router.push(`/Workflows/instances/${checklist.instanceId}`);
                     } else if (checklist.workflowId) {
-                      router.push(`/admin/workflows/${checklist.workflowId}`);
+                       // If clicking the arrow, go to the workflow dashboard/designer if it has one
+                      router.push(`/create-workflow?id=${checklist.workflowId}`);
                     } else {
                       router.push(`/checklist/designer?id=${checklist._id}`);
                     }

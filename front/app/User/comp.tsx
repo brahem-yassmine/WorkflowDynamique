@@ -19,8 +19,6 @@ import {
 function UserSidebar() {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const isDesignMode = searchParams.get('mode') === 'design';
 
   const handleLogout = () => {
     try {

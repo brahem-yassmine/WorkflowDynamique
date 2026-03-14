@@ -2,8 +2,8 @@
 
 const API_URL = 'http://localhost:5000/api';
 
-import React, { useState, useEffect } from 'react';
-import { DndContext, closestCenter, DragEndEvent, useSensor, useSensors, PointerSensor, KeyboardSensor } from '@dnd-kit/core';
+import React, { useState, useEffect, Suspense } from 'react';
+import { DndContext, closestCenter, DragEndEvent, useSensor, useSensors, PointerSensor, KeyboardSensor, useDraggable, useDroppable } from '@dnd-kit/core';
 import { arrayMove, SortableContext, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
@@ -84,6 +84,53 @@ const PREVIEWS: Record<string, (f: any) => React.ReactNode> = {
   ),
   default: (f) => <input type="text" className="w-full p-3 border-2 border-gray-100 rounded-xl text-sm bg-gray-50 text-gray-400 cursor-not-allowed" placeholder={f.placeholder || `Enter ${f.type}...`} readOnly />
 };
+
+function DraggableFieldType({ type, addField }: any) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `draggable-type-${type.id}`,
+    data: { type: 'field-type', fieldData: type }
+  });
+
+  return (
+    <button
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      className={`flex items-center gap-4 p-4 border-2 border-slate-50 rounded-2xl cursor-grab hover:border-indigo-100 hover:bg-indigo-50/30 text-left group transition-all ${isDragging ? 'opacity-50 ring-2 ring-indigo-500' : ''}`}
+    >
+      <div className="p-2 bg-white rounded-xl shadow-sm text-slate-400 group-hover:text-indigo-600 transition-colors pointer-events-none">
+        <type.icon className="w-4 h-4" />
+      </div>
+      <div className="flex flex-col pointer-events-none">
+        <span className="text-xs font-black text-slate-700 uppercase tracking-wide leading-none">{type.label}</span>
+        <span className="text-[9px] text-slate-400 font-bold mt-1 tracking-tight">{type.description}</span>
+      </div>
+    </button>
+  );
+}
+
+function DroppableCanvas({ currentStep, renderFields }: any) {
+  const { isOver, setNodeRef } = useDroppable({
+    id: 'droppable-canvas',
+    data: { type: 'canvas' }
+  });
+
+  return (
+    <div ref={setNodeRef} className={`w-full h-full min-h-[500px] rounded-3xl transition-all ${isOver ? 'bg-indigo-50/50 ring-4 ring-indigo-500/20' : ''}`}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-2 min-h-[100px]">
+        {renderFields()}
+      </div>
+      {currentStep.fields.length === 0 && (
+        <div className="h-64 mt-4 border-4 border-dashed border-slate-50 rounded-[40px] flex flex-col items-center justify-center text-slate-300 gap-4 group hover:border-indigo-100 hover:bg-indigo-50/10 transition-all pointer-events-none">
+          <div className="p-4 bg-white rounded-[24px] shadow-xl shadow-slate-100 group-hover:scale-110 transition-transform">
+             <Plus size={32} />
+          </div>
+          <p className="font-black text-[10px] uppercase tracking-[0.3em]">Drop components here</p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function SortableField({ field, onUpdate, onRemove, isAlone }: any) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id });
@@ -182,7 +229,7 @@ interface Step {
   status: 'pending' | 'approved' | 'rejected';
 }
 
-export default function FormBuilder() {
+function FormBuilderContent() {
   const [steps, setSteps] = useState<Step[]>([{ id: 'step-1', title: 'New Step', fields: [], status: 'pending' }]);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
@@ -196,6 +243,7 @@ export default function FormBuilder() {
   const from = searchParams.get('from');
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
   const designerWorkflowId = searchParams.get('designerWorkflowId');
+  const designerNodeId = searchParams.get('designerNodeId');
   const fromWorkflow = searchParams.get('fromWorkflow');
   const currentStep = steps[currentStepIndex];
 
@@ -221,8 +269,20 @@ export default function FormBuilder() {
     }
   };
 
-  const handleDragEnd = ({ active, over }: DragEndEvent) => {
-    if (active.id !== over?.id) {
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    // Dropped a new field type from sidebar
+    if (active.data.current?.type === 'field-type') {
+      const type = active.data.current?.fieldData;
+      if (type && over) {
+         addField(type);
+      }
+      return;
+    }
+
+    // Reordering existing fields
+    if (active.id !== over?.id && over) {
       setSteps(prev => prev.map((s, i) => i === currentStepIndex ? { ...s, fields: arrayMove(s.fields, s.fields.findIndex((f: any) => f.id === active.id), s.fields.findIndex((f: any) => f.id === over?.id)) } : s));
     }
   };
@@ -262,14 +322,16 @@ export default function FormBuilder() {
         }
 
         if (shouldNavigate && newId) {
-          const targetPage = from === 'user' ? '/form/form2' : '/form/form3';
-          let redirectUrl = `${targetPage}?id=${newId}${from === 'user' ? '&from=user' : ''}`;
+          const targetPage = from === 'user' ? '/User/form/form2' : (from === 'admin' ? '/admin/form/form2' : '/form/form2');
+          let redirectUrl = `${targetPage}?id=${newId}${from ? `&from=${from}` : ''}`;
           if (designerWorkflowId) redirectUrl += `&designerWorkflowId=${designerWorkflowId}`;
+          if (designerNodeId) redirectUrl += `&designerNodeId=${designerNodeId}`;
           if (fromWorkflow) redirectUrl += `&fromWorkflow=true`;
           router.push(redirectUrl);
         } else if (!formId && res.data?._id) {
-          let redirectUrl = `/form?id=${res.data._id}${from === 'user' ? '&from=user' : ''}`;
+          let redirectUrl = `/form?id=${res.data._id}${from ? `&from=${from}` : ''}`;
           if (designerWorkflowId) redirectUrl += `&designerWorkflowId=${designerWorkflowId}`;
+          if (designerNodeId) redirectUrl += `&designerNodeId=${designerNodeId}`;
           if (fromWorkflow) redirectUrl += `&fromWorkflow=true`;
           router.push(redirectUrl, { scroll: false });
         }
@@ -316,8 +378,8 @@ export default function FormBuilder() {
           <div className="flex items-center gap-4 w-full sm:w-auto">
             <Link 
               href={
-                designerWorkflowId ? `${from === 'admin' ? '/admin' : '/User'}/create_workflows?id=${designerWorkflowId}` : 
-                (fromWorkflow ? `${from === 'admin' ? '/admin' : '/User'}/create_workflows` : 
+                designerWorkflowId ? `/create-workflow?id=${designerWorkflowId}${designerNodeId ? `&designerNodeId=${designerNodeId}` : ''}` : 
+                (fromWorkflow ? `/create-workflow` : 
                 (from === 'user' ? "/User/Allforms" : "/admin/AllForms"))
               } 
               className="p-2 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
@@ -350,7 +412,7 @@ export default function FormBuilder() {
           <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
             { (designerWorkflowId || fromWorkflow) && (
               <Link
-                href={`${from === 'admin' ? '/admin' : '/User'}/create_workflows${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}`}
+                href={`/create-workflow${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}${designerNodeId ? `&designerNodeId=${designerNodeId}` : (designerWorkflowId ? '' : `?designerNodeId=${designerNodeId}`)}`}
                 className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white/10 text-white rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-white/20 transition-all border border-white/10 active:scale-95"
               >
                 Back to Workflow
@@ -401,19 +463,7 @@ export default function FormBuilder() {
               
               <div className="grid grid-cols-1 gap-3">
                 {FIELD_TYPES.map(t => (
-                  <button
-                    key={t.id}
-                    onClick={() => addField(t)}
-                    className="flex items-center gap-4 p-4 border-2 border-slate-50 rounded-2xl cursor-pointer hover:border-indigo-100 hover:bg-indigo-50/30 text-left group transition-all"
-                  >
-                    <div className="p-2 bg-white rounded-xl shadow-sm text-slate-400 group-hover:text-indigo-600 transition-colors">
-                      <t.icon className="w-4 h-4" />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-xs font-black text-slate-700 uppercase tracking-wide leading-none">{t.label}</span>
-                      <span className="text-[9px] text-slate-400 font-bold mt-1 tracking-tight">{t.description}</span>
-                    </div>
-                  </button>
+                  <DraggableFieldType key={t.id} type={t} addField={addField} />
                 ))}
               </div>
             </div>
@@ -440,20 +490,10 @@ export default function FormBuilder() {
               </div>
             </div>
 
-            <div className="p-8 min-h-[500px]" onDragOver={e => e.preventDefault()} onDrop={e => { const t = FIELD_TYPES.find(f => f.id === e.dataTransfer.getData('text')); if (t) addField(t); }}>
+            <div className="p-8 min-h-[500px]">
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={currentStep.fields.map((f: any) => f.id)} strategy={rectSortingStrategy}>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {renderFields()}
-                    {currentStep.fields.length === 0 && (
-                      <div className="col-span-2 h-64 border-4 border-dashed border-slate-50 rounded-[40px] flex flex-col items-center justify-center text-slate-300 gap-4 group hover:border-indigo-100 hover:bg-indigo-50/10 transition-all">
-                        <div className="p-4 bg-white rounded-[24px] shadow-xl shadow-slate-100 group-hover:scale-110 transition-transform">
-                          <Plus size={32} />
-                        </div>
-                        <p className="font-black text-[10px] uppercase tracking-[0.3em]">Drop components here</p>
-                      </div>
-                    )}
-                  </div>
+                  <DroppableCanvas currentStep={currentStep} renderFields={renderFields} />
                 </SortableContext>
               </DndContext>
             </div>
@@ -461,5 +501,13 @@ export default function FormBuilder() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function FormBuilder() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center text-indigo-600 font-bold uppercase tracking-widest text-xs">Loading Builder Protocol...</div>}>
+      <FormBuilderContent />
+    </Suspense>
   );
 }

@@ -610,7 +610,7 @@ async function _triggerAutomaticChecklist(req, workflow) {
         name: checklistName, 
         tasks: checklistTasks, 
         description: `Automated checklist for workflow "${workflow.name}"`, 
-        createdBy: req.user.id,
+        createdBy: req.user.id || req.user.userId || req.user._id,
         workflowId: workflow._id 
       },
       { new: true, upsert: true }

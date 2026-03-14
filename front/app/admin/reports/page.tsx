@@ -21,6 +21,7 @@ interface Report {
   priority: string;
   status: string;
   response?: string;
+  respondedAt?: string;
   createdAt: string;
 }
 
@@ -90,8 +91,9 @@ export default function ReportsPage() {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'pending': return <Clock size={16} className="text-amber-500" />;
-      case 'in_review': return <AlertCircle size={16} className="text-blue-500" />;
+      case 'in_review': return <MessageSquare size={16} className="text-blue-500" />;
       case 'resolved': return <CheckCircle2 size={16} className="text-emerald-500" />;
+      case 'closed': return <AlertCircle size={16} className="text-slate-500" />;
       default: return <LifeBuoy size={16} className="text-slate-400" />;
     }
   };
@@ -100,7 +102,8 @@ export default function ReportsPage() {
     switch (priority) {
       case 'urgent': return 'bg-red-500/10 text-red-500 border-red-500/20';
       case 'high': return 'bg-orange-500/10 text-orange-500 border-orange-500/20';
-      case 'medium': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
+      case 'medium': return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
+      case 'low': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
       default: return 'bg-slate-500/10 text-slate-500 border-slate-500/20';
     }
   };
@@ -270,7 +273,12 @@ export default function ReportsPage() {
 
                       {report.response && (
                         <div className="bg-indigo-50 rounded-2xl p-4 border border-indigo-100">
-                          <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest block mb-1">Reply from Admin</span>
+                          <div className="flex justify-between items-start mb-1">
+                            <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest block">Reply from Admin</span>
+                            {report.respondedAt && (
+                                <span className="text-[9px] font-bold text-indigo-300">{new Date(report.respondedAt).toLocaleDateString()}</span>
+                            )}
+                          </div>
                           <p className="text-xs font-medium text-slate-700 italic">"{report.response}"</p>
                         </div>
                       )}

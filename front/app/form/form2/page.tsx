@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import {
   FileText, Type, Hash, Calendar, CheckSquare, PenTool, AlignLeft, List,
   ArrowLeft, Send, CheckCircle2, Clock, Mail, Phone, Trash2
@@ -18,7 +18,7 @@ const FIELD_ICONS: Record<string, any> = {
   signature: PenTool, checkbox: CheckSquare
 };
 
-export default function Form2Page() {
+function Form2PageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const instanceId = searchParams.get('instanceId');
@@ -27,6 +27,7 @@ export default function Form2Page() {
   const formId = searchParams.get('formId') || searchParams.get('id');
   const workflowId = searchParams.get('workflowId');
   const designerWorkflowId = searchParams.get('designerWorkflowId');
+  const designerNodeId = searchParams.get('designerNodeId');
   const fromWorkflow = searchParams.get('fromWorkflow');
   const from = searchParams.get('from');
 
@@ -160,8 +161,7 @@ export default function Form2Page() {
         
         // Dynamic redirection
         if (designerWorkflowId || fromWorkflow) {
-          const basePath = from === 'admin' ? '/admin/Create_workflows' : '/User/Create_workflows';
-          router.push(`${basePath}${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}`);
+          router.push(`/create-workflow${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}${designerNodeId ? `&designerNodeId=${designerNodeId}` : (designerWorkflowId ? '' : `?designerNodeId=${designerNodeId}`)}`);
         } else if (instanceId === 'new') {
           router.push(`/Workflows/instances/new?workflowId=${workflowId}`);
         } else if (instanceId && instanceId !== 'new') {
@@ -293,7 +293,7 @@ export default function Form2Page() {
           <div className="flex items-center gap-4 w-full sm:w-auto">
             <Link
               href={
-                (designerWorkflowId || fromWorkflow) ? `/form?id=${formId}&from=${from || 'user'}${designerWorkflowId ? `&designerWorkflowId=${designerWorkflowId}` : ''}${fromWorkflow ? '&fromWorkflow=true' : ''}` :
+                (designerWorkflowId || fromWorkflow) ? `/create-workflow${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}` :
                 instanceId === 'new' ? `/Workflows/instances/new?workflowId=${workflowId}` :
                 instanceId && instanceId !== 'new' ? `/Workflows/instances/${instanceId}` :
                 (from === 'user' ? "/User/Allforms" : "/admin/AllForms")
@@ -496,5 +496,13 @@ export default function Form2Page() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function Form2Page() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center text-indigo-600 font-bold uppercase tracking-widest text-xs">Initializing Interactive Form...</div>}>
+      <Form2PageContent />
+    </Suspense>
   );
 }

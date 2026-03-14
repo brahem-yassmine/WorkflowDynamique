@@ -182,7 +182,7 @@ interface Step {
   status: 'pending' | 'approved' | 'rejected';
 }
 
-export default function FormBuilder() {
+const FormBuilderContent = () => {
   const [steps, setSteps] = useState<Step[]>([{ id: 'step-1', title: 'New Step', fields: [], status: 'pending' }]);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
@@ -442,5 +442,13 @@ export default function FormBuilder() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function FormBuilder() {
+  return (
+    <React.Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center">Loading...</div>}>
+      <FormBuilderContent />
+    </React.Suspense>
   );
 }

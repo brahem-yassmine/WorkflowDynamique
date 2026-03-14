@@ -27,6 +27,7 @@ const Form3PageContent = () => {
   const formId = searchParams.get('formId') || searchParams.get('id');
   const workflowId = searchParams.get('workflowId');
   const designerWorkflowId = searchParams.get('designerWorkflowId');
+  const designerNodeId = searchParams.get('designerNodeId');
   const fromWorkflow = searchParams.get('fromWorkflow');
 
   const [form, setForm] = useState<any>(null);
@@ -136,7 +137,7 @@ const Form3PageContent = () => {
         
         // Dynamic redirection based on context
         if (designerWorkflowId || fromWorkflow) {
-          router.push(`/admin/create_workflows${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}`);
+          router.push(`/create-workflow${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}${designerNodeId ? (designerWorkflowId ? `&designerNodeId=${designerNodeId}` : `?designerNodeId=${designerNodeId}`) : ''}`);
         } else if (instanceId === 'new') {
           router.push(`/Workflows/instances/new?workflowId=${workflowId}`);
         } else if (instanceId) {
@@ -268,7 +269,7 @@ const Form3PageContent = () => {
           <div className="flex items-center gap-4 w-full sm:w-auto">
             <Link
               href={
-                (designerWorkflowId || fromWorkflow) ? `/form?id=${formId}${designerWorkflowId ? `&designerWorkflowId=${designerWorkflowId}` : ''}${fromWorkflow ? '&fromWorkflow=true' : ''}` :
+                (designerWorkflowId || fromWorkflow) ? `/form?id=${formId}${designerWorkflowId ? `&designerWorkflowId=${designerWorkflowId}` : ''}${designerNodeId ? `&designerNodeId=${designerNodeId}` : ''}${fromWorkflow ? '&fromWorkflow=true' : ''}` :
                 instanceId === 'new' ? `/Workflows/instances/new?workflowId=${workflowId}` :
                 instanceId ? `/Workflows/instances/${instanceId}` :
                 "/admin/AllForms"

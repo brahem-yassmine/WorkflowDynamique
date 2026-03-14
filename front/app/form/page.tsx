@@ -3,7 +3,7 @@
 const API_URL = 'http://localhost:5000/api';
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { DndContext, closestCenter, DragEndEvent, useSensor, useSensors, PointerSensor, KeyboardSensor, useDraggable, useDroppable } from '@dnd-kit/core';
+import { DndContext, closestCenter, DragEndEvent, DragStartEvent, DragOverlay, useSensor, useSensors, PointerSensor, KeyboardSensor, useDraggable, useDroppable } from '@dnd-kit/core';
 import { arrayMove, SortableContext, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
@@ -85,53 +85,6 @@ const PREVIEWS: Record<string, (f: any) => React.ReactNode> = {
   default: (f) => <input type="text" className="w-full p-3 border-2 border-gray-100 rounded-xl text-sm bg-gray-50 text-gray-400 cursor-not-allowed" placeholder={f.placeholder || `Enter ${f.type}...`} readOnly />
 };
 
-function DraggableFieldType({ type, addField }: any) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `draggable-type-${type.id}`,
-    data: { type: 'field-type', fieldData: type }
-  });
-
-  return (
-    <button
-      ref={setNodeRef}
-      {...listeners}
-      {...attributes}
-      className={`flex items-center gap-4 p-4 border-2 border-slate-50 rounded-2xl cursor-grab hover:border-indigo-100 hover:bg-indigo-50/30 text-left group transition-all ${isDragging ? 'opacity-50 ring-2 ring-indigo-500' : ''}`}
-    >
-      <div className="p-2 bg-white rounded-xl shadow-sm text-slate-400 group-hover:text-indigo-600 transition-colors pointer-events-none">
-        <type.icon className="w-4 h-4" />
-      </div>
-      <div className="flex flex-col pointer-events-none">
-        <span className="text-xs font-black text-slate-700 uppercase tracking-wide leading-none">{type.label}</span>
-        <span className="text-[9px] text-slate-400 font-bold mt-1 tracking-tight">{type.description}</span>
-      </div>
-    </button>
-  );
-}
-
-function DroppableCanvas({ currentStep, renderFields }: any) {
-  const { isOver, setNodeRef } = useDroppable({
-    id: 'droppable-canvas',
-    data: { type: 'canvas' }
-  });
-
-  return (
-    <div ref={setNodeRef} className={`w-full h-full min-h-[500px] rounded-3xl transition-all ${isOver ? 'bg-indigo-50/50 ring-4 ring-indigo-500/20' : ''}`}>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-2 min-h-[100px]">
-        {renderFields()}
-      </div>
-      {currentStep.fields.length === 0 && (
-        <div className="h-64 mt-4 border-4 border-dashed border-slate-50 rounded-[40px] flex flex-col items-center justify-center text-slate-300 gap-4 group hover:border-indigo-100 hover:bg-indigo-50/10 transition-all pointer-events-none">
-          <div className="p-4 bg-white rounded-[24px] shadow-xl shadow-slate-100 group-hover:scale-110 transition-transform">
-             <Plus size={32} />
-          </div>
-          <p className="font-black text-[10px] uppercase tracking-[0.3em]">Drop components here</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function SortableField({ field, onUpdate, onRemove, isAlone }: any) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id });
   const [showSettings, setShowSettings] = useState(false);
@@ -212,6 +165,41 @@ function SortableField({ field, onUpdate, onRemove, isAlone }: any) {
   );
 }
 
+export function DraggableSidebarItem({ t }: any) {
+  const {attributes, listeners, setNodeRef, isDragging} = useDraggable({
+    id: `add-field-${t.id}`,
+    data: { type: t, isSidebar: true }
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      className={`flex items-center gap-4 p-4 border-2 border-slate-50 rounded-2xl cursor-grab active:cursor-grabbing hover:border-indigo-100 hover:bg-indigo-50/30 text-left group transition-all ${isDragging ? 'opacity-50' : ''}`}
+    >
+      <div className="p-2 bg-white rounded-xl shadow-sm text-slate-400 group-hover:text-indigo-600 transition-colors pointer-events-none">
+        <t.icon className="w-4 h-4" />
+      </div>
+      <div className="flex flex-col pointer-events-none">
+        <span className="text-xs font-black text-slate-700 uppercase tracking-wide leading-none">{t.label}</span>
+        <span className="text-[9px] text-slate-400 font-bold mt-1 tracking-tight">{t.description}</span>
+      </div>
+    </div>
+  );
+}
+
+export function DroppableArea({ children, isEmpty }: any) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: 'form-drop-zone',
+  });
+  return (
+    <div ref={setNodeRef} className={`flex-1 p-8 ${isOver && isEmpty ? 'bg-indigo-50/30 ring-2 ring-indigo-400 rounded-3xl transition-all' : ''}`}>
+      {children}
+    </div>
+  );
+}
+
 interface Field {
   id: string;
   type: string;
@@ -245,6 +233,7 @@ function FormBuilderContent() {
   const designerWorkflowId = searchParams.get('designerWorkflowId');
   const designerNodeId = searchParams.get('designerNodeId');
   const fromWorkflow = searchParams.get('fromWorkflow');
+  const [activeId, setActiveId] = useState<string | null>(null);
   const currentStep = steps[currentStepIndex];
 
   useEffect(() => {
@@ -269,20 +258,48 @@ function FormBuilderContent() {
     }
   };
 
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    
-    // Dropped a new field type from sidebar
-    if (active.data.current?.type === 'field-type') {
-      const type = active.data.current?.fieldData;
-      if (type && over) {
-         addField(type);
-      }
+    setActiveId(null);
+    if (!over) return;
+
+    if (String(active.id).startsWith('add-field-')) {
+      const typeId = String(active.id).replace('add-field-', '');
+      const typeObj = FIELD_TYPES.find(t => t.id === typeId);
+      if (!typeObj) return;
+
+      const f = { 
+        id: `${typeObj.id}-${Date.now()}`, 
+        type: typeObj.id, 
+        label: typeObj.label, 
+        required: false, 
+        width: 'half', 
+        options: ['select', 'checkbox'].includes(typeObj.id) ? ['Option 1'] : undefined 
+      };
+
+      setSteps(prev => prev.map((s, i) => {
+        if (i !== currentStepIndex) return s;
+        const newFields = [...s.fields];
+        if (over.id === 'form-drop-zone') {
+          newFields.push(f);
+        } else {
+          const insertIndex = newFields.findIndex((cf: any) => cf.id === over.id);
+          if (insertIndex !== -1) {
+            newFields.splice(insertIndex, 0, f);
+          } else {
+            newFields.push(f);
+          }
+        }
+        return { ...s, fields: newFields };
+      }));
       return;
     }
 
-    // Reordering existing fields
-    if (active.id !== over?.id && over) {
+    if (active.id !== over.id) {
       setSteps(prev => prev.map((s, i) => i === currentStepIndex ? { ...s, fields: arrayMove(s.fields, s.fields.findIndex((f: any) => f.id === active.id), s.fields.findIndex((f: any) => f.id === over?.id)) } : s));
     }
   };
@@ -379,7 +396,7 @@ function FormBuilderContent() {
             <Link 
               href={
                 designerWorkflowId ? `/create-workflow?id=${designerWorkflowId}${designerNodeId ? `&designerNodeId=${designerNodeId}` : ''}` : 
-                (fromWorkflow ? `/create-workflow` : 
+                (fromWorkflow ? `/create-workflow${designerNodeId ? `?designerNodeId=${designerNodeId}` : ''}` : 
                 (from === 'user' ? "/User/Allforms" : "/admin/AllForms"))
               } 
               className="p-2 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
@@ -412,7 +429,7 @@ function FormBuilderContent() {
           <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
             { (designerWorkflowId || fromWorkflow) && (
               <Link
-                href={`/create-workflow${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}${designerNodeId ? `&designerNodeId=${designerNodeId}` : (designerWorkflowId ? '' : `?designerNodeId=${designerNodeId}`)}`}
+                href={`/create-workflow${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}${designerNodeId ? (designerWorkflowId ? `&designerNodeId=${designerNodeId}` : `?designerNodeId=${designerNodeId}`) : ''}`}
                 className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white/10 text-white rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-white/20 transition-all border border-white/10 active:scale-95"
               >
                 Back to Workflow
@@ -451,54 +468,82 @@ function FormBuilderContent() {
           ))}
         </div>
 
-        <div className="grid grid-cols-12 gap-6">
-          <div className="col-span-12 md:col-span-3">
-            <div className="bg-white rounded-[32px] shadow-2xl shadow-slate-200/50 border border-slate-100 p-6 sticky top-8">
-              <div className="flex items-center gap-2 mb-6">
-                <div className="p-2 bg-indigo-50 rounded-xl">
-                  <Plus className="w-4 h-4 text-indigo-600" />
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+          <div className="grid grid-cols-12 gap-6">
+            <div className="col-span-12 md:col-span-3">
+              <div className="bg-white rounded-[32px] shadow-2xl shadow-slate-200/50 border border-slate-100 p-6 sticky top-8">
+                <div className="flex items-center gap-2 mb-6">
+                  <div className="p-2 bg-indigo-50 rounded-xl">
+                    <Plus className="w-4 h-4 text-indigo-600" />
+                  </div>
+                  <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Components</h2>
                 </div>
-                <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Components</h2>
-              </div>
-              
-              <div className="grid grid-cols-1 gap-3">
-                {FIELD_TYPES.map(t => (
-                  <DraggableFieldType key={t.id} type={t} addField={addField} />
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="col-span-12 md:col-span-9 bg-white rounded-[40px] shadow-2xl shadow-slate-200/50 border border-slate-100 min-h-[600px] flex flex-col overflow-hidden">
-            <div className="p-8 border-b flex flex-wrap items-center justify-between gap-4 bg-slate-50/30">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-white text-indigo-600 rounded-[20px] shadow-lg shadow-indigo-100 flex items-center justify-center font-black text-lg border border-indigo-50">
-                  {currentStepIndex + 1}
+                
+                <div className="grid grid-cols-1 gap-3">
+                  {FIELD_TYPES.map(t => (
+                    <DraggableSidebarItem key={t.id} t={t} />
+                  ))}
                 </div>
-                <div className="flex flex-col">
-                  <input 
-                    value={currentStep.title} 
-                    onChange={(e) => setSteps(p => p.map((s, i) => i === currentStepIndex ? { ...s, title: e.target.value } : s))} 
-                    className="text-lg font-black text-slate-800 uppercase tracking-widest bg-transparent border-none outline-none focus:ring-0 p-0"
-                    placeholder="STEP TITLE"
-                  />
-                  <span className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em] mt-0.5">Define interaction logic here</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest bg-yellow-50 text-yellow-500 border border-yellow-200">
-                <Clock className="w-3.5 h-3.5" /> Drafting
               </div>
             </div>
 
-            <div className="p-8 min-h-[500px]">
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <SortableContext items={currentStep.fields.map((f: any) => f.id)} strategy={rectSortingStrategy}>
-                  <DroppableCanvas currentStep={currentStep} renderFields={renderFields} />
+            <div className="col-span-12 md:col-span-9 bg-white rounded-[40px] shadow-2xl shadow-slate-200/50 border border-slate-100 min-h-[600px] flex flex-col overflow-hidden">
+              <div className="p-8 border-b flex flex-wrap items-center justify-between gap-4 bg-slate-50/30">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-white text-indigo-600 rounded-[20px] shadow-lg shadow-indigo-100 flex items-center justify-center font-black text-lg border border-indigo-50">
+                    {currentStepIndex + 1}
+                  </div>
+                  <div className="flex flex-col">
+                    <input 
+                      value={currentStep.title} 
+                      onChange={(e) => setSteps(p => p.map((s, i) => i === currentStepIndex ? { ...s, title: e.target.value } : s))} 
+                      className="text-lg font-black text-slate-800 uppercase tracking-widest bg-transparent border-none outline-none focus:ring-0 p-0"
+                      placeholder="STEP TITLE"
+                    />
+                    <span className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em] mt-0.5">Define interaction logic here</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest bg-yellow-50 text-yellow-500 border border-yellow-200">
+                  <Clock className="w-3.5 h-3.5" /> Drafting
+                </div>
+              </div>
+
+              <DroppableArea isEmpty={currentStep.fields.length === 0}>
+                <SortableContext items={currentStep.fields.map(f => f.id)} strategy={rectSortingStrategy}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {renderFields()}
+                    {currentStep.fields.length === 0 && (
+                      <div className="col-span-2 h-64 border-4 border-dashed border-slate-200 rounded-[40px] flex flex-col items-center justify-center text-slate-400 gap-4 transition-all">
+                        <div className="p-4 bg-white rounded-[24px] shadow-xl shadow-slate-100 transition-transform">
+                          <Plus size={32} />
+                        </div>
+                        <p className="font-black text-[10px] uppercase tracking-[0.3em]">Drop components here</p>
+                      </div>
+                    )}
+                  </div>
                 </SortableContext>
-              </DndContext>
+              </DroppableArea>
             </div>
           </div>
-        </div>
+          <DragOverlay>
+            {activeId && activeId.startsWith('add-field-') ? (() => {
+              const tId = activeId.replace('add-field-', '');
+              const t = FIELD_TYPES.find(x => x.id === tId);
+              if (!t) return null;
+              return (
+                <div className="flex items-center gap-4 p-4 border-2 border-indigo-100 bg-white shadow-xl rounded-2xl cursor-grabbing scale-105 opacity-90 w-full max-w-xs">
+                  <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600">
+                    <t.icon className="w-4 h-4" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-black text-slate-700 uppercase tracking-wide leading-none">{t.label}</span>
+                    <span className="text-[9px] text-slate-400 font-bold mt-1 tracking-tight">{t.description}</span>
+                  </div>
+                </div>
+              );
+            })() : null}
+          </DragOverlay>
+        </DndContext>
       </div>
     </div>
   );

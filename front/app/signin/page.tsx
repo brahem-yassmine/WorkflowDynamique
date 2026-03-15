@@ -73,28 +73,31 @@ export default function SigninPage() {
   // ✅ Improved redirect function
   const getRedirectPath = (userData: UserData, requiresPlanSelection?: boolean): string => {
     const { role, hasSelectedPlan } = userData;
+    const normalizedRole = (role || '').toLowerCase().trim();
 
-    console.log('🔍 Debug redirect:', {
-      role,
+    console.log('🚀 [RedirectEngine] Decision Matrix:', {
+      originalRole: role,
+      normalizedRole,
       hasSelectedPlan,
       requiresPlanSelection
     });
 
-    // ✅ If the user has not selected a plan, redirect to the billing page or handle accordingly
-    if (requiresPlanSelection || hasSelectedPlan === false) {
-      console.log('⚠️ User without plan, redirecting to /admin/billing');
+    // ✅ Only enforce plan selection for 'admin' (Tenant Owner)
+    if (normalizedRole === 'admin' && (requiresPlanSelection || hasSelectedPlan === false)) {
+      console.log('⚠️ Redirection: Forcing plan selection for admin node.');
       return '/admin/billing';
     }
 
-    // Redirect by role
-    switch (role) {
+    // Redirect by role hierarchy
+    switch (normalizedRole) {
       case 'super_admin':
+        console.log('👑 Redirection: Landing in Super Admin lattice space.');
         return '/super_admin';
       case 'admin':
+        console.log('⚡ Redirection: Landing in Administrator Command Center.');
         return '/admin';
-      case 'user':
-        return '/User/create_workflows';
       default:
+        console.log('👥 Redirection: Landing in standard User operational workspace.');
         return '/User';
     }
   };

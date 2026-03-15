@@ -575,7 +575,7 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
                                                     </>
                                                 )}
 
-                                                <div className={`grid grid-cols-3 gap-6 ${domainScope !== 'all' ? 'pt-8 border-t border-slate-100' : ''}`}>
+                                                <div className="grid grid-cols-3 gap-6 pt-8 border-t border-slate-100">
                                                     <div className="space-y-4">
                                                         <Label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
                                                             <ShieldAlert size={12} className="text-rose-500" />

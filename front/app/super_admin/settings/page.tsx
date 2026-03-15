@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { toast } from "sonner";
 import {
   Settings,
   Shield,
@@ -31,17 +32,135 @@ const initialPlans = [
 ];
 
 export default function PlatformSettingsPage() {
-  const [plans, setPlans] = useState(initialPlans);
+  const [plans, setPlans] = useState<any[]>([]);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [platformName, setPlatformName] = useState("Axia Solutions");
   const [supportEmail, setSupportEmail] = useState("nexus@axia.global");
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<any>(null);
 
-  const handlePlanChange = (id: number, field: string, value: any) => {
-    setPlans(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
+  useEffect(() => { 
+    fetchData();
+    
+    // Load local settings if any
+    const savedName = localStorage.getItem('platformName');
+    const savedEmail = localStorage.getItem('supportEmail');
+    const savedMaintenance = localStorage.getItem('maintenanceMode');
+    if (savedName) setPlatformName(savedName);
+    if (savedEmail) setSupportEmail(savedEmail);
+    if (savedMaintenance) setMaintenanceMode(savedMaintenance === 'true');
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('auth_token');
+      
+      const [plansRes, statsRes] = await Promise.all([
+        fetch('http://localhost:5000/api/admin/plans', { headers: { Authorization: `Bearer ${token}` } }),
+        fetch('http://localhost:5000/api/admin/stats', { headers: { Authorization: `Bearer ${token}` } })
+      ]);
+
+      const plansData = await plansRes.json();
+      const statsData = await statsRes.json();
+
+      if (plansData.success) setPlans(plansData.data);
+      if (statsData.success) setStats(statsData.data);
+      
+    } catch (err) {
+      console.error("Failed to fetch platform data:", err);
+      toast.error("Failed to load platform configuration.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePlanChange = (id: string, field: string, value: any) => {
+    setPlans(prev => prev.map(p => p._id === id || p.localId === id ? { ...p, [field]: value, isDirty: true } : p));
   };
 
   const addPlan = () => {
-    setPlans([...plans, { id: Date.now(), name: "Unidentified Tier", price: 0, maxUsers: 1, maxWorkflows: 1, storage: "1GB", active: false }]);
+    const newPlan = { 
+      localId: `temp-${Date.now()}`, 
+      name: "New Tier", 
+      price: 0, 
+      features: { maxUsers: 10, maxWorkflows: 5 }, 
+      interval: "month",
+      isActive: false,
+      isDirty: true,
+      isNew: true
+    };
+    setPlans([...plans, newPlan]);
+  };
+
+  const commitChanges = async () => {
+    const toastId = toast.loading("Committing changes to master database...");
+    let successCount = 0;
+    let errorCount = 0;
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const headers = { 
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      };
+
+      // Save local settings
+      localStorage.setItem('platformName', platformName);
+      localStorage.setItem('supportEmail', supportEmail);
+      localStorage.setItem('maintenanceMode', maintenanceMode.toString());
+
+      // Save Plans
+      const dirtyPlans = plans.filter(p => p.isDirty);
+      
+      for (const plan of dirtyPlans) {
+        try {
+          // Map frontend structure to backend structure
+          const payload = {
+            name: plan.name,
+            price: plan.price,
+            interval: plan.interval || 'month',
+            currency: plan.currency || 'eur',
+            isActive: plan.isActive !== undefined ? plan.isActive : plan.active,
+            features: {
+              maxUsers: plan.features?.maxUsers || plan.maxUsers || 1,
+              maxWorkflows: plan.features?.maxWorkflows || plan.maxWorkflows || 1,
+            }
+          };
+
+          if (plan.isNew) {
+            await fetch('http://localhost:5000/api/admin/plans', {
+              method: 'POST',
+              headers,
+              body: JSON.stringify(payload)
+            });
+          } else {
+            await fetch(`http://localhost:5000/api/admin/plans/${plan._id}`, {
+              method: 'PUT',
+              headers,
+              body: JSON.stringify(payload)
+            });
+          }
+          successCount++;
+        } catch (err) {
+          console.error(`Error saving plan ${plan.name}:`, err);
+          errorCount++;
+        }
+      }
+
+      if (errorCount > 0) {
+        toast.error(`Changes saved partially. ${errorCount} plan(s) failed.`, { id: toastId });
+      } else {
+        toast.success("Global configuration updated successfully.", { id: toastId });
+      }
+      
+      // Refresh to get real IDs for new plans
+      if (dirtyPlans.length > 0) {
+        await fetchData();
+      }
+    } catch (err) {
+      toast.error("Critical error while committing changes.", { id: toastId });
+    }
   };
 
   return (
@@ -55,7 +174,10 @@ export default function PlatformSettingsPage() {
           </h1>
           <p className="text-slate-500 font-medium mt-1">Lattice-level system parameters and service tier structuring.</p>
         </div>
-        <button className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95">
+        <button 
+          onClick={commitChanges}
+          className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95"
+        >
           <Save size={18} />
           Commit All Changes
         </button>
@@ -138,37 +260,48 @@ export default function PlatformSettingsPage() {
             </div>
 
             <div className="space-y-4">
-              {plans.map((p) => (
-                <div key={p.id} className="p-6 bg-slate-50 border border-slate-100 rounded-2xl group hover:border-indigo-100 transition-all">
-                  <div className="flex flex-col sm:flex-row gap-4 items-center">
-                    <Input
-                      className="sm:w-1/3 h-10 bg-white border-slate-100 rounded-lg font-bold"
-                      value={p.name}
-                      onChange={(e) => handlePlanChange(p.id, "name", e.target.value)}
-                    />
-                    <div className="flex flex-1 items-center gap-2">
-                      <div className="flex-1 space-y-1">
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-tighter block">Price (€)</label>
-                        <Input type="number" className="h-9 font-bold bg-white" value={p.price} onChange={(e) => handlePlanChange(p.id, "price", Number(e.target.value))} />
-                      </div>
-                      <div className="flex-1 space-y-1">
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-tighter block">Nodes</label>
-                        <Input type="number" className="h-9 font-bold bg-white" value={p.maxUsers} onChange={(e) => handlePlanChange(p.id, "maxUsers", Number(e.target.value))} />
-                      </div>
-                      <div className="flex-1 space-y-1">
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-tighter block">Cloud</label>
-                        <Input className="h-9 font-bold bg-white text-xs" value={p.storage} onChange={(e) => handlePlanChange(p.id, "storage", e.target.value)} />
+              {loading ? (
+                <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>
+              ) : (
+                plans.map((p) => {
+                  const id = p._id || p.localId;
+                  const isActive = p.isActive !== undefined ? p.isActive : p.active;
+                  const maxU = p.features?.maxUsers || p.maxUsers || 1;
+                  const maxW = p.features?.maxWorkflows || p.maxWorkflows || 1;
+                  
+                  return (
+                    <div key={id} className="p-6 bg-slate-50 border border-slate-100 rounded-2xl group hover:border-indigo-100 transition-all">
+                      <div className="flex flex-col sm:flex-row gap-4 items-center">
+                        <Input
+                          className="sm:w-1/3 h-10 bg-white border-slate-100 rounded-lg font-bold"
+                          value={p.name}
+                          onChange={(e) => handlePlanChange(id, "name", e.target.value)}
+                        />
+                        <div className="flex flex-1 items-center gap-2">
+                          <div className="flex-1 space-y-1">
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-tighter block">Price (€)</label>
+                            <Input type="number" className="h-9 font-bold bg-white" value={p.price} onChange={(e) => handlePlanChange(id, "price", Number(e.target.value))} />
+                          </div>
+                          <div className="flex-1 space-y-1">
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-tighter block">Users</label>
+                            <Input type="number" className="h-9 font-bold bg-white" value={maxU} onChange={(e) => handlePlanChange(id, "features", { ...p.features, maxUsers: Number(e.target.value) })} />
+                          </div>
+                          <div className="flex-1 space-y-1">
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-tighter block">Workflows</label>
+                            <Input type="number" className="h-9 font-bold bg-white text-xs" value={maxW} onChange={(e) => handlePlanChange(id, "features", { ...p.features, maxWorkflows: Number(e.target.value) })} />
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 pl-4">
+                          <Badge className={isActive ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-100 text-slate-400'}>
+                            {isActive ? 'Active' : 'Disabled'}
+                          </Badge>
+                          <Switch checked={isActive} onCheckedChange={(v) => handlePlanChange(id, "isActive", v)} />
+                        </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 pl-4">
-                      <Badge className={p.active ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-100 text-slate-400'}>
-                        {p.active ? 'Active' : 'Disabled'}
-                      </Badge>
-                      <Switch checked={p.active} onCheckedChange={(v) => handlePlanChange(p.id, "active", v)} />
-                    </div>
-                  </div>
-                </div>
-              ))}
+                  );
+                })
+              )}
             </div>
           </section>
 
@@ -185,13 +318,22 @@ export default function PlatformSettingsPage() {
                 <h3 className="text-xl font-black text-white tracking-tight text-glow">Master Infrastructure</h3>
               </div>
               <div className="space-y-4">
-                <InfrastructureLine label="Active Database Clusters" value="8 Main + 32 Shards" />
-                <InfrastructureLine label="Global Lattice Sync" value="v4.2.0-STABLE" />
-                <InfrastructureLine label="Backup Redundancy" value="Triple-Active Replication" />
+                <InfrastructureLine 
+                  label="Active Database Clusters" 
+                  value={stats ? `${stats.activeCompanies || stats.totalCompanies} Live Tenant DBs` : `Loading...`} 
+                />
+                <InfrastructureLine 
+                  label="System Load Proxy" 
+                  value={stats ? `${stats.averageGpuUsage}%` : `---`} 
+                />
+                <InfrastructureLine 
+                  label="Global Lattice Sync" 
+                  value="v4.2.0-STABLE (Optimal)" 
+                />
               </div>
-              <button className="mt-8 px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all">
+              <a href="/super_admin/log" className="inline-block mt-8 px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all cursor-pointer">
                 View High-Level Logs
-              </button>
+              </a>
             </div>
           </section>
         </div>

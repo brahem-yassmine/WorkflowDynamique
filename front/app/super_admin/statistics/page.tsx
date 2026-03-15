@@ -24,7 +24,8 @@ import {
   Bar,
   Cell,
   PieChart,
-  Pie
+  Pie,
+  Legend
 } from "recharts";
 
 const COLORS = ['#4f46e5', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b', '#10b981'];
@@ -134,7 +135,11 @@ export default function StatisticsPage() {
                   axisLine={false} 
                   tickLine={false} 
                   tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }} 
-                  tickFormatter={(val) => val.split('-').slice(1).join('/')}
+                  tickFormatter={(val) => {
+                    if (!val || typeof val !== 'string') return '';
+                    const parts = val.split('-');
+                    return parts.length >= 2 ? parts.slice(1).join('/') : val;
+                  }}
                 />
                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }} />
                 <Tooltip 
@@ -160,11 +165,13 @@ export default function StatisticsPage() {
                   data={stats?.sectorDistribution}
                   cx="50%"
                   cy="50%"
-                  innerRadius={80}
-                  outerRadius={120}
+                  innerRadius={70}
+                  outerRadius={100}
                   paddingAngle={5}
                   dataKey="value"
-                  label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  nameKey="sector"
+                  label={({ percent }: any) => ` ${(percent * 100).toFixed(0)}%`}
+                  labelLine={false}
                 >
                   {stats?.sectorDistribution?.map((entry: any, index: number) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -172,6 +179,14 @@ export default function StatisticsPage() {
                 </Pie>
                 <Tooltip 
                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                   formatter={(value: number, name: string, props: any) => [value, props.payload.sector || name]}
+                />
+                <Legend 
+                  layout="vertical" 
+                  verticalAlign="middle" 
+                  align="right"
+                  iconType="circle"
+                  wrapperStyle={{ fontSize: '11px', fontWeight: 600, color: '#64748b' }}
                 />
               </PieChart>
             </ResponsiveContainer>

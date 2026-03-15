@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Plus, 
-  FileText, 
-  Copy, 
-  Edit3, 
-  Trash2, 
-  Search, 
+import {
+  Plus,
+  FileText,
+  Copy,
+  Edit3,
+  Trash2,
+  Search,
   Calendar,
   Layers,
   CheckCircle2,
@@ -81,15 +81,15 @@ export default function UserAllFormsPage() {
     }
   };
 
-  const filteredForms = forms.filter(f => 
-    f.name.toLowerCase().includes(search.toLowerCase()) || 
+  const filteredForms = forms.filter(f =>
+    f.name.toLowerCase().includes(search.toLowerCase()) ||
     f.description.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
     <div className="min-h-screen pb-20">
       <Toaster position="top-right" richColors />
-      
+
       {/* Header Section */}
       <div className="mt-6">
         <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 p-8">
@@ -107,7 +107,7 @@ export default function UserAllFormsPage() {
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
               <div className="relative flex-1 min-w-[320px]">
                 <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input 
+                <input
                   type="text"
                   placeholder="Search for specific forms..."
                   className="w-full pl-12 pr-5 py-4 bg-slate-50 border-2 border-slate-50 rounded-2xl text-sm outline-none focus:bg-white focus:border-indigo-400 transition-all font-bold text-slate-700"
@@ -115,7 +115,7 @@ export default function UserAllFormsPage() {
                   onChange={(e) => setSearch(e.target.value)}
                 />
               </div>
-              <Link 
+              <Link
                 href="/form?from=user"
                 className="flex items-center justify-center gap-3 bg-slate-900 hover:bg-indigo-600 text-white px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 group whitespace-nowrap"
               >
@@ -131,7 +131,7 @@ export default function UserAllFormsPage() {
 
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[1,2,3].map(i => (
+            {[1, 2, 3].map(i => (
               <div key={i} className="h-64 bg-white rounded-[2.5rem] border border-slate-100 animate-pulse" />
             ))}
           </div>
@@ -142,7 +142,7 @@ export default function UserAllFormsPage() {
             </div>
             <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Empty Registry</h2>
             <p className="text-slate-500 mt-3 font-medium max-w-sm mb-10 leading-relaxed text-sm">No protocols have been committed to this sector. Start by creating a dynamic interactive form.</p>
-            <Link 
+            <Link
               href="/User/form"
               className="bg-indigo-600 text-white px-10 py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 flex items-center gap-3 active:scale-95"
             >
@@ -152,20 +152,19 @@ export default function UserAllFormsPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredForms.map((form) => (
-              <div 
-                key={form._id} 
+              <div
+                key={form._id}
                 onClick={() => router.push(`/form/form3?id=${form._id}&from=user`)}
                 className="group bg-white rounded-[2.5rem] border border-slate-100 p-8 hover:shadow-2xl hover:shadow-indigo-500/5 hover:border-indigo-100 transition-all relative overflow-hidden flex flex-col h-full cursor-pointer"
               >
                 {/* Status Badge */}
                 <div className="flex items-center justify-between mb-6">
-                  <div className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 border ${
-                    form.status === 'published' || form.status === 'approved' 
-                      ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
+                  <div className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 border ${form.status === 'published' || form.status === 'approved'
+                      ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
                       : form.status === 'rejected'
-                      ? 'bg-rose-50 text-rose-600 border-rose-100'
-                      : 'bg-slate-50 text-slate-500 border-slate-100'
-                  }`}>
+                        ? 'bg-rose-50 text-rose-600 border-rose-100'
+                        : 'bg-slate-50 text-slate-500 border-slate-100'
+                    }`}>
                     {form.status === 'published' || form.status === 'approved' ? (
                       <CheckCircle2 className="w-3 h-3" />
                     ) : (
@@ -194,30 +193,30 @@ export default function UserAllFormsPage() {
                       <span className="text-xs font-bold text-slate-400">Entries</span>
                     </span>
                   </div>
-                  
+
                   <div className="flex items-center gap-2">
-                    <button 
+                    <button
                       onClick={(e) => { e.stopPropagation(); handleClone(form._id); }}
                       className="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all"
                       title="Duplicate Unit"
                     >
                       <Copy className="w-5 h-5" />
                     </button>
-                    <button 
+                    <button
                       onClick={(e) => { e.stopPropagation(); router.push(`/form?id=${form._id}&from=user`); }}
                       className="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all"
                       title="Reconfigure"
                     >
                       <Edit3 className="w-5 h-5" />
                     </button>
-                    <button 
+                    <button
                       onClick={(e) => { e.stopPropagation(); handleDelete(form._id); }}
                       className="p-3 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-2xl transition-all"
                       title="Decommission"
                     >
                       <Trash2 className="w-5 h-5" />
                     </button>
-                    <Link 
+                    <Link
                       href={`/form/form3?id=${form._id}&from=user`}
                       onClick={(e) => e.stopPropagation()}
                       className="ml-2 w-12 h-12 bg-slate-50 text-slate-400 group-hover:bg-indigo-600 group-hover:text-white rounded-2xl flex items-center justify-center transition-all shadow-sm active:scale-90"

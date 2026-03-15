@@ -48,10 +48,10 @@ export default function AdminDashboard() {
         apiService.getTenantStats(),
         apiService.getTenantLogs()
       ]);
-      
+
       if (statsRes.success) setStats(statsRes.data);
       if (logsRes.success) setLogs(logsRes.data || []);
-      
+
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -64,7 +64,7 @@ export default function AdminDashboard() {
       <div className="flex items-center justify-center min-h-[600px]">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white animate-bounce shadow-xl shadow-indigo-200">
-             <Zap size={24} fill="white" />
+            <Zap size={24} fill="white" />
           </div>
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">Synchronizing Command Center...</span>
         </div>
@@ -187,11 +187,11 @@ export default function AdminDashboard() {
           </div>
           <div className="space-y-3">
             {logs.length > 0 ? logs.slice(0, 3).map((log, idx) => (
-              <ActivityItem 
+              <ActivityItem
                 key={idx}
-                label={log.action || 'System Process'} 
-                status={new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 
-                color={log.type === 'error' ? 'bg-rose-500' : 'bg-emerald-500'} 
+                label={log.action || 'System Process'}
+                status={new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                color={log.type === 'error' ? 'bg-rose-500' : 'bg-emerald-500'}
               />
             )) : (
               <>

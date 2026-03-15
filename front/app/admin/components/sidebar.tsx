@@ -68,7 +68,7 @@ const menuGroups = [
 function Sidebar({ isExpired = false }: { isExpired?: boolean }) {
   const pathname = usePathname();
   const { subscriptionExpired } = useAuth();
-  
+
   // Combine local and auth state
   const effectiveExpired = isExpired || subscriptionExpired;
 
@@ -117,8 +117,8 @@ function Sidebar({ isExpired = false }: { isExpired?: boolean }) {
                     }}
                     className={`
                       flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 group relative
-                      ${isActive 
-                        ? 'bg-white text-indigo-700 shadow-xl shadow-indigo-900/20 font-black' 
+                      ${isActive
+                        ? 'bg-white text-indigo-700 shadow-xl shadow-indigo-900/20 font-black'
                         : 'text-indigo-100 hover:bg-white/10 hover:text-white font-bold'}
                       ${isRestricted ? 'grayscale blur-[1px] opacity-40 cursor-not-allowed' : ''}
                     `}
@@ -128,8 +128,8 @@ function Sidebar({ isExpired = false }: { isExpired?: boolean }) {
                       {item.label}
                     </span>
                     {isActive && (
-                      <motion.div 
-                        layoutId="activeIndicator" 
+                      <motion.div
+                        layoutId="activeIndicator"
                         className="absolute left-0 w-1 h-6 bg-indigo-500 rounded-r-full"
                       />
                     )}

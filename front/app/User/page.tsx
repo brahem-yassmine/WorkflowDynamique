@@ -269,8 +269,8 @@ export default function UserProfilePage() {
                       <p className="text-sm font-black text-slate-700">Monthly Cycle</p>
                     </div>
                     <div className="p-4 bg-slate-50 rounded-2xl">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Days Left</p>
-                    <p className="text-sm font-black text-rose-500">{localStorage.getItem('subscription_days_left') || '--'} Days</p>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Days Left</p>
+                      <p className="text-sm font-black text-rose-500">{localStorage.getItem('subscription_days_left') || '--'} Days</p>
                     </div>
                   </div>
                 </div>

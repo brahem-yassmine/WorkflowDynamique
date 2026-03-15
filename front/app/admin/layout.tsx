@@ -156,52 +156,54 @@ export default function AdminLayout({
     }, [pathname, router]);
 
     return (
-        <div className="flex h-screen bg-slate-50 overflow-hidden text-slate-900">
-            {/* Sidebar with responsive overlay logic */}
+        <div className="flex flex-col h-screen bg-slate-50 overflow-hidden text-slate-900">
+            {/* Header with full width */}
             {!hideSidebar && (
-                <>
-                    <AnimatePresence mode="wait">
-                        {isSidebarOpen && (
-                            <motion.div 
-                                initial={{ width: 0, opacity: 0 }}
-                                animate={{ width: 288, opacity: 1 }}
-                                exit={{ width: 0, opacity: 0 }}
-                                transition={{ duration: 0.3, ease: "circOut" }}
-                                className="fixed inset-y-0 left-0 z-50 lg:relative bg-indigo-700 shadow-2xl overflow-hidden flex-shrink-0"
-                            >
-                                <Sidebar isExpired={isExpired} />
-                                {/* Mobile Close Button */}
-                                <button
-                                    onClick={() => setIsSidebarOpen(false)}
-                                    className="absolute top-4 right-[-50px] bg-indigo-700 text-white p-2 rounded-r-lg lg:hidden shadow-lg shadow-indigo-200"
-                                >
-                                    <CloseIcon />
-                                </button>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </>
-            )}
-
-            {/* Mobile Backdrop */}
-            {isSidebarOpen && !hideSidebar && (
-                <div
-                    className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-40 lg:hidden transition-opacity"
-                    onClick={() => setIsSidebarOpen(false)}
+                <Header 
+                    title={metadata.title} 
+                    subtitle={metadata.subtitle} 
+                    onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+                    isSidebarOpen={isSidebarOpen}
                 />
             )}
 
-            <div className="flex-1 flex flex-col min-w-0">
-                <div className="flex-1 flex flex-col overflow-hidden">
-                    {!hideSidebar && (
-                        <Header 
-                            title={metadata.title} 
-                            subtitle={metadata.subtitle} 
-                            onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-                            isSidebarOpen={isSidebarOpen}
-                        />
-                    )}
-                    <main className={`flex-1 overflow-y-scroll ${hideSidebar ? 'p-0' : 'p-4 md:p-8 pt-0'}`}>
+            <div className="flex flex-1 min-w-0 overflow-hidden relative">
+                {/* Sidebar with responsive overlay logic */}
+                {!hideSidebar && (
+                    <>
+                        <AnimatePresence mode="wait">
+                            {isSidebarOpen && (
+                                <motion.div 
+                                    initial={{ width: 0, opacity: 0 }}
+                                    animate={{ width: 288, opacity: 1 }}
+                                    exit={{ width: 0, opacity: 0 }}
+                                    transition={{ duration: 0.3, ease: "circOut" }}
+                                    className="fixed inset-y-0 left-0 z-40 lg:relative bg-indigo-700 shadow-2xl overflow-hidden flex-shrink-0"
+                                >
+                                    <Sidebar isExpired={isExpired} />
+                                    {/* Mobile Close Button */}
+                                    <button
+                                        onClick={() => setIsSidebarOpen(false)}
+                                        className="absolute top-4 right-[-50px] bg-indigo-700 text-white p-2 rounded-r-lg lg:hidden shadow-lg shadow-indigo-200"
+                                    >
+                                        <CloseIcon />
+                                    </button>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </>
+                )}
+
+                {/* Mobile Backdrop */}
+                {isSidebarOpen && !hideSidebar && (
+                    <div
+                        className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-30 lg:hidden transition-opacity"
+                        onClick={() => setIsSidebarOpen(false)}
+                    />
+                )}
+
+                <div className="flex-1 flex flex-col min-w-0 relative">
+                    <main className={`flex-1 overflow-y-auto ${hideSidebar ? 'p-0' : 'p-4 md:p-8'}`}>
                         {children}
                     </main>
                 </div>

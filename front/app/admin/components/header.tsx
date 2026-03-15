@@ -18,10 +18,10 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle, icon, rightContent, on
     const { user, tenant } = useUser();
 
     return (
-        <div className="bg-white border-b border-slate-200 px-8 py-5 flex justify-between items-center shadow-sm relative z-[60]">
+        <div className="bg-white border-b border-slate-200 px-8 py-5 flex justify-between items-center shadow-sm relative z-30">
             <div className="flex items-center gap-6">
                 {onToggleSidebar && (
-                    <button 
+                    <button
                         onClick={onToggleSidebar}
                         className="p-2.5 bg-slate-50 border border-slate-100 rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-100 transition-all shadow-sm active:scale-95 flex items-center justify-center mr-2"
                         title={isSidebarOpen ? "Collapse Sidebar" : "Expand Sidebar"}

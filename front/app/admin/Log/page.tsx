@@ -1,10 +1,10 @@
 'use client'
 
 import React, { useState, useEffect } from 'react';
-import { 
-    Terminal, 
-    History as HistoryIcon, 
-    ShieldCheck, 
+import {
+    Terminal,
+    History as HistoryIcon,
+    ShieldCheck,
     Search,
     User,
     Clock,
@@ -41,7 +41,7 @@ export default function LogsPage() {
 
     const filteredLogs = logs.filter(log => {
         const catMatch = log.category === activeTab;
-        const searchMatch = !search || 
+        const searchMatch = !search ||
             log.action.toLowerCase().includes(search.toLowerCase()) ||
             log.user?.name?.toLowerCase().includes(search.toLowerCase()) ||
             log.user?.email?.toLowerCase().includes(search.toLowerCase()) ||
@@ -80,11 +80,10 @@ export default function LogsPage() {
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id as Category)}
-                        className={`flex-1 min-w-[150px] flex flex-col items-start p-4 rounded-2xl transition-all ${
-                            activeTab === tab.id 
-                            ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' 
-                            : 'hover:bg-slate-50 text-slate-400'
-                        }`}
+                        className={`flex-1 min-w-[150px] flex flex-col items-start p-4 rounded-2xl transition-all ${activeTab === tab.id
+                                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100'
+                                : 'hover:bg-slate-50 text-slate-400'
+                            }`}
                     >
                         <div className="flex items-center gap-2 mb-1">
                             {tab.icon}
@@ -100,7 +99,7 @@ export default function LogsPage() {
             {/* Filter */}
             <div className="relative group">
                 <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-500 transition-colors" size={18} />
-                <input 
+                <input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder={`Search in ${tabs.find(t => t.id === activeTab)?.label.toLowerCase()}...`}
@@ -117,7 +116,7 @@ export default function LogsPage() {
                             <span className="text-[10px] font-black uppercase tracking-widest">Fetching data...</span>
                         </div>
                     ) : filteredLogs.length === 0 ? (
-                        <motion.div 
+                        <motion.div
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                             className="py-20 text-center bg-white rounded-[40px] border border-dashed border-slate-200"
                         >
@@ -143,11 +142,10 @@ export default function LogsPage() {
 
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-3 mb-1">
-                                        <span className={`text-[10px] font-black uppercase tracking-tighter px-2 py-0.5 rounded-md ${
-                                            log.action.includes('DELETE') ? 'bg-rose-50 text-rose-500' : 
-                                            log.action.includes('CREATE') ? 'bg-emerald-50 text-emerald-500' : 
-                                            'bg-indigo-50 text-indigo-600'
-                                        }`}>
+                                        <span className={`text-[10px] font-black uppercase tracking-tighter px-2 py-0.5 rounded-md ${log.action.includes('DELETE') ? 'bg-rose-50 text-rose-500' :
+                                                log.action.includes('CREATE') ? 'bg-emerald-50 text-emerald-500' :
+                                                    'bg-indigo-50 text-indigo-600'
+                                            }`}>
                                             {log.action}
                                         </span>
                                         <span className="text-xs font-bold text-slate-700 truncate">
@@ -166,7 +164,7 @@ export default function LogsPage() {
                                     </span>
                                 </div>
 
-                                <button 
+                                <button
                                     onClick={() => handleNavigate(log)}
                                     className="p-3 rounded-xl bg-slate-50 text-slate-300 group-hover:bg-indigo-600 group-hover:text-white transition-all"
                                 >

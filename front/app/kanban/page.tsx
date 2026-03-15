@@ -713,7 +713,7 @@ export default function TasksPage() {
                 {isLoading ? 'Loading Neural Lattice...' : boardId ? `Architecture Board` : 'Provisioning Master Schema'}
               </p>
             </div>
-
+          </div>
 
           <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
             {(designerWorkflowId || fromWorkflow) && (

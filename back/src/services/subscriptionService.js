@@ -28,6 +28,7 @@ exports.checkExpiringSubscriptions = async (masterDb) => {
 
                 const Subscription = require('../models/tenant/Subscription')(tenantConn);
                 const User = require('../models/tenant/User')(tenantConn);
+                const Notification = require('../models/tenant/Notification')(tenantConn);
 
                 // Find active subscription
                 const sub = await Subscription.findOne({ status: { $in: ['trial', 'active'] } }).sort({ createdAt: -1 });

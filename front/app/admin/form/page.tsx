@@ -3,7 +3,7 @@
 const API_URL = 'http://localhost:5000/api';
 
 import React, { useState, useEffect } from 'react';
-import { DndContext, closestCenter, DragEndEvent, useSensor, useSensors, PointerSensor, KeyboardSensor } from '@dnd-kit/core';
+import { DndContext, closestCenter, DragEndEvent, DragStartEvent, DragOverlay, useSensor, useSensors, PointerSensor, KeyboardSensor, useDraggable, useDroppable } from '@dnd-kit/core';
 import { arrayMove, SortableContext, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
@@ -165,6 +165,41 @@ function SortableField({ field, onUpdate, onRemove, isAlone }: any) {
   );
 }
 
+export function DraggableSidebarItem({ t }: any) {
+  const {attributes, listeners, setNodeRef, isDragging} = useDraggable({
+    id: `add-field-${t.id}`,
+    data: { type: t, isSidebar: true }
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      className={`flex items-center gap-4 p-4 border-2 border-slate-50 rounded-2xl cursor-grab active:cursor-grabbing hover:border-indigo-100 hover:bg-indigo-50/30 text-left group transition-all ${isDragging ? 'opacity-50' : ''}`}
+    >
+      <div className="p-2 bg-white rounded-xl shadow-sm text-slate-400 group-hover:text-indigo-600 transition-colors pointer-events-none">
+        <t.icon className="w-4 h-4" />
+      </div>
+      <div className="flex flex-col pointer-events-none">
+        <span className="text-xs font-black text-slate-700 uppercase tracking-wide leading-none">{t.label}</span>
+        <span className="text-[9px] text-slate-400 font-bold mt-1 tracking-tight">{t.description}</span>
+      </div>
+    </div>
+  );
+}
+
+export function DroppableArea({ children, isEmpty }: any) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: 'form-drop-zone',
+  });
+  return (
+    <div ref={setNodeRef} className={`flex-1 p-8 ${isOver && isEmpty ? 'bg-indigo-50/30 ring-2 ring-indigo-400 rounded-3xl transition-all' : ''}`}>
+      {children}
+    </div>
+  );
+}
+
 interface Field {
   id: string;
   type: string;
@@ -182,7 +217,7 @@ interface Step {
   status: 'pending' | 'approved' | 'rejected';
 }
 
-export default function FormBuilder() {
+const FormBuilderContent = () => {
   const [steps, setSteps] = useState<Step[]>([{ id: 'step-1', title: 'New Step', fields: [], status: 'pending' }]);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
@@ -196,6 +231,7 @@ export default function FormBuilder() {
   const from = searchParams.get('from');
   const designerWorkflowId = searchParams.get('designerWorkflowId');
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
+  const [activeId, setActiveId] = useState<string | null>(null);
   const currentStep = steps[currentStepIndex];
 
   useEffect(() => {
@@ -220,15 +256,50 @@ export default function FormBuilder() {
     }
   };
 
-  const handleDragEnd = ({ active, over }: DragEndEvent) => {
-    if (active.id !== over?.id) {
-      setSteps(prev => prev.map((s, i) => i === currentStepIndex ? { ...s, fields: arrayMove(s.fields, s.fields.findIndex((f: any) => f.id === active.id), s.fields.findIndex((f: any) => f.id === over?.id)) } : s));
-    }
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
   };
 
-  const addField = (type: any) => {
-    const f = { id: `${type.id}-${Date.now()}`, type: type.id, label: type.label, required: false, width: 'half', options: ['select', 'checkbox'].includes(type.id) ? ['Option 1'] : undefined };
-    setSteps(prev => prev.map((s, i) => i === currentStepIndex ? { ...s, fields: [...s.fields, f] } : s));
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveId(null);
+    if (!over) return;
+
+    if (String(active.id).startsWith('add-field-')) {
+      const typeId = String(active.id).replace('add-field-', '');
+      const typeObj = FIELD_TYPES.find(t => t.id === typeId);
+      if (!typeObj) return;
+
+      const f = { 
+        id: `${typeObj.id}-${Date.now()}`, 
+        type: typeObj.id, 
+        label: typeObj.label, 
+        required: false, 
+        width: 'half', 
+        options: ['select', 'checkbox'].includes(typeObj.id) ? ['Option 1'] : undefined 
+      };
+
+      setSteps(prev => prev.map((s, i) => {
+        if (i !== currentStepIndex) return s;
+        const newFields = [...s.fields];
+        if (over.id === 'form-drop-zone') {
+          newFields.push(f);
+        } else {
+          const insertIndex = newFields.findIndex((cf: any) => cf.id === over.id);
+          if (insertIndex !== -1) {
+            newFields.splice(insertIndex, 0, f);
+          } else {
+            newFields.push(f);
+          }
+        }
+        return { ...s, fields: newFields };
+      }));
+      return;
+    }
+
+    if (active.id !== over.id) {
+      setSteps(prev => prev.map((s, i) => i === currentStepIndex ? { ...s, fields: arrayMove(s.fields, s.fields.findIndex((f: any) => f.id === active.id), s.fields.findIndex((f: any) => f.id === over?.id)) } : s));
+    }
   };
 
   const handleSave = async (shouldNavigate: boolean = false) => {
@@ -390,76 +461,64 @@ export default function FormBuilder() {
           </button>
         </div>
 
-        <div className="grid grid-cols-12 gap-6">
-          <div className="col-span-12 md:col-span-3">
-            <div className="bg-white rounded-[32px] shadow-2xl shadow-slate-200/50 border border-slate-100 p-6 sticky top-8">
-              <div className="flex items-center gap-2 mb-6">
-                <div className="p-2 bg-indigo-50 rounded-xl">
-                  <Plus className="w-4 h-4 text-indigo-600" />
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+          <div className="grid grid-cols-12 gap-6">
+            <div className="col-span-12 md:col-span-3">
+              <div className="bg-white rounded-[32px] shadow-2xl shadow-slate-200/50 border border-slate-100 p-6 sticky top-8">
+                <div className="flex items-center gap-2 mb-6">
+                  <div className="p-2 bg-indigo-50 rounded-xl">
+                    <Plus className="w-4 h-4 text-indigo-600" />
+                  </div>
+                  <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Components</h2>
                 </div>
-                <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Components</h2>
-              </div>
-              
-              <div className="grid grid-cols-1 gap-3">
-                {FIELD_TYPES.map(t => (
-                  <button
-                    key={t.id}
-                    onClick={() => addField(t)}
-                    className="flex items-center gap-4 p-4 border-2 border-slate-50 rounded-2xl cursor-pointer hover:border-indigo-100 hover:bg-indigo-50/30 text-left group transition-all"
-                  >
-                    <div className="p-2 bg-white rounded-xl shadow-sm text-slate-400 group-hover:text-indigo-600 transition-colors">
-                      <t.icon className="w-4 h-4" />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-xs font-black text-slate-700 uppercase tracking-wide leading-none">{t.label}</span>
-                      <span className="text-[9px] text-slate-400 font-bold mt-1 tracking-tight">{t.description}</span>
-                    </div>
-                  </button>
-                ))}
+                
+                <div className="grid grid-cols-1 gap-3">
+                  {FIELD_TYPES.map(t => (
+                    <DraggableSidebarItem key={t.id} t={t} />
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="col-span-12 md:col-span-9">
-            <div className="bg-white rounded-[40px] shadow-2xl shadow-slate-200/50 border border-slate-100 min-h-[600px] flex flex-col overflow-hidden">
-              <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-slate-50/30">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-white text-indigo-600 rounded-[20px] shadow-lg shadow-indigo-100 flex items-center justify-center font-black text-lg border border-indigo-50">
-                    {currentStepIndex + 1}
+            <div className="col-span-12 md:col-span-9">
+              <div className="bg-white rounded-[40px] shadow-2xl shadow-slate-200/50 border border-slate-100 min-h-[600px] flex flex-col overflow-hidden">
+                <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-slate-50/30">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-white text-indigo-600 rounded-[20px] shadow-lg shadow-indigo-100 flex items-center justify-center font-black text-lg border border-indigo-50">
+                      {currentStepIndex + 1}
+                    </div>
+                    <div className="flex flex-col">
+                      <input 
+                        value={currentStep.title} 
+                        onChange={(e) => setSteps(p => p.map((s, i) => i === currentStepIndex ? { ...s, title: e.target.value } : s))} 
+                        className="text-lg font-black text-slate-800 uppercase tracking-widest bg-transparent border-none outline-none focus:ring-0 p-0"
+                        placeholder="STEP TITLE"
+                      />
+                      <span className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em] mt-0.5">Define interaction logic here</span>
+                    </div>
                   </div>
-                  <div className="flex flex-col">
-                    <input 
-                      value={currentStep.title} 
-                      onChange={(e) => setSteps(p => p.map((s, i) => i === currentStepIndex ? { ...s, title: e.target.value } : s))} 
-                      className="text-lg font-black text-slate-800 uppercase tracking-widest bg-transparent border-none outline-none focus:ring-0 p-0"
-                      placeholder="STEP TITLE"
-                    />
-                    <span className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em] mt-0.5">Define interaction logic here</span>
-                  </div>
+                  {steps.length > 1 && (
+                    <button 
+                      onClick={() => {
+                        const n = steps.filter((_, i) => i !== currentStepIndex);
+                        setSteps(n);
+                        setCurrentStepIndex(Math.max(0, currentStepIndex - 1));
+                      }} 
+                      className="p-3 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-2xl transition-all"
+                      title="Remove Step"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  )}
                 </div>
-                {steps.length > 1 && (
-                  <button 
-                    onClick={() => {
-                      const n = steps.filter((_, i) => i !== currentStepIndex);
-                      setSteps(n);
-                      setCurrentStepIndex(Math.max(0, currentStepIndex - 1));
-                    }} 
-                    className="p-3 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-2xl transition-all"
-                    title="Remove Step"
-                  >
-                    <Trash2 className="w-5 h-5" />
-                  </button>
-                )}
-              </div>
 
-              <div className="flex-1 p-8">
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <DroppableArea isEmpty={currentStep.fields.length === 0}>
                   <SortableContext items={currentStep.fields.map(f => f.id)} strategy={rectSortingStrategy}>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {renderFields()}
                       {currentStep.fields.length === 0 && (
-                        <div className="col-span-2 h-64 border-4 border-dashed border-slate-50 rounded-[40px] flex flex-col items-center justify-center text-slate-300 gap-4 group hover:border-indigo-100 hover:bg-indigo-50/10 transition-all">
-                          <div className="p-4 bg-white rounded-[24px] shadow-xl shadow-slate-100 group-hover:scale-110 transition-transform">
+                        <div className="col-span-2 h-64 border-4 border-dashed border-slate-200 rounded-[40px] flex flex-col items-center justify-center text-slate-400 gap-4 transition-all">
+                          <div className="p-4 bg-white rounded-[24px] shadow-xl shadow-slate-100 transition-transform">
                             <Plus size={32} />
                           </div>
                           <p className="font-black text-[10px] uppercase tracking-[0.3em]">Drop components here</p>
@@ -467,12 +526,38 @@ export default function FormBuilder() {
                       )}
                     </div>
                   </SortableContext>
-                </DndContext>
+                </DroppableArea>
               </div>
             </div>
           </div>
-        </div>
+          <DragOverlay>
+            {activeId && activeId.startsWith('add-field-') ? (() => {
+              const tId = activeId.replace('add-field-', '');
+              const t = FIELD_TYPES.find(x => x.id === tId);
+              if (!t) return null;
+              return (
+                <div className="flex items-center gap-4 p-4 border-2 border-indigo-100 bg-white shadow-xl rounded-2xl cursor-grabbing scale-105 opacity-90 w-full max-w-xs">
+                  <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600">
+                    <t.icon className="w-4 h-4" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-black text-slate-700 uppercase tracking-wide leading-none">{t.label}</span>
+                    <span className="text-[9px] text-slate-400 font-bold mt-1 tracking-tight">{t.description}</span>
+                  </div>
+                </div>
+              );
+            })() : null}
+          </DragOverlay>
+        </DndContext>
       </div>
     </div>
+  );
+}
+
+export default function FormBuilder() {
+  return (
+    <React.Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center">Loading...</div>}>
+      <FormBuilderContent />
+    </React.Suspense>
   );
 }

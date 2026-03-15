@@ -19,7 +19,7 @@ const FIELD_ICONS: Record<string, any> = {
   signature: PenTool, checkbox: CheckSquare
 };
 
-export default function Form2Page() {
+const Form3PageContent = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
   const instanceId = searchParams.get('instanceId');
@@ -27,6 +27,7 @@ export default function Form2Page() {
   const formId = searchParams.get('formId') || searchParams.get('id');
   const workflowId = searchParams.get('workflowId');
   const designerWorkflowId = searchParams.get('designerWorkflowId');
+  const designerNodeId = searchParams.get('designerNodeId');
   const fromWorkflow = searchParams.get('fromWorkflow');
 
   const [form, setForm] = useState<any>(null);
@@ -136,7 +137,7 @@ export default function Form2Page() {
         
         // Dynamic redirection based on context
         if (designerWorkflowId || fromWorkflow) {
-          router.push(`/admin/create_workflows${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}`);
+          router.push(`/create-workflow${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}${designerNodeId ? (designerWorkflowId ? `&designerNodeId=${designerNodeId}` : `?designerNodeId=${designerNodeId}`) : ''}`);
         } else if (instanceId === 'new') {
           router.push(`/Workflows/instances/new?workflowId=${workflowId}`);
         } else if (instanceId) {
@@ -268,7 +269,7 @@ export default function Form2Page() {
           <div className="flex items-center gap-4 w-full sm:w-auto">
             <Link
               href={
-                (designerWorkflowId || fromWorkflow) ? `/form?id=${formId}${designerWorkflowId ? `&designerWorkflowId=${designerWorkflowId}` : ''}${fromWorkflow ? '&fromWorkflow=true' : ''}` :
+                (designerWorkflowId || fromWorkflow) ? `/form?id=${formId}${designerWorkflowId ? `&designerWorkflowId=${designerWorkflowId}` : ''}${designerNodeId ? `&designerNodeId=${designerNodeId}` : ''}${fromWorkflow ? '&fromWorkflow=true' : ''}` :
                 instanceId === 'new' ? `/Workflows/instances/new?workflowId=${workflowId}` :
                 instanceId ? `/Workflows/instances/${instanceId}` :
                 "/admin/AllForms"
@@ -472,5 +473,13 @@ export default function Form2Page() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function Form3Page() {
+  return (
+    <React.Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center">Loading form...</div>}>
+      <Form3PageContent />
+    </React.Suspense>
   );
 }

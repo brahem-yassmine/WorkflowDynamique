@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import {
   Plus,
   Search,
@@ -46,7 +46,7 @@ interface Project {
   name: string;
 }
 
-export default function WorkflowsPage() {
+function WorkflowsPageContent() {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -415,6 +415,19 @@ export default function WorkflowsPage() {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+export default function WorkflowsPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-full min-h-screen">
+      <div className="relative w-20 h-20">
+        <div className="absolute inset-0 border-4 border-indigo-100 rounded-full animate-pulse"></div>
+        <div className="absolute inset-0 border-4 border-indigo-600 rounded-full border-t-transparent animate-spin"></div>
+      </div>
+    </div>}>
+      <WorkflowsPageContent />
+    </Suspense>
   );
 }
 

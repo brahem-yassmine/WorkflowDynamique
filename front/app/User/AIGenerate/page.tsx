@@ -1,9 +1,9 @@
 'use client'
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import { Sparkles, Layout, ClipboardCheck, Zap, Settings, ArrowRight, MousePointer2 } from 'lucide-react';
 
-const AIWorkflowBuilder = () => {
+const AIWorkflowBuilderContent = () => {
   return (
     <div className="min-h-screen bg-[#F9FAFB] flex">
       {/* Sidebar */}
@@ -109,4 +109,10 @@ const AIWorkflowBuilder = () => {
   );
 }
 
-export default AIWorkflowBuilder;
+export default function AIWorkflowBuilder() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#F9FAFB] flex items-center justify-center font-bold text-indigo-600">Loading AI Engine...</div>}>
+      <AIWorkflowBuilderContent />
+    </Suspense>
+  );
+}

@@ -94,6 +94,7 @@ export default function ChecklistView({ workflowId }: { workflowId: string }) {
               <motion.div
                 key={list._id}
                 whileHover={{ y: -5 }}
+                onClick={() => router.push(`/checklist/designer?id=${list._id}`)}
                 className="group bg-white rounded-[32px] border border-slate-100 p-8 flex flex-col hover:shadow-2xl hover:shadow-indigo-500/10 transition-all cursor-pointer relative overflow-hidden"
               >
                 <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity" />

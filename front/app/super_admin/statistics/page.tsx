@@ -62,8 +62,8 @@ export default function StatisticsPage() {
   }
 
   // Calculate weekly growth from historical data
-  const newCompaniesWeek = stats?.growth?.reduce((acc: number, curr: any) => acc + curr.companies, 0) || 0;
-  const newWorkflowsWeek = stats?.growth?.reduce((acc: number, curr: any) => acc + curr.workflows, 0) || 0;
+  const newCompaniesWeek = stats?.growth?.reduce((acc: number, curr: any) => acc + (curr.companies || 0), 0) || 0;
+  const newWorkflowsWeek = stats?.growth?.reduce((acc: number, curr: any) => acc + (curr.workflows || 0), 0) || 0;
 
   return (
     <div className="space-y-10 animate-in fade-in duration-500 pb-10">
@@ -94,14 +94,14 @@ export default function StatisticsPage() {
         />
         <GrowthCard 
           label="Total Entities" 
-          value={stats?.totalCompanies + stats?.totalUsers} 
+          value={(stats?.totalCompanies || 0) + (stats?.totalUsers || 0)} 
           period="Cumulative" 
           icon={<Users size={24} />} 
           trend="Live"
         />
         <GrowthCard 
           label="Platform Load" 
-          value={`${stats?.averageGpuUsage}%`} 
+          value={`${stats?.averageGpuUsage || 0}%`} 
           period="Current" 
           icon={<TrendingUp size={24} />} 
           trend="Optimal"
@@ -166,7 +166,7 @@ export default function StatisticsPage() {
                   dataKey="value"
                   label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
                 >
-                  {stats?.sectorDistribution.map((entry: any, index: number) => (
+                  {stats?.sectorDistribution?.map((entry: any, index: number) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
@@ -195,7 +195,9 @@ function GrowthCard({ label, value, period, icon, trend }: { label: string; valu
         </div>
       </div>
       <div>
-        <h2 className="text-4xl font-black text-slate-800 tracking-tighter mb-1">{value}</h2>
+        <h2 className="text-4xl font-black text-slate-800 tracking-tighter mb-1">
+          {typeof value === 'number' && isNaN(value) ? '0' : value}
+        </h2>
         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{label}</p>
         <p className="text-[10px] font-medium text-slate-300 mt-2 flex items-center gap-1">
           <Calendar size={10} />

@@ -721,7 +721,7 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
                                                             <button
                                                                 onClick={() => {
                                                                     const currentUrl = window.location.pathname + window.location.search;
-                                                                    router.push(`/form?redirect=${encodeURIComponent(currentUrl)}`);
+                                                                    router.push(`/form?redirect=${encodeURIComponent(currentUrl)}${workflowId ? `&designerWorkflowId=${workflowId}` : ''}&fromWorkflow=true`);
                                                                 }}
                                                                 className="text-[10px] font-black text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5 transition-colors group"
                                                             >
@@ -821,8 +821,8 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
                                                                 variant="ghost"
                                                                 size="sm"
                                                                 onClick={() => {
-                                                                    const role = window.location.pathname.includes('/admin/') ? 'admin' : 'User';
-                                                                    router.push(`/form${workflowId ? `?designerWorkflowId=${workflowId}&from=${role.toLowerCase()}&fromWorkflow=true` : `?from=${role.toLowerCase()}&fromWorkflow=true`}`);
+                                                                    const role = window.location.pathname.includes('/admin/') ? 'admin' : (window.location.pathname.includes('/User/') ? 'user' : '');
+                                                                    router.push(`/form${workflowId ? `?designerWorkflowId=${workflowId}&from=${role}&fromWorkflow=true&designerNodeId=${selectedNode?.id}` : `?from=${role}&fromWorkflow=true&designerNodeId=${selectedNode?.id}`}`);
                                                                 }}
                                                                 className="text-indigo-600 font-black text-[10px] uppercase tracking-widest gap-2"
                                                             >
@@ -852,8 +852,8 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
                                                                     variant="ghost"
                                                                     size="sm"
                                                                     onClick={() => {
-                                                                        const role = window.location.pathname.includes('/admin/') ? 'admin' : 'User';
-                                                                        router.push(`/form/form2?id=${linkedObjectId}${workflowId ? `&designerWorkflowId=${workflowId}&role=${role}` : `&role=${role}`}&fromWorkflow=true`);
+                                                                        const role = window.location.pathname.includes('/admin/') ? 'admin' : (window.location.pathname.includes('/User/') ? 'user' : '');
+                                                                        router.push(`/form/form2?id=${linkedObjectId}${workflowId ? `&designerWorkflowId=${workflowId}&role=${role}` : `&role=${role}`}&fromWorkflow=true&designerNodeId=${selectedNode?.id}`);
                                                                     }}
                                                                     className="text-emerald-600 font-black text-[10px] uppercase tracking-widest gap-2"
                                                                 >
@@ -874,7 +874,7 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
                                                                 onClick={() => {
                                                                     const role = window.location.pathname.includes('/admin/') ? 'admin' : 'User';
                                                                     const basePath = role === 'admin' ? '/checklist/designer' : '/User/newCheck';
-                                                                    router.push(`${basePath}${workflowId ? `?designerWorkflowId=${workflowId}&role=${role}` : `?role=${role}`}&fromWorkflow=true`);
+                                                                    router.push(`${basePath}${workflowId ? `?designerWorkflowId=${workflowId}&role=${role}` : `?role=${role}`}&fromWorkflow=true&designerNodeId=${selectedNode?.id}`);
                                                                 }}
                                                                 className="text-indigo-600 font-black text-[10px] uppercase tracking-widest gap-2"
                                                             >
@@ -891,6 +891,28 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
                                                                 <option key={c._id} value={c._id}>{c.name || 'Unnamed Checklist'}</option>
                                                             ))}
                                                         </select>
+                                                        {linkedObjectId && (
+                                                            <div className="p-6 bg-indigo-50 rounded-2xl flex items-center justify-between mt-4">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="p-2 bg-white rounded-xl text-indigo-500 shadow-sm">
+                                                                        <CheckSquare size={18} />
+                                                                    </div>
+                                                                    <span className="text-sm font-bold text-indigo-900">Checklist Connected</span>
+                                                                </div>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={() => {
+                                                                        const role = window.location.pathname.includes('/admin/') ? 'admin' : (window.location.pathname.includes('/User/') ? 'user' : '');
+                                                                        const basePath = role === 'admin' ? '/checklist/designer' : '/User/newCheck';
+                                                                        router.push(`${basePath}?id=${linkedObjectId}${workflowId ? `&designerWorkflowId=${workflowId}&role=${role}` : `&role=${role}`}&fromWorkflow=true&designerNodeId=${selectedNode?.id}`);
+                                                                    }}
+                                                                    className="text-indigo-600 font-black text-[10px] uppercase tracking-widest gap-2"
+                                                                >
+                                                                    Edit Checklist <ExternalLink size={14} />
+                                                                </Button>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 )}
 
@@ -903,7 +925,7 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
                                                                 size="sm"
                                                                 onClick={() => {
                                                                     const role = window.location.pathname.includes('/admin/') ? 'admin' : 'User';
-                                                                    router.push(`/kanban${workflowId ? `?designerWorkflowId=${workflowId}&role=${role}` : `?role=${role}`}&fromWorkflow=true`);
+                                                                    router.push(`/kanban${workflowId ? `?designerWorkflowId=${workflowId}&role=${role}` : `&role=${role}`}&fromWorkflow=true&designerNodeId=${selectedNode?.id}`);
                                                                 }}
                                                                 className="text-indigo-600 font-black text-[10px] uppercase tracking-widest gap-2"
                                                             >
@@ -934,7 +956,7 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
                                                                     size="sm"
                                                                     onClick={() => {
                                                                         const role = window.location.pathname.includes('/admin/') ? 'admin' : 'User';
-                                                                        router.push(`/kanban?boardId=${linkedObjectId}${workflowId ? `&designerWorkflowId=${workflowId}&role=${role}` : `&role=${role}`}&fromWorkflow=true`);
+                                                                        router.push(`/kanban?boardId=${linkedObjectId}${workflowId ? `&designerWorkflowId=${workflowId}&role=${role}` : `&role=${role}`}&fromWorkflow=true&designerNodeId=${selectedNode?.id}`);
                                                                     }}
                                                                     className="text-blue-600 font-black text-[10px] uppercase tracking-widest gap-2"
                                                                 >

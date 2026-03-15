@@ -23,6 +23,7 @@ import {
     LayoutDashboard
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { showAlert } from "@/lib/alerts";
 
 type ReportStatus = 'pending' | 'in_review' | 'resolved' | 'closed';
 
@@ -171,11 +172,11 @@ export default function FeedbackPage() {
                 setDecision(null);
                 setResponse("");
             } else {
-                alert('Error updating report: ' + data.message);
+                await showAlert('Update Error', 'Error updating report: ' + data.message, 'error');
             }
         } catch (error) {
             console.error('Error submitting response:', error);
-            alert('Failed to connect to the server.');
+            await showAlert('Connection Error', 'Failed to connect to the server.', 'error');
         }
     };
 

@@ -53,9 +53,12 @@ exports.createForm = async (req, res) => {
             name,
             description: description || '',
             steps: steps || [{ id: 'step-' + Date.now(), title: 'Step 1', fields: [], status: 'pending' }],
-            createdBy: req.user.id,
+            createdBy: req.user.id || req.user.userId || req.user._id,
             status: 'draft'
         });
+
+        console.log('User Payload in form creation:', req.user);
+        console.log('Creating Form:', form);
 
         await form.save();
 

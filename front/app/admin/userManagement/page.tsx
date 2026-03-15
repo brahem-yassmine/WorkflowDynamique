@@ -24,6 +24,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiService } from '@/service/api.service';
 import { toast } from 'sonner';
+import { showAlert, showConfirm } from '@/lib/alerts';
 
 // Types matches backend User model
 interface Persona {
@@ -139,7 +140,12 @@ export default function UserManagementPage() {
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm('Are you sure you want to purge this persona from the lattice?')) return;
+        const confirmed = await showConfirm({
+            title: 'Purge Persona',
+            text: 'Are you sure you want to purge this persona from the lattice?',
+            confirmButtonText: 'Yes, Purge'
+        });
+        if (!confirmed) return;
         try {
             await apiService.deleteUser(id);
             toast.success('Persona purged');

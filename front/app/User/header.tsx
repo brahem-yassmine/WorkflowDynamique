@@ -1,22 +1,38 @@
 'use client';
 
-import { Search, HelpCircle, User, Bell } from 'lucide-react';
+import { Search, HelpCircle, User, Bell, Menu } from 'lucide-react';
 import useUser from '@/hooks/useUser';
 import NotificationBell from '@/components/NotificationBell';
 
-export default function Header() {
+interface HeaderProps {
+  toggleSidebar?: () => void;
+}
+
+export default function Header({ toggleSidebar }: HeaderProps) {
   const { user, tenant } = useUser();
 
   return (
     <header className="h-16 bg-white border-b border-slate-200 px-8 flex items-center justify-between z-10">
-      {/* Search Bar for Traceability */}
-      <div className="relative w-96 font-sans">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-        <input
-          type="text"
-          placeholder="Search workflow history or nodes..."
-          className="w-full bg-slate-50 border border-slate-100 pl-10 pr-4 py-2 rounded-lg text-sm focus:outline-none focus:ring-4 focus:ring-indigo-50 transition-all font-medium"
-        />
+      <div className="flex items-center gap-4">
+        {/* Hamburger */}
+        {toggleSidebar && (
+          <button
+            onClick={toggleSidebar}
+            className="p-2.5 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all active:scale-95"
+            aria-label="Toggle Menu"
+          >
+            <Menu size={22} />
+          </button>
+        )}
+        {/* Search Bar for Traceability */}
+        <div className="relative w-96 font-sans">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          <input
+            type="text"
+            placeholder="Search workflow history or nodes..."
+            className="w-full bg-slate-50 border border-slate-100 pl-10 pr-4 py-2 rounded-lg text-sm focus:outline-none focus:ring-4 focus:ring-indigo-50 transition-all font-medium"
+          />
+        </div>
       </div>
 
       {/* Action Icons */}

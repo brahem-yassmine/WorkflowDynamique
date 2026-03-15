@@ -1,10 +1,10 @@
 'use client';
 
-import React from 'react'
+import React, { Suspense } from 'react'
 import WorkflowEditor from '../../Workflows/_components/WorkflowEditor';
 import { useSearchParams } from 'next/navigation';
 
-const CreateWorkflowsPage = () => {
+const CreateWorkflowsPageContent = () => {
   const searchParams = useSearchParams();
   const isEdit = !!searchParams.get('id');
 
@@ -21,5 +21,10 @@ const CreateWorkflowsPage = () => {
   )
 };
 
-export default CreateWorkflowsPage
-
+export default function CreateWorkflowsPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <CreateWorkflowsPageContent />
+    </Suspense>
+  );
+}

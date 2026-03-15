@@ -154,7 +154,8 @@ export default function UserAllFormsPage() {
             {filteredForms.map((form) => (
               <div 
                 key={form._id} 
-                className="group bg-white rounded-[2.5rem] border border-slate-100 p-8 hover:shadow-2xl hover:shadow-indigo-500/5 hover:border-indigo-100 transition-all relative overflow-hidden flex flex-col h-full"
+                onClick={() => router.push(`/form/form3?id=${form._id}&from=user`)}
+                className="group bg-white rounded-[2.5rem] border border-slate-100 p-8 hover:shadow-2xl hover:shadow-indigo-500/5 hover:border-indigo-100 transition-all relative overflow-hidden flex flex-col h-full cursor-pointer"
               >
                 {/* Status Badge */}
                 <div className="flex items-center justify-between mb-6">
@@ -196,28 +197,29 @@ export default function UserAllFormsPage() {
                   
                   <div className="flex items-center gap-2">
                     <button 
-                      onClick={() => handleClone(form._id)}
+                      onClick={(e) => { e.stopPropagation(); handleClone(form._id); }}
                       className="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all"
                       title="Duplicate Unit"
                     >
                       <Copy className="w-5 h-5" />
                     </button>
                     <button 
-                      onClick={() => router.push(`/form?id=${form._id}&from=user`)}
+                      onClick={(e) => { e.stopPropagation(); router.push(`/form?id=${form._id}&from=user`); }}
                       className="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all"
                       title="Reconfigure"
                     >
                       <Edit3 className="w-5 h-5" />
                     </button>
                     <button 
-                      onClick={() => handleDelete(form._id)}
+                      onClick={(e) => { e.stopPropagation(); handleDelete(form._id); }}
                       className="p-3 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-2xl transition-all"
                       title="Decommission"
                     >
                       <Trash2 className="w-5 h-5" />
                     </button>
                     <Link 
-                      href={`/form/form2?id=${form._id}&from=user`}
+                      href={`/form/form3?id=${form._id}&from=user`}
+                      onClick={(e) => e.stopPropagation()}
                       className="ml-2 w-12 h-12 bg-slate-50 text-slate-400 group-hover:bg-indigo-600 group-hover:text-white rounded-2xl flex items-center justify-center transition-all shadow-sm active:scale-90"
                       title="Run Interactive"
                     >

@@ -74,8 +74,18 @@ export default function SubscriptionPaymentPage() {
         const tenantsData = await tenantsRes.json();
         if (tenantsData.success) {
           // Filter tenants expiring in < 7 days or already expired but active
+          const now = new Date();
           const risk = tenantsData.data
-            .filter((t: any) => t.isExpired || (t.status === 'active' && t.virtualStatus === 'suspended'))
+            .filter((t: any) => {
+              if (t.isExpired || t.status === 'suspended') return true;
+              if (t.currentPeriodEnd) {
+                const end = new Date(t.currentPeriodEnd);
+                const diffTime = end.getTime() - now.getTime();
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                return diffDays <= 7 && diffDays > 0;
+              }
+              return false;
+            })
             .slice(0, 3); // Take top 3
           setExpiringTenants(risk);
         }
@@ -122,15 +132,15 @@ export default function SubscriptionPaymentPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <KPIPaymentCard
           label="Total Monthly Liquidity"
-          value={`€${(totalRevenue / 1000).toFixed(1)}k`}
-          trend="+14.2% from forecast"
+          value={`€${((totalRevenue || 0) / 1000).toFixed(1)}k`}
+          trend={`${stats?.revenue?.growthTrend || "+0.0%"} from forecast`}
           icon={<Wallet className="text-emerald-500" />}
           color="bg-emerald-50"
         />
         <KPIPaymentCard
           label="Active Subscription Nodes"
-          value={totalSubscribers}
-          trend={`${stats?.revenue?.retentionRate || 98.2}% Retention Rate`}
+          value={totalSubscribers || 0}
+          trend={`${stats?.revenue?.retentionRate || 0}% Retention Rate`}
           icon={<Users className="text-indigo-500" />}
           color="bg-indigo-50"
         />
@@ -161,7 +171,7 @@ export default function SubscriptionPaymentPage() {
                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 700, fill: '#94a3b8' }} />
                 <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
                 <Bar dataKey="revenue" fill="#4f46e5" radius={[6, 6, 0, 0]} barSize={50}>
-                  {revenueBreakdown.map((entry: any, index: number) => (
+                  {revenueBreakdown?.map((entry: any, index: number) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Bar>
@@ -195,7 +205,7 @@ export default function SubscriptionPaymentPage() {
                       <Clock size={14} />
                       <span className="text-xs font-black">{item.isExpired ? 'EXPIRED' : 'NEAR'}</span>
                     </div>
-                    <p className="text-sm font-black text-slate-600">{item.plan}</p>
+                    <p className="text-sm font-black text-slate-600">{item.selectedPlan?.name || item.planDetails?.name || 'No Plan'}</p>
                   </div>
                 </div>
               ))
@@ -208,7 +218,7 @@ export default function SubscriptionPaymentPage() {
       </div>
 
       {/* Service Tiers Interaction Zone */}
-      <h3 className="text-xl font-black text-slate-800 tracking-tight border-b-2 border-indigo-600 w-fit pb-1">Tier Orchestration</h3>
+      <h3 className="text-xl font-black text-slate-800 tracking-tight border-b-2 border-indigo-600 w-fit pb-1">Subscription Plans</h3>
       <div className="flex justify-center">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-7xl">
         {(allPlans.length > 0 ? allPlans : [])
@@ -225,7 +235,7 @@ export default function SubscriptionPaymentPage() {
               <div className="relative z-10">
                 <div className="flex justify-between items-center mb-6">
                   <h4 className="text-lg font-black text-slate-800 tracking-tighter">{plan.name}</h4>
-                  <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Active</p>
+                  <p className={`text-[10px] font-black uppercase tracking-widest ${plan.isActive !== false ? 'text-emerald-500' : 'text-slate-400'}`}>{plan.isActive !== false ? 'Active' : 'Inactive'}</p>
                 </div>
                 <div className="space-y-4 mb-8">
                   <TierMetric label="User Capacity" value={plan.features?.maxUsers || 0} icon={<Users size={14} />} />
@@ -260,7 +270,9 @@ function KPIPaymentCard({ label, value, trend, icon, color }: { label: string; v
         </div>
         <div>
           <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{label}</p>
-          <h2 className="text-3xl font-black text-slate-800 tracking-tight mt-1">{value}</h2>
+          <h2 className="text-3xl font-black text-slate-800 tracking-tight mt-1">
+            {typeof value === 'number' && isNaN(value) ? '0' : value}
+          </h2>
         </div>
       </CardContent>
     </Card>

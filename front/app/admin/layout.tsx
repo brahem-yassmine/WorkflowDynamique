@@ -105,6 +105,22 @@ export default function AdminLayout({
     const metadata = PAGE_METADATA[pathname] || { title: "Axia Admin", subtitle: "Management Console" };
 
     useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth < 1024) {
+                setIsSidebarOpen(false);
+            } else {
+                setIsSidebarOpen(true);
+            }
+        };
+        
+        // Set initial state
+        handleResize();
+
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+    }, []);
+
+    useEffect(() => {
         const checkSubscription = () => {
             const userStr = localStorage.getItem('user');
             if (!userStr) return;
@@ -154,10 +170,16 @@ export default function AdminLayout({
                                 className="fixed inset-y-0 left-0 z-50 lg:relative bg-indigo-700 shadow-2xl overflow-hidden flex-shrink-0"
                             >
                                 <Sidebar isExpired={isExpired} />
+                                {/* Mobile Close Button */}
+                                <button
+                                    onClick={() => setIsSidebarOpen(false)}
+                                    className="absolute top-4 right-[-50px] bg-indigo-700 text-white p-2 rounded-r-lg lg:hidden shadow-lg shadow-indigo-200"
+                                >
+                                    <CloseIcon />
+                                </button>
                             </motion.div>
                         )}
                     </AnimatePresence>
-
                 </>
             )}
 
@@ -170,19 +192,6 @@ export default function AdminLayout({
             )}
 
             <div className="flex-1 flex flex-col min-w-0">
-                {/* Mobile Menu Trigger */}
-                {!hideSidebar && (
-                    <div className="lg:hidden p-4 bg-white border-b border-gray-100 flex items-center shadow-sm">
-                        <button
-                            onClick={() => setIsSidebarOpen(true)}
-                            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors"
-                        >
-                            <ChevronRight />
-                        </button>
-                        <span className="ml-4 font-bold text-gray-800 tracking-tight">Axia Admin</span>
-                    </div>
-                )}
-
                 <div className="flex-1 flex flex-col overflow-hidden">
                     {!hideSidebar && (
                         <Header 

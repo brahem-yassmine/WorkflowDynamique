@@ -419,6 +419,14 @@ function WorkflowsContent() {
   );
 }
 
+export default function WorkflowsPage() {
+  return (
+    <Suspense fallback={<div className="flex h-screen items-center justify-center">Loading Data...</div>}>
+      <WorkflowsContent />
+    </Suspense>
+  );
+}
+
 function WorkflowCard({ workflow, projectName, onClick }: { workflow: Workflow; projectName: string; onClick: () => void }) {
 
   const getStatusColor = (status: string) => {
@@ -484,13 +492,7 @@ function WorkflowCard({ workflow, projectName, onClick }: { workflow: Workflow; 
   );
 }
 
-export default function WorkflowsPage() {
-  return (
-    <Suspense fallback={<div className="flex h-screen items-center justify-center">Loading Data...</div>}>
-      <WorkflowsContent />
-    </Suspense>
-  );
-}
+
 
 function DetailRow({ label, icon, children }: { label: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (

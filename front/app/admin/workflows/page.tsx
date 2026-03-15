@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import {
   Plus,
   Search,
@@ -27,6 +27,7 @@ import { toast, Toaster } from 'sonner';
 import { apiService } from '@/service/api.service';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { showAlert, showConfirm } from '@/lib/alerts';
 
 interface Workflow {
   _id: string;
@@ -46,7 +47,7 @@ interface Project {
   name: string;
 }
 
-export default function WorkflowsPage() {
+function WorkflowsContent() {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,13 +76,13 @@ export default function WorkflowsPage() {
         body: JSON.stringify({ title: `Admin Initialization: ${new Date().toLocaleString()}` })
       });
       if (res.success) {
-        alert('Workflow initialized successfully!');
+        await showAlert('Success', 'Workflow initialized successfully!', 'success');
         router.push(`/Workflows/instances/${res.data._id}`);
       } else {
-        alert(res.message || 'Initialization failed');
+        await showAlert('Error', res.message || 'Initialization failed', 'error');
       }
     } catch (error: any) {
-      alert('Execution error: ' + error.message);
+      await showAlert('Execution error', 'Execution error: ' + error.message, 'error');
     }
   };
 
@@ -480,6 +481,14 @@ function WorkflowCard({ workflow, projectName, onClick }: { workflow: Workflow; 
         </button>
       </div>
     </motion.div>
+  );
+}
+
+export default function WorkflowsPage() {
+  return (
+    <Suspense fallback={<div className="flex h-screen items-center justify-center">Loading Data...</div>}>
+      <WorkflowsContent />
+    </Suspense>
   );
 }
 

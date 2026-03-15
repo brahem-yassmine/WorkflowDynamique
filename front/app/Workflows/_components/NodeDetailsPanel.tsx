@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { apiService } from '@/service/api.service';
 import { motion, AnimatePresence } from 'framer-motion';
+import { showAlert, showConfirm } from '@/lib/alerts';
 
 interface NodeDetailsPanelProps {
     selectedNode: Node | null;
@@ -172,7 +173,7 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
 
     const handleCreateBoard = async () => {
         if (!label) {
-            alert('Please enter a task name first');
+            await showAlert('Task Name Required', 'Please enter a task name first', 'warning');
             return;
         }
         try {
@@ -225,17 +226,25 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
         }
     };
 
-    const handleSaveWithValidation = () => {
+    const handleSaveWithValidation = async () => {
         if (validationType === 'multi' && validatorIds.length < 2) {
-            alert('Consensus (Multi) validation strategy requires at least 2 validators.');
+            await showAlert('Validation Error', 'Consensus (Multi) validation strategy requires at least 2 validators.', 'warning');
             return;
         }
         handleSave();
     };
 
-    const handleDelete = () => {
-        if (selectedNode && window.confirm('Are you sure you want to delete this node?')) {
-            onDelete(selectedNode.id);
+    const handleDelete = async () => {
+        if (selectedNode) {
+            const confirmed = await showConfirm({
+                title: 'Delete Node',
+                text: 'Are you sure you want to delete this node?',
+                confirmButtonText: 'Yes, Delete',
+                danger: true
+            });
+            if (confirmed) {
+                onDelete(selectedNode.id);
+            }
         }
     }
 

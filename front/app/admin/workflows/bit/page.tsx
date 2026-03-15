@@ -27,11 +27,11 @@ import { apiService } from '@/service/api.service';
 import { toast, Toaster } from 'sonner';
 
 // Sub-components (could be separate files, but and keeping here for cohesion as requested)
-import MembersView from './_components/MembersView';
-import OperationsView from './_components/OperationsView';
-import KanbanView from './_components/KanbanView';
-import ChecklistView from './_components/ChecklistView';
-import VisualFlowView from './_components/VisualFlowView';
+import MembersView from '../[id]/_components/MembersView';
+import OperationsView from '../[id]/_components/OperationsView';
+import KanbanView from '../[id]/_components/KanbanView';
+import ChecklistView from '../[id]/_components/ChecklistView';
+import VisualFlowView from '../[id]/_components/VisualFlowView';
 
 export default function WorkflowAdminDetails() {
   const { id: workflowId } = useParams();

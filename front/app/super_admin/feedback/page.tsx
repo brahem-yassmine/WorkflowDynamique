@@ -23,6 +23,7 @@ import {
     LayoutDashboard
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { showAlert, showConfirm } from '@/lib/alerts';
 
 type ReportStatus = 'NEW' | 'ACCEPTED' | 'REJECTED' | 'PENDING';
 
@@ -171,7 +172,7 @@ export default function FeedbackPage() {
         setDecision(type);
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!selectedReport) return;
         
         const newStatus: ReportStatus = decision === 'ACCEPT' ? 'ACCEPTED' : decision === 'REJECT' ? 'REJECTED' : 'PENDING';
@@ -185,7 +186,7 @@ export default function FeedbackPage() {
         setSelectedReport(prev => prev ? { ...prev, status: newStatus } : null);
 
         const isResponding = response.trim().length > 0;
-        alert(`TRANSMISSION COMPLETE:\nTarget: ${selectedReport.senderName}\nStatus: ${newStatus}\n${isResponding ? 'Response Sent' : 'Protocol Only'}`);
+        await showAlert('Transmission Complete', `Target: ${selectedReport.senderName}\nStatus: ${newStatus}\n${isResponding ? 'Response Sent' : 'Protocol Only'}`, 'success');
         
         setDecision(null);
         setResponse("");

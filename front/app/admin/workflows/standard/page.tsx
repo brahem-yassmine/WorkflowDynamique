@@ -24,6 +24,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { apiService } from '@/service/api.service';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { showAlert, showConfirm } from '@/lib/alerts';
 
 interface Workflow {
   _id: string;
@@ -75,18 +76,24 @@ export default function StandardFlowsPage() {
         body: JSON.stringify({ title: `Standard Execution: ${new Date().toLocaleString()}` })
       });
       if (res.success) {
-        alert('Workflow initialized successfully!');
+        await showAlert('Success', 'Workflow initialized successfully!', 'success');
         router.push(`/Workflows/instances/${res.data._id}`);
       } else {
-        alert(res.message || 'Initialization failed');
+        await showAlert('Error', res.message || 'Initialization failed', 'error');
       }
     } catch (error: any) {
-      alert('Execution error: ' + error.message);
+      await showAlert('Execution Error', 'Execution error: ' + error.message, 'error');
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this standard workflow?')) return;
+    const confirmed = await showConfirm({
+      title: 'Delete Workflow',
+      text: 'Are you sure you want to delete this standard workflow?',
+      confirmButtonText: 'Yes, Delete',
+      danger: true
+    });
+    if (!confirmed) return;
     try {
       const response = await apiService.request(`/workflows/${id}`, { method: 'DELETE' });
       if (response.success) {
@@ -94,7 +101,7 @@ export default function StandardFlowsPage() {
       }
 
     } catch (error: any) {
-      alert('Error during deletion: ' + error.message);
+      await showAlert('Error', 'Error during deletion: ' + error.message, 'error');
     }
   };
 
@@ -104,10 +111,10 @@ export default function StandardFlowsPage() {
       const response = await apiService.duplicateWorkflow(id);
       if (response.success) {
         setWorkflows([response.data, ...workflows]);
-        alert('Workflow cloned successfully!');
+        await showAlert('Success', 'Workflow cloned successfully!', 'success');
       }
     } catch (error: any) {
-      alert('Error duplicating: ' + error.message);
+      await showAlert('Error', 'Error duplicating: ' + error.message, 'error');
     } finally {
       setDuplicatingId(null);
     }

@@ -242,13 +242,13 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
     if (!selectedNode) return null;
 
     return (
-        <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-lg animate-in fade-in duration-300" onClick={onClose} />
 
             <div className="relative w-full max-w-[1200px] h-[90vh] bg-white rounded-[40px] shadow-2xl flex overflow-hidden border border-white/20 animate-in zoom-in-95 duration-300">
                 {/* NAVIGATION SIDEBAR */}
-                <div className="w-[320px] bg-slate-900 p-8 flex flex-col shrink-0 border-r border-slate-800">
-                    <div className="flex items-center gap-4 mb-12 px-2">
+                <div className="w-[320px] h-full bg-slate-900 p-8 flex flex-col shrink-0 border-r border-slate-800 z-20">
+                    <div className="flex items-center gap-4 mb-12 px-2 flex-none">
                         <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
                             <LayoutGrid className="text-indigo-400" size={24} />
                         </div>
@@ -258,7 +258,7 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
                         </div>
                     </div>
 
-                    <div className="flex-1 space-y-3 overflow-y-auto custom-scrollbar pr-2">
+                    <div className="flex-1 space-y-3 overflow-y-auto custom-scrollbar pr-2 min-h-0">
                         <TabButton
                             active={activeTab === 'general'}
                             onClick={() => setActiveTab('general')}
@@ -300,30 +300,30 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
                                 subtitle="Decision Rules"
                             />
                         )}
+                    </div>
 
-                        <div className="pt-8 mt-8 border-t border-slate-800/50">
-                            <Button
-                                variant="ghost"
-                                onClick={handleDelete}
-                                className="w-full justify-start h-14 px-6 rounded-2xl text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 gap-4 font-black transition-all"
-                            >
-                                <Trash2 size={16} />
-                                Destroy Node
-                            </Button>
-                        </div>
+                    <div className="pt-8 mt-6 border-t border-slate-800/50 flex-none">
+                        <Button
+                            variant="ghost"
+                            onClick={handleDelete}
+                            className="w-full justify-start h-14 px-6 rounded-2xl text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 gap-4 font-black transition-all"
+                        >
+                            <Trash2 size={16} />
+                            Destroy Node
+                        </Button>
                     </div>
                 </div>
 
                 {/* CONTENT AREA */}
-                <div className="flex-grow flex flex-col bg-slate-50 relative">
+                <div className="flex-1 h-full flex flex-col bg-slate-50 relative min-w-0">
                     <button
                         onClick={onClose}
-                        className="absolute right-8 top-8 p-3 hover:bg-slate-200/50 rounded-2xl transition-all z-10 text-slate-400 hover:text-slate-600"
+                        className="absolute right-8 top-8 p-3 hover:bg-slate-200/50 rounded-2xl transition-all z-20 text-slate-400 hover:text-slate-600"
                     >
                         <X size={20} />
                     </button>
 
-                    <div className="flex-grow overflow-y-auto p-12 custom-scrollbar bg-white/50">
+                    <div className="flex-1 overflow-y-auto p-12 custom-scrollbar bg-white/50 min-h-0">
                         <AnimatePresence mode="wait">
                             <motion.div
                                 key={activeTab}
@@ -466,63 +466,67 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
                                             </div>
 
                                             <div className="bg-white p-10 rounded-[40px] border border-slate-100 shadow-xl space-y-8">
-                                                <div className="space-y-4">
-                                                    <Label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] text-[#6366f1]">2. Assignment Strategy</Label>
-                                                    <div className="grid grid-cols-3 gap-4">
-                                                        {[
-                                                            { id: 'SINGLE', label: 'INDIVIDUAL', icon: <Users size={16} />, desc: 'One person' },
-                                                            { id: 'ANY', label: 'POOL (ANY)', icon: <Users size={16} />, desc: 'First claim' },
-                                                            { id: 'ALL', label: 'TEAM (ALL)', icon: <GraduationCap size={16} />, desc: 'Consensus' }
-                                                        ].map((opt: any) => (
-                                                            <motion.button
-                                                                whileHover={{ scale: 1.02 }}
-                                                                whileTap={{ scale: 0.98 }}
-                                                                key={opt.id}
-                                                                onClick={() => setAssignmentType(opt.id)}
-                                                                className={`flex flex-col items-center justify-center p-5 rounded-[24px] border-2 transition-all gap-2 text-center ${assignmentType === opt.id
-                                                                    ? 'border-indigo-600 bg-indigo-50/50 text-indigo-900 shadow-lg shadow-indigo-100 ring-2 ring-indigo-500/20'
-                                                                    : 'border-slate-50 bg-slate-50/50 text-slate-400 hover:border-slate-200'
-                                                                    }`}
-                                                            >
-                                                                <div className={`p-2.5 rounded-xl transition-all ${assignmentType === opt.id ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-400'
-                                                                    }`}>
-                                                                    {opt.icon}
-                                                                </div>
-                                                                <div className="space-y-0.5">
-                                                                    <span className="text-[9px] font-black uppercase tracking-wider">{opt.label}</span>
-                                                                    <p className="text-[7px] font-black opacity-60 uppercase">{opt.desc}</p>
-                                                                </div>
-                                                            </motion.button>
-                                                        ))}
-                                                    </div>
-                                                </div>
+                                                {domainScope !== 'all' && (
+                                                    <>
+                                                        <div className="space-y-4">
+                                                            <Label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] text-[#6366f1]">2. Assignment Strategy</Label>
+                                                            <div className="grid grid-cols-3 gap-4">
+                                                                {[
+                                                                    { id: 'SINGLE', label: 'INDIVIDUAL', icon: <Users size={16} />, desc: 'One person' },
+                                                                    { id: 'ANY', label: 'POOL (ANY)', icon: <Users size={16} />, desc: 'First claim' },
+                                                                    { id: 'ALL', label: 'TEAM (ALL)', icon: <GraduationCap size={16} />, desc: 'Consensus' }
+                                                                ].map((opt: any) => (
+                                                                    <motion.button
+                                                                        whileHover={{ scale: 1.02 }}
+                                                                        whileTap={{ scale: 0.98 }}
+                                                                        key={opt.id}
+                                                                        onClick={() => setAssignmentType(opt.id)}
+                                                                        className={`flex flex-col items-center justify-center p-5 rounded-[24px] border-2 transition-all gap-2 text-center ${assignmentType === opt.id
+                                                                            ? 'border-indigo-600 bg-indigo-50/50 text-indigo-900 shadow-lg shadow-indigo-100 ring-2 ring-indigo-500/20'
+                                                                            : 'border-slate-50 bg-slate-50/50 text-slate-400 hover:border-slate-200'
+                                                                            }`}
+                                                                    >
+                                                                        <div className={`p-2.5 rounded-xl transition-all ${assignmentType === opt.id ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-400'
+                                                                            }`}>
+                                                                            {opt.icon}
+                                                                        </div>
+                                                                        <div className="space-y-0.5">
+                                                                            <span className="text-[9px] font-black uppercase tracking-wider">{opt.label}</span>
+                                                                            <p className="text-[7px] font-black opacity-60 uppercase">{opt.desc}</p>
+                                                                        </div>
+                                                                    </motion.button>
+                                                                ))}
+                                                            </div>
+                                                        </div>
 
-                                                {assignmentType === 'SINGLE' && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, height: 0 }}
-                                                        animate={{ opacity: 1, height: 'auto' }}
-                                                        className="space-y-4 pt-4 border-t border-slate-50"
-                                                    >
-                                                        <Label className="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                                                            <Users size={14} className="text-indigo-500" />
-                                                            Target Person
-                                                        </Label>
-                                                        <select
-                                                            className="w-full h-16 px-6 bg-slate-50/50 rounded-[24px] font-bold text-slate-700 border-none outline-none ring-1 ring-slate-100 focus:ring-4 focus:ring-indigo-500/10 shadow-inner transition-all"
-                                                            value={assignedTo}
-                                                            onChange={(e) => setAssignedTo(e.target.value)}
-                                                        >
-                                                            <option value="">-- Select Member --</option>
-                                                            {users.filter(u => !responsibleDomain || u.domain === responsibleDomain).map(u => (
-                                                                <option key={u._id} value={u._id}>
-                                                                    {u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : (u.email || u.id)}
-                                                                </option>
-                                                            ))}
-                                                        </select>
-                                                    </motion.div>
+                                                        {assignmentType === 'SINGLE' && (
+                                                            <motion.div
+                                                                initial={{ opacity: 0, height: 0 }}
+                                                                animate={{ opacity: 1, height: 'auto' }}
+                                                                className="space-y-4 pt-4 border-t border-slate-50"
+                                                            >
+                                                                <Label className="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                                                                    <Users size={14} className="text-indigo-500" />
+                                                                    Target Person
+                                                                </Label>
+                                                                <select
+                                                                    className="w-full h-16 px-6 bg-slate-50/50 rounded-[24px] font-bold text-slate-700 border-none outline-none ring-1 ring-slate-100 focus:ring-4 focus:ring-indigo-500/10 shadow-inner transition-all"
+                                                                    value={assignedTo}
+                                                                    onChange={(e) => setAssignedTo(e.target.value)}
+                                                                >
+                                                                    <option value="">-- Select Member --</option>
+                                                                    {users.filter(u => !responsibleDomain || u.domain === responsibleDomain).map(u => (
+                                                                        <option key={u._id} value={u._id}>
+                                                                            {u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : (u.email || u.id)}
+                                                                        </option>
+                                                                    ))}
+                                                                </select>
+                                                            </motion.div>
+                                                        )}
+                                                    </>
                                                 )}
 
-                                                <div className="grid grid-cols-3 gap-6 pt-8 border-t border-slate-100">
+                                                <div className={`grid grid-cols-3 gap-6 ${domainScope !== 'all' ? 'pt-8 border-t border-slate-100' : ''}`}>
                                                     <div className="space-y-4">
                                                         <Label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
                                                             <ShieldAlert size={12} className="text-rose-500" />
@@ -977,7 +981,7 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
                     </div>
 
                     {/* Footer Actions */}
-                    <div className="p-8 bg-slate-50/80 border-t border-slate-100 flex items-center justify-end gap-4">
+                    <div className="p-8 bg-white border-t border-slate-200 flex items-center justify-end gap-4 flex-none shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-20">
                         <Button variant="ghost" onClick={onClose} className="rounded-2xl h-14 px-8 font-bold text-slate-500">
                             Cancel
                         </Button>

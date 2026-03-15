@@ -12,7 +12,9 @@ import {
   Clock,
   Wallet,
   ArrowUpRight,
-  Target
+  Target,
+  Download,
+  Loader2
 } from "lucide-react";
 import { motion } from "framer-motion";
 import {
@@ -47,6 +49,49 @@ export default function SubscriptionPaymentPage() {
   const [allPlans, setAllPlans] = useState<any[]>([]);
   const [expiringTenants, setExpiringTenants] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleDownloadPDF = async () => {
+    if (expiringTenants.length === 0) return;
+    
+    setIsExporting(true);
+    try {
+      const { jsPDF } = await import('jspdf');
+      const autoTable = (await import('jspdf-autotable')).default;
+      
+      const doc = new jsPDF();
+      
+      doc.setFontSize(18);
+      doc.setTextColor(79, 70, 229);
+      doc.text('Renewal Risk Report', 14, 22);
+      
+      doc.setFontSize(10);
+      doc.setTextColor(148, 163, 184);
+      doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30);
+      
+      const tableData = expiringTenants.map((t: any) => [
+        t.name || 'Unknown Organization',
+        t.isExpired ? 'EXPIRED' : 'NEAR',
+        t.selectedPlan?.name || t.planDetails?.name || 'No Plan Active',
+        t.currentPeriodEnd ? new Date(t.currentPeriodEnd).toLocaleDateString() : 'N/A'
+      ]);
+      
+      autoTable(doc, {
+        startY: 40,
+        head: [['Organization', 'Status', 'Plan', 'Expiration Date']],
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255] },
+        styles: { fontSize: 9, cellPadding: 4 }
+      });
+      
+      doc.save('renewal-risks-report.pdf');
+    } catch (err) {
+      console.error('Failed to generate PDF:', err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -211,8 +256,13 @@ export default function SubscriptionPaymentPage() {
               ))
             )}
           </div>
-          <button className="w-full mt-8 py-4 bg-indigo-50 text-indigo-700 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all active:scale-95 shadow-sm">
-            Generate Invoices Bulk
+          <button 
+            onClick={handleDownloadPDF}
+            disabled={isExporting || expiringTenants.length === 0}
+            className="w-full mt-8 py-4 bg-indigo-50 text-indigo-700 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all active:scale-95 shadow-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            {isExporting ? 'Generating PDF...' : 'Download Risk Report'}
           </button>
         </div>
       </div>

@@ -45,7 +45,7 @@ export default function FeedbackPage() {
     const [reports, setReports] = useState<SystemReport[]>([]);
     const [selectedCompanyId, setSelectedCompanyId] = useState<string>("ALL");
     const [selectedReport, setSelectedReport] = useState<SystemReport | null>(null);
-    const [groupingMode, setGroupingMode] = useState<'user' | 'company' | 'all'>('all');
+    const [groupingMode, setGroupingMode] = useState<'user' | 'company' | 'all' | 'workflow'>('all');
     const [searchTerm, setSearchTerm] = useState("");
     const [decision, setDecision] = useState<'ACCEPT' | 'REJECT' | 'RESPOND' | null>(null);
     const [response, setResponse] = useState("");
@@ -114,10 +114,14 @@ export default function FeedbackPage() {
             return grouped;
         }
 
-        // If grouped by user or company, we can group them then prefix with NEW/OLD or just group by user/company.
-        // Given the request, "group by user/company/all", maybe the user wants the header to be the user/company name.
-        if (groupingMode === 'user' || groupingMode === 'company') {
+        // If grouped by user or company or workflow, we apply the logic.
+        if (groupingMode === 'user' || groupingMode === 'company' || groupingMode === 'workflow') {
             return filteredReports.reduce((acc, report) => {
+                // Filter: company grouping only shows reports submitted by the company admin
+                if (groupingMode === 'company' && report.adminEmail !== report.tenantId?.email) {
+                    return acc;
+                }
+                
                 const key = groupingMode === 'company' ? (report.tenantId?.name || 'Unknown') : (report.adminEmail || 'Unknown');
                 const finalKey = report.status === 'pending' ? `NEW - ${key}` : `OLD - ${key}`;
                 if (!acc[finalKey]) acc[finalKey] = [];
@@ -196,6 +200,7 @@ export default function FeedbackPage() {
                                 onClick={() => {
                                     setSelectedCompanyId(c.id);
                                     setSelectedReport(null);
+                                    setGroupingMode("all"); // Reset toggle when switching hubs
                                 }}
                                 className={`w-full group flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-300 ${
                                     selectedCompanyId === c.id 
@@ -232,9 +237,25 @@ export default function FeedbackPage() {
             {/* 2. REPORT FEED */}
             <div className="w-[380px] bg-white border-r border-slate-100 flex flex-col shadow-sm relative z-0">
                 <div className="p-4 border-b border-slate-50 bg-white sticky top-0 z-10 space-y-4">
-                    {selectedCompanyId !== "ALL" && (
+                    {selectedCompanyId === "WORKFLOW" ? (
                         <div className="flex items-center gap-1.5 p-1 bg-slate-100/50 rounded-xl">
-                            {(['user', 'company', 'all'] as const).map((mode) => (
+                            {(['all', 'workflow'] as const).map((mode) => (
+                                <button
+                                    key={mode}
+                                    onClick={() => setGroupingMode(mode)}
+                                    className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${
+                                        groupingMode === mode 
+                                        ? 'bg-white text-indigo-600 shadow-sm' 
+                                        : 'text-slate-400 hover:text-slate-600'
+                                    }`}
+                                >
+                                    {mode}
+                                </button>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-1.5 p-1 bg-slate-100/50 rounded-xl">
+                            {(['all', 'company', 'user'] as const).map((mode) => (
                                 <button
                                     key={mode}
                                     onClick={() => setGroupingMode(mode)}

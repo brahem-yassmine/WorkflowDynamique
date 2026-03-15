@@ -102,7 +102,7 @@ export default function AllChecklistsPage() {
         </div>
 
         <button
-          onClick={() => router.push('/checklist/designer')}
+          onClick={() => router.push('/checklist/designer?source=allchecks')}
           className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-indigo-100 active:scale-95 whitespace-nowrap"
         >
           <Plus size={18} />
@@ -124,7 +124,7 @@ export default function AllChecklistsPage() {
           <h2 className="text-xl font-black text-slate-800 tracking-tight uppercase">Registry Empty</h2>
           <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-2 mb-8">No dynamic checklists or automated schemas identified in this lattice.</p>
           <button 
-            onClick={() => router.push('/checklist/designer')}
+            onClick={() => router.push('/checklist/designer?source=allchecks')}
             className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 flex items-center gap-2 active:scale-95"
           >
             <Plus size={18} /> Generate Schema
@@ -137,9 +137,9 @@ export default function AllChecklistsPage() {
               key={checklist._id}
               onClick={() => {
                 if (checklist.instanceId) {
-                  router.push(`/Workflows/instances/${checklist.instanceId}`);
+                  router.push(`/Workflows/instances/${checklist.instanceId}?source=allchecks`);
                 } else {
-                  router.push(`/checklist/designer?id=${checklist._id}`);
+                  router.push(`/checklist/designer?id=${checklist._id}&source=allchecks`);
                 }
               }}
               className="cursor-pointer group bg-white rounded-[32px] border border-slate-100 p-6 hover:shadow-2xl hover:shadow-indigo-500/10 hover:border-indigo-100 transition-all relative overflow-hidden flex flex-col"
@@ -208,7 +208,7 @@ export default function AllChecklistsPage() {
                         router.push(`/Workflows/instances/${checklist.instanceId}`);
                       } else {
                         // Always go to checklist designer for templates, even if it has a workflowId
-                        router.push(`/checklist/designer?id=${checklist._id}`);
+                        router.push(`/checklist/designer?id=${checklist._id}&source=allchecks`);
                       }
                     }}
                     className="p-2.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
@@ -237,7 +237,7 @@ export default function AllChecklistsPage() {
                        // If clicking the arrow, go to the workflow dashboard/designer if it has one
                       router.push(`/create-workflow?id=${checklist.workflowId}`);
                     } else {
-                      router.push(`/checklist/designer?id=${checklist._id}`);
+                      router.push(`/checklist/designer?id=${checklist._id}&source=allchecks`);
                     }
                   }}
                   className="w-10 h-10 bg-slate-50 text-slate-300 group-hover:bg-indigo-600 group-hover:text-white rounded-2xl flex items-center justify-center transition-all shadow-sm border border-transparent group-hover:shadow-lg group-hover:shadow-indigo-100 active:scale-90"

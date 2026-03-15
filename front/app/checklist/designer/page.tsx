@@ -104,6 +104,8 @@ export default function WorkflowChecklist() {
   const [designerWorkflowId, setDesignerWorkflowId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string>('admin');
   const [fromWorkflow, setFromWorkflow] = useState<boolean>(false);
+  const [source, setSource] = useState<string | null>(null);
+  const [workflowDetailsId, setWorkflowDetailsId] = useState<string | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -111,6 +113,8 @@ export default function WorkflowChecklist() {
     const dwId = params.get('designerWorkflowId');
     const role = params.get('role');
     const fWorkflow = params.get('fromWorkflow') === 'true';
+    const src = params.get('source');
+    const wdId = params.get('workflowDetailsId');
     if (id) {
       setChecklistId(id);
       fetchChecklist(id);
@@ -118,6 +122,8 @@ export default function WorkflowChecklist() {
     if (dwId) setDesignerWorkflowId(dwId);
     if (role) setUserRole(role);
     if (fWorkflow) setFromWorkflow(true);
+    if (src) setSource(src);
+    if (wdId) setWorkflowDetailsId(wdId);
   }, []);
 
   const fetchChecklist = async (id?: string) => {
@@ -198,7 +204,11 @@ export default function WorkflowChecklist() {
         toast.success('Workflow saved successfully');
         setIsSaveModalOpen(false);
         
-        if (designerWorkflowId || fromWorkflow) {
+        if (source === 'workflow_details' && workflowDetailsId) {
+          router.push(`/admin/workflows/${workflowDetailsId}`);
+        } else if (source === 'allchecks') {
+          router.push('/admin/AllCheck');
+        } else if (designerWorkflowId || fromWorkflow) {
           router.push(`/${userRole}/admin/Create_workflows?id=${designerWorkflowId}`);
         } else {
           router.push(`/admin/AllCheck`);
@@ -278,7 +288,11 @@ export default function WorkflowChecklist() {
           <div className="flex items-center gap-4 w-full sm:w-auto">
             <button 
               onClick={() => {
-                if (designerWorkflowId || fromWorkflow) {
+                if (source === 'workflow_details' && workflowDetailsId) {
+                  router.push(`/admin/workflows/${workflowDetailsId}`);
+                } else if (source === 'allchecks') {
+                  router.push('/admin/AllCheck');
+                } else if (designerWorkflowId || fromWorkflow) {
                   router.push(`/admin/Create_workflows${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}`);
                 } else {
                   router.push('/admin/AllCheck');
@@ -303,7 +317,15 @@ export default function WorkflowChecklist() {
           <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
             {(designerWorkflowId || fromWorkflow) && (
               <button 
-                onClick={() => router.push(`/admin/Create_workflows${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}`)}
+                onClick={() => {
+                  if (source === 'workflow_details' && workflowDetailsId) {
+                    router.push(`/admin/workflows/${workflowDetailsId}`);
+                  } else if (source === 'allchecks') {
+                    router.push('/admin/AllCheck');
+                  } else {
+                    router.push(`/admin/Create_workflows${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}`);
+                  }
+                }}
                 className="flex items-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-slate-50 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-slate-100 active:scale-95 transition-all border border-slate-200 shadow-sm whitespace-nowrap"
               >
                 <ChevronLeft size={16} /> <span className="hidden xs:inline">Back to Workflow</span><span className="xs:hidden">Workflow</span>

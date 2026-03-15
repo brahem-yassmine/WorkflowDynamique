@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import UserSidebar from "./comp";
 import Header from "./header";
 import MenuIcon from '@mui/icons-material/Menu';
@@ -11,18 +11,33 @@ export default function UserLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1024) {
+        setIsSidebarOpen(false);
+      } else {
+        setIsSidebarOpen(true);
+      }
+    };
+    
+    // Set initial state
+    handleResize();
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   return (
     <div className="flex h-screen bg-slate-50 text-slate-900 overflow-hidden">
 
       {/* Sidebar Section */}
       <div className={`
-        fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0
-        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-        w-72
+        fixed inset-y-0 left-0 z-50 bg-white transition-all duration-300 ease-in-out lg:relative flex-none shadow-2xl lg:shadow-none border-r border-slate-200
+        ${isSidebarOpen ? 'translate-x-0 w-72' : '-translate-x-full lg:translate-x-0 lg:-ml-72 w-72'}
       `}>
-        <div className="h-full bg-white border-r border-slate-200 shadow-2xl lg:shadow-none">
+        <div className="h-full">
           <UserSidebar />
           {/* Mobile Close Button Inside Sidebar */}
           <button
@@ -45,22 +60,9 @@ export default function UserLayout({
       {/* Content Vertical Area */}
       <div className="flex-1 flex flex-col min-w-0">
 
-        {/* Mobile Header Toggle Bar */}
-        <div className="lg:hidden h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shadow-sm flex-none">
-          <button
-            onClick={() => setIsSidebarOpen(true)}
-            className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-          >
-            <MenuIcon />
-          </button>
-          <div className="flex flex-col items-end">
-            <span className="text-sm font-extrabold text-slate-800 tracking-tighter uppercase">Axia Pro</span>
-          </div>
-        </div>
-
         {/* Existing Dynamic Header (Desktop & Mobile) */}
         <div className="flex-none">
-          <Header />
+          <Header toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
         </div>
 
         {/* Main Fluid Content */}

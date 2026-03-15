@@ -3,6 +3,7 @@
 const API_URL = 'http://localhost:5000/api';
 
 import { useState, useEffect } from "react";
+import { showAlert, showConfirm } from "@/lib/alerts";
 import {
   Card,
 } from "@/components/ui/card";
@@ -142,7 +143,12 @@ export default function CompanyManagement() {
   };
 
   const deleteCompany = async (companyId: string) => {
-    if (!window.confirm("Are you sure you want to permanently ARCHIVE this organization? This action is irreversible.")) return;
+    const confirmed = await showConfirm({
+        title: 'Archive Organization',
+        text: 'Are you sure you want to permanently ARCHIVE this organization? This action is irreversible.',
+        confirmButtonText: 'Yes, Archive'
+    });
+    if (!confirmed) return;
 
     try {
       setUpdating(true);

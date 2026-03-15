@@ -18,8 +18,8 @@ export default function Header({ toggleSidebar }: HeaderProps) {
         {/* Hamburger Button */}
         <button
           onClick={toggleSidebar}
-          className="p-2.5 text-indigo-600 hover:bg-indigo-50 rounded-xl lg:hidden transition-all active:scale-95"
-          aria-label="Open Menu"
+          className="p-2.5 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all active:scale-95"
+          aria-label="Toggle Menu"
         >
           <Menu size={22} />
         </button>

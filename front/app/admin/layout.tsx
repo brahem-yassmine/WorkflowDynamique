@@ -77,7 +77,7 @@ export default function AdminLayout({
 }: {
     children: React.ReactNode;
 }) {
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const { subscriptionExpired, loading } = useAuth();
     const [isExpired, setIsExpired] = useState(false);
     const pathname = usePathname();
@@ -88,6 +88,22 @@ export default function AdminLayout({
     const hideSidebar = isWorkflowDetail && !pathname.includes('/standard');
     
     const metadata = PAGE_METADATA[pathname] || { title: "Axia Admin", subtitle: "Management Console" };
+
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth < 1024) {
+                setIsSidebarOpen(false);
+            } else {
+                setIsSidebarOpen(true);
+            }
+        };
+        
+        // Set initial state
+        handleResize();
+
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+    }, []);
 
     useEffect(() => {
         const checkSubscription = () => {
@@ -129,9 +145,8 @@ export default function AdminLayout({
             {/* Sidebar with responsive overlay logic */}
             {!hideSidebar && (
                 <div className={`
-                    fixed inset-y-0 left-0 z-50 transform bg-indigo-700 transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0
-                    ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-                    w-72
+                    fixed inset-y-0 left-0 z-50 bg-indigo-700 transition-all duration-300 ease-in-out lg:relative flex-none
+                    ${isSidebarOpen ? 'translate-x-0 w-72' : '-translate-x-full lg:translate-x-0 lg:-ml-72 w-72'}
                 `}>
                     <Sidebar isExpired={isExpired} />
                     {/* Mobile Close Button */}
@@ -153,21 +168,8 @@ export default function AdminLayout({
             )}
 
             <div className="flex-1 flex flex-col min-w-0">
-                {/* Mobile Menu Trigger */}
-                {!hideSidebar && (
-                    <div className="lg:hidden p-4 bg-white border-b border-gray-100 flex items-center shadow-sm">
-                        <button
-                            onClick={() => setIsSidebarOpen(true)}
-                            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors"
-                        >
-                            <MenuIcon />
-                        </button>
-                        <span className="ml-4 font-bold text-gray-800 tracking-tight">Axia Admin</span>
-                    </div>
-                )}
-
                 <div className="flex-1 flex flex-col overflow-hidden">
-                    {!hideSidebar && <Header title={metadata.title} subtitle={metadata.subtitle} />}
+                    {!hideSidebar && <Header title={metadata.title} subtitle={metadata.subtitle} toggleSidebar={() => setIsSidebarOpen(prev => !prev)} />}
                     <main className={`flex-1 overflow-y-scroll ${hideSidebar ? 'p-0' : 'p-4 md:p-8 pt-0'}`}>
                         {children}
                     </main>

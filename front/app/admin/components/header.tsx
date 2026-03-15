@@ -10,14 +10,24 @@ interface HeaderProps {
     subtitle?: string;
     icon?: React.ReactNode;
     rightContent?: React.ReactNode;
+    toggleSidebar?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ title, subtitle, icon, rightContent }) => {
+const Header: React.FC<HeaderProps> = ({ title, subtitle, icon, rightContent, toggleSidebar }) => {
     const { user, tenant } = useUser();
 
     return (
         <div className="bg-white border-b border-slate-200 px-8 py-6 flex justify-between items-center shadow-sm">
             <div className="flex items-center gap-4">
+                {toggleSidebar && (
+                    <button
+                        onClick={toggleSidebar}
+                        className="p-2.5 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all active:scale-95"
+                        aria-label="Toggle Menu"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                    </button>
+                )}
                 {icon && (
                     <div className="bg-indigo-50 p-2.5 rounded-2xl text-indigo-600">
                         {icon}

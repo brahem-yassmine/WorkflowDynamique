@@ -18,6 +18,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiService } from '@/service/api.service';
 import { toast } from 'sonner';
+import { showAlert, showConfirm } from '@/lib/alerts';
 
 interface Domain {
     _id: string;
@@ -103,7 +104,12 @@ export default function DomainsPage() {
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm('Are you sure you want to delete this domain?')) return;
+        const confirmed = await showConfirm({
+            title: 'Delete Domain',
+            text: 'Are you sure you want to delete this domain?',
+            confirmButtonText: 'Yes, Delete'
+        });
+        if (!confirmed) return;
         try {
             await apiService.deleteDomain(id);
             toast.success('Domain deleted');

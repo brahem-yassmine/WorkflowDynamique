@@ -27,6 +27,7 @@ import { toast, Toaster } from 'sonner';
 import { apiService } from '@/service/api.service';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { showAlert } from '@/lib/alerts';
 
 interface Workflow {
   _id: string;
@@ -75,13 +76,13 @@ function WorkflowsPageContent() {
         body: JSON.stringify({ title: `Admin Initialization: ${new Date().toLocaleString()}` })
       });
       if (res.success) {
-        alert('Workflow initialized successfully!');
+        await showAlert('Success', 'Workflow initialized successfully!', 'success');
         router.push(`/Workflows/instances/${res.data._id}`);
       } else {
-        alert(res.message || 'Initialization failed');
+        await showAlert('Error', res.message || 'Initialization failed', 'error');
       }
     } catch (error: any) {
-      alert('Execution error: ' + error.message);
+      await showAlert('Execution Error', 'Execution error: ' + error.message, 'error');
     }
   };
 

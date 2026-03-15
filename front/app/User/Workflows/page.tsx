@@ -26,6 +26,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
 import { apiService } from '@/service/api.service';
 import Link from 'next/link';
+import { showAlert, showConfirm } from '@/lib/alerts';
 
 interface Workflow {
   _id: string;
@@ -120,7 +121,12 @@ export default function UserWorkflowsPage() {
   const handleDeleteWorkflow = async (e: React.MouseEvent, id: string) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!window.confirm('Are you sure you want to delete this design?')) return;
+    const confirmed = await showConfirm({
+        title: 'Delete Workflow',
+        text: 'Are you sure you want to delete this design?',
+        confirmButtonText: 'Yes, delete it'
+    });
+    if (!confirmed) return;
 
     try {
       const res = await apiService.deleteWorkflow(id);

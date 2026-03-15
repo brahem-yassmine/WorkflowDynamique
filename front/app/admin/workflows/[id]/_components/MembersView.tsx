@@ -18,6 +18,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiService } from '@/service/api.service';
 import { toast } from 'sonner';
+import { showAlert, showConfirm } from '@/lib/alerts';
 
 export default function MembersView({ workflowId }: { workflowId: string }) {
   const [members, setMembers] = useState<any[]>([]);
@@ -51,7 +52,12 @@ export default function MembersView({ workflowId }: { workflowId: string }) {
   };
 
   const handleDelete = async (userId: string) => {
-     if (!window.confirm("Are you sure you want to remove this member? Note: This only removes them from the template if assigned directly.")) return;
+     const confirmed = await showConfirm({
+        title: 'Remove Member',
+        text: 'Are you sure you want to remove this member? Note: This only removes them from the template if assigned directly.',
+        confirmButtonText: 'Yes, Remove'
+     });
+     if (!confirmed) return;
      toast.success("Member removal simulated (needs template update)");
   };
 

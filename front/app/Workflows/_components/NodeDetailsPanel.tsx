@@ -99,7 +99,9 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
                     apiService.request('/checklists')
                 ]);
                 setDomains(domainsRes.success ? domainsRes.data : (Array.isArray(domainsRes) ? domainsRes : []));
-                setUsers(usersRes.success ? usersRes.data : (Array.isArray(usersRes) ? usersRes : []));
+                const fetchedUsers = usersRes.success ? usersRes.data : (Array.isArray(usersRes) ? usersRes : []);
+                console.log('[DEBUG] Fetched users:', fetchedUsers);
+                setUsers(fetchedUsers);
                 setRoles(rolesRes.success ? rolesRes.data : (Array.isArray(rolesRes) ? rolesRes : []));
                 setAvailableForms(formsRes.success ? formsRes.data : (Array.isArray(formsRes) ? formsRes : []));
                 setAvailableProjects(projectsRes.success ? projectsRes.data : (Array.isArray(projectsRes) ? projectsRes : []));
@@ -111,6 +113,11 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
         };
         fetchData();
     }, []);
+
+    useEffect(() => {
+        console.log('[DEBUG] Users in state:', users);
+        console.log('[DEBUG] Filter params:', { domainScope, responsibleDomain });
+    }, [users, domainScope, responsibleDomain]);
 
     useEffect(() => {
         if (selectedNode) {
@@ -251,7 +258,7 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
     if (!selectedNode) return null;
 
     return (
-        <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[200000] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-lg animate-in fade-in duration-300" onClick={onClose} />
 
             <div className="relative w-full max-w-[1200px] h-[90vh] bg-white rounded-[40px] shadow-2xl flex overflow-hidden border border-white/20 animate-in zoom-in-95 duration-300">
@@ -440,10 +447,15 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
                                                     <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest text-[#6366f1]">1. Organization Scope</Label>
                                                     <div className="flex bg-slate-50 p-1.5 rounded-2xl gap-2">
                                                         <button
-                                                            onClick={() => setDomainScope('all')}
-                                                            className={`flex-1 py-4 text-xs font-black uppercase tracking-[0.1em] rounded-xl transition-all ${domainScope === 'all' ? 'bg-white text-indigo-600 shadow-md ring-1 ring-slate-100' : 'text-slate-400 hover:text-slate-600'}`}
+                                                            onClick={() => {
+                                                                setDomainScope('all');
+                                                                setResponsibleDomain('');
+                                                                setAssignmentType('SINGLE');
+                                                                setAssignedTo('');
+                                                            }}
+                                                            className={`flex-1 py-4 text-xs font-black tracking-[0.1em] rounded-xl transition-all ${domainScope === 'all' ? 'bg-white text-indigo-600 shadow-md ring-1 ring-slate-100' : 'text-slate-400 hover:text-slate-600'}`}
                                                         >
-                                                            Global Access
+                                                            Global access
                                                         </button>
                                                         <button
                                                             onClick={() => setDomainScope('specific')}
@@ -458,7 +470,8 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
                                                     <div className="animate-in fade-in slide-in-from-top-4 space-y-3">
                                                         <Label className="text-[11px] font-black text-slate-500 uppercase tracking-widest block">Select Target Domain</Label>
                                                         <select
-                                                            className="w-full h-14 px-4 bg-slate-50 rounded-2xl font-bold text-slate-700 border-none outline-none ring-1 ring-slate-100 focus:ring-2 focus:ring-indigo-100 shadow-inner"
+                                                            className="w-full h-14 px-4 bg-slate-50 rounded-2xl font-bold text-slate-700 border border-slate-100 outline-none focus:ring-4 focus:ring-indigo-100/30 transition-all appearance-none cursor-pointer"
+                                                            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236366f1' stroke-width='3' %3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7' /%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1.5rem center', backgroundSize: '1.2rem' }}
                                                             value={responsibleDomain}
                                                             onChange={(e) => {
                                                                 setResponsibleDomain(e.target.value);
@@ -468,45 +481,47 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
                                                             }}
                                                         >
                                                             <option value="">-- Choose Domain --</option>
-                                                            {domains.map(d => <option key={d._id} value={d.name}>{d.name}</option>)}
+                                                            {domains.map(d => <option key={d._id || d.id} value={d.name}>{d.name}</option>)}
                                                         </select>
                                                     </div>
                                                 )}
                                             </div>
 
                                             <div className="bg-white p-10 rounded-[40px] border border-slate-100 shadow-xl space-y-8">
-                                                <div className="space-y-4">
-                                                    <Label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] text-[#6366f1]">2. Assignment Strategy</Label>
-                                                    <div className="grid grid-cols-3 gap-4">
-                                                        {[
-                                                            { id: 'SINGLE', label: 'INDIVIDUAL', icon: <Users size={16} />, desc: 'One person' },
-                                                            { id: 'ANY', label: 'POOL (ANY)', icon: <Users size={16} />, desc: 'First claim' },
-                                                            { id: 'ALL', label: 'TEAM (ALL)', icon: <GraduationCap size={16} />, desc: 'Consensus' }
-                                                        ].map((opt: any) => (
-                                                            <motion.button
-                                                                whileHover={{ scale: 1.02 }}
-                                                                whileTap={{ scale: 0.98 }}
-                                                                key={opt.id}
-                                                                onClick={() => setAssignmentType(opt.id)}
-                                                                className={`flex flex-col items-center justify-center p-5 rounded-[24px] border-2 transition-all gap-2 text-center ${assignmentType === opt.id
-                                                                    ? 'border-indigo-600 bg-indigo-50/50 text-indigo-900 shadow-lg shadow-indigo-100 ring-2 ring-indigo-500/20'
-                                                                    : 'border-slate-50 bg-slate-50/50 text-slate-400 hover:border-slate-200'
-                                                                    }`}
-                                                            >
-                                                                <div className={`p-2.5 rounded-xl transition-all ${assignmentType === opt.id ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-400'
-                                                                    }`}>
-                                                                    {opt.icon}
-                                                                </div>
-                                                                <div className="space-y-0.5">
-                                                                    <span className="text-[9px] font-black uppercase tracking-wider">{opt.label}</span>
-                                                                    <p className="text-[7px] font-black opacity-60 uppercase">{opt.desc}</p>
-                                                                </div>
-                                                            </motion.button>
-                                                        ))}
+                                                {domainScope === 'specific' && (
+                                                    <div className="space-y-4">
+                                                        <Label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] text-[#6366f1]">2. Assignment Strategy</Label>
+                                                        <div className="grid grid-cols-3 gap-4">
+                                                            {[
+                                                                { id: 'SINGLE', label: 'INDIVIDUAL', icon: <Users size={16} />, desc: 'One person' },
+                                                                { id: 'ANY', label: 'POOL (ANY)', icon: <Users size={16} />, desc: 'First claim' },
+                                                                { id: 'ALL', label: 'TEAM (ALL)', icon: <GraduationCap size={16} />, desc: 'Consensus' }
+                                                            ].map((opt: any) => (
+                                                                <motion.button
+                                                                    whileHover={{ scale: 1.02 }}
+                                                                    whileTap={{ scale: 0.98 }}
+                                                                    key={opt.id}
+                                                                    onClick={() => setAssignmentType(opt.id)}
+                                                                    className={`flex flex-col items-center justify-center p-5 rounded-[24px] border-2 transition-all gap-2 text-center ${assignmentType === opt.id
+                                                                        ? 'border-indigo-600 bg-indigo-50/50 text-indigo-900 shadow-lg shadow-indigo-100 ring-2 ring-indigo-500/20'
+                                                                        : 'border-slate-50 bg-slate-50/50 text-slate-400 hover:border-slate-200'
+                                                                        }`}
+                                                                >
+                                                                    <div className={`p-2.5 rounded-xl transition-all ${assignmentType === opt.id ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-400'
+                                                                        }`}>
+                                                                        {opt.icon}
+                                                                    </div>
+                                                                    <div className="space-y-0.5">
+                                                                        <span className="text-[9px] font-black uppercase tracking-wider">{opt.label}</span>
+                                                                        <p className="text-[7px] font-black opacity-60 uppercase">{opt.desc}</p>
+                                                                    </div>
+                                                                </motion.button>
+                                                            ))}
+                                                        </div>
                                                     </div>
-                                                </div>
+                                                )}
 
-                                                {assignmentType === 'SINGLE' && (
+                                                {assignmentType === 'SINGLE' && domainScope !== 'all' && (
                                                     <motion.div
                                                         initial={{ opacity: 0, height: 0 }}
                                                         animate={{ opacity: 1, height: 'auto' }}
@@ -516,18 +531,45 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
                                                             <Users size={14} className="text-indigo-500" />
                                                             Target Person
                                                         </Label>
-                                                        <select
-                                                            className="w-full h-16 px-6 bg-slate-50/50 rounded-[24px] font-bold text-slate-700 border-none outline-none ring-1 ring-slate-100 focus:ring-4 focus:ring-indigo-500/10 shadow-inner transition-all"
-                                                            value={assignedTo}
-                                                            onChange={(e) => setAssignedTo(e.target.value)}
-                                                        >
-                                                            <option value="">-- Select Member --</option>
-                                                            {users.filter(u => !responsibleDomain || u.domain === responsibleDomain).map(u => (
-                                                                <option key={u._id} value={u._id}>
-                                                                    {u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : (u.email || u.id)}
-                                                                </option>
-                                                            ))}
-                                                        </select>
+                                                        <div className="relative group/select">
+                                                            <select
+                                                                className="w-full h-16 px-6 bg-slate-50 rounded-[22px] font-bold text-slate-700 border border-slate-100 outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all appearance-none cursor-pointer relative z-10"
+                                                                style={{ 
+                                                                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236366f1' stroke-width='3' %3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7' /%3E%3C/svg%3E")`, 
+                                                                    backgroundRepeat: 'no-repeat', 
+                                                                    backgroundPosition: 'right 1.5rem center', 
+                                                                    backgroundSize: '1.2rem' 
+                                                                }}
+                                                                value={assignedTo}
+                                                                onChange={(e) => setAssignedTo(e.target.value)}
+                                                            >
+                                                                <option value="">-- Select Member ({users.length} available) --</option>
+                                                                {users.length > 0 ? (
+                                                                    users.filter(u => {
+                                                                        // If no specific domain is selected yet, we show everyone.
+                                                                        if (!responsibleDomain) return true;
+                                                                        
+                                                                        const userDomain = (typeof u.domain === 'object' && u.domain !== null) 
+                                                                            ? (u.domain.name || u.domain._id) 
+                                                                            : u.domain;
+                                                                            
+                                                                        const isMatch = String(userDomain || '').toLowerCase().trim() === String(responsibleDomain).toLowerCase().trim();
+                                                                        return isMatch;
+                                                                    }).map((u, idx) => {
+                                                                        const displayName = (u.firstName || u.lastName) 
+                                                                            ? `${u.firstName || ''} ${u.lastName || ''}`.trim()
+                                                                            : (u.username || u.email || `Agent ${idx + 1}`);
+                                                                        return (
+                                                                            <option key={u._id || u.id || idx} value={u._id || u.id}>
+                                                                                {displayName}
+                                                                            </option>
+                                                                        );
+                                                                    })
+                                                                ) : (
+                                                                    <option disabled>No users found in database</option>
+                                                                )}
+                                                            </select>
+                                                        </div>
                                                     </motion.div>
                                                 )}
 

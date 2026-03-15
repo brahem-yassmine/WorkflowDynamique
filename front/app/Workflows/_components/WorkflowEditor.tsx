@@ -2,6 +2,8 @@
 "use client";
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { PanelLeftClose, PanelLeftOpen, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
     ReactFlow,
     ReactFlowProvider,  // Important: import from @xyflow/react
@@ -30,7 +32,7 @@ import SaveButton from './SaveButton';
 import NodeDetailsPanel from './NodeDetailsPanel';
 import { apiService } from '@/service/api.service';
 
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
 // Node types (defined outside the component to avoid unnecessary re-renders)
@@ -57,6 +59,7 @@ const getId = (type: string) => `node_${type}_${Date.now()}_${Math.floor(Math.ra
 // Internal component using useReactFlow
 function WorkflowEditorContent() {
     const searchParams = useSearchParams();
+    const router = useRouter();
     const workflowId = searchParams.get('id');
     const reactFlowWrapper = useRef<HTMLDivElement>(null);
     const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
@@ -68,7 +71,23 @@ function WorkflowEditorContent() {
     const [currentWorkflowId, setCurrentWorkflowId] = useState<string | null>(workflowId);
     const [isSaving, setIsSaving] = useState(false);
     const [isDirty, setIsDirty] = useState(false); // tracks unsaved changes
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const lastSavedMetaRef = useRef<{ name: string; domain: string; projectId?: string } | null>(null);
+
+    // Responsive Sidebar Logic
+    useEffect(() => {
+        const checkScreenSize = () => {
+            if (window.innerWidth < 1024) {
+                setIsSidebarOpen(false);
+            } else {
+                setIsSidebarOpen(true);
+            }
+        };
+
+        checkScreenSize();
+        window.addEventListener('resize', checkScreenSize);
+        return () => window.removeEventListener('resize', checkScreenSize);
+    }, []);
 
     // Default domain from user if available
     useEffect(() => {
@@ -309,6 +328,14 @@ function WorkflowEditorContent() {
                 localStorage.removeItem(draftKey);
                 // Also remove generic draft if it was a new creation that just got an ID
                 if (!workflowId) localStorage.removeItem('workflow_draft_new');
+
+                // Redirect automatically to the workflow detail/consultation page
+                const finalId = currentWorkflowId || response.data?._id;
+                if (finalId) {
+                    setTimeout(() => {
+                        router.push(`/admin/workflows/${finalId}`);
+                    }, 1500); // Small delay to let the toast be seen
+                }
             } else {
                 toast.error('Save error: ' + (response.message || 'Unknown error'));
             }
@@ -324,8 +351,39 @@ function WorkflowEditorContent() {
     const [isLocked, setIsLocked] = useState(false);
 
     return (
-        <div className="flex flex-row h-full w-full relative">
-            <Sidebar />
+        <div className="flex flex-row h-full w-full relative overflow-hidden">
+            <AnimatePresence mode="wait">
+                {isSidebarOpen && (
+                    <motion.div
+                        initial={{ width: 0, opacity: 0, x: -20 }}
+                        animate={{ width: 256, opacity: 1, x: 0 }}
+                        exit={{ width: 0, opacity: 0, x: -20 }}
+                        transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+                        className="h-full border-r border-slate-100 bg-white flex-shrink-0 relative overflow-hidden"
+                    >
+                        <Sidebar />
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Sidebar Toggle Button - Moved outside and z-index increased */}
+            <motion.button
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                initial={false}
+                animate={{ 
+                    left: isSidebarOpen ? 240 : 16,
+                }}
+                transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+                className={`fixed top-1/2 -translate-y-1/2 z-[999] w-8 h-20 bg-white border border-slate-200 shadow-2xl rounded-2xl flex items-center justify-center text-slate-500 hover:text-indigo-600 transition-colors group overflow-hidden pointer-events-auto`}
+                title={isSidebarOpen ? "Close Sidebar" : "Open Sidebar"}
+            >
+                <div className="absolute inset-0 bg-indigo-50/0 group-hover:bg-indigo-50/50 transition-colors" />
+                {isSidebarOpen ? (
+                    <ChevronLeft size={20} className="relative z-10" />
+                ) : (
+                    <ChevronRight size={20} className="relative z-10" />
+                )}
+            </motion.button>
             <SaveButton
                 onSave={handleSave}
                 isSaving={isSaving}

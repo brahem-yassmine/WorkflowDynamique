@@ -2,7 +2,7 @@
 
 import React from 'react';
 import useUser from '@/hooks/useUser';
-import { UserCircle, Bell } from 'lucide-react';
+import { UserCircle, Bell, Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import NotificationBell from '@/components/NotificationBell';
 
 interface HeaderProps {
@@ -10,22 +10,35 @@ interface HeaderProps {
     subtitle?: string;
     icon?: React.ReactNode;
     rightContent?: React.ReactNode;
+    onToggleSidebar?: () => void;
+    isSidebarOpen?: boolean;
 }
 
-const Header: React.FC<HeaderProps> = ({ title, subtitle, icon, rightContent }) => {
+const Header: React.FC<HeaderProps> = ({ title, subtitle, icon, rightContent, onToggleSidebar, isSidebarOpen }) => {
     const { user, tenant } = useUser();
 
     return (
-        <div className="bg-white border-b border-slate-200 px-8 py-6 flex justify-between items-center shadow-sm">
-            <div className="flex items-center gap-4">
-                {icon && (
-                    <div className="bg-indigo-50 p-2.5 rounded-2xl text-indigo-600">
-                        {icon}
-                    </div>
+        <div className="bg-white border-b border-slate-200 px-8 py-5 flex justify-between items-center shadow-sm relative z-[60]">
+            <div className="flex items-center gap-6">
+                {onToggleSidebar && (
+                    <button 
+                        onClick={onToggleSidebar}
+                        className="p-2.5 bg-slate-50 border border-slate-100 rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-100 transition-all shadow-sm active:scale-95 flex items-center justify-center mr-2"
+                        title={isSidebarOpen ? "Collapse Sidebar" : "Expand Sidebar"}
+                    >
+                        {isSidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
+                    </button>
                 )}
-                <div>
-                    <h1 className="text-2xl font-black text-slate-800 tracking-tight">{title}</h1>
-                    {subtitle && <p className="text-sm font-medium text-slate-500">{subtitle}</p>}
+                <div className="flex items-center gap-4">
+                    {icon && (
+                        <div className="bg-indigo-50 p-2.5 rounded-2xl text-indigo-600">
+                            {icon}
+                        </div>
+                    )}
+                    <div>
+                        <h1 className="text-2xl font-black text-slate-800 tracking-tight">{title}</h1>
+                        {subtitle && <p className="text-sm font-medium text-slate-500">{subtitle}</p>}
+                    </div>
                 </div>
             </div>
 

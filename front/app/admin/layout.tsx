@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import Sidebar from './components/sidebar';
-import MenuIcon from '@mui/icons-material/Menu';
-import CloseIcon from '@mui/icons-material/Close';
+import CloseIcon from '@mui/icons-material/MenuOpen';
+import ChevronLeft from '@mui/icons-material/ChevronLeft';
+import ChevronRight from '@mui/icons-material/ChevronRight';
+import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname, useRouter } from 'next/navigation';
 import Header from './components/header';
 import { useAuth } from '@/hooks/useAuth';
@@ -77,11 +79,24 @@ export default function AdminLayout({
 }: {
     children: React.ReactNode;
 }) {
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const { subscriptionExpired, loading } = useAuth();
     const [isExpired, setIsExpired] = useState(false);
     const pathname = usePathname();
     const router = useRouter();
+
+    // Handle responsive initial state
+    useEffect(() => {
+        const checkScreen = () => {
+            if (window.innerWidth < 1024) {
+                setIsSidebarOpen(false);
+            } else {
+                setIsSidebarOpen(true);
+            }
+        };
+        checkScreen();
+        // Optionnel: window.addEventListener('resize', checkScreen);
+    }, []);
     
     const isWorkflowDetail = pathname.match(/^\/admin\/workflows\/.+/);
     // Don't hide for standard flows
@@ -128,20 +143,22 @@ export default function AdminLayout({
         <div className="flex h-screen bg-slate-50 overflow-hidden text-slate-900">
             {/* Sidebar with responsive overlay logic */}
             {!hideSidebar && (
-                <div className={`
-                    fixed inset-y-0 left-0 z-50 transform bg-indigo-700 transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0
-                    ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-                    w-72
-                `}>
-                    <Sidebar isExpired={isExpired} />
-                    {/* Mobile Close Button */}
-                    <button
-                        onClick={() => setIsSidebarOpen(false)}
-                        className="absolute top-4 right-[-50px] bg-indigo-700 text-white p-2 rounded-r-lg lg:hidden shadow-lg shadow-indigo-200"
-                    >
-                        <CloseIcon />
-                    </button>
-                </div>
+                <>
+                    <AnimatePresence mode="wait">
+                        {isSidebarOpen && (
+                            <motion.div 
+                                initial={{ width: 0, opacity: 0 }}
+                                animate={{ width: 288, opacity: 1 }}
+                                exit={{ width: 0, opacity: 0 }}
+                                transition={{ duration: 0.3, ease: "circOut" }}
+                                className="fixed inset-y-0 left-0 z-50 lg:relative bg-indigo-700 shadow-2xl overflow-hidden flex-shrink-0"
+                            >
+                                <Sidebar isExpired={isExpired} />
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                </>
             )}
 
             {/* Mobile Backdrop */}
@@ -160,14 +177,21 @@ export default function AdminLayout({
                             onClick={() => setIsSidebarOpen(true)}
                             className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors"
                         >
-                            <MenuIcon />
+                            <ChevronRight />
                         </button>
                         <span className="ml-4 font-bold text-gray-800 tracking-tight">Axia Admin</span>
                     </div>
                 )}
 
                 <div className="flex-1 flex flex-col overflow-hidden">
-                    {!hideSidebar && <Header title={metadata.title} subtitle={metadata.subtitle} />}
+                    {!hideSidebar && (
+                        <Header 
+                            title={metadata.title} 
+                            subtitle={metadata.subtitle} 
+                            onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+                            isSidebarOpen={isSidebarOpen}
+                        />
+                    )}
                     <main className={`flex-1 overflow-y-scroll ${hideSidebar ? 'p-0' : 'p-4 md:p-8 pt-0'}`}>
                         {children}
                     </main>

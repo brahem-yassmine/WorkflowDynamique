@@ -123,14 +123,16 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
         if (selectedNode) {
             setLabel(selectedNode.data.label as string || '');
             setDescription(selectedNode.data.description as string || '');
-            setResponsibleDomain(selectedNode.data.responsibleDomain as string || '');
+            const rDomain = selectedNode.data.responsibleDomain as string || '';
+            setResponsibleDomain(rDomain);
             setTaskType(selectedNode.data.taskType as string || 'normal');
             setPriority(selectedNode.data.priority as string || 'medium');
             setEstimatedDuration(selectedNode.data.estimatedDuration as string || '');
             setCondition(selectedNode.data.condition as string || '');
 
-            // Set state from data
-            setDomainScope((selectedNode.data.domainScope as 'all' | 'specific') || 'specific');
+            // Infer domain scope from domain name if needed
+            const isGlobal = ['GLOBAL', 'ALL', 'PUBLIC', 'TOUS'].includes(rDomain.toUpperCase());
+            setDomainScope(isGlobal ? 'all' : ((selectedNode.data.domainScope as 'all' | 'specific') || 'specific'));
             setValidationType((selectedNode.data.validationType as 'automatic' | 'simple' | 'multi') || 'simple');
             setValidatorType((selectedNode.data.validatorType as 'user' | 'role') || 'role');
             setValidatorIds((selectedNode.data.validatorIds as string[]) || []);
@@ -449,8 +451,8 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
                                                         <button
                                                             onClick={() => {
                                                                 setDomainScope('all');
-                                                                setResponsibleDomain('');
-                                                                setAssignmentType('SINGLE');
+                                                                setResponsibleDomain('GLOBAL');
+                                                                setAssignmentType('ALL');
                                                                 setAssignedTo('');
                                                             }}
                                                             className={`flex-1 py-4 text-xs font-black tracking-[0.1em] rounded-xl transition-all ${domainScope === 'all' ? 'bg-white text-indigo-600 shadow-md ring-1 ring-slate-100' : 'text-slate-400 hover:text-slate-600'}`}
@@ -488,7 +490,7 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
                                             </div>
 
                                             <div className="bg-white p-10 rounded-[40px] border border-slate-100 shadow-xl space-y-8">
-                                                {domainScope !== 'all' && (
+                                                {true && (
                                                     <>
                                                         <div className="space-y-4">
                                                             <Label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] text-[#6366f1]">2. Assignment Strategy</Label>
@@ -647,7 +649,7 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
                                             </div>
 
                                             {validationType !== 'automatic' && (
-                                                <motion.div 
+                                                <motion.div
                                                     initial={{ opacity: 0, y: 10 }}
                                                     animate={{ opacity: 1, y: 0 }}
                                                     className="space-y-8 animate-in fade-in slide-in-from-top-4"
@@ -678,8 +680,8 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
                                                             value={validatorIds}
                                                             onChange={(e) => setValidatorIds(Array.from(e.target.selectedOptions, o => o.value))}
                                                         >
-                                                            {validatorType === 'role' 
-                                                                ? roles.map(r => <option key={r._id || r.id} value={r._id || r.id}>{r.name}</option>) 
+                                                            {validatorType === 'role'
+                                                                ? roles.map(r => <option key={r._id || r.id} value={r._id || r.id}>{r.name}</option>)
                                                                 : users.map(u => <option key={u._id || u.id} value={u._id || u.id}>{u.firstName} {u.lastName} ({u.email || u.id})</option>)
                                                             }
                                                         </select>
@@ -695,8 +697,8 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
                                                                 {validationType === 'multi' ? 'Consensus Required' : 'Solo Approval'}
                                                             </p>
                                                             <p className="text-slate-400 text-xs mt-1 leading-relaxed font-medium">
-                                                                {validationType === 'multi' 
-                                                                    ? 'Every selected party must authorize the transition before it is considered valid.' 
+                                                                {validationType === 'multi'
+                                                                    ? 'Every selected party must authorize the transition before it is considered valid.'
                                                                     : 'Any single individual from the selected group can authorize the transition.'}
                                                             </p>
                                                         </div>
@@ -842,7 +844,7 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
                                                                 }`}
                                                         >
                                                             <div className="flex items-center gap-4 min-w-0 flex-1">
-                                                                 <div className={`p-2.5 rounded-xl transition-all flex-shrink-0 ${userAction === opt.id
+                                                                <div className={`p-2.5 rounded-xl transition-all flex-shrink-0 ${userAction === opt.id
                                                                     ? 'bg-emerald-600 text-white shadow-md'
                                                                     : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
                                                                     }`}>
@@ -864,7 +866,7 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
 
                                                 {(userAction === 'Fill Form' || taskContent === 'Form') && (
                                                     <div className="pt-8 mt-8 border-t border-slate-100 space-y-6">
-                                                         <div className="flex items-center justify-between">
+                                                        <div className="flex items-center justify-between">
                                                             <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Connect Workflow Resource</Label>
                                                             <Button
                                                                 variant="ghost"
@@ -915,7 +917,7 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
 
                                                 {taskType === 'checklist' && (
                                                     <div className="pt-8 mt-8 border-t border-slate-100 space-y-6">
-                                                         <div className="flex items-center justify-between">
+                                                        <div className="flex items-center justify-between">
                                                             <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Connect Checklist</Label>
                                                             <Button
                                                                 variant="ghost"
@@ -967,7 +969,7 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
 
                                                 {taskType === 'kanban' && (
                                                     <div className="pt-8 mt-8 border-t border-slate-100 space-y-6">
-                                                         <div className="flex items-center justify-between">
+                                                        <div className="flex items-center justify-between">
                                                             <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Connect Board Mapping</Label>
                                                             <Button
                                                                 variant="ghost"

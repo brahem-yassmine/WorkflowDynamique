@@ -62,8 +62,8 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
     const canPerformAny = isAnyAssignment && (!isLocked || isLockedByMe);
     const needsLock = isAnyAssignment && !isLocked;
 
-    const isActive = instance?.status === 'active';
-    const isInstanceActive = !instance || instance.status === 'in_progress';
+    const isActive = instance?.status === 'active' || instance?.status === 'in_progress' || instance?.status === 'pending';
+    const isInstanceActive = !instance || ['active', 'in_progress', 'pending'].includes(instance.status);
     const canPerform = isActive || node.type === 'start';
     const canValidate = canPerform && isInstanceActive;
     const showButtons = canPerform || canValidate;
@@ -167,13 +167,22 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
         }
     };
 
+    // Fonction de fermeture sécurisée
+    const handleClose = () => {
+        if (onClose) {
+            onClose();
+        } else {
+            console.error('onClose function is not provided');
+        }
+    };
+
     return (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
             <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                onClick={onClose}
+                onClick={handleClose}
                 className="absolute inset-0 bg-slate-900/60 backdrop-blur-lg"
             />
 
@@ -195,7 +204,10 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                             userAction === 'Approve / Reject' || taskType === 'validation' ? <ShieldCheck size={28} /> :
                                                 <AlertCircle size={28} strokeWidth={3} />}
                             </div>
-                            <button onClick={onClose} className="p-3 hover:bg-slate-100 rounded-2xl transition-all border-0 outline-none bg-transparent text-slate-400 hover:text-slate-600">
+                            <button
+                                onClick={handleClose}
+                                className="p-3 hover:bg-slate-100 rounded-2xl transition-all border-0 outline-none bg-transparent text-slate-400 hover:text-slate-600"
+                            >
                                 <X size={24} />
                             </button>
                         </div>
@@ -274,11 +286,10 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                                 data.taskType === 'checklist' ? `/checklist?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}` :
                                                     `/${data.taskType}s/${data.linkedObjectId}?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}`
                                         }
-                                        className={`w-full h-12 rounded-[18px] flex items-center justify-center gap-3 text-[11px] font-black uppercase tracking-[0.1em] transition-all ${
-                                            isActive 
-                                            ? 'bg-emerald-600 text-white hover:bg-emerald-700 hover:shadow-xl hover:shadow-emerald-200' 
+                                        className={`w-full h-12 rounded-[18px] flex items-center justify-center gap-3 text-[11px] font-black uppercase tracking-[0.1em] transition-all ${isActive
+                                            ? 'bg-emerald-600 text-white hover:bg-emerald-700 hover:shadow-xl hover:shadow-emerald-200'
                                             : 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-xl hover:shadow-indigo-200'
-                                        }`}
+                                            }`}
                                     >
                                         {isActive ? 'Execute Task Now' : 'View/Fill Asset'} <ArrowRight size={16} strokeWidth={3} />
                                     </Link>
@@ -372,7 +383,6 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                 </div>
                                 <Link
                                     href={`/form/form2?instanceId=${instance?.isKanban ? '' : (instance?._id || '')}&nodeId=${node.id}${instance?.isKanban ? `&taskId=${instance._id}` : ''}`}
-                                    onClick={onClose}
                                     className="w-full h-14 bg-indigo-600 text-white rounded-[20px] flex items-center justify-center gap-3 text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
                                 >
                                     Open Form Portal <ArrowRight size={16} />

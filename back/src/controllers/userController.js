@@ -264,6 +264,7 @@ exports.deleteUser = async (req, res) => {
 };
 
 // Get tasks assigned to the user (Workflow + Kanban)
+// Get tasks assigned to the user (Workflow + Kanban)
 exports.getUserTasks = async (req, res) => {
   try {
     const userId = req.user.userId || req.user.id;
@@ -271,78 +272,122 @@ exports.getUserTasks = async (req, res) => {
       return res.status(401).json({ success: false, message: 'User ID not found in token' });
     }
 
+    if (!req.tenantConn) {
+      console.error('❌ [getUserTasks] No tenant connection found in request');
+      return res.status(500).json({ success: false, message: 'Tenant database connection missing' });
+    }
+
+    // Ensure models are registered (though tenantMiddleware should handle this)
     const User = req.tenantConn.model('User');
     const Role = req.tenantConn.model('Role');
     const WorkflowInstance = req.tenantConn.model('WorkflowInstance');
-    const Workflow = req.tenantConn.model('Workflow');
-    const Project = req.tenantConn.model('Project');
     const Task = req.tenantConn.model('Task');
+    const Workflow = req.tenantConn.model('Workflow');
     const Board = req.tenantConn.model('Board');
+    const Project = req.tenantConn.model('Project');
 
     const user = await User.findById(userId);
-    const domain = user?.domain || req.user.domain;
+    const domain = (user?.domain || req.user.domain || '').trim();
+    const userRoleStr = user?.role || req.user.role || 'user';
+    const isAdmin = userRoleStr === 'admin' || userRoleStr === 'super_admin';
 
-    // Find user's role object to handle role-based assignments
-    const userRole = user ? await Role.findOne({ name: user.role }) : null;
+    // Find user's role object (case-insensitive)
+    const userRole = await Role.findOne({ name: { $regex: new RegExp(`^${userRoleStr}$`, 'i') } });
     const userRoleId = userRole?._id;
 
-    console.log(`🔍 [getUserTasks] User: ${userId} | Domain: ${domain} | Role: ${user?.role} (${userRoleId})`);
+    console.log(`🔍 [getUserTasks] User: ${userId} | Domain: ${domain} | Role: ${userRoleStr} | Admin: ${isAdmin}`);
 
-    // 1. KANBAN TASKS (Direct assignments)
-    const kanbanTasksRaw = await Task.find({
-      $or: [
-        { assignedTo: userId },
-        { assignedDomain: domain }
-      ]
-    }).populate({
-      path: 'boardId',
-      populate: { path: 'projectId', select: 'name' }
+    // 0. SET UP DOMAINS FOR VISIBILITY (Including Global Access)
+    const domainsToMatch = Array.from(new Set([
+      domain,
+      'GLOBAL', 'global',
+      'ALL', 'all',
+      'Public', 'public',
+      'Tous', 'tous',
+      'Everyone', 'everyone',
+      'General', 'general',
+      'Général', 'général'
+    ])).filter(Boolean);
+
+    if (domain) {
+      const upDomain = domain.toUpperCase();
+      if (upDomain === 'HR' || upDomain === 'RH') {
+        domainsToMatch.push('RH', 'HR', 'rh', 'hr');
+      }
+      domainsToMatch.push(domain.toLowerCase());
+      domainsToMatch.push(domain.toUpperCase());
+    }
+
+    // 1. KANBAN TASKS
+    let kanbanTasksRaw = [];
+    try {
+      kanbanTasksRaw = await Task.find({
+        $or: [
+          { assignedTo: userId },
+          { assignedDomain: { $in: domainsToMatch.map(d => new RegExp(`^${d}$`, 'i')) } }
+        ],
+        status: { $ne: 'done' } // Only show active kanban tasks
+      }).populate({
+        path: 'boardId',
+        populate: {
+          path: 'workflowId',
+          populate: { path: 'projectId', select: 'name' }
+        }
+      });
+    } catch (err) {
+      console.warn('⚠️ [getUserTasks] Kanban fetch failed:', err.message);
+    }
+
+    const kanbanEnriched = kanbanTasksRaw.map(t => {
+      // Find project name through nested population
+      const projectName = t.boardId?.workflowId?.projectId?.name || 'Unassigned';
+      return {
+        _id: t._id,
+        title: t.title,
+        workflowName: t.boardId?.name || 'General Board',
+        projectName: projectName,
+        instanceTitle: 'Direct Task',
+        type: 'kanban',
+        taskType: t.type === 'form' ? 'Formulaire' : 'Tâche',
+        linkedFormId: t.linkedFormId,
+        status: t.status === 'done' ? 'completed' : 'pending',
+        priority: t.priority || 'medium',
+        createdAt: t.createdAt,
+        dueDate: t.dueDate,
+        description: t.description
+      };
     });
-
-    const kanbanEnriched = kanbanTasksRaw.map(t => ({
-      _id: t._id,
-      title: t.title,
-      workflowName: t.boardId?.name || 'General Board',
-      projectName: t.boardId?.projectId?.name || 'Unassigned',
-      instanceTitle: 'Direct Task',
-      type: 'kanban',
-      taskType: t.type === 'form' ? 'Formulaire' : 'Tâche',
-      linkedFormId: t.linkedFormId,
-      status: t.status === 'done' ? 'completed' : 'pending',
-      priority: 'medium',
-      createdAt: t.createdAt,
-      dueDate: t.dueDate,
-      description: t.description
-    }));
 
     // 2. WORKFLOW TASKS
     const userObjId = mongoose.Types.ObjectId.isValid(userId) ? new mongoose.Types.ObjectId(userId) : null;
     const roleIdStr = userRoleId?.toString();
     const roleObjId = roleIdStr && mongoose.Types.ObjectId.isValid(roleIdStr) ? new mongoose.Types.ObjectId(roleIdStr) : null;
 
-    // Define domains to match (handling HR/RH synonymity)
-    const domainsToMatch = [domain];
-    if (domain === 'HR' || domain === 'RH') {
-      domainsToMatch.push(domain === 'HR' ? 'RH' : 'HR');
-    }
+    // Optimized visibility query
+    let pendingQuery = { status: 'in_progress' };
 
-    // A. Pending Workflow Tasks (Current active nodes)
-    const pendingQuery = {
-      status: 'in_progress',
-      $or: [
-        { 'currentNodes.responsibleUser': userId },
-        { 'currentNodes.assignees': userId },
-        { 'currentNodes.responsibleDomain': { $in: domainsToMatch } }
-      ]
-    };
+    if (!isAdmin) {
+      // Create a list of regexes for case-insensitive matching
+      const domainRegexes = domainsToMatch.map(d => new RegExp(`^${d}$`, 'i'));
 
-    if (userObjId) {
-      pendingQuery.$or.push({ 'currentNodes.responsibleUser': userObjId });
-      pendingQuery.$or.push({ 'currentNodes.assignees': userObjId });
-    }
-    if (roleObjId) {
-      pendingQuery.$or.push({ 'currentNodes.assignees': roleObjId });
-      pendingQuery.$or.push({ 'currentNodes.assignees': roleIdStr });
+      pendingQuery.$or = [
+        { 'currentNodes.responsibleDomain': { $in: domainRegexes } }
+      ];
+
+      if (userObjId) {
+        pendingQuery.$or.push({ 'currentNodes.responsibleUser': userObjId });
+        pendingQuery.$or.push({ 'currentNodes.assignees': userObjId });
+      }
+
+      if (roleObjId) {
+        pendingQuery.$or.push({ 'currentNodes.assignees': roleObjId });
+      } else if (roleIdStr && mongoose.Types.ObjectId.isValid(roleIdStr)) {
+        pendingQuery.$or.push({ 'currentNodes.assignees': new mongoose.Types.ObjectId(roleIdStr) });
+      }
+
+      if (userObjId) {
+        pendingQuery.$or.push({ createdBy: userObjId });
+      }
     }
 
     const activeInstances = await WorkflowInstance.find(pendingQuery).populate({
@@ -352,125 +397,112 @@ exports.getUserTasks = async (req, res) => {
 
     const workflowTasks = [];
     activeInstances.forEach(instance => {
-      if (!instance.workflowId) return;
-      instance.currentNodes.forEach(node => {
-        const isAssigned =
-          node.responsibleUser?.toString() === userId.toString() ||
-          node.assignees?.some(a => {
-            const aStr = a.toString();
-            return aStr === userId.toString() || aStr === roleIdStr;
-          }) ||
-          domainsToMatch.includes(node.responsibleDomain);
+      // Safety check
+      if (!instance.workflowId || typeof instance.workflowId !== 'object') return;
 
-        // Check if user has already approved (for ALL assignments)
+      const workflowData = instance.workflowId;
+      const nodesData = workflowData.nodes || [];
+
+      instance.currentNodes.forEach(node => {
+        if (node.status !== 'in_progress') return;
+
+        const nodeUser = node.responsibleUser?.toString();
+        const nodeAssignees = node.assignees?.map(a => a.toString()) || [];
+        const nodeDomain = node.responsibleDomain;
+
+        let isVisible = isAdmin || instance.createdBy?.toString() === userId.toString();
+
+        if (!isVisible) {
+          isVisible =
+            nodeUser === userId.toString() ||
+            nodeAssignees.includes(userId.toString()) ||
+            nodeAssignees.includes(roleIdStr) ||
+            nodeAssignees.includes(userRoleStr) ||
+            (!!nodeDomain && domainsToMatch.some(d => d && d.toLowerCase() === nodeDomain.toLowerCase()));
+
+          // Fallback visibility: If a task is UNASSIGNED, show it to users of the workflow domain
+          if (!isVisible && !nodeUser && nodeAssignees.length === 0 && !nodeDomain) {
+            const workflowDomain = workflowData.domain;
+            if (workflowDomain && domainsToMatch.some(d => d && d.toLowerCase() === workflowDomain.toLowerCase())) {
+              isVisible = true;
+            }
+          }
+        }
+
         const hasApproved = node.approvedBy?.some(u => u.toString() === userId.toString());
 
-        if (isAssigned && node.status === 'in_progress' && !hasApproved) {
-          const nodeDef = instance.workflowId.nodes.find(n => n.id === node.nodeId);
+        if (isVisible && !hasApproved) {
+          const nodeDef = nodesData.find(n => n.id === node.nodeId);
           workflowTasks.push({
             _id: `${instance._id}_${node.nodeId}`,
             instanceId: instance._id,
             nodeId: node.nodeId,
             title: nodeDef?.data?.label || nodeDef?.type || 'Validation Task',
-            workflowName: instance.workflowId.name,
+            workflowName: workflowData.name || 'Unknown Workflow',
             instanceTitle: instance.title,
-            projectName: instance.workflowId.projectId?.name || 'No Project',
+            projectName: workflowData.projectId?.name || 'No Project',
             type: 'workflow',
             taskType: (nodeDef?.type === 'form' || !!nodeDef?.data?.formId) ? 'Formulaire' : 'Tâche',
             status: 'pending',
             priority: instance.priority || 'medium',
             createdAt: node.startedAt || instance.createdAt,
-            dueDate: instance.dueDate || instance.workflowId.dueDate,
-            description: instance.description || instance.workflowId.description
+            dueDate: instance.dueDate || workflowData.dueDate,
+            description: instance.description || workflowData.description,
+            isUnassigned: !nodeUser && nodeAssignees.length === 0 && !nodeDomain
           });
         }
       });
     });
 
-    // B. Completed Workflow Tasks (User has performed action)
-    const completedInstances = await WorkflowInstance.find({
-      'executionPath.performedBy': userId
-    }).populate({
-      path: 'workflowId',
-      populate: { path: 'projectId', select: 'name' }
-    }).limit(20); // Limit to last 20 recent instances
+    // 3. HISTORY
+    const historyQuery = isAdmin ? {} : { 'executionPath.performedBy': userId };
+    const completedInstances = await WorkflowInstance.find(historyQuery)
+      .populate({ path: 'workflowId', populate: { path: 'projectId', select: 'name' } })
+      .sort({ updatedAt: -1 })
+      .limit(isAdmin ? 20 : 50);
 
     completedInstances.forEach(instance => {
-      if (!instance.workflowId) return;
-      // Find entries in executionPath where the user was the actor
-      const userActions = instance.executionPath.filter(path => path.performedBy?.toString() === userId.toString());
+      if (!instance.workflowId || typeof instance.workflowId !== 'object') return;
 
-      userActions.forEach(action => {
-        const nodeDef = instance.workflowId.nodes.find(n => n.id === action.nodeId);
+      const workflowData = instance.workflowId;
+      const nodesData = workflowData.nodes || [];
+
+      const actions = isAdmin
+        ? instance.executionPath.slice(-5)
+        : instance.executionPath.filter(p => p.performedBy?.toString() === userId.toString());
+
+      actions.forEach(action => {
+        const nodeDef = nodesData.find(n => n.id === action.nodeId);
         workflowTasks.push({
-          _id: `${instance._id}_${action.nodeId}_${action.timestamp.getTime()}`,
+          _id: `${instance._id}_${action.nodeId}_${new Date(action.timestamp).getTime()}`,
           instanceId: instance._id,
           nodeId: action.nodeId,
           title: nodeDef?.data?.label || nodeDef?.type || 'Step Done',
-          workflowName: instance.workflowId.name,
+          workflowName: workflowData.name || 'Unknown Workflow',
           instanceTitle: instance.title,
-          projectName: instance.workflowId.projectId?.name || 'No Project',
+          projectName: workflowData.projectId?.name || 'No Project',
           type: 'workflow',
           taskType: (nodeDef?.type === 'form' || !!nodeDef?.data?.formId) ? 'Formulaire' : 'Tâche',
           status: 'completed',
           priority: instance.priority || 'medium',
           createdAt: action.timestamp,
-          dueDate: instance.dueDate || instance.workflowId.dueDate,
-          description: action.comments || 'Task completed by you'
+          dueDate: instance.dueDate || workflowData.dueDate,
+          description: action.comments || (isAdmin ? `Completed by ${action.performedBy}` : 'Task completed by you')
         });
       });
     });
 
-    // C. Partially Completed Tasks (Nodes where user has approved but node is still active)
-    const partialInstances = await WorkflowInstance.find({
-      'currentNodes.approvedBy': userId
-    }).populate({
-      path: 'workflowId',
-      populate: { path: 'projectId', select: 'name' }
-    });
-
-    partialInstances.forEach(instance => {
-      if (!instance.workflowId) return;
-      instance.currentNodes.forEach(node => {
-        if (node.approvedBy?.some(u => u.toString() === userId.toString())) {
-          const nodeDef = instance.workflowId.nodes.find(n => n.id === node.nodeId);
-          workflowTasks.push({
-            _id: `${instance._id}_${node.nodeId}_partial`,
-            instanceId: instance._id,
-            nodeId: node.nodeId,
-            title: nodeDef?.data?.label || nodeDef?.type || 'Approval Recorded',
-            workflowName: instance.workflowId.name,
-            instanceTitle: instance.title,
-            projectName: instance.workflowId.projectId?.name || 'No Project',
-            type: 'workflow',
-            taskType: (nodeDef?.type === 'form' || !!nodeDef?.data?.formId) ? 'Formulaire' : 'Tâche',
-            status: 'completed',
-            priority: instance.priority || 'medium',
-            createdAt: node.startedAt || instance.createdAt,
-            dueDate: instance.dueDate || instance.workflowId.dueDate,
-            description: 'You have completed your action. Waiting for other participants.'
-          });
-        }
-      });
-    });
-
-    // Merge and sort
+    // Final merge and sort
     const allTasks = [...kanbanEnriched, ...workflowTasks].sort((a, b) =>
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
 
-    console.log(`✅ [getUserTasks] Returning ${allTasks.length} tasks total`);
-
-    res.json({
-      success: true,
-      data: allTasks
-    });
+    console.log(`✅ [getUserTasks] Loaded ${allTasks.length} tasks for user ${userId}`);
+    res.json({ success: true, count: allTasks.length, data: allTasks });
 
   } catch (error) {
-    console.error('❌ [getUserTasks] Error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error: ' + error.message
-    });
+    console.error('❌ [getUserTasks] Critical Error:', error);
+    res.status(500).json({ success: false, message: 'Server error: ' + error.message });
   }
 };
+

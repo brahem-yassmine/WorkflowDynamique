@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const notificationController = require('./notificationController');
 const fs = require('fs');
 const path = require('path');
@@ -36,9 +37,10 @@ exports.createInstance = async (req, res) => {
 
     // If ALL department members must validate
     if (startNode.data?.assignmentType === 'ALL' && (startNode.data?.assignedTo || startNode.data?.responsibleDomain)) {
-      const domainName = startNode.data?.responsibleDomain || (await req.tenantConn.model('Domain').findById(startNode.data?.assignedTo))?.name;
-      if (domainName) {
-        const domainUsers = await UserModel.find({ domain: domainName });
+      const dName = startNode.data?.responsibleDomain || (await req.tenantConn.model('Domain').findById(startNode.data?.assignedTo))?.name;
+      if (dName) {
+        const isGlobal = ['GLOBAL', 'ALL', 'PUBLIC'].includes(dName.toUpperCase());
+        const domainUsers = isGlobal ? await UserModel.find({}) : await UserModel.find({ domain: dName });
         startAssignees = domainUsers.map(u => u._id);
       }
     }
@@ -146,17 +148,26 @@ exports.createInstance = async (req, res) => {
       // 2. Notify by Domain/Department
       if (currentNode.responsibleDomain) {
         const domain = currentNode.responsibleDomain;
-        const searchDomains = [domain];
-        if (domain === 'HR' || domain === 'RH') searchDomains.push(domain === 'HR' ? 'RH' : 'HR');
+        const isGlobal = ['GLOBAL', 'ALL', 'PUBLIC'].includes(domain.toUpperCase());
+        
+        let domainUsers;
+        if (isGlobal) {
+          domainUsers = await UserModel.find({});
+        } else {
+          const searchDomains = [domain];
+          if (domain.toUpperCase() === 'HR' || domain.toUpperCase() === 'RH') {
+            searchDomains.push('RH', 'HR', 'rh', 'hr');
+          }
+          domainUsers = await UserModel.find({ domain: { $in: searchDomains } });
+        }
 
-        const domainUsers = await UserModel.find({ domain: { $in: searchDomains } });
         for (const user of domainUsers) {
           if (targetUsers.has(user._id.toString())) continue;
 
           await notificationController.createInternalNotification(req.tenantConn, {
             recipient: user._id,
-            title: 'New Department Task',
-            message: `A new task for the ${domain} department is available in "${instance.title}".`,
+            title: isGlobal ? 'Global Task Broadcast' : 'New Department Task',
+            message: isGlobal ? `A mandatory task for everyone is available in "${instance.title}".` : `A new task for the ${domain} department is available in "${instance.title}".`,
             type: 'task_assigned',
             link: `/Workflows/instances/${instance._id}`
           });
@@ -202,12 +213,26 @@ exports.getInstances = async (req, res) => {
     if (priority) query.priority = priority;
     if (createdBy) query.createdBy = createdBy;
 
-    // Filter by currently active responsible user or domain
-    if (responsibleUser) {
-      query['currentNodes.responsibleUser'] = responsibleUser;
-    }
-    if (responsibleDomain) {
-      query['currentNodes.responsibleDomain'] = responsibleDomain;
+    // 1. Visibility for non-admin users
+    const user = req.user;
+    if (user.role !== 'admin' && user.role !== 'super_admin') {
+      const domainsToMatch = [user.domain];
+      if (user.domain === 'HR' || user.domain === 'RH') {
+        domainsToMatch.push(user.domain === 'HR' ? 'RH' : 'HR');
+      }
+      
+      const globalKeywords = ['GLOBAL', 'ALL', 'PUBLIC', 'TOUS', 'EVERYONE'];
+      
+      query.$or = [
+        { 'currentNodes.responsibleDomain': { $in: domainsToMatch } },
+        { 'currentNodes.responsibleDomain': { $in: globalKeywords } },
+        { 'currentNodes.responsibleDomain': { $in: globalKeywords.map(k => k.toLowerCase()) } },
+        { 'currentNodes.responsibleUser': user.id || user._id },
+        { 'currentNodes.assignees': user.id || user._id }
+      ];
+    } else {
+      if (responsibleUser) query['currentNodes.responsibleUser'] = responsibleUser;
+      if (responsibleDomain) query['currentNodes.responsibleDomain'] = responsibleDomain;
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -218,7 +243,7 @@ exports.getInstances = async (req, res) => {
         .limit(parseInt(limit))
         .populate({
           path: 'workflowId',
-          select: 'name description domain projectId',
+          select: 'name description domain projectId nodes edges',
           populate: { path: 'projectId', select: 'name' }
         })
         .populate('createdBy', 'email firstName lastName'),
@@ -243,6 +268,13 @@ exports.getInstances = async (req, res) => {
 exports.getInstanceById = async (req, res) => {
   try {
     const { instanceId } = req.params;
+    console.log(`🔍 [InstanceCtrl] Fetching instance: ${instanceId} | TenantDB: ${req.tenantConn.name}`);
+    
+    if (!mongoose.Types.ObjectId.isValid(instanceId)) {
+      console.warn(`⚠️ [InstanceCtrl] Invalid instanceId format: ${instanceId}`);
+      return res.status(400).json({ success: false, message: 'Invalid Instance ID format' });
+    }
+
     const WorkflowInstance = req.tenantConn.model('WorkflowInstance');
 
     const instance = await WorkflowInstance.findById(instanceId)
@@ -250,7 +282,15 @@ exports.getInstanceById = async (req, res) => {
       .populate('createdBy', 'email firstName lastName')
       .populate('history.performedBy', 'email firstName lastName');
 
-    if (!instance) return res.status(404).json({ success: false, message: 'Instance not found' });
+    if (!instance) {
+      console.warn(`⚠️ [InstanceCtrl] Instance not found: ${instanceId} in DB: ${req.tenantConn.name}`);
+      return res.status(404).json({ success: false, message: 'Instance not found' });
+    }
+
+    if (!instance.workflowId) {
+      console.error(`❌ [InstanceCtrl] Instance ${instanceId} has no associated workflow definition!`);
+    }
+
     res.json({ success: true, data: instance });
   } catch (error) {
     console.error('❌ getInstanceById Error:', error);
@@ -421,7 +461,8 @@ exports.approveNode = async (req, res) => {
           if (node.data?.assignmentType === 'ALL' && (node.data?.assignedTo || domainName)) {
             const dName = domainName || (node.data?.assignedTo ? (await DomainModel.findById(node.data.assignedTo))?.name : null);
             if (dName) {
-              const domainUsers = await UserModel.find({ domain: dName });
+              const isGlobal = ['GLOBAL', 'ALL', 'PUBLIC'].includes(dName.toUpperCase());
+              const domainUsers = isGlobal ? await UserModel.find({}) : await UserModel.find({ domain: dName });
               nodeAssignees = domainUsers.map(u => u._id);
             }
           }
@@ -529,17 +570,26 @@ exports.approveNode = async (req, res) => {
 
           if (newNode.responsibleDomain) {
             const domain = newNode.responsibleDomain;
-            const searchDomains = [domain];
-            if (domain === 'HR' || domain === 'RH') searchDomains.push(domain === 'HR' ? 'RH' : 'HR');
+            const isGlobal = ['GLOBAL', 'ALL', 'PUBLIC'].includes(domain.toUpperCase());
+            
+            let domainUsers;
+            if (isGlobal) {
+              domainUsers = await UserModel.find({});
+            } else {
+              const searchDomains = [domain];
+              if (domain.toUpperCase() === 'HR' || domain.toUpperCase() === 'RH') {
+                searchDomains.push('RH', 'HR', 'rh', 'hr');
+              }
+              domainUsers = await UserModel.find({ domain: { $in: searchDomains } });
+            }
 
-            const domainUsers = await UserModel.find({ domain: { $in: searchDomains } });
             for (const user of domainUsers) {
               if (targetUsers.has(user._id.toString())) continue;
 
               await notificationController.createInternalNotification(req.tenantConn, {
                 recipient: user._id,
-                title: 'New Department Task',
-                message: `A new task for the ${domain} department is available in "${instance.title}".`,
+                title: isGlobal ? 'Global Task Broadcast' : 'New Department Task',
+                message: isGlobal ? `A mandatory task is available for all users in "${instance.title}".` : `A new task for the ${domain} department is available in "${instance.title}".`,
                 type: 'task_assigned',
                 link: `/Workflows/instances/${instance._id}`
               });
@@ -864,12 +914,14 @@ exports.getInstanceStats = async (req, res) => {
       }
     ]);
 
+    console.log(`📊 [InstanceStats] Aggregating stats for DB: ${req.tenantConn.name}`);
+    
     res.json({
       success: true,
       data: {
         stats,
         topWorkflows: byWorkflow,
-        total: stats.reduce((acc, curr) => acc + curr.count, 0)
+        total: stats.reduce((acc, curr) => acc + (curr.count || 0), 0)
       }
     });
 

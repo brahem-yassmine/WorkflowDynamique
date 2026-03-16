@@ -57,10 +57,13 @@ export default function UserTasksPage() {
             const res = await apiService.getMyTasks();
             if (res.success) {
                 setTasks(res.data);
+            } else {
+                toast.error(res.message || 'Failed to load your tasks');
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Fetch tasks error:', error);
-            toast.error('Failed to load your tasks');
+            const errorMsg = error.message || 'Failed to connect to the task matrix';
+            toast.error(errorMsg);
         } finally {
             setIsLoading(false);
         }

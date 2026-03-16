@@ -22,7 +22,14 @@ exports.getWorkflows = async (req, res) => {
       if (user.domain === 'HR' || user.domain === 'RH') {
         domainsToMatch.push(user.domain === 'HR' ? 'RH' : 'HR');
       }
-      query.domain = { $in: domainsToMatch };
+      
+      const globalKeywords = ['GLOBAL', 'ALL', 'PUBLIC', 'TOUS', 'EVERYONE'];
+      
+      query.$or = [
+        { domain: { $in: domainsToMatch } },
+        { domain: { $in: globalKeywords } },
+        { domain: { $in: globalKeywords.map(k => k.toLowerCase()) } }
+      ];
     } else {
       if (projectId) query.projectId = projectId;
       if (domain) query.domain = domain;
@@ -53,10 +60,13 @@ exports.getWorkflows = async (req, res) => {
 exports.getWorkflowById = async (req, res) => {
   try {
     const { workflowId } = req.params;
+    console.log(`🔍 [WorkflowCtrl] Fetching workflow: ${workflowId} | TenantDB: ${req.tenantConn.name}`);
+    
     const Workflow = req.tenantConn.model('Workflow');
     const workflow = await Workflow.findById(workflowId);
 
     if (!workflow) {
+      console.warn(`⚠️ [WorkflowCtrl] Workflow not found: ${workflowId} in DB: ${req.tenantConn.name}`);
       return res.status(404).json({
         success: false,
         message: 'Workflow not found'

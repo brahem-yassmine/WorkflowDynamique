@@ -152,4 +152,13 @@
   border: 1px solid #f1f5f9 !important;
   border-radius: 12px !important;
   overflow: hidden !important;
-}
+}
+@layer utilities {
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}

@@ -24,16 +24,17 @@ import {
   ListTodo,
   Activity,
   Briefcase,
-  LifeBuoy
+  LifeBuoy,
+  Stethoscope
 } from 'lucide-react';
 
 const menuGroups = [
   {
     title: "Global",
     items: [
-      { icon: LayoutDashboard, label: "Command Center", href: "/admin" },
+      { icon: LayoutGrid, label: "Command Center", href: "/admin" },
       { icon: Activity, label: "Live Operations Global", href: "/admin/operations" },
-      { icon: GitBranch, label: "All workflows", href: "/admin/workflows" },
+      { icon: Stethoscope, label: "All workflows", href: "/admin/workflows" },
       { icon: ListTodo, label: "Checklists", href: "/admin/AllCheck" },
       { icon: FileText, label: "Formulaires", href: "/admin/AllForms" },
       { icon: FolderKanban, label: "Kanbans", href: "/admin/AllKanban" },
@@ -79,22 +80,22 @@ function Sidebar({ isExpired = false }: { isExpired?: boolean }) {
       <div className="absolute bottom-0 left-0 w-24 h-24 bg-indigo-900/20 rounded-full -ml-12 -mb-12 blur-xl"></div>
 
       <div className="p-8 relative z-10">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg shadow-indigo-900/20">
-            <Zap size={22} className="text-indigo-600 fill-indigo-600" />
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-lg border border-white/10">
+            <Zap size={26} className="text-white fill-white" />
           </div>
           <div>
-            <h1 className="text-xl font-black text-white tracking-tighter">Axia Core</h1>
-            <p className="text-[10px] text-indigo-200 font-black uppercase tracking-widest opacity-80">Admin Console</p>
+            <h1 className="text-xl font-black text-white tracking-tight leading-none">Axia Core</h1>
+            <p className="text-[10px] text-indigo-300 font-extrabold uppercase tracking-widest mt-1.5">Admin Console</p>
           </div>
         </div>
       </div>
 
-      <nav className="flex-1 mt-2 overflow-y-auto px-4 space-y-8 relative z-10 custom-scrollbar pb-10">
+      <nav className="flex-1 mt-2 overflow-y-auto px-4 space-y-8 relative z-10 scrollbar-hide pb-10">
         {menuGroups.map((group, groupIndex) => (
-          <div key={groupIndex} className="space-y-2">
-            <h2 className="px-4 text-[14px] font-black text-indigo-200/60 uppercase tracking-widest flex items-center gap-2">
-              <span className="w-1 h-1 bg-white/40 rounded-full"></span>
+          <div key={groupIndex} className="space-y-4">
+            <h2 className="px-4 text-[11px] font-black text-indigo-200/50 uppercase tracking-[0.2em] flex items-center gap-2">
+              <span className="w-1.5 h-1.5 bg-indigo-400/50 rounded-full"></span>
               {group.title}
             </h2>
             <div className="space-y-1">
@@ -154,12 +155,12 @@ function Sidebar({ isExpired = false }: { isExpired?: boolean }) {
             <p className="text-[11px] font-black text-white uppercase tracking-tight">Access Restricted</p>
           </div>
         ) : (
-          <div className="bg-indigo-800/50 rounded-2xl p-4 border border-indigo-400/20 mb-6">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></div>
-              <span className="text-[9px] font-black text-indigo-200 uppercase tracking-widest">Lattice Security</span>
+          <div className="bg-white/5 backdrop-blur-sm rounded-3xl p-5 border border-white/5 mb-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-2 h-2 bg-emerald-400 rounded-full shadow-[0_0_8px_rgba(52,211,153,0.6)] animate-pulse"></div>
+              <span className="text-[9px] font-black text-indigo-200 uppercase tracking-[0.2em]">Lattice Security</span>
             </div>
-            <p className="text-[11px] font-bold text-white/90">Master Node Active</p>
+            <p className="text-xs font-bold text-white tracking-tight">Master Node Active</p>
           </div>
         )}
 
@@ -173,9 +174,11 @@ function Sidebar({ isExpired = false }: { isExpired?: boolean }) {
             localStorage.removeItem('user_pass_sync');
             window.location.href = '/signin';
           }}
-          className="flex items-center gap-3 px-4 py-3 text-indigo-100 hover:bg-white/10 hover:text-white rounded-2xl w-full transition-all group"
+          className="flex items-center gap-4 px-4 py-3 text-indigo-100 hover:bg-white/10 hover:text-white rounded-2xl w-full transition-all group"
         >
-          <LogOut size={18} className="group-hover:-translate-x-1 transition-transform" />
+          <div className="w-9 h-9 bg-black/20 rounded-full flex items-center justify-center group-hover:bg-black/30 transition-colors">
+            <LogOut size={16} />
+          </div>
           <span className="text-xs font-bold tracking-tight">Terminate Session</span>
         </button>
       </div>

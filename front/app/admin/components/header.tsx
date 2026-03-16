@@ -2,7 +2,7 @@
 
 import React from 'react';
 import useUser from '@/hooks/useUser';
-import { UserCircle, Bell, Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { UserCircle, Bell, Menu, PanelLeft } from 'lucide-react';
 import NotificationBell from '@/components/NotificationBell';
 
 interface HeaderProps {
@@ -18,15 +18,15 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle, icon, rightContent, on
     const { user, tenant } = useUser();
 
     return (
-        <div className="bg-white border-b border-slate-200 px-8 py-5 flex justify-between items-center shadow-sm relative z-30">
+        <div className="bg-white border-b border-slate-100 px-8 py-4 flex justify-between items-center relative z-30">
             <div className="flex items-center gap-6">
                 {onToggleSidebar && (
                     <button
                         onClick={onToggleSidebar}
-                        className="p-2.5 bg-slate-50 border border-slate-100 rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-100 transition-all shadow-sm active:scale-95 flex items-center justify-center mr-2"
+                        className="w-12 h-12 bg-white border border-slate-200 rounded-xl text-slate-400 hover:text-indigo-600 hover:border-indigo-100 transition-all active:scale-95 flex items-center justify-center mr-2 shadow-sm"
                         title={isSidebarOpen ? "Collapse Sidebar" : "Expand Sidebar"}
                     >
-                        {isSidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
+                        <PanelLeft size={24} strokeWidth={1.5} />
                     </button>
                 )}
                 <div className="flex items-center gap-4">
@@ -35,9 +35,9 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle, icon, rightContent, on
                             {icon}
                         </div>
                     )}
-                    <div>
-                        <h1 className="text-2xl font-black text-slate-800 tracking-tight">{title}</h1>
-                        {subtitle && <p className="text-sm font-medium text-slate-500">{subtitle}</p>}
+                    <div className="flex flex-col">
+                        <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-none">{title}</h1>
+                        <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mt-2">{subtitle || 'Management Console'}</p>
                     </div>
                 </div>
             </div>

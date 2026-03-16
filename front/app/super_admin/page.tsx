@@ -201,7 +201,7 @@ export default function SuperAdminDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <KPICard title="Organizations" value={stats.totalCompanies} icon={<Building2 className="text-blue-500" />} trend="+12% vs last month" />
         <KPICard title="Total Entities" value={stats.totalUsers} icon={<Users className="text-indigo-500" />} trend="+340 this week" />
-        <KPICard title="Gross Revenue" value={`€${(stats.totalRevenue / 1000).toFixed(1)}k`} icon={<DollarSign className="text-emerald-500" />} trend="+23% Growth" />
+        <KPICard title="Gross Revenue" value={`${(stats.totalRevenue / 1000).toFixed(1)}k DT`} icon={<DollarSign className="text-emerald-500" />} trend="+23% Growth" />
         <KPICard title="GPU Compute" value={`${stats.averageGpuUsage}%`} icon={<Cpu className="text-rose-500" />} trend="High Demand" />
       </div>
 

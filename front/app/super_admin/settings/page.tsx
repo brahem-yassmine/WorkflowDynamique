@@ -120,7 +120,7 @@ export default function PlatformSettingsPage() {
             name: plan.name,
             price: plan.price,
             interval: plan.interval || 'month',
-            currency: plan.currency || 'eur',
+            currency: plan.currency || 'tnd',
             isActive: plan.isActive !== undefined ? plan.isActive : plan.active,
             features: {
               maxUsers: plan.features?.maxUsers || plan.maxUsers || 1,
@@ -279,7 +279,7 @@ export default function PlatformSettingsPage() {
                         />
                         <div className="flex flex-1 items-center gap-2">
                           <div className="flex-1 space-y-1">
-                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-tighter block">Price (€)</label>
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-tighter block">Price (DT)</label>
                             <Input type="number" className="h-9 font-bold bg-white" value={p.price} onChange={(e) => handlePlanChange(id, "price", Number(e.target.value))} />
                           </div>
                           <div className="flex-1 space-y-1">

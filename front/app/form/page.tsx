@@ -339,7 +339,7 @@ function FormBuilderContent() {
         }
 
         if (shouldNavigate && newId) {
-          const targetPage = from === 'user' ? '/User/form/form2' : (from === 'admin' ? '/admin/form/form2' : '/form/form2');
+          const targetPage = from === 'admin' ? '/admin/form/form2' : '/form/form2';
           let redirectUrl = `${targetPage}?id=${newId}${from ? `&from=${from}` : ''}`;
           if (designerWorkflowId) redirectUrl += `&designerWorkflowId=${designerWorkflowId}`;
           if (designerNodeId) redirectUrl += `&designerNodeId=${designerNodeId}`;

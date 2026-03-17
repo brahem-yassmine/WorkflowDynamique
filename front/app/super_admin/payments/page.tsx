@@ -177,7 +177,7 @@ export default function SubscriptionPaymentPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <KPIPaymentCard
           label="Total Monthly Liquidity"
-          value={`€${((totalRevenue || 0) / 1000).toFixed(1)}k`}
+          value={`${((totalRevenue || 0) / 1000).toFixed(1)}k DT`}
           trend={`${stats?.revenue?.growthTrend || "+0.0%"} from forecast`}
           icon={<Wallet className="text-emerald-500" />}
           color="bg-emerald-50"
@@ -295,7 +295,7 @@ export default function SubscriptionPaymentPage() {
                 <div className="pt-6 border-t border-slate-50 flex justify-between items-center">
                   <div>
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Price</p>
-                    <p className="text-xl font-black text-indigo-600 mt-1">€{plan.price.toLocaleString()}</p>
+                    <p className="text-xl font-black text-indigo-600 mt-1">{plan.price.toLocaleString()} DT</p>
                   </div>
                   <button className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm">
                     <ChevronRight size={18} />

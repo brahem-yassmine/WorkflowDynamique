@@ -11,6 +11,7 @@ const userSchema = new mongoose.Schema({
     trim: true
   },
 
+
   password: {
     type: String,
     required: true
@@ -20,6 +21,18 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: 'user'
   },
+
+  specificRole: {
+    type: String,
+    default: ''
+  },
+
+  specificRoleId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Role'
+  },
+
+
 
   domain: {
     type: String,

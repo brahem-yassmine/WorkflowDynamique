@@ -22,9 +22,9 @@ exports.getWorkflows = async (req, res) => {
       if (user.domain === 'HR' || user.domain === 'RH') {
         domainsToMatch.push(user.domain === 'HR' ? 'RH' : 'HR');
       }
-      
+
       const globalKeywords = ['GLOBAL', 'ALL', 'PUBLIC', 'TOUS', 'EVERYONE'];
-      
+
       query.$or = [
         { domain: { $in: domainsToMatch } },
         { domain: { $in: globalKeywords } },
@@ -61,7 +61,7 @@ exports.getWorkflowById = async (req, res) => {
   try {
     const { workflowId } = req.params;
     console.log(`🔍 [WorkflowCtrl] Fetching workflow: ${workflowId} | TenantDB: ${req.tenantConn.name}`);
-    
+
     const Workflow = req.tenantConn.model('Workflow');
     const workflow = await Workflow.findById(workflowId);
 
@@ -369,7 +369,7 @@ exports.deleteWorkflow = async (req, res) => {
             type: 'system'
           });
         }
-      } catch (notifErr) {}
+      } catch (notifErr) { }
     }
 
     if (!workflow) return res.status(404).json({ success: false, message: 'Workflow not found' });
@@ -498,7 +498,7 @@ async function _internalStartInstance(tenantConn, workflow, user, options = {}) 
         });
       }
     }
-  } catch (err) {}
+  } catch (err) { }
 
   return instance;
 }
@@ -594,19 +594,19 @@ async function _triggerAutomaticChecklist(req, workflow) {
   try {
     // We only automate for admins creating templates
     if (req.user?.role !== 'admin' && req.user?.role !== 'super_admin') return;
-    
+
     // Include actions and conditions as checklist items
-    const nodesToInclude = (workflow.nodes || []).filter(n => 
+    const nodesToInclude = (workflow.nodes || []).filter(n =>
       n.type === 'action' || n.type === 'condition' || n.type === 'task'
     );
-    
+
     if (nodesToInclude.length === 0) return;
 
     const Checklist = req.tenantConn.model('Checklist');
-    
+
     // Use a unique identifier or name for the template's checklist
     const checklistName = `Workflow: ${workflow.name}`;
-    
+
     const checklistTasks = nodesToInclude.map(n => ({
       id: n.id,
       title: n.data?.label || (n.type === 'action' ? 'Task' : n.type === 'condition' ? 'Condition' : 'Step'),
@@ -616,16 +616,16 @@ async function _triggerAutomaticChecklist(req, workflow) {
 
     await Checklist.findOneAndUpdate(
       { workflowId: workflow._id }, // Better to find by workflowId than name
-      { 
-        name: checklistName, 
-        tasks: checklistTasks, 
-        description: `Automated checklist for workflow "${workflow.name}"`, 
+      {
+        name: checklistName,
+        tasks: checklistTasks,
+        description: `Automated checklist for workflow "${workflow.name}"`,
         createdBy: req.user.id || req.user.userId || req.user._id,
-        workflowId: workflow._id 
+        workflowId: workflow._id
       },
       { new: true, upsert: true }
     );
-    
+
     console.log(`✅ Automatic checklist for workflow: ${workflow.name} (ID: ${workflow._id})`);
   } catch (error) {
     console.error('❌ Automatic Checklist Generation Error:', error.message);

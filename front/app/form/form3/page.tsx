@@ -252,15 +252,7 @@ const Form3PageContent = () => {
             </motion.div>
           </div>
         )}
-        {!!(instanceId && currentNode) && (
-          <TaskExecutionPanel
-            key="workflow-instance-panel"
-            instance={instance}
-            node={currentNode}
-            onClose={() => { }}
-            onRefresh={fetchData}
-          />
-        )}
+
       </AnimatePresence>
 
       {/* Header */}

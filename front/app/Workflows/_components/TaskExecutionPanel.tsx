@@ -286,6 +286,7 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                                 data.taskType === 'checklist' ? `/checklist?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}` :
                                                     `/${data.taskType}s/${data.linkedObjectId}?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}`
                                         }
+                                        onClick={handleClose}
                                         className={`w-full h-12 rounded-[18px] flex items-center justify-center gap-3 text-[11px] font-black uppercase tracking-[0.1em] transition-all ${isActive
                                             ? 'bg-emerald-600 text-white hover:bg-emerald-700 hover:shadow-xl hover:shadow-emerald-200'
                                             : 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-xl hover:shadow-indigo-200'
@@ -383,6 +384,7 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                 </div>
                                 <Link
                                     href={`/form/form2?instanceId=${instance?.isKanban ? '' : (instance?._id || '')}&nodeId=${node.id}${instance?.isKanban ? `&taskId=${instance._id}` : ''}`}
+                                    onClick={handleClose}
                                     className="w-full h-14 bg-indigo-600 text-white rounded-[20px] flex items-center justify-center gap-3 text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
                                 >
                                     Open Form Portal <ArrowRight size={16} />

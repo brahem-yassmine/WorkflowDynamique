@@ -276,15 +276,7 @@ function Form2PageContent() {
           </div>
         )}
 
-        {!!(instanceId && instanceId !== 'new' && currentNode) && (
-          <TaskExecutionPanel
-            key="workflow-instance-panel"
-            instance={instance}
-            node={currentNode}
-            onClose={() => { }}
-            onRefresh={fetchData}
-          />
-        )}
+
       </AnimatePresence>
 
       {/* Header */}

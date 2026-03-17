@@ -523,56 +523,56 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
                                                             </div>
                                                         </div>
 
-                                                        {assignmentType === 'SINGLE' && (
-                                                            <motion.div
-                                                                initial={{ opacity: 0, height: 0 }}
-                                                                animate={{ opacity: 1, height: 'auto' }}
-                                                                className="space-y-4 pt-4 border-t border-slate-50"
-                                                            >
-                                                                <Label className="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                                                                    <Users size={14} className="text-indigo-500" />
-                                                                    Target Person
-                                                                </Label>
-                                                                <div className="relative group/select">
-                                                                    <select
-                                                                        className="w-full h-16 px-6 bg-slate-50 rounded-[22px] font-bold text-slate-700 border border-slate-100 outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all appearance-none cursor-pointer relative z-10"
-                                                                        style={{
-                                                                            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236366f1' stroke-width='3' %3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7' /%3E%3C/svg%3E")`,
-                                                                            backgroundRepeat: 'no-repeat',
-                                                                            backgroundPosition: 'right 1.5rem center',
-                                                                            backgroundSize: '1.2rem'
-                                                                        }}
-                                                                        value={assignedTo}
-                                                                        onChange={(e) => setAssignedTo(e.target.value)}
+                                                        {assignmentType !== 'ALL' && (
+                                                            <div className="space-y-4 pt-4 border-t border-slate-50">
+                                                                <Label className="text-[11px] font-black text-slate-500 uppercase tracking-widest text-[#6366f1]">3. Target Selection</Label>
+                                                                <div className="flex bg-slate-50 p-1 rounded-2xl gap-1">
+                                                                    <button
+                                                                        onClick={() => setAssigneeSelectionType('role')}
+                                                                        className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${assigneeSelectionType === 'role' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}
                                                                     >
-                                                                        <option value="">-- Select Member ({users.length} available) --</option>
-                                                                        {users.length > 0 ? (
-                                                                            users.filter(u => {
-                                                                                // If no specific domain is selected yet, we show everyone.
-                                                                                if (!responsibleDomain) return true;
-
-                                                                                const userDomain = (typeof u.domain === 'object' && u.domain !== null)
-                                                                                    ? (u.domain.name || u.domain._id)
-                                                                                    : u.domain;
-
-                                                                                const isMatch = String(userDomain || '').toLowerCase().trim() === String(responsibleDomain).toLowerCase().trim();
-                                                                                return isMatch;
-                                                                            }).map((u, idx) => {
-                                                                                const displayName = (u.firstName || u.lastName)
-                                                                                    ? `${u.firstName || ''} ${u.lastName || ''}`.trim()
-                                                                                    : (u.username || u.email || `Agent ${idx + 1}`);
-                                                                                return (
-                                                                                    <option key={u._id || u.id || idx} value={u._id || u.id}>
-                                                                                        {displayName}
-                                                                                    </option>
-                                                                                );
-                                                                            })
-                                                                        ) : (
-                                                                            <option disabled>No users found in database</option>
-                                                                        )}
-                                                                    </select>
+                                                                        By Role
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => setAssigneeSelectionType('user')}
+                                                                        className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${assigneeSelectionType === 'user' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}
+                                                                    >
+                                                                        By User
+                                                                    </button>
                                                                 </div>
-                                                            </motion.div>
+
+                                                                {assigneeSelectionType === 'role' ? (
+                                                                    <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+                                                                        <select
+                                                                            className="w-full h-16 px-6 bg-slate-50 rounded-[22px] font-bold text-slate-700 border border-slate-100 outline-none focus:ring-4 focus:ring-indigo-500/10 appearance-none cursor-pointer"
+                                                                            value={responsibleDomain}
+                                                                            onChange={(e) => {
+                                                                                setResponsibleDomain(e.target.value);
+                                                                                // Also set assignedTo to the role ID for backend compatibility
+                                                                                const role = roles.find(r => r.name === e.target.value || r._id === e.target.value);
+                                                                                if (role) setAssignedTo(role._id);
+                                                                            }}
+                                                                        >
+                                                                            <option value="">-- Select Specific Role --</option>
+                                                                            {roles.map(r => <option key={r._id} value={r.name}>{r.name}</option>)}
+                                                                        </select>
+                                                                        <p className="text-[9px] font-bold text-slate-400 italic px-2">Tasks will be visible to all users assigned this specific role.</p>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+                                                                        <select
+                                                                            className="w-full h-16 px-6 bg-slate-50 rounded-[22px] font-bold text-slate-700 border border-slate-100 outline-none focus:ring-4 focus:ring-indigo-500/10 appearance-none cursor-pointer"
+                                                                            value={assignedTo}
+                                                                            onChange={(e) => setAssignedTo(e.target.value)}
+                                                                        >
+                                                                            <option value="">-- Select Specific Member --</option>
+                                                                            {users.map((u, idx) => (
+                                                                                <option key={u._id || idx} value={u._id}>{u.firstName} {u.lastName} ({u.email})</option>
+                                                                            ))}
+                                                                        </select>
+                                                                    </div>
+                                                                )}
+                                                            </div>
                                                         )}
                                                     </>
                                                 )}

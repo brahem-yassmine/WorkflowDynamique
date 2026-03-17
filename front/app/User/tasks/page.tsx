@@ -52,22 +52,48 @@ export default function UserTasksPage() {
     const [selectedNode, setSelectedNode] = useState<any>(null);
     const [isFetchingTask, setIsFetchingTask] = useState(false);
 
+    // const fetchTasks = async () => {
+    //     try {
+    //         const res = await apiService.getMyTasks();
+    //         if (res.success) {
+    //             setTasks(res.data);
+    //         } else {
+    //             toast.error(res.message || 'Failed to load your tasks');
+    //         }
+    //     } catch (error: any) {
+    //         console.error('Fetch tasks error:', error);
+    //         const errorMsg = error.message || 'Failed to connect to the task matrix';
+    //         toast.error(errorMsg);
+    //     } finally {
+    //         setIsLoading(false);
+    //     }
+    // };
+
     const fetchTasks = async () => {
-        try {
-            const res = await apiService.getMyTasks();
-            if (res.success) {
-                setTasks(res.data);
-            } else {
-                toast.error(res.message || 'Failed to load your tasks');
-            }
-        } catch (error: any) {
-            console.error('Fetch tasks error:', error);
-            const errorMsg = error.message || 'Failed to connect to the task matrix';
-            toast.error(errorMsg);
-        } finally {
-            setIsLoading(false);
-        }
-    };
+  try {
+    setIsLoading(true);
+    const res = await apiService.getMyTasks();
+    console.log('🔍 FULL RESPONSE:', JSON.stringify(res, null, 2));
+    
+    if (res?.success) {
+      // Essaie différentes structures
+      const possibleData = res.data?.data || res.data || res;
+      console.log('📦 Data to set:', possibleData);
+      
+      if (Array.isArray(possibleData)) {
+        setTasks(possibleData);
+        console.log('✅ Tasks set:', possibleData.length);
+      } else {
+        console.log('❌ Data is not an array:', possibleData);
+        setTasks([]);
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error:', error);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
     useEffect(() => {
         fetchTasks();

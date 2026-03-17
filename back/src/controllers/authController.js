@@ -223,6 +223,8 @@ const login = async (req, res) => {
         role: role,
         tenantId: tenantId,
         domain: user.domain || 'HR',
+        specificRole: user.specificRole || '',
+        specificRoleId: user.specificRoleId || null,
         permissions: permissions
       },
       process.env.JWT_SECRET || 'your_jwt_secret',

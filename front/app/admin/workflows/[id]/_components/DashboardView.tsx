@@ -2,11 +2,11 @@
 
 import React, { useEffect, useState } from 'react';
 import { apiService } from '@/service/api.service';
-import { 
-  BarChart3, 
-  CheckCircle2, 
-  Clock, 
-  AlertCircle, 
+import {
+  BarChart3,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
   TrendingUp,
   PieChart as PieIcon,
   Activity
@@ -44,32 +44,37 @@ export default function DashboardView({ workflowId }: DashboardViewProps) {
       if (wfRes.success && instancesRes.success) {
         const workflow = wfRes.data;
         const instances = instancesRes.data;
-        const nodeCount = workflow.nodes?.length || 0;
+        const systemNodes = ['start', 'end', 'parallel', 'sync_join', 'exclusive', 'inclusive', 'parallel_split', 'parallel_join', 'start_parallel', 'parallelstart', 'condition', 'timer', 'webhook', 'script', 'delay'];
+        const taskNodeCount = workflow.nodes?.filter((n: any) => 
+          n.type && !systemNodes.includes(n.type.toLowerCase())
+        ).length || 0;
 
         let totalCompleted = 0;
         let totalRejected = 0;
         let activeInstCount = 0;
 
         instances.forEach((inst: any) => {
-          if (inst.status === 'active' || inst.status === 'pending') {
+          if (inst.status === 'active' || inst.status === 'pending' || inst.status === 'in_progress') {
             activeInstCount++;
           }
 
-          // Process execution history
           inst.executionPath?.forEach((step: any) => {
-            if (step.action === 'rejected') {
-              totalRejected++;
-            } else if (step.action === 'approved' || step.action === 'completed') {
-              totalCompleted++;
+            const nodeDef = workflow.nodes?.find((n: any) => n.id === step.nodeId);
+            const isTask = nodeDef && !systemNodes.includes((nodeDef.type || '').toLowerCase());
+            
+            if (isTask) {
+              if (step.action === 'rejected') {
+                totalRejected++;
+              } else if (['approved', 'completed', 'validated'].includes(step.action)) {
+                totalCompleted++;
+              }
             }
           });
         });
 
-        // totalPotentialActions across all instances
-        const totalPotentialActions = nodeCount * instances.length;
-        // Total pending is everything that has NOT been completed or rejected yet
+        const totalPotentialActions = taskNodeCount * instances.length;
         const totalPending = Math.max(0, totalPotentialActions - totalCompleted - totalRejected);
-        
+
         setStats({
           totalTasks: totalPotentialActions,
           completedTasks: totalCompleted,
@@ -96,31 +101,31 @@ export default function DashboardView({ workflowId }: DashboardViewProps) {
   }
 
   const cards = [
-    { 
-      title: 'Completed Tasks', 
-      value: stats.completedTasks, 
-      icon: <CheckCircle2 className="text-emerald-500" />, 
+    {
+      title: 'Completed Tasks',
+      value: stats.completedTasks,
+      icon: <CheckCircle2 className="text-emerald-500" />,
       color: 'bg-emerald-50 text-emerald-600 border-emerald-100',
       description: 'Total tasks validated across all instances'
     },
-    { 
-      title: 'Pending Tasks', 
-      value: stats.pendingTasks, 
-      icon: <Clock className="text-amber-500" />, 
+    {
+      title: 'Pending Tasks',
+      value: stats.pendingTasks,
+      icon: <Clock className="text-amber-500" />,
       color: 'bg-amber-50 text-amber-600 border-amber-100',
       description: 'Tasks currently in progress/waiting'
     },
-    { 
-      title: 'Rejected Tasks', 
-      value: stats.rejectedTasks, 
-      icon: <AlertCircle className="text-rose-500" />, 
+    {
+      title: 'Rejected Tasks',
+      value: stats.rejectedTasks,
+      icon: <AlertCircle className="text-rose-500" />,
       color: 'bg-rose-50 text-rose-600 border-rose-100',
       description: 'Tasks that were rejected by validators'
     },
-    { 
-      title: 'Workflow Instances', 
-      value: stats.totalInstances, 
-      icon: <Activity className="text-indigo-500" />, 
+    {
+      title: 'Workflow Instances',
+      value: stats.totalInstances,
+      icon: <Activity className="text-indigo-500" />,
       color: 'bg-indigo-50 text-indigo-600 border-indigo-100',
       description: 'Total times this workflow was triggered'
     }
@@ -155,7 +160,7 @@ export default function DashboardView({ workflowId }: DashboardViewProps) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Progress Circle Card */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           className="lg:col-span-1 bg-white p-10 rounded-[40px] border border-slate-100 shadow-xl flex flex-col items-center justify-center text-center space-y-8"
@@ -194,7 +199,7 @@ export default function DashboardView({ workflowId }: DashboardViewProps) {
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Efficiency</span>
             </div>
           </div>
-          
+
           <div className="space-y-2">
             <h4 className="text-xl font-black text-slate-800 tracking-tight uppercase">Advancement Status</h4>
             <p className="text-xs font-medium text-slate-500 max-w-[200px]">
@@ -204,7 +209,7 @@ export default function DashboardView({ workflowId }: DashboardViewProps) {
         </motion.div>
 
         {/* Detailed Breakdown */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           className="lg:col-span-2 bg-white p-10 rounded-[40px] border border-slate-100 shadow-xl space-y-10"

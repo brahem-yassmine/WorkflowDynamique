@@ -59,11 +59,27 @@ router.get('/stats', requirePlan, async (req, res) => {
       Project.countDocuments()
     ]);
 
-    // Calculate pending tasks (sum of currentNodes across all active instances)
-    const instances = await WorkflowInstance.find({ status: { $in: ['active', 'pending'] } });
+    // Calculate pending tasks (excluding system nodes like start, parallel, sync_join, etc.)
+    const systemTypes = ['start', 'end', 'parallel', 'sync_join', 'exclusive', 'inclusive', 'parallel_split', 'parallel_join', 'start_parallel', 'condition', 'timer', 'webhook', 'script', 'email', 'delay', 'parallelstart'];
+    
+    const instances = await WorkflowInstance.find({ status: { $in: ['active', 'pending', 'in_progress'] } }).populate('workflowId');
     let totalPendingTasks = 0;
+    
     instances.forEach(inst => {
-      totalPendingTasks += inst.currentNodes?.length || 0;
+      const workflow = inst.workflowId;
+      if (workflow && workflow.nodes) {
+        (inst.currentNodes || []).forEach(cn => {
+          if (cn.status !== 'in_progress' && cn.status !== 'pending') return;
+          
+          const nodeDef = workflow.nodes.find(n => n.id === cn.nodeId);
+          const type = (nodeDef?.type || '').toLowerCase();
+          
+          // Only count if it's NOT a system node
+          if (nodeDef && !systemTypes.includes(type)) {
+            totalPendingTasks++;
+          }
+        });
+      }
     });
 
     // Mock data for charts (Weekly performance)

@@ -45,21 +45,42 @@ exports.createInstance = async (req, res) => {
       }
     }
 
-    const instance = new WorkflowInstance({
-      workflowId: workflow._id,
-      createdBy: req.user.id,
-      title,
-      description: description || workflow.description,
-      currentNodes: [{
-        nodeId: startNode.id,
-        status: 'in_progress',
-        startedAt: new Date(),
-        responsibleUser: (startNode.data?.assignmentType === 'SINGLE' && startNode.data?.assignedTo)
-          ? startNode.data.assignedTo
-          : (startNode.data?.assignedUser || (startNode.data?.assigneeSelectionType === 'user' ? (startNode.data.assigneeIds?.[0]) : null)),
-        responsibleDomain: startNode.data?.responsibleDomain || startNode.data?.domain || (startNode.data?.assignmentType !== 'SINGLE' ? startNode.data?.assignedTo : null),
-        assignees: startAssignees
-      }],
+      const node1Data = startNode.data || {};
+      let respUser = null;
+      let respDomain = node1Data.responsibleDomain || node1Data.domain;
+      const assignedId1 = node1Data.assignedTo;
+
+      if (node1Data.assignmentType === 'SINGLE' && node1Data.assigneeSelectionType === 'user') {
+        respUser = assignedId1;
+      } else if (node1Data.assigneeSelectionType === 'role' && assignedId1) {
+        if (mongoose.Types.ObjectId.isValid(assignedId1)) {
+          const roleObj = await req.tenantConn.model('Role').findById(assignedId1);
+          if (roleObj) respDomain = roleObj.name;
+          else respDomain = assignedId1;
+        } else {
+          respDomain = assignedId1;
+        }
+      }
+
+      // Final fallback for domain ID resolution
+      if (respDomain && mongoose.Types.ObjectId.isValid(respDomain)) {
+        const domainObj = await req.tenantConn.model('Domain').findById(respDomain) || await req.tenantConn.model('Role').findById(respDomain);
+        if (domainObj) respDomain = domainObj.name;
+      }
+
+      const instance = new WorkflowInstance({
+        workflowId: workflow._id,
+        createdBy: req.user.id,
+        title,
+        description: description || workflow.description,
+        currentNodes: [{
+          nodeId: startNode.id,
+          status: 'in_progress',
+          startedAt: new Date(),
+          responsibleUser: respUser,
+          responsibleDomain: respDomain,
+          assignees: startAssignees
+        }],
       variables: data || {},
       executionPath: [{
         nodeId: startNode.id,
@@ -128,8 +149,10 @@ exports.createInstance = async (req, res) => {
 
         const roleUsers = await UserModel.find({
           $or: [
-            { role: { $in: roleNames } }, // Match by role name string
-            { role: { $in: currentNode.assignees.map(id => id.toString()) } } // Match by direct role ID string if applicable
+            { role: { $in: roleNames } }, // Match by system role name
+            { role: { $in: currentNode.assignees.map(id => id.toString()) } }, // Match by direct role ID string
+            { specificRole: { $in: roleNames } }, // Match by business role name
+            { specificRoleId: { $in: currentNode.assignees } } // Match by business role ID
           ]
         });
         roleUsers.forEach(u => targetUsers.add(u._id.toString()));
@@ -208,10 +231,21 @@ exports.getInstances = async (req, res) => {
     const WorkflowInstance = req.tenantConn.model('WorkflowInstance');
     const query = {};
 
+    if (workflowId && mongoose.Types.ObjectId.isValid(workflowId)) {
+      query.workflowId = new mongoose.Types.ObjectId(workflowId);
+    } else if (workflowId) {
+      query.workflowId = workflowId; // Fallback
+    }
+
     if (status) query.status = status;
-    if (workflowId) query.workflowId = workflowId;
     if (priority) query.priority = priority;
-    if (createdBy) query.createdBy = createdBy;
+    if (createdBy && mongoose.Types.ObjectId.isValid(createdBy)) {
+      query.createdBy = new mongoose.Types.ObjectId(createdBy);
+    } else if (createdBy) {
+      query.createdBy = createdBy;
+    }
+
+    console.log(`📊 [InstanceCtrl.getInstances] Sanitized Query:`, JSON.stringify(query));
 
     // 1. Visibility for non-admin users
     const user = req.user;
@@ -221,21 +255,39 @@ exports.getInstances = async (req, res) => {
         domainsToMatch.push(user.domain === 'HR' ? 'RH' : 'HR');
       }
       
+      // Inclusion of specificRole for visibility
+      if (user.specificRole) {
+        domainsToMatch.push(user.specificRole);
+        domainsToMatch.push(user.specificRole.toUpperCase());
+      }
+      
       const globalKeywords = ['GLOBAL', 'ALL', 'PUBLIC', 'TOUS', 'EVERYONE'];
       
       query.$or = [
         { 'currentNodes.responsibleDomain': { $in: domainsToMatch } },
         { 'currentNodes.responsibleDomain': { $in: globalKeywords } },
         { 'currentNodes.responsibleDomain': { $in: globalKeywords.map(k => k.toLowerCase()) } },
-        { 'currentNodes.responsibleUser': user.id || user._id },
-        { 'currentNodes.assignees': user.id || user._id }
-      ];
+        { 'currentNodes.responsibleUser': user.id },
+        { 'currentNodes.assignees': (user.id && mongoose.Types.ObjectId.isValid(user.id)) ? user.id : undefined }
+      ].filter(cond => {
+        // filter out invalid conditions
+        const val = Object.values(cond)[0];
+        return val !== undefined;
+      });
+      
+      // also include specificRoleId if valid
+      if (user.specificRoleId && mongoose.Types.ObjectId.isValid(user.specificRoleId)) {
+        query.$or.push({ 'currentNodes.assignees': user.specificRoleId });
+      }
     } else {
       if (responsibleUser) query['currentNodes.responsibleUser'] = responsibleUser;
       if (responsibleDomain) query['currentNodes.responsibleDomain'] = responsibleDomain;
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
+    
+    console.log(`🔍 [InstanceCtrl.getInstances] Final Executing Data Query:`, JSON.stringify(query));
+    
     const [instances, total] = await Promise.all([
       WorkflowInstance.find(query)
         .sort({ createdAt: -1 })
@@ -249,6 +301,8 @@ exports.getInstances = async (req, res) => {
         .populate('createdBy', 'email firstName lastName'),
       WorkflowInstance.countDocuments(query)
     ]);
+
+    console.log(`✅ [InstanceCtrl.getInstances] Found ${instances.length} instances in database for query.`);
 
     res.json({
       success: true,
@@ -449,17 +503,25 @@ exports.approveNode = async (req, res) => {
           // Wait until the end of the loop to decide if the whole thing is finished
           continue;
         } else {
+          const RoleModel = req.tenantConn.model('Role');
           let nodeAssignees = node.data?.assigneeIds || [];
           let domainName = node.data?.responsibleDomain || node.data?.domain;
 
+          let responsibleUser = null;
+          let responsibleDomain = domainName;
+
+          // Advanced Assignment Resolution
+          const assignmentType = node.data?.assignmentType || 'SINGLE';
+          const assignedId = node.data?.assignedTo;
+
           // Resolve domain name if only ID is provided
-          if (!domainName && node.data?.assignedTo && node.data?.assignmentType !== 'SINGLE') {
-            const domain = await DomainModel.findById(node.data.assignedTo);
+          if (!domainName && assignedId && mongoose.Types.ObjectId.isValid(assignedId) && assignmentType !== 'SINGLE') {
+            const domain = await DomainModel.findById(assignedId);
             if (domain) domainName = domain.name;
           }
 
-          if (node.data?.assignmentType === 'ALL' && (node.data?.assignedTo || domainName)) {
-            const dName = domainName || (node.data?.assignedTo ? (await DomainModel.findById(node.data.assignedTo))?.name : null);
+          if (assignmentType === 'ALL' && assignedId && (domainName || mongoose.Types.ObjectId.isValid(assignedId))) {
+            const dName = domainName || (mongoose.Types.ObjectId.isValid(assignedId) ? (await DomainModel.findById(assignedId))?.name : null);
             if (dName) {
               const isGlobal = ['GLOBAL', 'ALL', 'PUBLIC'].includes(dName.toUpperCase());
               const domainUsers = isGlobal ? await UserModel.find({}) : await UserModel.find({ domain: dName });
@@ -467,14 +529,45 @@ exports.approveNode = async (req, res) => {
             }
           }
 
+          if (assignmentType === 'SINGLE' && assignedId && mongoose.Types.ObjectId.isValid(assignedId)) {
+            // Check if it's a domain, role, or user
+            const domainMaybe = await DomainModel.findById(assignedId);
+            if (domainMaybe) {
+              responsibleDomain = domainMaybe.name;
+            } else {
+              const roleMaybe = await req.tenantConn.model('Role').findById(assignedId);
+              if (roleMaybe) {
+                responsibleDomain = roleMaybe.name;
+              } else {
+                responsibleUser = assignedId;
+              }
+            }
+          } else if (node.data?.assigneeSelectionType === 'role' && assignedId) {
+            // Priority to designated role assigned in designer
+             if (mongoose.Types.ObjectId.isValid(assignedId)) {
+                const roleMaybe = await req.tenantConn.model('Role').findById(assignedId);
+                if (roleMaybe) responsibleDomain = roleMaybe.name;
+                else responsibleDomain = assignedId; // Fallback to ID string if name resolution fails
+             } else {
+                responsibleDomain = assignedId; // Already a name
+             }
+          } else {
+            responsibleUser = node.data?.assignedUser || (node.data?.assigneeSelectionType === 'user' ? (node.data.assigneeIds?.[0]) : null);
+            responsibleDomain = domainName || (assignmentType !== 'SINGLE' ? assignedId : null);
+          }
+
+          // Final check: resolve domain ID to name if still an ID
+          if (responsibleDomain && mongoose.Types.ObjectId.isValid(responsibleDomain)) {
+            const domainObj = await DomainModel.findById(responsibleDomain) || await req.tenantConn.model('Role').findById(responsibleDomain);
+            if (domainObj) responsibleDomain = domainObj.name;
+          }
+
           instance.currentNodes.push({
             nodeId: node.id,
             status: 'in_progress',
             startedAt: new Date(),
-            responsibleUser: (node.data?.assignmentType === 'SINGLE' && node.data?.assignedTo)
-              ? node.data.assignedTo
-              : (node.data?.assignedUser || (node.data?.assigneeSelectionType === 'user' ? (node.data.assigneeIds?.[0]) : null)),
-            responsibleDomain: domainName || (node.data?.assignmentType !== 'SINGLE' ? node.data?.assignedTo : null),
+            responsibleUser,
+            responsibleDomain,
             assignees: nodeAssignees
           });
         }
@@ -552,7 +645,9 @@ exports.approveNode = async (req, res) => {
             const roleUsers = await UserModel.find({
               $or: [
                 { role: { $in: roleNames } },
-                { role: { $in: newNode.assignees.map(id => id.toString()) } }
+                { role: { $in: newNode.assignees.map(id => id.toString()) } },
+                { specificRole: { $in: roleNames } },
+                { specificRoleId: { $in: newNode.assignees } }
               ]
             });
             roleUsers.forEach(u => targetUsers.add(u._id.toString()));
@@ -700,6 +795,25 @@ exports.lockNode = async (req, res) => {
 
     if (nodeEntry.responsibleUser && nodeEntry.responsibleUser.toString() !== req.user.id) {
       return res.status(403).json({ success: false, message: 'This task is already locked by another user' });
+    }
+
+    // Permission check: is the user in the target domain/role/assignees?
+    const userRoleStr = req.user.role;
+    const userDomain = req.user.domain;
+    const specificRole = req.user.specificRole;
+    
+    const isAllowed = (
+      userRoleStr === 'admin' || 
+      userRoleStr === 'super_admin' ||
+      nodeEntry.assignees.some(id => id.toString() === req.user.id) ||
+      (nodeEntry.responsibleDomain && (
+        nodeEntry.responsibleDomain.toLowerCase() === (userDomain || '').toLowerCase() ||
+        nodeEntry.responsibleDomain.toLowerCase() === (specificRole || '').toLowerCase()
+      ))
+    );
+
+    if (!isAllowed) {
+      return res.status(403).json({ success: false, message: 'You are not authorized to lock this task' });
     }
 
     nodeEntry.responsibleUser = req.user.id;

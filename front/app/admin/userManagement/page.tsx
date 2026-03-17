@@ -36,6 +36,8 @@ interface Persona {
     domain: string;
     isActive: boolean;
     createdAt?: string;
+    specificRole?: string;
+    specificRoleId?: string;
 }
 
 interface Role {
@@ -65,6 +67,8 @@ export default function UserManagementPage() {
     const [password, setPassword] = useState('');
     const [formRole, setFormRole] = useState('user');
     const [formDomain, setFormDomain] = useState('');
+    const [formSpecificRole, setFormSpecificRole] = useState('');
+    const [formSpecificRoleId, setFormSpecificRoleId] = useState('');
 
     const fetchData = async () => {
         try {
@@ -101,7 +105,9 @@ export default function UserManagementPage() {
                 lastName,
                 email,
                 role: formRole,
-                domain: formDomain || (domains.length > 0 ? domains[0].name : 'Default')
+                domain: formDomain || (domains.length > 0 ? domains[0].name : 'Default'),
+                specificRole: formSpecificRole,
+                specificRoleId: formSpecificRoleId || null
             };
 
             if (isEditing && selectedUser) {
@@ -163,6 +169,8 @@ export default function UserManagementPage() {
         setPassword('');
         setFormRole('user');
         setFormDomain(domains.length > 0 ? domains[0].name : '');
+        setFormSpecificRole('');
+        setFormSpecificRoleId('');
         setIsEditing(false);
     };
 
@@ -174,6 +182,8 @@ export default function UserManagementPage() {
         setPassword('');
         setFormRole(user.role);
         setFormDomain(user.domain);
+        setFormSpecificRole(user.specificRole || '');
+        setFormSpecificRoleId(user.specificRoleId || '');
         setIsModalOpen(true);
     };
 
@@ -258,9 +268,16 @@ export default function UserManagementPage() {
                                             </div>
                                         </td>
                                         <td className="px-6 py-5">
-                                            <span className="px-2.5 py-1 bg-white border border-indigo-100 text-indigo-600 text-[10px] font-black rounded-lg uppercase tracking-tight">
-                                                {user.role}
-                                            </span>
+                                            <div className="flex flex-col gap-1">
+                                                <span className="px-2.5 py-1 bg-white border border-indigo-100 text-indigo-600 text-[10px] font-black rounded-lg uppercase tracking-tight w-fit">
+                                                    {user.role}
+                                                </span>
+                                                {user.specificRole && (
+                                                    <span className="px-2.5 py-1 bg-slate-50 border border-slate-100 text-slate-500 text-[9px] font-bold rounded-lg uppercase tracking-tight w-fit">
+                                                        {user.specificRole}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-6 py-5">
                                             <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${user.isActive ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
@@ -424,24 +441,40 @@ export default function UserManagementPage() {
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1.5">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Access Tier (Role)</label>
-                                        <select value={formRole} onChange={(e) => setFormRole(e.target.value)} className="w-full h-11 bg-slate-50 rounded-xl px-4 font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Access Tier (System)</label>
+                                        <select value={formRole} onChange={(e) => setFormRole(e.target.value)} className="w-full h-11 bg-slate-50 rounded-xl px-4 font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none transition-all">
                                             <option value="user">User Node</option>
                                             <option value="admin">Administrator</option>
-                                            {roles.map(r => (
-                                                <option key={r._id} value={r.name}>{r.name}</option>
-                                            ))}
                                         </select>
                                     </div>
                                     <div className="space-y-1.5">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Target Domain</label>
-                                        <select value={formDomain} onChange={(e) => setFormDomain(e.target.value)} className="w-full h-11 bg-slate-50 rounded-xl px-4 font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none">
-                                            <option value="">Select Domain...</option>
-                                            {domains.map(d => (
-                                                <option key={d._id} value={d.name}>{d.name}</option>
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Business Specialization</label>
+                                        <select 
+                                            value={formSpecificRoleId} 
+                                            onChange={(e) => {
+                                                const roleId = e.target.value;
+                                                setFormSpecificRoleId(roleId);
+                                                const roleName = roles.find(r => r._id === roleId)?.name || '';
+                                                setFormSpecificRole(roleName);
+                                            }} 
+                                            className="w-full h-11 bg-slate-50 rounded-xl px-4 font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none transition-all"
+                                        >
+                                            <option value="">No Specialization</option>
+                                            {roles.map(r => (
+                                                <option key={r._id} value={r._id}>{r.name}</option>
                                             ))}
                                         </select>
                                     </div>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Target Domain</label>
+                                    <select value={formDomain} onChange={(e) => setFormDomain(e.target.value)} className="w-full h-11 bg-slate-50 rounded-xl px-4 font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none transition-all">
+                                        <option value="">Select Domain...</option>
+                                        {domains.map(d => (
+                                            <option key={d._id} value={d.name}>{d.name}</option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <div className="flex gap-4 pt-6">
                                     <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 text-slate-400 font-bold hover:text-slate-600 transition-all uppercase text-xs tracking-widest">Discard</button>

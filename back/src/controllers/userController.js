@@ -379,7 +379,8 @@ exports.getUserTasks = async (req, res) => {
       populate: { path: 'projectId', select: 'name' }
     });
 
-    console.log(`📊 [getUserTasks] Found ${activeInstances.length} potentially active instances`);
+    console.log(`📊 [getUserTasks] Query: ${JSON.stringify(pendingQuery)}`);
+    console.log(`📊 [getUserTasks] IDs found: ${activeInstances.map(i => i._id).join(', ')}`);
 
     const workflowTasks = [];
     activeInstances.forEach(instance => {

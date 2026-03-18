@@ -422,32 +422,115 @@ async function _internalStartInstance(tenantConn, workflow, user, options = {}) 
   const startNode = workflow.nodes.find(n => n.type === 'start');
   if (!startNode) throw new Error('Workflow has no start node');
 
-  const nextEdges = workflow.edges.filter(e => e.source === startNode.id);
   const initialNodes = [];
+  const executionPath = [{
+    nodeId: startNode.id,
+    nodeType: 'start',
+    action: 'completed',
+    performedBy: user.id,
+    timestamp: new Date()
+  }];
 
-  nextEdges.forEach(edge => {
-    const targetNode = workflow.nodes.find(n => n.id === edge.target);
-    if (targetNode) {
+  // Helper to find real tasks, bypassing system nodes (matching logic in WorkflowInstanceController)
+  const findNextExecutableNodes = (nodeId, targetNodesArray) => {
+    const nextEdges = workflow.edges.filter(e => e.source === nodeId);
+    
+    nextEdges.forEach(edge => {
+      const targetNode = workflow.nodes.find(n => n.id === edge.target);
+      if (!targetNode) return;
+
+      if (targetNode.type === 'parallel' || targetNode.type === 'parallel_split' || targetNode.type === 'sync_split') {
+        if (!executionPath.some(p => p.nodeId === targetNode.id)) {
+          executionPath.push({
+            nodeId: targetNode.id,
+            nodeType: 'parallel_split',
+            action: 'auto_approved',
+            timestamp: new Date()
+          });
+        }
+        findNextExecutableNodes(targetNode.id, targetNodesArray);
+      } else if (targetNode.type === 'parallel_join' || targetNode.type === 'sync_join') {
+        const incoming = workflow.edges.filter(e => e.target === targetNode.id);
+        const completed = executionPath.map(p => p.nodeId);
+        
+        if (incoming.every(e => completed.includes(e.source))) {
+          if (!executionPath.some(p => p.nodeId === targetNode.id)) {
+            executionPath.push({
+              nodeId: targetNode.id,
+              nodeType: 'parallel_join',
+              action: 'auto_approved',
+              timestamp: new Date()
+            });
+          }
+          findNextExecutableNodes(targetNode.id, targetNodesArray);
+        }
+      } else {
+        // Human task or End node found
+        targetNodesArray.push(targetNode);
+      }
+    });
+  };
+
+  const nodesToActivate = [];
+  findNextExecutableNodes(startNode.id, nodesToActivate);
+
+  const finalInitialNodes = await Promise.all(nodesToActivate
+    .filter(n => n.type !== 'end')
+    .map(async (targetNode) => {
       const data = targetNode.data || {};
-      const selType = data.assigneeSelectionType || data.validatorType || 'role';
-      const ids = data.assigneeIds || data.validatorIds || [];
+      const assignmentType = data.assignmentType || 'SINGLE';
+      const assignedId = data.assignedTo || data.assignedUser;
+      
+      let responsibleUser = null;
+      let responsibleDomain = data.responsibleDomain || data.domain || null;
+      let nodeAssignees = data.assigneeIds || data.validatorIds || [];
 
-      initialNodes.push({
+      // Unified assignment logic matching WorkflowInstanceController
+      if (assignmentType === 'SINGLE' && assignedId && mongoose.Types.ObjectId.isValid(assignedId)) {
+        // Resolve if it's a domain, role, or user
+        const DomainModel = tenantConn.model('Domain');
+        const domainMaybe = await DomainModel.findById(assignedId);
+        if (domainMaybe) {
+          responsibleDomain = domainMaybe.name;
+        } else {
+          const RoleModel = tenantConn.model('Role');
+          const roleMaybe = await RoleModel.findById(assignedId);
+          if (roleMaybe) {
+            responsibleDomain = roleMaybe.name;
+          } else {
+            responsibleUser = assignedId;
+          }
+        }
+      } else if (assignmentType === 'ALL' && assignedId) {
+          // It's a group assignment, stored in assignees
+          nodeAssignees = (Array.isArray(assignedId) ? assignedId : [assignedId]);
+          responsibleDomain = data.responsibleDomain || null;
+      } else {
+          // Support for old fields
+          responsibleUser = data.assignedUser || (data.assigneeSelectionType === 'user' ? (data.assigneeIds?.[0]) : null);
+          responsibleDomain = data.responsibleDomain || data.domain || assignedId;
+      }
+
+      // Final domain-name resolution if it looks like an ID
+      if (responsibleDomain && mongoose.Types.ObjectId.isValid(responsibleDomain)) {
+          const domainObj = (await tenantConn.model('Domain').findById(responsibleDomain)) || (await tenantConn.model('Role').findById(responsibleDomain));
+          if (domainObj) responsibleDomain = domainObj.name;
+      }
+
+      return {
         nodeId: targetNode.id,
         status: 'in_progress',
         startedAt: new Date(),
-        responsibleUser: selType === 'user' ? ids[0] : null,
-        responsibleDomain: data.responsibleDomain || null,
-        assignees: ids
-      });
-    }
-  });
+        responsibleUser: responsibleUser,
+        responsibleDomain: responsibleDomain,
+        assignees: nodeAssignees
+      };
+    }));
 
-  const finalInitialNodes = initialNodes.length > 0 ? initialNodes : [{
-    nodeId: startNode.id,
-    status: 'in_progress',
-    startedAt: new Date()
-  }];
+  // If we ONLY hit an end node instantly (empty workflow beyond start)
+  if (finalInitialNodes.length === 0 && nodesToActivate.some(n => n.type === 'end')) {
+    // This will be handled by the status: 'completed' below
+  }
 
   const instance = new WorkflowInstance({
     workflowId: workflow._id,
@@ -456,16 +539,8 @@ async function _internalStartInstance(tenantConn, workflow, user, options = {}) 
     description: options.description || workflow.description,
     currentNodes: finalInitialNodes,
     variables: options.data || {},
-    executionPath: [
-      {
-        nodeId: startNode.id,
-        nodeType: 'start',
-        action: 'completed',
-        performedBy: user.id,
-        timestamp: new Date()
-      }
-    ],
-    status: 'in_progress',
+    executionPath: executionPath,
+    status: (finalInitialNodes.length === 0 && nodesToActivate.some(n => n.type === 'end')) ? 'completed' : 'in_progress',
     priority: options.priority || 'medium',
     dueDate: options.dueDate || null,
     timeStarted: new Date()

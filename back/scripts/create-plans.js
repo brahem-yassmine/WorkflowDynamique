@@ -46,6 +46,7 @@ async function createPlans() {
         price: 0,
         currency: 'D',
         interval: 'month',
+        trialDays: 7,
         features: {
           maxStaff: 5,
           maxLocations: 5,
@@ -62,6 +63,7 @@ async function createPlans() {
         price: 79,
         currency: 'D',
         interval: 'month',
+        trialDays: 30,
         features: {
           maxStaff: 10,
           maxLocations: 10,
@@ -78,6 +80,7 @@ async function createPlans() {
         price: 299,
         currency: 'D',
         interval: 'month',
+        trialDays: 30,
         features: {
           maxStaff: -1, // -1 means unlimited
           maxLocations: -1, // -1 means unlimited

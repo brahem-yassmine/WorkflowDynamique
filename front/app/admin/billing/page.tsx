@@ -110,7 +110,7 @@ function BillingPageContent() {
         cvv: ""
     });
 
-    const isExpired = isAuthExpired || days >= (plan === 'demo' ? 7 : 15);
+    const isExpired = isAuthExpired || days >= (plan === 'demo' ? 7 : 30);
 
     const handleDownloadManifest = () => {
         if (history.length === 0) {
@@ -228,7 +228,7 @@ function BillingPageContent() {
 
     useEffect(() => {
         if (!loading && plan) {
-            const isNowExpired = days >= (plan === 'demo' ? 7 : 15);
+            const isNowExpired = days >= (plan === 'demo' ? 7 : 30);
             
             if (isNowExpired) {
                 setTimeout(() => {
@@ -478,7 +478,7 @@ function BillingPageContent() {
                         />
                         <StatsLedger 
                             label="Renewal Window" 
-                            value={isExpired ? "0 Days" : `${daysRemaining || Math.max(0, (plan === 'demo' ? 7 : 15) - days)} Days`} 
+                            value={isExpired ? "0 Days" : `${daysRemaining || Math.max(0, (plan === 'demo' ? 7 : 30) - days)} Days`} 
                             trend={isExpired ? "TERMINAL" : "Approaching"} 
                             icon={<Clock size={24} />} 
                             color={isExpired ? "text-rose-600" : (daysRemaining <= 3 ? "text-rose-500" : "text-amber-500")} 
@@ -537,11 +537,11 @@ function BillingPageContent() {
                         <div className="flex justify-between items-center mb-2">
                             <span className="text-indigo-200 text-[10px] font-black uppercase tracking-widest">Cycle Progress</span>
                             <span className="text-white text-[10px] font-black tracking-widest">
-                                {Math.min(100, Math.round((days / (plan === 'demo' ? 7 : 15)) * 100))}%
+                                {Math.min(100, Math.round((days / (plan === 'demo' ? 7 : 30)) * 100))}%
                             </span>
                         </div>
                         <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
-                            <div className="h-full bg-white rounded-full transition-all duration-1000" style={{ width: `${Math.min(100, (days / (plan === 'demo' ? 7 : 15)) * 100)}%` }}></div>
+                            <div className="h-full bg-white rounded-full transition-all duration-1000" style={{ width: `${Math.min(100, (days / (plan === 'demo' ? 7 : 30)) * 100)}%` }}></div>
                         </div>
                         <button 
                             disabled={true}

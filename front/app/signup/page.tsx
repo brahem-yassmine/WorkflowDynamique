@@ -42,6 +42,7 @@ interface Plan {
   price: number;
   currency: string;
   interval: string;
+  trialDays?: number;
   features: {
     maxStaff: number;
     maxLocations: number;
@@ -748,7 +749,7 @@ export default function SignupPage() {
                                 {formatPrice(plan.price, plan.currency, plan.interval)}
                             </p>
                             <span className="text-[10px] uppercase font-bold text-blue-200">
-                                {isDemo ? '7-Day Trial' : '15-Day Trial'}
+                                {plan.trialDays ? `${plan.trialDays}-Day Trial` : (isDemo ? '7-Day Trial' : '30-Day Trial')}
                             </span>
                           </div>
                         </div>
@@ -764,7 +765,7 @@ export default function SignupPage() {
                   <ul className="space-y-3 text-xs font-bold text-blue-100">
                     <li className="flex items-center gap-2">
                         <CheckCircle2 size={12} className="text-emerald-400" />
-                        Flexible Free trials (7-15 days)
+                        Flexible Free trials (7-30 days)
                     </li>
                     <li className="flex items-center gap-2">
                         <CheckCircle2 size={12} className="text-emerald-400" />

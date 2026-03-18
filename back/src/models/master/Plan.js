@@ -7,6 +7,7 @@ const planSchema = new mongoose.Schema({
   price: { type: Number, required: true },
   currency: { type: String, default: 'D' },
   interval: { type: String, default: 'month' },
+  trialDays: { type: Number, default: 0 },
   features: {
     maxUsers: { type: Number, default: 10 },
     maxWorkflows: { type: Number, default: 10 },

@@ -324,7 +324,7 @@ exports.getUserTasks = async (req, res) => {
     if (userRoleStr) domainsToMatch.push(userRoleStr, userRoleStr.toUpperCase());
     if (roleIdStr) domainsToMatch.push(roleIdStr);
 
-    console.log(`🔍 [getUserTasks] Identity: ${userId} | Roles: [${roleIdStr}, ${specificRoleIdStr}] | Domains: ${domainsToMatch.join(', ')}`);
+    console.log(`🔍 [getUserTasks] Identity: ${userId} | Roles: [${userRole}, ${specificRole}] | Domains: ${domainsToMatch.join(', ')}`);
 
     // 1. KANBAN TASKS
     let kanbanTasksRaw = await Task.find({
@@ -378,9 +378,6 @@ exports.getUserTasks = async (req, res) => {
       path: 'workflowId',
       populate: { path: 'projectId', select: 'name' }
     });
-
-    console.log(`📊 [getUserTasks] Query: ${JSON.stringify(pendingQuery)}`);
-    console.log(`📊 [getUserTasks] IDs found: ${activeInstances.map(i => i._id).join(', ')}`);
 
     const workflowTasks = [];
     activeInstances.forEach(instance => {

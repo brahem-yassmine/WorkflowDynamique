@@ -297,7 +297,15 @@ exports.getUserTasks = async (req, res) => {
     const specificRoleStr = user?.specificRole || req.user.specificRole || '';
     const specificRoleIdStr = user?.specificRoleId?.toString() || req.user.specificRoleId?.toString() || '';
 
-    // 0. Domains for visibility - ensure we handle both strings and IDs
+    // 0. Identity & Domains for visibility
+    const matchingIds = [new mongoose.Types.ObjectId(userId)];
+    if (roleIdStr && mongoose.Types.ObjectId.isValid(roleIdStr)) {
+      matchingIds.push(new mongoose.Types.ObjectId(roleIdStr));
+    }
+    if (specificRoleIdStr && mongoose.Types.ObjectId.isValid(specificRoleIdStr)) {
+      matchingIds.push(new mongoose.Types.ObjectId(specificRoleIdStr));
+    }
+
     const domainsToMatch = Array.from(new Set([
       domain, 'GLOBAL', 'ALL', 'PUBLIC', 'TOUS', 'EVERYONE'
     ])).filter(Boolean);
@@ -309,26 +317,19 @@ exports.getUserTasks = async (req, res) => {
       }
     }
 
-    // Role names and IDs for inclusive matching
     if (specificRoleStr) {
-      domainsToMatch.push(specificRoleStr);
-      domainsToMatch.push(specificRoleStr.toUpperCase());
+      domainsToMatch.push(specificRoleStr, specificRoleStr.toUpperCase());
     }
-    if (specificRoleIdStr) {
-      domainsToMatch.push(specificRoleIdStr);
-    }
-    if (userRoleStr) {
-      domainsToMatch.push(userRoleStr);
-      domainsToMatch.push(userRoleStr.toUpperCase());
-    }
-    if (roleIdStr) {
-      domainsToMatch.push(roleIdStr);
-    }
+    if (specificRoleIdStr) domainsToMatch.push(specificRoleIdStr);
+    if (userRoleStr) domainsToMatch.push(userRoleStr, userRoleStr.toUpperCase());
+    if (roleIdStr) domainsToMatch.push(roleIdStr);
+
+    console.log(`🔍 [getUserTasks] Identity: ${userId} | Roles: [${roleIdStr}, ${specificRoleIdStr}] | Domains: ${domainsToMatch.join(', ')}`);
 
     // 1. KANBAN TASKS
     let kanbanTasksRaw = await Task.find({
       $or: [
-        { assignedTo: userId },
+        { assignedTo: { $in: matchingIds } },
         { assignedDomain: { $in: domainsToMatch.map(d => new RegExp(`^${d}$`, 'i')) } }
       ],
       status: { $ne: 'done' }
@@ -361,31 +362,24 @@ exports.getUserTasks = async (req, res) => {
       'condition', 'timer', 'webhook', 'script', 'email', 'delay', 'parallelstart'
     ];
 
-    // Relaxed status query to capture all active tasks
     let pendingQuery = { status: { $in: ['in_progress', 'pending', 'active'] } };
     
     if (!isAdmin) {
       const domainRegexes = domainsToMatch.map(d => new RegExp(`^${d}$`, 'i'));
       pendingQuery.$or = [
         { 'currentNodes.responsibleDomain': { $in: domainRegexes } },
-        { 'currentNodes.responsibleUser': userId },
-        { 'currentNodes.assignees': userId },
-        { createdBy: userId }
+        { 'currentNodes.responsibleUser': { $in: matchingIds } },
+        { 'currentNodes.assignees': { $in: matchingIds } },
+        { createdBy: new mongoose.Types.ObjectId(userId) }
       ];
-      
-      // Clean addition of Role IDs to query if valid
-      if (roleIdStr && mongoose.Types.ObjectId.isValid(roleIdStr)) {
-        pendingQuery.$or.push({ 'currentNodes.assignees': roleIdStr });
-      }
-      if (specificRoleIdStr && mongoose.Types.ObjectId.isValid(specificRoleIdStr)) {
-        pendingQuery.$or.push({ 'currentNodes.assignees': specificRoleIdStr });
-      }
     }
 
     const activeInstances = await WorkflowInstance.find(pendingQuery).populate({
       path: 'workflowId',
       populate: { path: 'projectId', select: 'name' }
     });
+
+    console.log(`📊 [getUserTasks] Found ${activeInstances.length} potentially active instances`);
 
     const workflowTasks = [];
     activeInstances.forEach(instance => {
@@ -395,21 +389,49 @@ exports.getUserTasks = async (req, res) => {
       const nodesData = workflowData.nodes || [];
 
       instance.currentNodes.forEach(node => {
-        if (node.status !== 'in_progress') return;
+        if (!['in_progress', 'pending'].includes(node.status)) return;
 
         const nodeDef = nodesData.find(n => n.id === node.nodeId);
-        if (!nodeDef || systemNodeTypes.includes((nodeDef.type || '').toLowerCase())) return;
+        if (!nodeDef) return;
+        if (systemNodeTypes.includes((nodeDef.type || '').toLowerCase())) return;
 
-        let isVisible = isAdmin || instance.createdBy?.toString() === userId.toString();
+        // Task visibility calculation
+        const instCreatorId = instance.createdBy?.toString();
+        let isVisible = isAdmin || instCreatorId === userId.toString();
+        
         if (!isVisible) {
-          isVisible = node.responsibleUser?.toString() === userId.toString() ||
-            node.assignees?.some(a => 
-              a.toString() === userId.toString() || 
-              a.toString() === roleIdStr || 
-              a.toString() === specificRoleIdStr || 
-              a.toString() === specificRoleStr
-            ) ||
-            (!!node.responsibleDomain && domainsToMatch.some(d => d && d.toLowerCase() === node.responsibleDomain.toLowerCase()));
+          // A. Try matching against INSTANCE data (stored at creation/activation time)
+          const instRespUser = node.responsibleUser?.toString();
+          const isInstUserMatch = !!instRespUser && (
+            instRespUser === userId.toString() || 
+            instRespUser === roleIdStr || 
+            instRespUser === specificRoleIdStr
+          );
+          
+          const isInstAssigneeMatch = node.assignees?.some(a => {
+            const aStr = a.toString();
+            return aStr === userId.toString() || aStr === roleIdStr || aStr === specificRoleIdStr;
+          });
+
+          const isInstDomainMatch = !!node.responsibleDomain && domainsToMatch.some(d => 
+            d && d.toLowerCase() === node.responsibleDomain.toLowerCase()
+          );
+
+          // B. Try matching against LATEST WORKFLOW DEFINITION (for "live" updates as requested)
+          const nodeData = nodeDef.data || {};
+          const defAssignees = nodeData.assigneeIds || nodeData.validatorIds || [];
+          const defDomain = nodeData.responsibleDomain || nodeData.domain;
+          
+          const isDefAssigneeMatch = defAssignees.some(a => {
+            const aStr = a.toString();
+            return aStr === userId.toString() || aStr === roleIdStr || aStr === specificRoleIdStr || aStr === specificRoleStr;
+          });
+
+          const isDefDomainMatch = !!defDomain && domainsToMatch.some(d => 
+            d && d.toLowerCase() === defDomain.toLowerCase()
+          );
+
+          isVisible = isInstUserMatch || isInstAssigneeMatch || isInstDomainMatch || isDefAssigneeMatch || isDefDomainMatch;
         }
 
         const hasApproved = node.approvedBy?.some(u => u.toString() === userId.toString());
@@ -435,8 +457,8 @@ exports.getUserTasks = async (req, res) => {
       });
     });
 
-    // 3. HISTORY
-    const historyQuery = isAdmin ? {} : { 'executionPath.performedBy': userId };
+    // 3. HISTORY (Registry)
+    const historyQuery = isAdmin ? {} : { 'executionPath.performedBy': new mongoose.Types.ObjectId(userId) };
     const completedInstances = await WorkflowInstance.find(historyQuery)
       .populate({ path: 'workflowId', populate: { path: 'projectId', select: 'name' } })
       .sort({ updatedAt: -1 })
@@ -447,9 +469,7 @@ exports.getUserTasks = async (req, res) => {
       const workflowData = instance.workflowId;
       const nodesData = workflowData.nodes || [];
 
-      const actions = isAdmin
-        ? (instance.executionPath || []).slice(-5)
-        : (instance.executionPath || []).filter(p => p.performedBy?.toString() === userId.toString());
+      const actions = (instance.executionPath || []).filter(p => p.performedBy?.toString() === userId.toString());
 
       actions.forEach(action => {
         const nodeDef = nodesData.find(n => n.id === action.nodeId);

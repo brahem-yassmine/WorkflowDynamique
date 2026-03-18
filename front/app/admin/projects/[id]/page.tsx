@@ -111,7 +111,7 @@ export default function ProjectWorkflowsPage() {
         <Link href={`/create-workflow?projectId=${projectId}`}>
           <button className="flex items-center gap-2 px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 whitespace-nowrap">
             <Plus size={18} />
-            Provision New Flow
+            Create New Workflow
           </button>
         </Link>
       </div>
@@ -166,10 +166,10 @@ export default function ProjectWorkflowsPage() {
             <GitBranch className="w-10 h-10 text-slate-200" />
           </div>
           <h2 className="text-xl font-black text-slate-800 tracking-tight uppercase">Empty Environment</h2>
-          <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-2 mb-8 max-w-xs">This project has no active operational schemas. Start by provisioning your first logic flow.</p>
+          <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-2 mb-8 max-w-xs">This project has no active operational schemas. Start by creating your first workflow.</p>
           <Link href={`/create-workflow?projectId=${projectId}`}>
             <button className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100">
-               Provision Flow
+               Create Workflow
             </button>
           </Link>
         </div>

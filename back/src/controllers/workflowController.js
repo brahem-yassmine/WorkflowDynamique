@@ -60,6 +60,15 @@ exports.getWorkflows = async (req, res) => {
 exports.getWorkflowById = async (req, res) => {
   try {
     const { workflowId } = req.params;
+    
+    const mongoose = require('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(workflowId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid Workflow ID format'
+      });
+    }
+
     console.log(`🔍 [WorkflowCtrl] Fetching workflow: ${workflowId} | TenantDB: ${req.tenantConn.name}`);
 
     const Workflow = req.tenantConn.model('Workflow');

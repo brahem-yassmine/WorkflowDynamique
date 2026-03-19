@@ -11,7 +11,17 @@ exports.getChecklists = async (req, res) => {
         const Checklist = req.tenantConn.model('Checklist');
         const { workflowId } = req.query;
         const query = workflowId ? { workflowId } : {};
-        const checklists = await Checklist.find(query).sort({ createdAt: -1 });
+        const checklists = await Checklist.find(query)
+            .sort({ createdAt: -1 })
+            .populate({
+                path: 'workflowId',
+                select: 'name projectId status',
+                populate: {
+                    path: 'projectId',
+                    select: 'name'
+                }
+            });
+            
         console.log(`✅ ${checklists.length} checklists found`);
         res.json({ success: true, count: checklists.length, data: checklists });
     } catch (error) {

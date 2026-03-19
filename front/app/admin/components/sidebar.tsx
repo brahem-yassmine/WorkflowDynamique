@@ -36,7 +36,7 @@ const menuGroups = [
       { icon: Activity, label: "Live Operations Global", href: "/admin/operations" },
       { icon: Stethoscope, label: "All workflows", href: "/admin/workflows" },
       { icon: ListTodo, label: "Checklists", href: "/admin/AllCheck" },
-      { icon: FileText, label: "Formulaires", href: "/admin/AllForms" },
+      { icon: FileText, label: "Forms", href: "/admin/AllForms" },
       { icon: FolderKanban, label: "Kanbans", href: "/admin/AllKanban" },
     ]
   },

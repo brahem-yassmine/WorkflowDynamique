@@ -28,6 +28,7 @@ function Form2PageContent() {
   const workflowId = searchParams.get('workflowId');
   const designerWorkflowId = searchParams.get('designerWorkflowId');
   const designerNodeId = searchParams.get('designerNodeId');
+  const designerTab = searchParams.get('designerTab');
   const fromWorkflow = searchParams.get('fromWorkflow');
   const from = searchParams.get('from');
 
@@ -161,7 +162,7 @@ function Form2PageContent() {
         
         // Dynamic redirection
         if (designerWorkflowId || fromWorkflow) {
-          router.push(`/create-workflow${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}${designerNodeId ? (designerWorkflowId ? `&designerNodeId=${designerNodeId}` : `?designerNodeId=${designerNodeId}`) : ''}`);
+          router.push(`/create-workflow${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}${designerNodeId ? (designerWorkflowId ? `&designerNodeId=${designerNodeId}` : `?designerNodeId=${designerNodeId}`) : ''}${designerTab ? `&designerTab=${designerTab}` : ''}`);
         } else if (instanceId === 'new') {
           router.push(`/Workflows/instances/new?workflowId=${workflowId}`);
         } else if (instanceId && instanceId !== 'new') {
@@ -285,7 +286,7 @@ function Form2PageContent() {
           <div className="flex items-center gap-4 w-full sm:w-auto">
             <Link
               href={
-                (designerWorkflowId || fromWorkflow) ? `/create-workflow${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}${designerNodeId ? (designerWorkflowId ? `&designerNodeId=${designerNodeId}` : `?designerNodeId=${designerNodeId}`) : ''}` :
+                (designerWorkflowId || fromWorkflow) ? `/create-workflow${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}${designerNodeId ? (designerWorkflowId ? `&designerNodeId=${designerNodeId}` : `?designerNodeId=${designerNodeId}`) : ''}${designerTab ? `&designerTab=${designerTab}` : ''}` :
                 instanceId === 'new' ? `/Workflows/instances/new?workflowId=${workflowId}` :
                 instanceId && instanceId !== 'new' ? `/Workflows/instances/${instanceId}` :
                 (from === 'user' ? "/User/Allforms" : "/admin/AllForms")

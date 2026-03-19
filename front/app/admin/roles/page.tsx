@@ -152,6 +152,19 @@ export default function RolesPage() {
     );
   };
 
+  const selectAllInCategory = (category: string) => {
+    const permsInCat = availablePermissions.filter(p => p.category === category).map(p => p.name);
+    setSelectedPermissions(prev => {
+      const newPerms = new Set([...prev, ...permsInCat]);
+      return Array.from(newPerms);
+    });
+  };
+
+  const deselectAllInCategory = (category: string) => {
+    const permsInCat = availablePermissions.filter(p => p.category === category).map(p => p.name);
+    setSelectedPermissions(prev => prev.filter(p => !permsInCat.includes(p)));
+  };
+
   const filteredRoles = roles.filter(role =>
     role.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     role.description?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -468,8 +481,29 @@ export default function RolesPage() {
                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Select relevant rights for this sector</p>
                         </div>
                       </div>
-                      <div className="bg-slate-50 px-4 py-2 rounded-xl text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                        {selectedPermissions.filter(p => availablePermissions.find(ap => ap.name === p)?.category === currentCategory).length} Selected
+                      <div className="flex items-center gap-2">
+                        {currentCategory && (
+                          selectedPermissions.filter(p => availablePermissions.find(ap => ap.name === p)?.category === currentCategory).length === availablePermissions.filter(p => p.category === currentCategory).length ? (
+                            <button
+                              type="button"
+                              onClick={() => deselectAllInCategory(currentCategory)}
+                              className="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-100 transition-all border border-indigo-100"
+                            >
+                              Deselect All
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => selectAllInCategory(currentCategory)}
+                              className="bg-slate-50 text-slate-500 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 hover:text-slate-700 transition-all border border-slate-100"
+                            >
+                              Select All
+                            </button>
+                          )
+                        )}
+                        <div className="bg-slate-50 px-4 py-1.5 rounded-xl text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0 border border-slate-100">
+                          {selectedPermissions.filter(p => availablePermissions.find(ap => ap.name === p)?.category === currentCategory).length} Selected
+                        </div>
                       </div>
                     </div>
 

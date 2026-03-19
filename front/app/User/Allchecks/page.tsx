@@ -15,7 +15,9 @@ import {
   Trash2,
   Eye,
   X,
-  Plus
+  Plus,
+  Briefcase,
+  GitBranch
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiService } from '@/service/api.service';
@@ -78,6 +80,35 @@ export default function AllChecklistsPage() {
     c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const groupedChecklists = filteredChecklists.reduce((acc, c) => {
+    let projectName = "No Project";
+    let workflowName = "No Workflow";
+
+    if (c.workflowId) {
+      const wId = typeof c.workflowId === 'string' ? null : c.workflowId;
+      if (wId) {
+        workflowName = wId.name || "Unknown Workflow";
+        if (wId.projectId && wId.projectId.name) {
+          projectName = wId.projectId.name;
+        }
+      }
+    }
+
+    if (!acc[projectName]) acc[projectName] = {};
+    if (!acc[projectName][workflowName]) acc[projectName][workflowName] = [];
+    acc[projectName][workflowName].push(c);
+    
+    return acc;
+  }, {} as Record<string, Record<string, any[]>>);
+
+  const uncategorizedChecklists = groupedChecklists["No Project"]?.["No Workflow"] || [];
+  if (groupedChecklists["No Project"] && groupedChecklists["No Project"]["No Workflow"]) {
+    delete groupedChecklists["No Project"]["No Workflow"];
+    if (Object.keys(groupedChecklists["No Project"]).length === 0) {
+      delete groupedChecklists["No Project"];
+    }
+  }
 
   const getProgress = (tasks: any[]) => {
     if (!tasks || tasks.length === 0) return 0;
@@ -247,114 +278,275 @@ export default function AllChecklistsPage() {
             <p className="text-sm font-black text-slate-400 uppercase tracking-widest">Scanning Network...</p>
           </div>
         ) : filteredChecklists.length > 0 ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
-            {filteredChecklists.map((checklist) => {
-              const progress = getProgress(checklist.tasks);
+          <div className="space-y-12 pb-8">
+            {Object.entries(groupedChecklists).map(([projectName, w]) => {
+              const workflows = w as Record<string, any[]>;
+              const projectKeys = Object.keys(workflows);
+              const totalProjectChecklists = projectKeys.reduce((acc, curr) => acc + workflows[curr].length, 0);
+
               return (
-                <div 
-                  key={checklist._id}
-                  className="group bg-white border border-slate-100 rounded-[32px] p-8 hover:shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] transition-all duration-500 relative overflow-hidden flex flex-col h-full"
-                >
-                  {/* Status Indicator Bar */}
-                  <div className={`absolute top-0 left-0 right-0 h-1.5 transition-all duration-500 ${checklist.status === 'completed' ? 'bg-emerald-500' : 'bg-indigo-600'}`}></div>
-
-                  <div className="flex justify-between items-start mb-8">
-                    <div className={`p-4 rounded-2xl transition-all duration-500 group-hover:scale-110 ${checklist.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-indigo-50 text-indigo-600'}`}>
-                      <ListTodo size={24} strokeWidth={2.5} />
-                    </div>
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setSelectedChecklist(checklist);
-                          setIsPreviewModalOpen(true);
-                        }}
-                        className="p-3 bg-white border border-slate-100 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all shadow-sm"
-                        title="Quick Preview"
-                      >
-                        <Eye size={20} strokeWidth={2.5} />
-                      </button>
-                      <button 
-                        onClick={(e) => handleDeleteChecklist(e, checklist._id, checklist.instanceId)}
-                        className="p-3 bg-white border border-slate-100 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-2xl transition-all shadow-sm"
-                      >
-                        <Trash2 size={20} strokeWidth={2.5} />
-                      </button>
-                      <button className="p-2 hover:bg-slate-50 rounded-xl transition-colors">
-                        <MoreVertical size={20} className="text-slate-400" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 flex-grow">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full ${
-                        checklist.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'
-                      }`}>
-                        {checklist.status || 'Active'}
-                      </span>
-                      {checklist.workflowId && !checklist.instanceId && (
-                        <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
-                          Workflow Template
-                        </span>
-                      )}
-                      {checklist.instanceId && (
-                        <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-amber-50 text-amber-600 border border-amber-100">
-                          Live Instance
-                        </span>
-                      )}
-                    </div>
-                    <h3 className="text-xl font-black text-slate-900 group-hover:text-indigo-600 transition-colors leading-tight truncate">
-                      {checklist.name}
-                    </h3>
-                    <p className="text-sm text-slate-500 font-medium line-clamp-2 leading-relaxed">
-                      {checklist.description || "No tactical objectives defined for this checkpoint matrix."}
-                    </p>
-                  </div>
-
-                  {/* Progress Matrix */}
-                  <div className="mt-8 space-y-4">
-                    <div className="flex justify-between items-end">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sync Progress</p>
-                      <p className="text-sm font-black text-slate-900">{progress}%</p>
-                    </div>
-                    <div className="h-3 bg-slate-100 rounded-full overflow-hidden p-0.5">
-                      <div 
-                        className={`h-full rounded-full transition-all duration-1000 ease-out shadow-sm ${
-                          checklist.status === 'completed' ? 'bg-emerald-500' : 'bg-indigo-600'
-                        }`}
-                        style={{ width: `${progress}%` }}
-                      ></div>
-                    </div>
-                    <div className="flex items-center gap-4 text-xs font-bold text-slate-500">
-                      <div className="flex items-center gap-1.5">
-                        <CheckCircle2 size={14} className="text-emerald-500" />
-                        <span>{checklist.tasks?.filter((t: any) => t.completed).length || 0} Tasked</span>
+                <div key={projectName} className="space-y-6">
+                  {/* Project Header */}
+                  <div className="flex items-center justify-between px-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100">
+                        <Briefcase size={20} />
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <Clock size={14} className="text-indigo-400" />
-                        <span>{checklist.tasks?.length || 0} Total</span>
+                      <div>
+                        <h3 className="text-xl font-black text-slate-800 tracking-tight">{projectName}</h3>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-0.5">Project Collection</p>
                       </div>
                     </div>
+                    <span className="px-3 py-1 bg-indigo-600 text-white rounded-full text-[10px] font-black uppercase tracking-wider shadow-lg shadow-indigo-100">
+                      {totalProjectChecklists} Checklists
+                    </span>
                   </div>
 
-                  <div className="mt-8 pt-6 border-t border-slate-50">
-                    <Link 
-                      href={checklist.instanceId ? `/Workflows/instances/${checklist.instanceId}` : (checklist.workflowId ? `/admin/workflows/${checklist.workflowId}` : `/User/newCheck?id=${checklist._id}`)}
-                      className="flex items-center justify-between w-full group/btn"
-                    >
-                      <span className="text-[11px] font-black uppercase tracking-widest text-slate-900 group-hover/btn:text-indigo-600 transition-colors">
-                        {checklist.instanceId ? "View Workflow Task" : (checklist.workflowId ? "View Workflow Designer" : "View Detailed Log")}
-                      </span>
-                      <div className="p-2 bg-slate-50 text-slate-400 group-hover/btn:bg-indigo-600 group-hover/btn:text-white rounded-xl transition-all duration-300">
-                        <ArrowRight size={18} />
+                  {/* Workflows within Project */}
+                  <div className="space-y-8 pl-4 md:pl-8 border-l-2 border-slate-100">
+                    {Object.entries(workflows).map(([workflowName, i]) => {
+                      const items = i as any[];
+                      return (
+                      <div key={workflowName} className="space-y-4 relative">
+                        {/* Sub-header for Workflow */}
+                        <div className="flex items-center gap-3 px-2">
+                          <div className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center text-slate-500 shadow-sm border border-slate-100">
+                            <GitBranch size={16} />
+                          </div>
+                          <div>
+                            <h4 className="text-lg font-black text-slate-700 tracking-tight">{workflowName}</h4>
+                            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-0.5">Workflow Group</p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
+                          {items.map((checklist: any) => {
+                            const progress = getProgress(checklist.tasks);
+                            return (
+                              <div 
+                                key={checklist._id}
+                                className="group bg-white border border-slate-100 rounded-[32px] p-8 hover:shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] transition-all duration-500 relative overflow-hidden flex flex-col h-full"
+                              >
+                                {/* Status Indicator Bar */}
+                                <div className={`absolute top-0 left-0 right-0 h-1.5 transition-all duration-500 ${checklist.status === 'completed' ? 'bg-emerald-500' : checklist.instanceId ? 'bg-amber-500' : 'bg-indigo-600'}`}></div>
+
+                                <div className="flex justify-between items-start mb-8">
+                                  <div className={`p-4 rounded-2xl transition-all duration-500 group-hover:scale-110 ${checklist.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-indigo-50 text-indigo-600'}`}>
+                                    <ListTodo size={24} strokeWidth={2.5} />
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <button 
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setSelectedChecklist(checklist);
+                                        setIsPreviewModalOpen(true);
+                                      }}
+                                      className="p-3 bg-white border border-slate-100 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all shadow-sm"
+                                      title="Quick Preview"
+                                    >
+                                      <Eye size={20} strokeWidth={2.5} />
+                                    </button>
+                                    <button 
+                                      onClick={(e) => handleDeleteChecklist(e, checklist._id, checklist.instanceId)}
+                                      className="p-3 bg-white border border-slate-100 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-2xl transition-all shadow-sm"
+                                    >
+                                      <Trash2 size={20} strokeWidth={2.5} />
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <div className="space-y-2 flex-grow">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full ${
+                                      checklist.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'
+                                    }`}>
+                                      {checklist.status || 'Active'}
+                                    </span>
+                                    {checklist.workflowId && !checklist.instanceId && (
+                                      <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
+                                        Workflow Template
+                                      </span>
+                                    )}
+                                    {checklist.instanceId && (
+                                      <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-amber-50 text-amber-600 border border-amber-100">
+                                        Live Instance
+                                      </span>
+                                    )}
+                                  </div>
+                                  <h3 className="text-xl font-black text-slate-900 group-hover:text-indigo-600 transition-colors leading-tight truncate">
+                                    {checklist.name}
+                                  </h3>
+                                  <p className="text-sm text-slate-500 font-medium line-clamp-2 leading-relaxed">
+                                    {checklist.description || "No tactical objectives defined for this checkpoint matrix."}
+                                  </p>
+                                </div>
+
+                                {/* Progress Matrix */}
+                                <div className="mt-8 space-y-4">
+                                  <div className="flex justify-between items-end">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sync Progress</p>
+                                    <p className="text-sm font-black text-slate-900">{progress}%</p>
+                                  </div>
+                                  <div className="h-3 bg-slate-100 rounded-full overflow-hidden p-0.5">
+                                    <div 
+                                      className={`h-full rounded-full transition-all duration-1000 ease-out shadow-sm ${
+                                        checklist.status === 'completed' ? 'bg-emerald-500' : checklist.instanceId ? 'bg-amber-500' : 'bg-indigo-600'
+                                      }`}
+                                      style={{ width: `${progress}%` }}
+                                    ></div>
+                                  </div>
+                                  <div className="flex items-center gap-4 text-xs font-bold text-slate-500">
+                                    <div className="flex items-center gap-1.5">
+                                      <CheckCircle2 size={14} className="text-emerald-500" />
+                                      <span>{checklist.tasks?.filter((t: any) => t.completed).length || 0} Tasked</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                      <Clock size={14} className="text-indigo-400" />
+                                      <span>{checklist.tasks?.length || 0} Total</span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="mt-8 pt-6 border-t border-slate-50">
+                                  <Link 
+                                    href={checklist.instanceId ? `/Workflows/instances/${checklist.instanceId}` : (checklist.workflowId ? `/admin/workflows/${(typeof checklist.workflowId === 'string' ? checklist.workflowId : checklist.workflowId._id)}` : `/User/newCheck?id=${checklist._id}`)}
+                                    className="flex items-center justify-between w-full group/btn"
+                                  >
+                                    <span className="text-[11px] font-black uppercase tracking-widest text-slate-900 group-hover/btn:text-indigo-600 transition-colors">
+                                      {checklist.instanceId ? "View Workflow Task" : (checklist.workflowId ? "View Workflow Designer" : "View Detailed Log")}
+                                    </span>
+                                    <div className="p-2 bg-slate-50 text-slate-400 group-hover/btn:bg-indigo-600 group-hover/btn:text-white rounded-xl transition-all duration-300">
+                                      <ArrowRight size={18} />
+                                    </div>
+                                  </Link>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </Link>
+                    );})}
                   </div>
                 </div>
               );
             })}
+
+            {uncategorizedChecklists.length > 0 && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between px-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 shadow-sm border border-slate-100">
+                      <ListTodo size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-slate-800 tracking-tight">Standalone Checklists</h3>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-0.5">No Project assigned</p>
+                    </div>
+                  </div>
+                  <span className="px-3 py-1 bg-slate-200 text-slate-600 rounded-full text-[10px] font-black uppercase tracking-wider">
+                    {uncategorizedChecklists.length} Checklists
+                  </span>
+                </div>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
+                  {uncategorizedChecklists.map((checklist: any) => {
+                    const progress = getProgress(checklist.tasks);
+                    return (
+                      <div 
+                        key={checklist._id}
+                        className="group bg-white border border-slate-100 rounded-[32px] p-8 hover:shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] transition-all duration-500 relative overflow-hidden flex flex-col h-full"
+                      >
+                        {/* Status Indicator Bar */}
+                        <div className={`absolute top-0 left-0 right-0 h-1.5 transition-all duration-500 ${checklist.status === 'completed' ? 'bg-emerald-500' : 'bg-slate-400'}`}></div>
+
+                        <div className="flex justify-between items-start mb-8">
+                          <div className={`p-4 rounded-2xl transition-all duration-500 group-hover:scale-110 ${checklist.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-500'}`}>
+                            <ListTodo size={24} strokeWidth={2.5} />
+                          </div>
+                          <div className="flex gap-2">
+                            <button 
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setSelectedChecklist(checklist);
+                                setIsPreviewModalOpen(true);
+                              }}
+                              className="p-3 bg-white border border-slate-100 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-2xl transition-all shadow-sm"
+                              title="Quick Preview"
+                            >
+                              <Eye size={20} strokeWidth={2.5} />
+                            </button>
+                            <button 
+                              onClick={(e) => handleDeleteChecklist(e, checklist._id, checklist.instanceId)}
+                              className="p-3 bg-white border border-slate-100 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-2xl transition-all shadow-sm"
+                            >
+                              <Trash2 size={20} strokeWidth={2.5} />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2 flex-grow">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full ${
+                              checklist.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-600'
+                            }`}>
+                              {checklist.status || 'Active'}
+                            </span>
+                          </div>
+                          <h3 className="text-xl font-black text-slate-900 group-hover:text-slate-600 transition-colors leading-tight truncate">
+                            {checklist.name}
+                          </h3>
+                          <p className="text-sm text-slate-500 font-medium line-clamp-2 leading-relaxed">
+                            {checklist.description || "No tactical objectives defined for this checkpoint matrix."}
+                          </p>
+                        </div>
+
+                        {/* Progress Matrix */}
+                        <div className="mt-8 space-y-4">
+                          <div className="flex justify-between items-end">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sync Progress</p>
+                            <p className="text-sm font-black text-slate-900">{progress}%</p>
+                          </div>
+                          <div className="h-3 bg-slate-100 rounded-full overflow-hidden p-0.5">
+                            <div 
+                              className={`h-full rounded-full transition-all duration-1000 ease-out shadow-sm ${
+                                checklist.status === 'completed' ? 'bg-emerald-500' : 'bg-slate-400'
+                              }`}
+                              style={{ width: `${progress}%` }}
+                            ></div>
+                          </div>
+                          <div className="flex items-center gap-4 text-xs font-bold text-slate-500">
+                            <div className="flex items-center gap-1.5">
+                              <CheckCircle2 size={14} className="text-emerald-500" />
+                              <span>{checklist.tasks?.filter((t: any) => t.completed).length || 0} Tasked</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <Clock size={14} className="text-slate-400" />
+                              <span>{checklist.tasks?.length || 0} Total</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-8 pt-6 border-t border-slate-50">
+                          <Link 
+                            href={checklist.instanceId ? `/Workflows/instances/${checklist.instanceId}` : (checklist.workflowId ? `/admin/workflows/${(typeof checklist.workflowId === 'string' ? checklist.workflowId : checklist.workflowId._id)}` : `/User/newCheck?id=${checklist._id}`)}
+                            className="flex items-center justify-between w-full group/btn"
+                          >
+                            <span className="text-[11px] font-black uppercase tracking-widest text-slate-900 group-hover/btn:text-slate-600 transition-colors">
+                              {checklist.instanceId ? "View Workflow Task" : (checklist.workflowId ? "View Workflow Designer" : "View Detailed Log")}
+                            </span>
+                            <div className="p-2 bg-slate-50 text-slate-400 group-hover/btn:bg-slate-600 group-hover/btn:text-white rounded-xl transition-all duration-300">
+                              <ArrowRight size={18} />
+                            </div>
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="bg-white border-2 border-dashed border-slate-200 rounded-[32px] p-24 text-center">

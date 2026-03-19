@@ -30,6 +30,11 @@ const formSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true
+    },
+    workflowId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Workflow',
+        required: false
     }
 }, { timestamps: true });
 

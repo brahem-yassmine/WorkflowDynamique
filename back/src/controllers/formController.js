@@ -8,7 +8,7 @@ exports.createForm = async (req, res) => {
         console.log('📦 CreateForm Body:', JSON.stringify(req.body, null, 2));
         console.log('👤 CreateForm User:', req.user);
 
-        const { name, description, steps } = req.body;
+        const { name, description, steps, workflowId } = req.body;
         const Form = req.tenantConn.model('Form');
 
         if (!name) {
@@ -32,7 +32,8 @@ exports.createForm = async (req, res) => {
             name,
             description: description || '',
             steps: steps || [],
-            createdBy: userId
+            createdBy: userId,
+            workflowId: workflowId || undefined
         });
 
         await form.save();
@@ -79,7 +80,21 @@ exports.createForm = async (req, res) => {
 exports.getForms = async (req, res) => {
     try {
         const Form = req.tenantConn.model('Form');
-        const forms = await Form.find().sort({ createdAt: -1 });
+        
+        // Match Checklist behavior: extract workflowId from query if provided
+        const { workflowId } = req.query;
+        const query = workflowId ? { workflowId } : {};
+
+        const forms = await Form.find(query)
+            .sort({ createdAt: -1 })
+            .populate({
+                path: 'workflowId',
+                select: 'name projectId',
+                populate: {
+                    path: 'projectId',
+                    select: 'name'
+                }
+            });
 
         res.json({
             success: true,

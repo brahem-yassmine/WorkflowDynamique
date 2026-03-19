@@ -79,7 +79,33 @@ export default function UserManagementPage() {
                 apiService.getDomains()
             ]);
 
-            if (usersRes.success) setUsers(usersRes.data);
+            if (usersRes.success) {
+                setUsers(usersRes.data);
+                // Check for deep link edit
+                if (typeof window !== 'undefined') {
+                    const params = new URLSearchParams(window.location.search);
+                    const editUserId = params.get('editUserId');
+                    if (editUserId) {
+                        const userToEdit = usersRes.data.find((u: Persona) => u._id === editUserId);
+                        if (userToEdit) {
+                            setTimeout(() => {
+                                setIsEditing(true);
+                                setFirstName(userToEdit.firstName || '');
+                                setLastName(userToEdit.lastName || '');
+                                setEmail(userToEdit.email);
+                                setPassword('');
+                                setFormRole(userToEdit.role);
+                                setFormDomain(userToEdit.domain);
+                                setFormSpecificRole(userToEdit.specificRole || '');
+                                setFormSpecificRoleId(userToEdit.specificRoleId || '');
+                                setIsModalOpen(true);
+                                // Clean up URL so it doesn't reopen on subsequent fetches
+                                window.history.replaceState({}, '', window.location.pathname);
+                            }, 500); // Small delay to let UI settle
+                        }
+                    }
+                }
+            }
             if (rolesRes.success) setRoles(rolesRes.data);
             if (domainsRes.success) setDomains(domainsRes.data);
 
@@ -285,8 +311,20 @@ export default function UserManagementPage() {
                                                 {user.isActive ? 'Active' : 'Suspended'}
                                             </span>
                                         </td>
-                                        <td className="px-8 py-5 text-right">
-                                            <ChevronRight size={18} className={`inline text-slate-300 transition-transform ${selectedUser?._id === user._id ? 'translate-x-1 text-indigo-600' : ''}`} />
+                                        <td className="px-8 py-5">
+                                            <div className="flex items-center justify-end gap-3">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleEdit(user);
+                                                    }}
+                                                    className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                                                    title="Edit User"
+                                                >
+                                                    <Edit3 size={18} />
+                                                </button>
+                                                <ChevronRight size={18} className={`text-slate-300 transition-transform ${selectedUser?._id === user._id ? 'translate-x-1 text-indigo-600' : ''}`} />
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}

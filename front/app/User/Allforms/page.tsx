@@ -12,7 +12,9 @@ import {
   Layers,
   CheckCircle2,
   Clock,
-  ArrowRight
+  ArrowRight,
+  Briefcase,
+  GitBranch
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -25,6 +27,7 @@ interface Form {
   description: string;
   status: 'draft' | 'published' | 'approved' | 'rejected';
   submissionCount: number;
+  workflowId?: any;
   createdAt: string;
   steps?: any[];
 }
@@ -83,8 +86,37 @@ export default function UserAllFormsPage() {
 
   const filteredForms = forms.filter(f =>
     f.name.toLowerCase().includes(search.toLowerCase()) ||
-    f.description.toLowerCase().includes(search.toLowerCase())
+    (f.description && f.description.toLowerCase().includes(search.toLowerCase()))
   );
+
+  const groupedForms = filteredForms.reduce((acc, form) => {
+    let projectName = "No Project";
+    let workflowName = "No Workflow";
+
+    if (form.workflowId) {
+      const wId = typeof form.workflowId === 'string' ? null : form.workflowId;
+      if (wId) {
+        workflowName = wId.name || "Unknown Workflow";
+        if (wId.projectId && wId.projectId.name) {
+          projectName = wId.projectId.name;
+        }
+      }
+    }
+
+    if (!acc[projectName]) acc[projectName] = {};
+    if (!acc[projectName][workflowName]) acc[projectName][workflowName] = [];
+    acc[projectName][workflowName].push(form);
+    
+    return acc;
+  }, {} as Record<string, Record<string, Form[]>>);
+
+  const uncategorizedForms = groupedForms["No Project"]?.["No Workflow"] || [];
+  if (groupedForms["No Project"] && groupedForms["No Project"]["No Workflow"]) {
+    delete groupedForms["No Project"]["No Workflow"];
+    if (Object.keys(groupedForms["No Project"]).length === 0) {
+      delete groupedForms["No Project"];
+    }
+  }
 
   return (
     <div className="min-h-screen pb-20">
@@ -150,84 +182,235 @@ export default function UserAllFormsPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredForms.map((form) => (
-              <div
-                key={form._id}
-                onClick={() => router.push(`/form/form3?id=${form._id}&from=user`)}
-                className="group bg-white rounded-[2.5rem] border border-slate-100 p-8 hover:shadow-2xl hover:shadow-indigo-500/5 hover:border-indigo-100 transition-all relative overflow-hidden flex flex-col h-full cursor-pointer"
-              >
-                {/* Status Badge */}
-                <div className="flex items-center justify-between mb-6">
-                  <div className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 border ${form.status === 'published' || form.status === 'approved'
-                      ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                      : form.status === 'rejected'
-                        ? 'bg-rose-50 text-rose-600 border-rose-100'
-                        : 'bg-slate-50 text-slate-500 border-slate-100'
-                    }`}>
-                    {form.status === 'published' || form.status === 'approved' ? (
-                      <CheckCircle2 className="w-3 h-3" />
-                    ) : (
-                      <Clock className="w-3 h-3" />
-                    )}
-                    {form.status || 'Draft'}
-                  </div>
-                  <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <Calendar className="w-3.5 h-3.5 text-indigo-400" />
-                    {new Date(form.createdAt).toLocaleDateString()}
-                  </div>
-                </div>
+          <div className="space-y-12 pb-8">
+            {Object.entries(groupedForms).map(([projectName, w]) => {
+              const workflows = w as Record<string, Form[]>;
+              const projectKeys = Object.keys(workflows);
+              const totalProjectForms = projectKeys.reduce((acc, curr) => acc + workflows[curr].length, 0);
 
-                <h3 className="text-xl font-black text-slate-800 group-hover:text-indigo-600 transition-colors truncate mb-2 tracking-tight">
-                  {form.name}
-                </h3>
-                <p className="text-xs text-slate-500 font-medium line-clamp-2 mb-8 flex-1 leading-relaxed">
-                  {form.description || "Active procedural mapping for organizational consistency and automated tracking."}
-                </p>
-
-                <div className="flex items-center justify-between mt-auto pt-6 border-t border-slate-50">
-                  <div className="flex flex-col">
-                    <span className="text-[9px] uppercase font-black text-slate-400 tracking-widest mb-1">Field Complexity</span>
-                    <span className="text-xl font-black text-slate-800">
-                      {(form.steps || []).reduce((acc, step) => acc + (step.fields?.length || 0), 0)}{' '}
-                      <span className="text-xs font-bold text-slate-400">Entries</span>
+              return (
+                <div key={projectName} className="space-y-6">
+                  {/* Project Header */}
+                  <div className="flex items-center justify-between px-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100">
+                        <Briefcase size={20} />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-black text-slate-800 tracking-tight">{projectName}</h3>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-0.5">Project Collection</p>
+                      </div>
+                    </div>
+                    <span className="px-3 py-1 bg-indigo-600 text-white rounded-full text-[10px] font-black uppercase tracking-wider shadow-lg shadow-indigo-100">
+                      {totalProjectForms} Forms
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleClone(form._id); }}
-                      className="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all"
-                      title="Duplicate Unit"
-                    >
-                      <Copy className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); router.push(`/form?id=${form._id}&from=user`); }}
-                      className="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all"
-                      title="Reconfigure"
-                    >
-                      <Edit3 className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleDelete(form._id); }}
-                      className="p-3 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-2xl transition-all"
-                      title="Decommission"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                    <Link
-                      href={`/form/form3?id=${form._id}&from=user`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="ml-2 w-12 h-12 bg-slate-50 text-slate-400 group-hover:bg-indigo-600 group-hover:text-white rounded-2xl flex items-center justify-center transition-all shadow-sm active:scale-90"
-                      title="Run Interactive"
-                    >
-                      <ArrowRight className="w-5 h-5" />
-                    </Link>
+                  {/* Workflows within Project */}
+                  <div className="space-y-8 pl-4 md:pl-8 border-l-2 border-slate-100">
+                    {Object.entries(workflows).map(([workflowName, i]) => {
+                      const items = i as Form[];
+                      return (
+                      <div key={workflowName} className="space-y-4 relative">
+                        {/* Sub-header for Workflow */}
+                        <div className="flex items-center gap-3 px-2">
+                          <div className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center text-slate-500 shadow-sm border border-slate-100">
+                            <GitBranch size={16} />
+                          </div>
+                          <div>
+                            <h4 className="text-lg font-black text-slate-700 tracking-tight">{workflowName}</h4>
+                            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-0.5">Workflow Group</p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                          {items.map((form) => (
+                            <div
+                              key={form._id}
+                              onClick={() => router.push(`/form/form3?id=${form._id}&from=user`)}
+                              className="group bg-white rounded-[2.5rem] border border-slate-100 p-8 hover:shadow-2xl hover:shadow-indigo-500/5 hover:border-indigo-100 transition-all relative overflow-hidden flex flex-col h-full cursor-pointer"
+                            >
+                              <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                              <div className="flex items-center justify-between mb-6">
+                                <div className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 border ${form.status === 'published' || form.status === 'approved'
+                                    ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                                    : form.status === 'rejected'
+                                      ? 'bg-rose-50 text-rose-600 border-rose-100'
+                                      : 'bg-indigo-50 text-indigo-600 border-indigo-100'
+                                  }`}>
+                                  {form.status === 'published' || form.status === 'approved' ? (
+                                    <CheckCircle2 className="w-3 h-3" />
+                                  ) : form.status === 'rejected' ? (
+                                    <Clock className="w-3 h-3" />
+                                  ) : (
+                                    <Clock className="w-3 h-3" />
+                                  )}
+                                  {form.status || 'Draft'}
+                                </div>
+                                <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                  <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+                                  {new Date(form.createdAt).toLocaleDateString()}
+                                </div>
+                              </div>
+
+                              <h3 className="text-xl font-black text-slate-800 group-hover:text-indigo-600 transition-colors truncate mb-2 tracking-tight">
+                                {form.name}
+                              </h3>
+                              <p className="text-xs text-slate-500 font-medium line-clamp-2 mb-8 flex-1 leading-relaxed">
+                                {form.description || "Active procedural mapping for organizational consistency and automated tracking."}
+                              </p>
+
+                              <div className="flex items-center justify-between mt-auto pt-6 border-t border-slate-50">
+                                <div className="flex flex-col">
+                                  <span className="text-[9px] uppercase font-black text-slate-400 tracking-widest mb-1">Field Complexity</span>
+                                  <span className="text-xl font-black text-slate-800">
+                                    {(form.steps || []).reduce((acc, step) => acc + (step.fields?.length || 0), 0)}{' '}
+                                    <span className="text-xs font-bold text-slate-400">Entries</span>
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleClone(form._id); }}
+                                    className="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all"
+                                    title="Duplicate Unit"
+                                  >
+                                    <Copy className="w-5 h-5" />
+                                  </button>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); router.push(`/form?id=${form._id}&from=user`); }}
+                                    className="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all"
+                                    title="Reconfigure"
+                                  >
+                                    <Edit3 className="w-5 h-5" />
+                                  </button>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleDelete(form._id); }}
+                                    className="p-3 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-2xl transition-all"
+                                    title="Decommission"
+                                  >
+                                    <Trash2 className="w-5 h-5" />
+                                  </button>
+                                  <Link
+                                    href={`/form/form3?id=${form._id}&from=user`}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="ml-2 w-12 h-12 bg-slate-50 text-slate-400 group-hover:bg-indigo-600 group-hover:text-white rounded-2xl flex items-center justify-center transition-all shadow-sm active:scale-90"
+                                    title="Run Interactive"
+                                  >
+                                    <ArrowRight className="w-5 h-5" />
+                                  </Link>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );})}
                   </div>
                 </div>
+              );
+            })}
+
+            {uncategorizedForms.length > 0 && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between px-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 shadow-sm border border-slate-100">
+                      <FileText size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-slate-800 tracking-tight">Standalone Forms</h3>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-0.5">No Project assigned</p>
+                    </div>
+                  </div>
+                  <span className="px-3 py-1 bg-slate-200 text-slate-600 rounded-full text-[10px] font-black uppercase tracking-wider">
+                    {uncategorizedForms.length} Forms
+                  </span>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {uncategorizedForms.map((form) => (
+                    <div
+                      key={form._id}
+                      onClick={() => router.push(`/form/form3?id=${form._id}&from=user`)}
+                      className="group bg-white rounded-[2.5rem] border border-slate-100 p-8 hover:shadow-2xl hover:shadow-slate-500/10 hover:border-slate-200 transition-all relative overflow-hidden flex flex-col h-full cursor-pointer"
+                    >
+                      <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-400 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      <div className="flex items-center justify-between mb-6">
+                        <div className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 border ${form.status === 'published' || form.status === 'approved'
+                            ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                            : form.status === 'rejected'
+                              ? 'bg-rose-50 text-rose-600 border-rose-100'
+                              : 'bg-slate-50 text-slate-500 border-slate-100'
+                          }`}>
+                          {form.status === 'published' || form.status === 'approved' ? (
+                            <CheckCircle2 className="w-3 h-3" />
+                          ) : form.status === 'rejected' ? (
+                            <Clock className="w-3 h-3" />
+                          ) : (
+                            <Clock className="w-3 h-3" />
+                          )}
+                          {form.status || 'Draft'}
+                        </div>
+                        <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                          <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+                          {new Date(form.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+
+                      <h3 className="text-xl font-black text-slate-800 group-hover:text-slate-600 transition-colors truncate mb-2 tracking-tight">
+                        {form.name}
+                      </h3>
+                      <p className="text-xs text-slate-500 font-medium line-clamp-2 mb-8 flex-1 leading-relaxed">
+                        {form.description || "Active procedural mapping for organizational consistency and automated tracking."}
+                      </p>
+
+                      <div className="flex items-center justify-between mt-auto pt-6 border-t border-slate-50">
+                        <div className="flex flex-col">
+                          <span className="text-[9px] uppercase font-black text-slate-400 tracking-widest mb-1">Field Complexity</span>
+                          <span className="text-xl font-black text-slate-800">
+                            {(form.steps || []).reduce((acc, step) => acc + (step.fields?.length || 0), 0)}{' '}
+                            <span className="text-xs font-bold text-slate-400">Entries</span>
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleClone(form._id); }}
+                            className="p-3 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-2xl transition-all"
+                            title="Duplicate Unit"
+                          >
+                            <Copy className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); router.push(`/form?id=${form._id}&from=user`); }}
+                            className="p-3 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-2xl transition-all"
+                            title="Reconfigure"
+                          >
+                            <Edit3 className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDelete(form._id); }}
+                            className="p-3 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-2xl transition-all"
+                            title="Decommission"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                          <Link
+                            href={`/form/form3?id=${form._id}&from=user`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="ml-2 w-12 h-12 bg-slate-50 text-slate-400 group-hover:bg-slate-600 group-hover:text-white rounded-2xl flex items-center justify-center transition-all shadow-sm active:scale-90"
+                            title="Run Interactive"
+                          >
+                            <ArrowRight className="w-5 h-5" />
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            ))}
+            )}
           </div>
         )}
       </div>

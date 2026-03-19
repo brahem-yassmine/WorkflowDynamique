@@ -12,7 +12,9 @@ import {
   Layers,
   CheckCircle2,
   Clock,
-  ArrowRight
+  ArrowRight,
+  Briefcase,
+  GitBranch
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -25,6 +27,7 @@ interface Form {
   description: string;
   status: 'draft' | 'published' | 'approved' | 'rejected';
   submissionCount: number;
+  workflowId?: any;
   createdAt: string;
 }
 
@@ -82,8 +85,37 @@ export default function AllFormsPage() {
 
   const filteredForms = forms.filter(f =>
     f.name.toLowerCase().includes(search.toLowerCase()) ||
-    f.description.toLowerCase().includes(search.toLowerCase())
+    (f.description && f.description.toLowerCase().includes(search.toLowerCase()))
   );
+
+  const groupedForms = filteredForms.reduce((acc, form) => {
+    let projectName = "No Project";
+    let workflowName = "No Workflow";
+
+    if (form.workflowId) {
+      const wId = typeof form.workflowId === 'string' ? null : form.workflowId;
+      if (wId) {
+        workflowName = wId.name || "Unknown Workflow";
+        if (wId.projectId && wId.projectId.name) {
+          projectName = wId.projectId.name;
+        }
+      }
+    }
+
+    if (!acc[projectName]) acc[projectName] = {};
+    if (!acc[projectName][workflowName]) acc[projectName][workflowName] = [];
+    acc[projectName][workflowName].push(form);
+    
+    return acc;
+  }, {} as Record<string, Record<string, Form[]>>);
+
+  const uncategorizedForms = groupedForms["No Project"]?.["No Workflow"] || [];
+  if (groupedForms["No Project"] && groupedForms["No Project"]["No Workflow"]) {
+    delete groupedForms["No Project"]["No Workflow"];
+    if (Object.keys(groupedForms["No Project"]).length === 0) {
+      delete groupedForms["No Project"];
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-50/50 pb-20">
@@ -149,83 +181,230 @@ export default function AllFormsPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredForms.map((form) => (
-              <div
-                key={form._id}
-                onClick={() => router.push(`/form/form3?id=${form._id}`)}
-                className="group bg-white rounded-3xl border border-gray-100 p-6 hover:shadow-2xl hover:shadow-indigo-500/5 hover:border-indigo-100 transition-all relative overflow-hidden flex flex-col h-full cursor-pointer"
-              >
-                {/* Status Badge */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${form.status === 'published' || form.status === 'approved'
-                      ? 'bg-emerald-50 text-emerald-600'
-                      : form.status === 'rejected'
-                        ? 'bg-rose-50 text-rose-600'
-                        : 'bg-gray-100 text-gray-500'
-                    }`}>
-                    {form.status === 'published' || form.status === 'approved' ? (
-                      <CheckCircle2 className="w-3 h-3" />
-                    ) : form.status === 'rejected' ? (
-                      <Clock className="w-3 h-3" />
-                    ) : (
-                      <Clock className="w-3 h-3" />
-                    )}
-                    {form.status || 'Draft'}
+          <div className="space-y-12 pb-8">
+            {Object.entries(groupedForms).map(([projectName, workflows]) => {
+              const projectKeys = Object.keys(workflows);
+              const totalProjectForms = projectKeys.reduce((acc, curr) => acc + workflows[curr].length, 0);
+
+              return (
+                <div key={projectName} className="space-y-6">
+                  {/* Project Header */}
+                  <div className="flex items-center justify-between px-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100">
+                        <Briefcase size={20} />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-black text-gray-900 tracking-tight">{projectName}</h3>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-none mt-0.5">Project Collection</p>
+                      </div>
+                    </div>
+                    <span className="px-3 py-1 bg-indigo-600 text-white rounded-full text-[10px] font-black uppercase tracking-wider shadow-lg shadow-indigo-100">
+                      {totalProjectForms} Forms
+                    </span>
                   </div>
-                  <div className="text-[10px] font-bold text-gray-400 flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
-                    {new Date(form.createdAt).toLocaleDateString()}
+
+                  {/* Workflows within Project */}
+                  <div className="space-y-8 pl-4 md:pl-8 border-l-2 border-gray-100">
+                    {Object.entries(workflows).map(([workflowName, items]) => (
+                      <div key={workflowName} className="space-y-4 relative">
+                        {/* Sub-header for Workflow */}
+                        <div className="flex items-center gap-3 px-2">
+                          <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center text-gray-500 shadow-sm border border-gray-100">
+                            <GitBranch size={16} />
+                          </div>
+                          <div>
+                            <h4 className="text-lg font-black text-gray-700 tracking-tight">{workflowName}</h4>
+                            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest leading-none mt-0.5">Workflow Group</p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {items.map((form) => (
+                            <div
+                              key={form._id}
+                              onClick={() => router.push(`/form/form3?id=${form._id}`)}
+                              className="group bg-white rounded-3xl border border-gray-100 p-6 hover:shadow-2xl hover:shadow-indigo-500/5 hover:border-indigo-100 transition-all relative overflow-hidden flex flex-col h-full cursor-pointer"
+                            >
+                              {/* Left status border */}
+                              <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+
+                              {/* Status Badge */}
+                              <div className="flex items-center justify-between mb-4">
+                                <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${form.status === 'published' || form.status === 'approved'
+                                    ? 'bg-emerald-50 text-emerald-600'
+                                    : form.status === 'rejected'
+                                      ? 'bg-rose-50 text-rose-600'
+                                      : 'bg-indigo-50 text-indigo-600'
+                                  }`}>
+                                  {form.status === 'published' || form.status === 'approved' ? (
+                                    <CheckCircle2 className="w-3 h-3" />
+                                  ) : form.status === 'rejected' ? (
+                                    <Clock className="w-3 h-3" />
+                                  ) : (
+                                    <Clock className="w-3 h-3" />
+                                  )}
+                                  {form.status || 'Draft'}
+                                </div>
+                                <div className="text-[10px] font-bold text-gray-400 flex items-center gap-1">
+                                  <Calendar className="w-3 h-3" />
+                                  {new Date(form.createdAt).toLocaleDateString()}
+                                </div>
+                              </div>
+
+                              <h3 className="text-lg font-bold text-gray-900 group-hover:text-indigo-600 transition-colors truncate mb-1">
+                                {form.name}
+                              </h3>
+                              <p className="text-xs text-gray-500 font-medium line-clamp-2 mb-6 flex-1">
+                                {form.description || "No description provided."}
+                              </p>
+
+                              <div className="flex items-center justify-between mt-auto pt-6 border-t border-gray-50">
+                                <div className="flex flex-col">
+                                  <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Submissions</span>
+                                  <span className="text-lg font-black text-gray-800">{form.submissionCount || 0}</span>
+                                </div>
+
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleClone(form._id); }}
+                                    className="p-2.5 text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                                    title="Clone Form"
+                                  >
+                                    <Copy className="w-4.5 h-4.5" />
+                                  </button>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); router.push(`/form?id=${form._id}`); }}
+                                    className="p-2.5 text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                                    title="Edit Form"
+                                  >
+                                    <Edit3 className="w-4.5 h-4.5" />
+                                  </button>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleDelete(form._id); }}
+                                    className="p-2.5 text-gray-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                                    title="Delete Form"
+                                  >
+                                    <Trash2 className="w-4.5 h-4.5" />
+                                  </button>
+                                  <Link
+                                    href={`/form/form3?id=${form._id}`}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="ml-2 w-9 h-9 bg-gray-50 text-gray-400 group-hover:bg-indigo-600 group-hover:text-white rounded-xl flex items-center justify-center transition-all shadow-sm"
+                                    title="View Interactive"
+                                  >
+                                    <ArrowRight className="w-4 h-4" />
+                                  </Link>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
+              );
+            })}
 
-                <h3 className="text-lg font-bold text-gray-900 group-hover:text-indigo-600 transition-colors truncate mb-1">
-                  {form.name}
-                </h3>
-                <p className="text-xs text-gray-500 font-medium line-clamp-2 mb-6 flex-1">
-                  {form.description || "No description provided."}
-                </p>
-
-                <div className="flex items-center justify-between mt-auto pt-6 border-t border-gray-50">
-                  <div className="flex flex-col">
-                    <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Submissions</span>
-                    <span className="text-lg font-black text-gray-800">{form.submissionCount || 0}</span>
+            {uncategorizedForms.length > 0 && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between px-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 shadow-sm border border-gray-100">
+                      <FileText size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-gray-800 tracking-tight">Standalone Forms</h3>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-none mt-0.5">No Project assigned</p>
+                    </div>
                   </div>
+                  <span className="px-3 py-1 bg-gray-200 text-gray-600 rounded-full text-[10px] font-black uppercase tracking-wider">
+                    {uncategorizedForms.length} Forms
+                  </span>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {uncategorizedForms.map((form) => (
+                    <div
+                      key={form._id}
+                      onClick={() => router.push(`/form/form3?id=${form._id}`)}
+                      className="group bg-white rounded-3xl border border-gray-100 p-6 hover:shadow-2xl hover:shadow-gray-500/10 hover:border-gray-200 transition-all relative overflow-hidden flex flex-col h-full cursor-pointer"
+                    >
+                      <div className="absolute top-0 left-0 w-1.5 h-full bg-gray-400 opacity-0 group-hover:opacity-100 transition-opacity"></div>
 
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleClone(form._id); }}
-                      className="p-2.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                      title="Clone Form"
-                    >
-                      <Copy className="w-4.5 h-4.5" />
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); router.push(`/form?id=${form._id}`); }}
-                      className="p-2.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                      title="Edit Form"
-                    >
-                      <Edit3 className="w-4.5 h-4.5" />
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleDelete(form._id); }}
-                      className="p-2.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
-                      title="Delete Form"
-                    >
-                      <Trash2 className="w-4.5 h-4.5" />
-                    </button>
-                    <Link
-                      href={`/form/form3?id=${form._id}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="ml-2 w-9 h-9 bg-gray-50 text-gray-400 group-hover:bg-indigo-600 group-hover:text-white rounded-xl flex items-center justify-center transition-all shadow-sm"
-                      title="View Interactive"
-                    >
-                      <ArrowRight className="w-4 h-4" />
-                    </Link>
-                  </div>
+                      <div className="flex items-center justify-between mb-4">
+                        <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${form.status === 'published' || form.status === 'approved'
+                            ? 'bg-emerald-50 text-emerald-600'
+                            : form.status === 'rejected'
+                              ? 'bg-rose-50 text-rose-600'
+                              : 'bg-gray-100 text-gray-500'
+                          }`}>
+                          {form.status === 'published' || form.status === 'approved' ? (
+                            <CheckCircle2 className="w-3 h-3" />
+                          ) : form.status === 'rejected' ? (
+                            <Clock className="w-3 h-3" />
+                          ) : (
+                            <Clock className="w-3 h-3" />
+                          )}
+                          {form.status || 'Draft'}
+                        </div>
+                        <div className="text-[10px] font-bold text-gray-400 flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          {new Date(form.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+
+                      <h3 className="text-lg font-bold text-gray-900 group-hover:text-gray-600 transition-colors truncate mb-1">
+                        {form.name}
+                      </h3>
+                      <p className="text-xs text-gray-500 font-medium line-clamp-2 mb-6 flex-1">
+                        {form.description || "No description provided."}
+                      </p>
+
+                      <div className="flex items-center justify-between mt-auto pt-6 border-t border-gray-50">
+                        <div className="flex flex-col">
+                          <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Submissions</span>
+                          <span className="text-lg font-black text-gray-800">{form.submissionCount || 0}</span>
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleClone(form._id); }}
+                            className="p-2.5 text-gray-300 hover:text-gray-600 hover:bg-gray-50 rounded-xl transition-all"
+                            title="Clone Form"
+                          >
+                            <Copy className="w-4.5 h-4.5" />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); router.push(`/form?id=${form._id}`); }}
+                            className="p-2.5 text-gray-300 hover:text-gray-600 hover:bg-gray-50 rounded-xl transition-all"
+                            title="Edit Form"
+                          >
+                            <Edit3 className="w-4.5 h-4.5" />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDelete(form._id); }}
+                            className="p-2.5 text-gray-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                            title="Delete Form"
+                          >
+                            <Trash2 className="w-4.5 h-4.5" />
+                          </button>
+                          <Link
+                            href={`/form/form3?id=${form._id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="ml-2 w-9 h-9 bg-gray-50 text-gray-400 group-hover:bg-gray-600 group-hover:text-white rounded-xl flex items-center justify-center transition-all shadow-sm"
+                            title="View Interactive"
+                          >
+                            <ArrowRight className="w-4 h-4" />
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            ))}
+            )}
           </div>
         )}
       </div>

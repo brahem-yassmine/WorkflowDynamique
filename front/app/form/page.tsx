@@ -232,6 +232,7 @@ function FormBuilderContent() {
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
   const designerWorkflowId = searchParams.get('designerWorkflowId');
   const designerNodeId = searchParams.get('designerNodeId');
+  const designerTab = searchParams.get('designerTab');
   const fromWorkflow = searchParams.get('fromWorkflow');
   const [activeId, setActiveId] = useState<string | null>(null);
   const currentStep = steps[currentStepIndex];
@@ -312,7 +313,7 @@ function FormBuilderContent() {
   const handleSave = async (shouldNavigate: boolean = false) => {
     setIsSaving(true);
     try {
-      const payload = {
+      const payload: any = {
         name: formName || `Form Template ${new Date().toLocaleDateString()}`,
         description: formDescription,
         steps: steps.map((s, i) => ({
@@ -321,6 +322,10 @@ function FormBuilderContent() {
           fields: s.fields.map((f, fi) => ({ ...f, order: fi }))
         }))
       };
+
+      if (designerWorkflowId) {
+         payload.workflowId = designerWorkflowId;
+      }
 
       const method = formId ? 'PATCH' : 'POST';
       const url = formId ? `/forms/${formId}` : '/forms';
@@ -343,12 +348,14 @@ function FormBuilderContent() {
           let redirectUrl = `${targetPage}?id=${newId}${from ? `&from=${from}` : ''}`;
           if (designerWorkflowId) redirectUrl += `&designerWorkflowId=${designerWorkflowId}`;
           if (designerNodeId) redirectUrl += `&designerNodeId=${designerNodeId}`;
+          if (designerTab) redirectUrl += `&designerTab=${designerTab}`;
           if (fromWorkflow) redirectUrl += `&fromWorkflow=true`;
           router.push(redirectUrl);
         } else if (!formId && res.data?._id) {
           let redirectUrl = `/form?id=${res.data._id}${from ? `&from=${from}` : ''}`;
           if (designerWorkflowId) redirectUrl += `&designerWorkflowId=${designerWorkflowId}`;
           if (designerNodeId) redirectUrl += `&designerNodeId=${designerNodeId}`;
+          if (designerTab) redirectUrl += `&designerTab=${designerTab}`;
           if (fromWorkflow) redirectUrl += `&fromWorkflow=true`;
           router.push(redirectUrl, { scroll: false });
         }
@@ -395,8 +402,8 @@ function FormBuilderContent() {
           <div className="flex items-center gap-4 w-full sm:w-auto">
             <Link 
               href={
-                designerWorkflowId ? `/create-workflow?id=${designerWorkflowId}${designerNodeId ? `&designerNodeId=${designerNodeId}` : ''}` : 
-                (fromWorkflow ? `/create-workflow${designerNodeId ? `?designerNodeId=${designerNodeId}` : ''}` : 
+                designerWorkflowId ? `/create-workflow?id=${designerWorkflowId}${designerNodeId ? `&designerNodeId=${designerNodeId}` : ''}${designerTab ? `&designerTab=${designerTab}` : ''}` : 
+                (fromWorkflow ? `/create-workflow${designerNodeId ? `?designerNodeId=${designerNodeId}` : ''}${designerTab ? `&designerTab=${designerTab}` : ''}` : 
                 (from === 'user' ? "/User/Allforms" : "/admin/AllForms"))
               } 
               className="p-2 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
@@ -429,7 +436,7 @@ function FormBuilderContent() {
           <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
             { (designerWorkflowId || fromWorkflow) && (
               <Link
-                href={`/create-workflow${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}${designerNodeId ? (designerWorkflowId ? `&designerNodeId=${designerNodeId}` : `?designerNodeId=${designerNodeId}`) : ''}`}
+                href={`/create-workflow${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}${designerNodeId ? (designerWorkflowId ? `&designerNodeId=${designerNodeId}` : `?designerNodeId=${designerNodeId}`) : ''}${designerTab ? `&designerTab=${designerTab}` : ''}`}
                 className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white/10 text-white rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-white/20 transition-all border border-white/10 active:scale-95"
               >
                 Back to Workflow

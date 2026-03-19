@@ -607,28 +607,109 @@ exports.getWorkflowMembers = async (req, res) => {
     const Workflow = req.tenantConn.model('Workflow');
     const WorkflowInstance = req.tenantConn.model('WorkflowInstance');
     const User = req.tenantConn.model('User');
+    const Role = req.tenantConn.model('Role');
+    const Domain = req.tenantConn.model('Domain');
 
     const workflow = await Workflow.findById(workflowId);
     if (!workflow) return res.status(404).json({ success: false, message: 'Workflow not found' });
 
     const templateUserIds = new Set();
-    workflow.nodes.forEach(node => {
-      if (node.data?.assigneeIds) node.data.assigneeIds.forEach(id => templateUserIds.add(id.toString()));
-      if (node.data?.assignedUser) templateUserIds.add(node.data.assignedUser.toString());
-    });
+    const templateRoleNames = new Set();
+    const templateDomainNames = new Set();
+
+    const directUserTasksMap = {}; 
+    const roleTasksMap = {}; 
+    const domainTasksMap = {}; 
+
+    const addTaskToSet = (map, key, taskName) => {
+        if (!key || !taskName) return;
+        if (!map[key]) map[key] = new Set();
+        map[key].add(taskName);
+    };
+
+    for (const node of workflow.nodes) {
+      const taskName = node.data?.label || 'Unnamed Task';
+
+      if (node.data?.assigneeIds) {
+          node.data.assigneeIds.forEach(id => {
+              templateUserIds.add(id.toString());
+              addTaskToSet(directUserTasksMap, id.toString(), taskName);
+          });
+      }
+      if (node.data?.assignedUser) {
+          templateUserIds.add(node.data.assignedUser.toString());
+          addTaskToSet(directUserTasksMap, node.data.assignedUser.toString(), taskName);
+      }
+      
+      const assignedTo = node.data?.assignedTo;
+      if (assignedTo && assignedTo.length === 24) {
+          const domainObj = await Domain.findById(assignedTo);
+          if (domainObj) {
+              templateDomainNames.add(domainObj.name);
+              addTaskToSet(domainTasksMap, domainObj.name, taskName);
+          } else {
+              const roleObj = await Role.findById(assignedTo);
+              if (roleObj) {
+                  templateRoleNames.add(roleObj.name);
+                  addTaskToSet(roleTasksMap, roleObj.name, taskName);
+              } else {
+                  templateUserIds.add(assignedTo.toString());
+                  addTaskToSet(directUserTasksMap, assignedTo.toString(), taskName);
+              }
+          }
+      } else if (assignedTo) {
+          templateDomainNames.add(assignedTo); 
+          addTaskToSet(domainTasksMap, assignedTo, taskName);
+      }
+    }
 
     const instances = await WorkflowInstance.find({ workflowId, status: 'in_progress' });
     const instanceUserIds = new Set();
     instances.forEach(inst => inst.currentNodes.forEach(node => {
-      if (node.responsibleUser) instanceUserIds.add(node.responsibleUser.toString());
-      if (node.assignees) node.assignees.forEach(id => instanceUserIds.add(id.toString()));
+      const taskName = (node.label || 'Unnamed Task') + ' (Active)';
+      if (node.responsibleUser) {
+          instanceUserIds.add(node.responsibleUser.toString());
+          addTaskToSet(directUserTasksMap, node.responsibleUser.toString(), taskName);
+      }
+      if (node.assignees) node.assignees.forEach(id => {
+          instanceUserIds.add(id.toString());
+          addTaskToSet(directUserTasksMap, id.toString(), taskName);
+      });
     }));
 
     const allUserIds = Array.from(new Set([...templateUserIds, ...instanceUserIds]));
-    const users = await User.find({ _id: { $in: allUserIds } }).select('name email role domain avatar firstName lastName');
+    
+    let query = { $or: [] };
+    if (allUserIds.length > 0) query.$or.push({ _id: { $in: allUserIds } });
+    if (templateRoleNames.size > 0) query.$or.push({ role: { $in: Array.from(templateRoleNames) } });
+    if (templateDomainNames.size > 0) query.$or.push({ domain: { $in: Array.from(templateDomainNames) } });
 
-    res.json({ success: true, data: users });
+    let users = [];
+    if (query.$or.length > 0) {
+        users = await User.find(query).select('name email role domain avatar firstName lastName tasks');
+    }
+
+    const formattedUsers = users.map(u => {
+        const uId = u._id.toString();
+        const usersTasks = new Set();
+        if (directUserTasksMap[uId]) directUserTasksMap[uId].forEach(t => usersTasks.add(t));
+        if (u.role && roleTasksMap[u.role]) roleTasksMap[u.role].forEach(t => usersTasks.add(t));
+        if (u.domain && domainTasksMap[u.domain]) domainTasksMap[u.domain].forEach(t => usersTasks.add(t));
+
+        return {
+            ...u.toObject(),
+            tasks: u.tasks || [], 
+            assignedTasks: Array.from(usersTasks),
+            isTemplateMember: allUserIds.includes(uId) || 
+                              (u.role && templateRoleNames.has(u.role)) || 
+                              (u.domain && templateDomainNames.has(u.domain)),
+            isActiveMember: instanceUserIds.has(uId)
+        };
+    });
+
+    res.json({ success: true, data: formattedUsers });
   } catch (error) {
+    console.error("getWorkflowMembers Error:", error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };

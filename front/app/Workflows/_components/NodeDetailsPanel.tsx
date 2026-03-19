@@ -18,6 +18,7 @@ interface NodeDetailsPanelProps {
     onClose: () => void;
     onUpdate: (id: string, data: any) => void;
     onDelete: (id: string) => void;
+    initialTab?: string;
 }
 
 // Helper Sub-component
@@ -44,7 +45,7 @@ const TabButton = ({ active, onClick, icon, title, subtitle }: any) => (
     </motion.button>
 );
 
-const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelete }: NodeDetailsPanelProps) => {
+const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpdate, onDelete }: NodeDetailsPanelProps) => {
     const router = useRouter();
     const [label, setLabel] = useState('');
     const [description, setDescription] = useState('');
@@ -63,7 +64,7 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
     const [isUploading, setIsUploading] = useState(false);
     const [availableChecklists, setAvailableChecklists] = useState<any[]>([]);
 
-    const [activeTab, setActiveTab] = useState('general');
+    const [activeTab, setActiveTab] = useState(initialTab || 'general');
 
     // New Fields
     const [domainScope, setDomainScope] = useState<'all' | 'specific'>('specific');
@@ -82,7 +83,7 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
     // User's requested fields
     const [assignmentType, setAssignmentType] = useState<'ANY' | 'ALL' | 'SINGLE'>('SINGLE');
     const [taskContent, setTaskContent] = useState<string>('Text');
-    const [userAction, setUserAction] = useState<string>('Complete Task');
+    const [userAction, setUserAction] = useState<string[]>(['Complete Task']);
     const [assignedTo, setAssignedTo] = useState<string>(''); // For Department or User ID
     const [deadline, setDeadline] = useState('');
 
@@ -146,7 +147,14 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
 
             setAssignmentType((selectedNode.data.assignmentType as 'ANY' | 'ALL' | 'SINGLE') || 'SINGLE');
             setTaskContent(selectedNode.data.taskContent as string || 'Form');
-            setUserAction(selectedNode.data.userAction as string || 'Complete Task');
+            const savedAction = selectedNode.data.userAction;
+            if (Array.isArray(savedAction)) {
+                setUserAction(savedAction);
+            } else if (savedAction) {
+                setUserAction([savedAction as string]);
+            } else {
+                setUserAction(['Complete Task']);
+            }
             setAssignedTo(selectedNode.data.assignedTo as string || '');
             setDeadline(selectedNode.data.deadline as string || '');
         }
@@ -771,8 +779,10 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
                                                             <Label className="text-[10px] font-black text-slate-400 uppercase">Link Form</Label>
                                                             <button
                                                                 onClick={() => {
-                                                                    const currentUrl = window.location.pathname + window.location.search;
-                                                                    router.push(`/form?redirect=${encodeURIComponent(currentUrl)}${workflowId ? `&designerWorkflowId=${workflowId}` : ''}&fromWorkflow=true`);
+                                                                    // Save the node state to the workflow canvas so the draft isn't lost
+                                                                    handleSave();
+                                                                    
+                                                                    router.push(`/form?designerNodeId=${selectedNode.id}&designerTab=config${workflowId ? `&designerWorkflowId=${workflowId}` : ''}&fromWorkflow=true`);
                                                                 }}
                                                                 className="text-[10px] font-black text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5 transition-colors group"
                                                             >
@@ -830,6 +840,7 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
                                                         { id: 'Fill Form', icon: <ListChecks size={16} />, desc: 'Link dynamic forms' },
                                                         { id: 'Approve / Reject', icon: <ShieldAlert size={16} />, desc: 'Mandatory validation' },
                                                         { id: 'Upload File', icon: <FilePlus size={16} />, desc: 'Evidence submission' },
+                                                        { id: 'Upload Image', icon: <ImageIcon size={16} />, desc: 'Image submission' },
                                                         { id: 'Write Report', icon: <ClipboardType size={16} />, desc: 'Detailed feedback' },
                                                         { id: 'Complete Task', icon: <CheckSquare size={16} />, desc: 'Standard execution' }
                                                     ].map((opt) => (
@@ -837,26 +848,32 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
                                                             whileHover={{ x: 6, scale: 1.01 }}
                                                             whileTap={{ scale: 0.99 }}
                                                             key={opt.id}
-                                                            onClick={() => setUserAction(opt.id)}
-                                                            className={`w-full flex items-center justify-between p-5 rounded-[28px] transition-all border-2 group ${userAction === opt.id
+                                                            onClick={() => {
+                                                                if (userAction.includes(opt.id)) {
+                                                                    setUserAction(userAction.filter(a => a !== opt.id));
+                                                                } else {
+                                                                    setUserAction([...userAction, opt.id]);
+                                                                }
+                                                            }}
+                                                            className={`w-full flex items-center justify-between p-5 rounded-[28px] transition-all border-2 group ${userAction.includes(opt.id)
                                                                 ? 'border-emerald-500 bg-emerald-50/50 shadow-xl shadow-emerald-100 ring-4 ring-emerald-500/5'
                                                                 : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/50 shadow-sm'
                                                                 }`}
                                                         >
                                                             <div className="flex items-center gap-4 min-w-0 flex-1">
-                                                                <div className={`p-2.5 rounded-xl transition-all flex-shrink-0 ${userAction === opt.id
+                                                                <div className={`p-2.5 rounded-xl transition-all flex-shrink-0 ${userAction.includes(opt.id)
                                                                     ? 'bg-emerald-600 text-white shadow-md'
                                                                     : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
                                                                     }`}>
                                                                     {opt.icon}
                                                                 </div>
                                                                 <div className="flex flex-col items-start min-w-0">
-                                                                    <span className={`text-[10px] font-black uppercase tracking-wider truncate w-full ${userAction === opt.id ? 'text-emerald-900' : 'text-slate-500'
+                                                                    <span className={`text-[10px] font-black uppercase tracking-wider truncate w-full ${userAction.includes(opt.id) ? 'text-emerald-900' : 'text-slate-500'
                                                                         }`}>{opt.id}</span>
                                                                     <span className="text-[7px] font-black text-slate-400 uppercase tracking-tight opacity-60 truncate w-full">{opt.desc}</span>
                                                                 </div>
                                                             </div>
-                                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${userAction === opt.id ? 'bg-emerald-600 scale-100 rotate-0 shadow-lg' : 'bg-slate-100 scale-50 opacity-0 rotate-45'
+                                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${userAction.includes(opt.id) ? 'bg-emerald-600 scale-100 rotate-0 shadow-lg' : 'bg-slate-100 scale-50 opacity-0 rotate-45'
                                                                 }`}>
                                                                 <CheckSquare size={14} className="text-white" />
                                                             </div>
@@ -864,7 +881,7 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, onClose, onUpdate, onDelet
                                                     ))}
                                                 </div>
 
-                                                {(userAction === 'Fill Form' || taskContent === 'Form') && (
+                                                {userAction.includes('Fill Form') && (
                                                     <div className="pt-8 mt-8 border-t border-slate-100 space-y-6">
                                                         <div className="flex items-center justify-between">
                                                             <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Connect Workflow Resource</Label>

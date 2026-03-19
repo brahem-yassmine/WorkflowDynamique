@@ -62,6 +62,7 @@ function WorkflowEditorContent() {
     const router = useRouter();
     const workflowId = searchParams.get('id');
     const designerNodeId = searchParams.get('designerNodeId');
+    const designerTab = searchParams.get('designerTab');
     const reactFlowWrapper = useRef<HTMLDivElement>(null);
     const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -441,6 +442,7 @@ function WorkflowEditorContent() {
                 <NodeDetailsPanel
                     selectedNode={selectedNode}
                     workflowId={currentWorkflowId}
+                    initialTab={designerTab || 'general'}
                     onClose={() => setSelectedNode(null)}
                     onUpdate={onNodeUpdate}
                     onDelete={onNodeDelete}

@@ -27,6 +27,11 @@ export default function KanbanView({ workflowId }: { workflowId: string }) {
   }, [workflowId]);
 
   const fetchBoards = async () => {
+    if (workflowId === 'standard') {
+      setBoards([]);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const res = await apiService.request(`/boards?workflowId=${workflowId}`);

@@ -66,6 +66,15 @@ function WorkflowAdminDetailsContent() {
   }, [workflowId]);
 
   const fetchBaseData = async () => {
+    if (workflowId === 'standard') {
+      setWorkflow({
+        name: 'Standard Protocol',
+        domain: 'GENERIC'
+      });
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const wfRes = await apiService.getWorkflowById(workflowId);

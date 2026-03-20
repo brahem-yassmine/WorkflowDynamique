@@ -29,6 +29,11 @@ export default function ChecklistView({ workflowId }: { workflowId: string }) {
   }, [workflowId]);
 
   const fetchChecklists = async () => {
+    if (workflowId === 'standard') {
+      setChecklists([]);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const res = await apiService.request(`/checklists?workflowId=${workflowId}`);

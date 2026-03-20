@@ -34,6 +34,19 @@ export default function DashboardView({ workflowId }: DashboardViewProps) {
   }, [workflowId]);
 
   const fetchStats = async () => {
+    if (workflowId === 'standard') {
+      setStats({
+        totalTasks: 0,
+        completedTasks: 0,
+        pendingTasks: 0,
+        rejectedTasks: 0,
+        totalInstances: 0,
+        activeInstances: 0,
+        completionRate: 0
+      });
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const [wfRes, instancesRes] = await Promise.all([

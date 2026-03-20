@@ -46,6 +46,11 @@ export default function TaskLogView({ workflowId }: TaskLogViewProps) {
   }, [workflowId]);
 
   const fetchData = async () => {
+    if (workflowId === 'standard') {
+      setTasks([]);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const [wfRes, instancesRes, usersRes] = await Promise.all([

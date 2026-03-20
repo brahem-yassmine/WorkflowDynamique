@@ -70,6 +70,11 @@ export default function MembersView({ workflowId }: { workflowId: string }) {
   };
 
   const fetchMembers = async () => {
+    if (workflowId === 'standard') {
+      setMembers([]);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const res = await apiService.getWorkflowMembers(workflowId);

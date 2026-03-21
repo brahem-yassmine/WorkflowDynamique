@@ -28,6 +28,7 @@ export default function DashboardView({ workflowId }: DashboardViewProps) {
     completionRate: 0
   });
   const [loading, setLoading] = useState(true);
+  const [launching, setLaunching] = useState(false);
 
   useEffect(() => {
     fetchStats();
@@ -42,43 +43,75 @@ export default function DashboardView({ workflowId }: DashboardViewProps) {
       ]);
 
       if (wfRes.success && instancesRes.success) {
-        const workflow = wfRes.data;
-        const instances = instancesRes.data;
-        const systemNodes = ['start', 'end', 'parallel', 'sync_join', 'exclusive', 'inclusive', 'parallel_split', 'parallel_join', 'start_parallel', 'parallelstart', 'condition', 'timer', 'webhook', 'script', 'delay'];
-        const taskNodeCount = workflow.nodes?.filter((n: any) => 
-          n.type && !systemNodes.includes(n.type.toLowerCase())
-        ).length || 0;
+        const workflow = wfRes.data || { nodes: [] };
+        const instances = instancesRes.data || [];
+        
+        // Comprehensive list of system nodes to exclude from manual task counts
+        const systemNodes = [
+          'start', 'end', 'parallel', 'sync_join', 'exclusive', 'inclusive', 
+          'parallel_split', 'parallel_join', 'start_parallel', 'parallelstart', 
+          'condition', 'timer', 'webhook', 'script', 'delay', 'email', 'timer_start'
+        ];
+
+        // 1. Identify actual task nodes (manual actions)
+        const taskNodeCount = workflow.nodes?.filter((n: any) => {
+          const type = (n.type || 'action').toLowerCase();
+          return !systemNodes.includes(type);
+        }).length || 0;
 
         let totalCompleted = 0;
         let totalRejected = 0;
         let activeInstCount = 0;
+        let pendingInActiveInstances = 0;
 
         instances.forEach((inst: any) => {
-          if (inst.status === 'active' || inst.status === 'pending' || inst.status === 'in_progress') {
+          const isInstanceActive = ['active', 'pending', 'in_progress'].includes((inst.status || '').toLowerCase());
+          if (isInstanceActive) {
             activeInstCount++;
           }
 
+          // Count completed steps from history
           inst.executionPath?.forEach((step: any) => {
+            // Find if this step corresponds to a manual task node
             const nodeDef = workflow.nodes?.find((n: any) => n.id === step.nodeId);
-            const isTask = nodeDef && !systemNodes.includes((nodeDef.type || '').toLowerCase());
+            const nodeType = (nodeDef?.type || step.nodeType || 'action').toLowerCase();
+            const isManualTask = !systemNodes.includes(nodeType);
             
-            if (isTask) {
-              if (step.action === 'rejected') {
+            if (isManualTask) {
+              const action = (step.action || '').toLowerCase();
+              if (action === 'rejected') {
                 totalRejected++;
-              } else if (['approved', 'completed', 'validated'].includes(step.action)) {
+              } else if (['approved', 'completed', 'validated', 'signed', 'filled', 'uploaded'].includes(action)) {
                 totalCompleted++;
               }
             }
           });
+
+          // Also count current pending nodes if instance is active
+          if (isInstanceActive && inst.currentNodes) {
+            inst.currentNodes.forEach((node: any) => {
+              const nodeDef = workflow.nodes?.find((n: any) => n.id === node.nodeId);
+              const nodeType = (nodeDef?.type || 'action').toLowerCase();
+              if (!systemNodes.includes(nodeType) && ['pending', 'in_progress'].includes((node.status || '').toLowerCase())) {
+                pendingInActiveInstances++;
+              }
+            });
+          }
         });
 
-        const totalPotentialActions = taskNodeCount * instances.length;
-        const totalPending = Math.max(0, totalPotentialActions - totalCompleted - totalRejected);
+        // Heuristic for total tasks: total instances * nodes per instance
+        // But if history suggests more, we adapt
+        const totalPotentialActions = Math.max(
+          taskNodeCount * instances.length,
+          totalCompleted + totalRejected + pendingInActiveInstances
+        );
 
+        const totalRemainingWork = Math.max(0, totalPotentialActions - totalCompleted - totalRejected);
+        
         setStats({
           totalTasks: totalPotentialActions,
           completedTasks: totalCompleted,
-          pendingTasks: totalPending,
+          pendingTasks: totalRemainingWork,
           rejectedTasks: totalRejected,
           totalInstances: instances.length,
           activeInstances: activeInstCount,
@@ -89,6 +122,27 @@ export default function DashboardView({ workflowId }: DashboardViewProps) {
       console.error('Error fetching dashboard stats:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLaunch = async () => {
+    try {
+      setLaunching(true);
+      const res = await apiService.request(`/workflows/${workflowId}/execute`, {
+        method: 'POST',
+        body: JSON.stringify({ 
+          title: `Manual Launch: ${new Date().toLocaleString()}`,
+          priority: 'medium'
+        })
+      });
+      if (res.success) {
+        // Refresh stats
+        await fetchStats();
+      }
+    } catch (err) {
+      console.error('Launch error:', err);
+    } finally {
+      setLaunching(false);
     }
   };
 
@@ -133,6 +187,32 @@ export default function DashboardView({ workflowId }: DashboardViewProps) {
 
   return (
     <div className="space-y-10">
+      {/* Empty State / Launch Action */}
+      {stats.totalInstances === 0 && (
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-indigo-600 rounded-[40px] p-12 text-white flex flex-col md:flex-row items-center justify-between gap-8 shadow-2xl shadow-indigo-200"
+        >
+          <div className="space-y-4 text-center md:text-left">
+             <h2 className="text-3xl font-black tracking-tight">Ready to activate this unit?</h2>
+             <p className="text-indigo-100 font-medium max-w-md">This workflow schema is currently dormant. Initialize the first operational instance to start tracking performance and task advancement.</p>
+          </div>
+          <button 
+            onClick={handleLaunch}
+            disabled={launching}
+            className="px-10 py-5 bg-white text-indigo-600 rounded-2xl font-black uppercase tracking-[0.2em] shadow-xl hover:scale-105 transition-all active:scale-95 disabled:opacity-50 disabled:scale-100 flex items-center gap-3"
+          >
+            {launching ? (
+              <div className="w-5 h-5 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+            ) : (
+              <Activity size={20} />
+            )}
+            {launching ? 'Initializing...' : 'Launch Operational Unit'}
+          </button>
+        </motion.div>
+      )}
+
       {/* Header Stat Area */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {cards.map((card, idx) => (

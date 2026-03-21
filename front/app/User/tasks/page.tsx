@@ -21,6 +21,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { apiService } from '@/service/api.service';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import TaskExecutionPanel from '../../Workflows/_components/TaskExecutionPanel';
 
 interface WorkflowTask {
@@ -42,6 +43,7 @@ interface WorkflowTask {
 }
 
 export default function UserTasksPage() {
+    const searchParams = useSearchParams();
     const [tasks, setTasks] = useState<WorkflowTask[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -98,6 +100,18 @@ export default function UserTasksPage() {
     useEffect(() => {
         fetchTasks();
     }, []);
+
+    // Auto-open from URL
+    useEffect(() => {
+        const nodeId = searchParams.get('nodeId');
+        const instanceId = searchParams.get('instanceId');
+        if (nodeId && instanceId && tasks.length > 0) {
+            const task = tasks.find(t => t.instanceId === instanceId && t.nodeId === nodeId);
+            if (task) {
+                handleTaskClick(task);
+            }
+        }
+    }, [searchParams, tasks]);
 
     const handleTaskClick = async (task: WorkflowTask) => {
         if (task.status === 'completed') {

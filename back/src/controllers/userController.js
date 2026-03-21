@@ -313,7 +313,7 @@ exports.getUserTasks = async (req, res) => {
     if (domain) {
       const upDomain = domain.toUpperCase();
       if (upDomain === 'HR' || upDomain === 'RH') {
-        domainsToMatch.push('RH', 'HR');
+        domainsToMatch.push('RH', 'HR', 'rh', 'hr');
       }
     }
 
@@ -323,8 +323,13 @@ exports.getUserTasks = async (req, res) => {
     if (specificRoleIdStr) domainsToMatch.push(specificRoleIdStr);
     if (userRoleStr) domainsToMatch.push(userRoleStr, userRoleStr.toUpperCase());
     if (roleIdStr) domainsToMatch.push(roleIdStr);
+    
+    // Also include the NAME of the role if we found it
+    if (userRole?.name) {
+      domainsToMatch.push(userRole.name, userRole.name.toUpperCase());
+    }
 
-    console.log(`🔍 [getUserTasks] Identity: ${userId} | Roles: [${roleIdStr}, ${specificRoleIdStr}] | Domains: ${domainsToMatch.join(', ')}`);
+    console.log(`🔍 [getUserTasks] User: ${user?.email} | ID: ${userId} | Matching IDs: [${matchingIds.join(', ')}] | Match Domains: ${domainsToMatch.join(', ')}`);
 
     // 1. KANBAN TASKS
     let kanbanTasksRaw = await Task.find({
@@ -359,15 +364,22 @@ exports.getUserTasks = async (req, res) => {
     // 2. WORKFLOW TASKS
     const systemNodeTypes = [
       'start', 'end', 'parallel', 'sync_join', 'exclusive', 'inclusive',
-      'condition', 'timer', 'webhook', 'script', 'email', 'delay', 'parallelstart'
+      'condition', 'timer', 'webhook', 'script', 'email', 'delay', 'parallelstart',
+      'parallel_split', 'parallel_join', 'start_parallel'
     ];
 
     let pendingQuery = { status: { $in: ['in_progress', 'pending', 'active'] } };
     
     if (!isAdmin) {
-      const domainRegexes = domainsToMatch.map(d => new RegExp(`^${d}$`, 'i'));
+      const domainRegexes = domainsToMatch.map(d => {
+          // If it's a valid ObjectId string, use exact match, else use regex i
+          if (mongoose.Types.ObjectId.isValid(d)) return d;
+          return new RegExp(`^${d}$`, 'i');
+      });
+      
       pendingQuery.$or = [
         { 'currentNodes.responsibleDomain': { $in: domainRegexes } },
+        { 'currentNodes.restrictedDomain': { $in: domainRegexes } },
         { 'currentNodes.responsibleUser': { $in: matchingIds } },
         { 'currentNodes.assignees': { $in: matchingIds } },
         { createdBy: new mongoose.Types.ObjectId(userId) }
@@ -379,6 +391,8 @@ exports.getUserTasks = async (req, res) => {
       populate: { path: 'projectId', select: 'name' }
     });
 
+    console.log(`📊 [getUserTasks] Found ${activeInstances.length} active instances for user.`);
+
     const workflowTasks = [];
     activeInstances.forEach(instance => {
       if (!instance.workflowId || typeof instance.workflowId !== 'object') return;
@@ -389,48 +403,69 @@ exports.getUserTasks = async (req, res) => {
       instance.currentNodes.forEach(node => {
         if (!['in_progress', 'pending'].includes(node.status)) return;
 
-        const nodeDef = nodesData.find(n => n.id === node.nodeId);
-        if (!nodeDef) return;
-        if (systemNodeTypes.includes((nodeDef.type || '').toLowerCase())) return;
+        // Try to find node in definition
+        let nodeDef = nodesData.find(n => n.id === node.nodeId);
+        
+        // Resilience: if not found by exact ID, maybe the ID mapping shifted or it's a generic node
+        if (!nodeDef) {
+            console.warn(`⚠️ [getUserTasks] Node ${node.nodeId} not found in definition for instance ${instance._id}`);
+            // Fallback: search by label or data.id if possible? Or just proceed with a dummy nodeDef if it has enough info
+            nodeDef = { id: node.nodeId, type: 'action', data: { label: 'Étape en cours' } };
+        }
+
+        const nodeType = (nodeDef.type || 'action').toLowerCase();
+        if (systemNodeTypes.includes(nodeType)) return;
 
         // Task visibility calculation
         const instCreatorId = instance.createdBy?.toString();
         let isVisible = isAdmin || instCreatorId === userId.toString();
         
-        if (!isVisible) {
-          // A. Try matching against INSTANCE data (stored at creation/activation time)
-          const instRespUser = node.responsibleUser?.toString();
-          const isInstUserMatch = !!instRespUser && (
-            instRespUser === userId.toString() || 
-            instRespUser === roleIdStr || 
-            instRespUser === specificRoleIdStr
-          );
-          
-          const isInstAssigneeMatch = node.assignees?.some(a => {
-            const aStr = a.toString();
-            return aStr === userId.toString() || aStr === roleIdStr || aStr === specificRoleIdStr;
-          });
+          // Only perform assignee checks if not already visible (admins/creators see everything)
+          if (!isVisible) {
+            // A. Try matching against INSTANCE data (stored at creation/activation time)
+            const instRespUser = node.responsibleUser?.toString();
+            const isInstUserMatch = !!instRespUser && matchingIds.some(mid => mid.toString() === instRespUser);
+            
+            const isInstAssigneeMatch = node.assignees?.some(a => {
+                const aStr = a.toString();
+                return matchingIds.some(mid => mid.toString() === aStr);
+            });
 
-          const isInstDomainMatch = !!node.responsibleDomain && domainsToMatch.some(d => 
-            d && d.toLowerCase() === node.responsibleDomain.toLowerCase()
-          );
+            const isInstDomainMatch = !!node.responsibleDomain && domainsToMatch.some(d => 
+                d && d.toLowerCase() === node.responsibleDomain.toLowerCase()
+            );
 
-          // B. Try matching against LATEST WORKFLOW DEFINITION (for "live" updates as requested)
-          const nodeData = nodeDef.data || {};
-          const defAssignees = nodeData.assigneeIds || nodeData.validatorIds || [];
-          const defDomain = nodeData.responsibleDomain || nodeData.domain;
-          
-          const isDefAssigneeMatch = defAssignees.some(a => {
-            const aStr = a.toString();
-            return aStr === userId.toString() || aStr === roleIdStr || aStr === specificRoleIdStr || aStr === specificRoleStr;
-          });
+            // B. Try matching against LATEST WORKFLOW DEFINITION (Live update)
+            const nodeData = nodeDef.data || {};
+            const defAssignees = nodeData.assigneeIds || nodeData.validatorIds || [];
+            const defDomain = nodeData.responsibleDomain || nodeData.domain;
+            
+            const isDefAssigneeMatch = defAssignees.some(a => {
+                const aStr = a.toString();
+                return matchingIds.some(mid => mid.toString() === aStr) || domainsToMatch.some(d => d.toLowerCase() === aStr.toLowerCase());
+            });
 
-          const isDefDomainMatch = !!defDomain && domainsToMatch.some(d => 
-            d && d.toLowerCase() === defDomain.toLowerCase()
-          );
+            const isDefDomainMatch = !!defDomain && domainsToMatch.some(d => 
+                d && d.toLowerCase() === defDomain.toLowerCase()
+            );
 
-          isVisible = isInstUserMatch || isInstAssigneeMatch || isInstDomainMatch || isDefAssigneeMatch || isDefDomainMatch;
-        }
+            isVisible = isInstUserMatch || isInstAssigneeMatch || isInstDomainMatch || isDefAssigneeMatch || isDefDomainMatch;
+          }
+
+          // Force restricted domain check if it exists (ALWAYS apply restriction if present)
+          const nodeRestricted = node.restrictedDomain || nodeDef.data?.restrictedDomain;
+          if (nodeRestricted && isVisible) {
+              const isGlobalRestriction = ['GLOBAL', 'ALL', 'PUBLIC', 'TOUS'].includes(nodeRestricted.toUpperCase());
+              if (!isGlobalRestriction) {
+                  const userDomainMatch = domainsToMatch.some(d => d && d.toLowerCase() === nodeRestricted.toLowerCase());
+                  if (!userDomainMatch) {
+                      // Even if creator/admin, show if it belongs to their domain? Or strictly restrict?
+                      // Usually Restricted Domain means ONLY users in that domain can see/act.
+                      // But let's keep admins as exception if possible, or strictly follow it.
+                      if (!isAdmin) isVisible = false;
+                  }
+              }
+          }
 
         const hasApproved = node.approvedBy?.some(u => u.toString() === userId.toString());
 
@@ -444,12 +479,12 @@ exports.getUserTasks = async (req, res) => {
             instanceTitle: instance.title,
             projectName: workflowData.projectId?.name || 'No Project',
             type: 'workflow',
-            taskType: (nodeDef.type === 'form' || !!nodeDef.data?.formId) ? 'Formulaire' : 'Tâche',
+            taskType: (nodeDef.type === 'form' || !!nodeDef.data?.formId || !!nodeDef.data?.linkedObjectId) ? 'Formulaire' : 'Tâche',
             status: 'pending',
             priority: instance.priority || 'medium',
             createdAt: node.startedAt || instance.createdAt,
             dueDate: instance.dueDate || workflowData.dueDate,
-            description: instance.description || workflowData.description
+            description: instance.description || workflowData.description || nodeDef.data?.description
           });
         }
       });

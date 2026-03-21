@@ -57,6 +57,7 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
     const [domains, setDomains] = useState<any[]>([]);
     const [users, setUsers] = useState<any[]>([]);
     const [roles, setRoles] = useState<any[]>([]);
+    const [restrictedDomain, setRestrictedDomain] = useState('');
     const [availableForms, setAvailableForms] = useState<any[]>([]);
     const [availableProjects, setAvailableProjects] = useState<any[]>([]);
     const [linkedObjectId, setLinkedObjectId] = useState('');
@@ -82,7 +83,7 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
 
     // User's requested fields
     const [assignmentType, setAssignmentType] = useState<'ANY' | 'ALL' | 'SINGLE'>('SINGLE');
-    const [taskContent, setTaskContent] = useState<string>('Text');
+    const [taskContent, setTaskContent] = useState<string[]>(['Form']);
     const [userAction, setUserAction] = useState<string[]>(['Complete Task']);
     const [assignedTo, setAssignedTo] = useState<string>(''); // For Department or User ID
     const [deadline, setDeadline] = useState('');
@@ -126,6 +127,7 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
             setDescription(selectedNode.data.description as string || '');
             const rDomain = selectedNode.data.responsibleDomain as string || '';
             setResponsibleDomain(rDomain);
+            setRestrictedDomain(selectedNode.data.restrictedDomain as string || '');
             setTaskType(selectedNode.data.taskType as string || 'normal');
             setPriority(selectedNode.data.priority as string || 'medium');
             setEstimatedDuration(selectedNode.data.estimatedDuration as string || '');
@@ -146,7 +148,14 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
             setAttachments(Array.isArray(selectedNode.data.attachments) ? selectedNode.data.attachments : []);
 
             setAssignmentType((selectedNode.data.assignmentType as 'ANY' | 'ALL' | 'SINGLE') || 'SINGLE');
-            setTaskContent(selectedNode.data.taskContent as string || 'Form');
+            const savedContent = selectedNode.data.taskContent;
+            if (Array.isArray(savedContent)) {
+                setTaskContent(savedContent);
+            } else if (savedContent) {
+                setTaskContent([savedContent as string]);
+            } else {
+                setTaskContent(['Form']);
+            }
             const savedAction = selectedNode.data.userAction;
             if (Array.isArray(savedAction)) {
                 setUserAction(savedAction);
@@ -218,6 +227,7 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
                 label,
                 description,
                 responsibleDomain,
+                restrictedDomain,
                 taskType,
                 priority,
                 estimatedDuration,
@@ -482,13 +492,8 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
                                                         <select
                                                             className="w-full h-14 px-4 bg-slate-50 rounded-2xl font-bold text-slate-700 border border-slate-100 outline-none focus:ring-4 focus:ring-indigo-100/30 transition-all appearance-none cursor-pointer"
                                                             style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236366f1' stroke-width='3' %3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7' /%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1.5rem center', backgroundSize: '1.2rem' }}
-                                                            value={responsibleDomain}
-                                                            onChange={(e) => {
-                                                                setResponsibleDomain(e.target.value);
-                                                                const domain = domains.find(d => d.name === e.target.value);
-                                                                if (domain) setAssignedTo(domain._id);
-                                                                else setAssignedTo('');
-                                                            }}
+                                                            value={restrictedDomain}
+                                                            onChange={(e) => setRestrictedDomain(e.target.value)}
                                                         >
                                                             <option value="">-- Choose Domain --</option>
                                                             {domains.map(d => <option key={d._id || d.id} value={d.name}>{d.name}</option>)}
@@ -739,41 +744,50 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
                                                         { id: 'Form', icon: <ListChecks size={14} />, desc: 'Capture data' },
                                                         { id: 'Document', icon: <FilePlus size={14} />, desc: 'PDF / Docs' },
                                                         { id: 'Image', icon: <ImageIcon size={14} />, desc: 'Visuals' },
-                                                        { id: 'Instructions', icon: <ClipboardType size={14} />, desc: 'Read-only' }
-                                                    ].map((opt) => (
-                                                        <motion.button
-                                                            whileHover={{ scale: 1.02, translateY: -2 }}
-                                                            whileTap={{ scale: 0.98 }}
-                                                            key={opt.id}
-                                                            onClick={() => setTaskContent(opt.id)}
-                                                            className={`relative flex items-center gap-3 p-3.5 rounded-[24px] transition-all border-2 text-left overflow-hidden ${taskContent === opt.id
-                                                                ? 'border-indigo-500 bg-indigo-50/50 shadow-lg shadow-indigo-100 ring-2 ring-indigo-500/10'
-                                                                : 'border-slate-100 bg-white hover:border-slate-200 hover:shadow-sm'
-                                                                }`}
-                                                        >
-                                                            {taskContent === opt.id && (
-                                                                <motion.div
-                                                                    layoutId="active-content-bg"
-                                                                    className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent pointer-events-none"
-                                                                />
-                                                            )}
-                                                            <div className={`p-2.5 rounded-xl transition-all flex-shrink-0 ${taskContent === opt.id
-                                                                ? 'bg-indigo-600 text-white shadow-md'
-                                                                : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
-                                                                }`}>
-                                                                {opt.icon}
-                                                            </div>
-                                                            <div className="flex flex-col items-start min-w-0">
-                                                                <span className={`text-[10px] font-black uppercase tracking-wider truncate w-full ${taskContent === opt.id ? 'text-indigo-900' : 'text-slate-500'
-                                                                    }`}>{opt.id}</span>
-                                                                <span className={`text-[7px] font-black uppercase opacity-60 truncate w-full ${taskContent === opt.id ? 'text-indigo-600' : 'text-slate-300'
-                                                                    }`}>{opt.desc}</span>
-                                                            </div>
-                                                        </motion.button>
-                                                    ))}
+                                                        { id: 'Text', icon: <ClipboardType size={14} />, desc: 'Read-only' }
+                                                    ].map((opt) => {
+                                                        const isSelected = taskContent.includes(opt.id);
+                                                        return (
+                                                            <motion.button
+                                                                whileHover={{ scale: 1.02, translateY: -2 }}
+                                                                whileTap={{ scale: 0.98 }}
+                                                                key={opt.id}
+                                                                onClick={() => {
+                                                                    if (isSelected) {
+                                                                        setTaskContent(taskContent.filter(c => c !== opt.id));
+                                                                    } else {
+                                                                        setTaskContent([...taskContent, opt.id]);
+                                                                    }
+                                                                }}
+                                                                className={`relative flex items-center gap-3 p-3.5 rounded-[24px] transition-all border-2 text-left overflow-hidden ${isSelected
+                                                                    ? 'border-indigo-500 bg-indigo-50/50 shadow-lg shadow-indigo-100 ring-2 ring-indigo-500/10'
+                                                                    : 'border-slate-100 bg-white hover:border-slate-200 hover:shadow-sm'
+                                                                    }`}
+                                                            >
+                                                                {isSelected && (
+                                                                    <motion.div
+                                                                        layoutId={`active-content-bg-${opt.id}`}
+                                                                        className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent pointer-events-none"
+                                                                    />
+                                                                )}
+                                                                <div className={`p-2.5 rounded-xl transition-all flex-shrink-0 ${isSelected
+                                                                    ? 'bg-indigo-600 text-white shadow-md'
+                                                                    : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
+                                                                    }`}>
+                                                                    {opt.icon}
+                                                                </div>
+                                                                <div className="flex flex-col items-start min-w-0">
+                                                                    <span className={`text-[10px] font-black uppercase tracking-wider truncate w-full ${isSelected ? 'text-indigo-900' : 'text-slate-500'
+                                                                        }`}>{opt.id}</span>
+                                                                    <span className={`text-[7px] font-black uppercase opacity-60 truncate w-full ${isSelected ? 'text-indigo-600' : 'text-slate-300'
+                                                                        }`}>{opt.desc}</span>
+                                                                </div>
+                                                            </motion.button>
+                                                        );
+                                                    })}
                                                 </div>
 
-                                                {taskContent === 'Form' && (
+                                                {taskContent.includes('Form') && (
                                                     <div className="animate-in fade-in slide-in-from-top-2 space-y-4">
                                                         <div className="flex items-center justify-between">
                                                             <Label className="text-[10px] font-black text-slate-400 uppercase">Link Form</Label>
@@ -804,7 +818,7 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
                                                     </div>
                                                 )}
 
-                                                {(taskContent === 'Document' || taskContent === 'Image') && (
+                                                {(taskContent.includes('Document') || taskContent.includes('Image')) && (
                                                     <div className="animate-in fade-in slide-in-from-top-2 space-y-4">
                                                         <input type="file" id="content-file-upload-2" className="hidden" onChange={handleFileUpload} />
                                                         <Button
@@ -812,7 +826,7 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
                                                             className="w-full h-14 bg-white border-2 border-dashed border-indigo-200 rounded-2xl flex items-center justify-center gap-3 text-indigo-600 font-bold hover:bg-indigo-50 transition-all"
                                                         >
                                                             <Plus size={18} />
-                                                            Import {taskContent}
+                                                            Import {taskContent.filter(c => ['Document', 'Image'].includes(c)).join(' / ')}
                                                         </Button>
                                                     </div>
                                                 )}

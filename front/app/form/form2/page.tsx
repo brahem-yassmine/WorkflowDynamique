@@ -36,6 +36,7 @@ function Form2PageContent() {
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isExecuted, setIsExecuted] = useState(false);
 
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [submissionName, setSubmissionName] = useState('New Response');
@@ -65,11 +66,27 @@ function Form2PageContent() {
       if (instanceId && instanceId !== 'new') {
         const instanceRes = await apiService.getInstance(instanceId);
         if (instanceRes.success) {
-          setInstance(instanceRes.data);
+          const inst = instanceRes.data;
+          setInstance(inst);
+          
           // Find the node
-          const nodes = instanceRes.data.workflowId?.nodes || [];
+          const nodes = inst.workflowId?.nodes || inst.nodes || [];
           const node = nodes.find((n: any) => n.id === nodeId);
           setCurrentNode(node);
+
+          // Check for existing data in variables
+          if (nodeId) {
+            const existingData = inst.variables?.[nodeId] || inst.variables?.[`${nodeId}_data`];
+            const nodeStatus = node?.status || inst.nodeStates?.[nodeId]?.status;
+            
+            if (existingData) {
+              setFormData(existingData);
+              setSubmissionName(inst.variables?.[`${nodeId}_name`] || 'Previous Submission');
+              setIsExecuted(true);
+            } else if (nodeStatus === 'executed') {
+              setIsExecuted(true);
+            }
+          }
         }
       }
     } catch (error: any) {
@@ -134,39 +151,19 @@ function Form2PageContent() {
       });
 
       if (res.success) {
-        // 2. If this is part of a workflow, approve the node
-        if (instanceId && instanceId !== 'new' && nodeId) {
-          try {
-            await apiService.approveNode(
-              instanceId,
-              nodeId,
-              `Form submitted: ${submissionName}`,
-              formData
-            );
-          } catch (workflowErr) {
-            console.error("Workflow sync error:", workflowErr);
-          }
-        }
-
-        // 3. If this is a standalone Kanban task
-        if (taskId) {
-          try {
-            await apiService.updateTask(taskId, { status: 'done' });
-          } catch (taskErr) {
-            console.error("Task update error:", taskErr);
-          }
-        }
-
-        toast.success("Form submitted successfully!");
+        toast.success(isExecuted ? "Submission updated successfully!" : "Form submitted successfully!");
         setIsSubmitModalOpen(false);
         
         // Dynamic redirection
+        const isPath = from?.startsWith('/');
         if (designerWorkflowId || fromWorkflow) {
           router.push(`/create-workflow${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}${designerNodeId ? (designerWorkflowId ? `&designerNodeId=${designerNodeId}` : `?designerNodeId=${designerNodeId}`) : ''}${designerTab ? `&designerTab=${designerTab}` : ''}`);
         } else if (instanceId === 'new') {
           router.push(`/Workflows/instances/new?workflowId=${workflowId}`);
+        } else if (isPath && instanceId && instanceId !== 'new') {
+          router.push(`${from}?instanceId=${instanceId}&nodeId=${nodeId}&executed=true`);
         } else if (instanceId && instanceId !== 'new') {
-          router.push(`/Workflows/instances/${instanceId}`);
+          router.push(`/Workflows/instances/${instanceId}?nodeId=${nodeId}&executed=true`);
         } else if (taskId) {
           router.push('/User/tasks');
         } else {
@@ -221,6 +218,13 @@ function Form2PageContent() {
     <div className="min-h-screen bg-gray-50 pb-12">
       <Toaster position="top-right" richColors />
 
+      {/* Already Submitted Status Bar */}
+      {isExecuted && (
+        <div className="bg-emerald-600 text-white px-4 py-2 text-center text-[10px] font-black uppercase tracking-[0.2em] shadow-lg sticky top-0 z-[60]">
+          Existing Submission Detected — You are in Modification Mode
+        </div>
+      )}
+
       <AnimatePresence>
         {!!isSubmitModalOpen && (
           <div key="submit-modal-overlay" className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
@@ -231,7 +235,9 @@ function Form2PageContent() {
               className="bg-white w-full max-w-lg rounded-[32px] overflow-hidden shadow-2xl border border-slate-100"
             >
               <div key="modal-header" className="bg-indigo-600 p-8 text-white">
-                <h2 className="text-2xl font-black tracking-tight uppercase">Workflow Identification</h2>
+                <h2 className="text-2xl font-black tracking-tight uppercase">
+                  {isExecuted ? 'Update Submission' : 'Workflow Identification'}
+                </h2>
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80 mt-1">Lattice Persistence</p>
               </div>
 
@@ -270,25 +276,24 @@ function Form2PageContent() {
                   disabled={isSubmitting}
                   className="px-10 py-4 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-indigo-700 active:scale-95 transition-all shadow-xl shadow-indigo-100 disabled:opacity-50 flex items-center gap-2"
                 >
-                  {isSubmitting ? 'Synchronizing...' : 'Save and Send to Admin'}
+                  {isSubmitting ? 'Synchronizing...' : (isExecuted ? 'Update Submission' : 'Save and Send to Admin')}
                 </button>
               </div>
             </motion.div>
           </div>
         )}
-
-
       </AnimatePresence>
 
       {/* Header */}
-      <div className="bg-white border-b z-30 shadow-sm">
+      <div className={`bg-white border-b z-30 shadow-sm ${isExecuted ? '' : 'sticky top-0'}`}>
         <div className="max-w-4xl mx-auto px-4 py-4 sm:h-20 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4 w-full sm:w-auto">
             <Link
               href={
                 (designerWorkflowId || fromWorkflow) ? `/create-workflow${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}${designerNodeId ? (designerWorkflowId ? `&designerNodeId=${designerNodeId}` : `?designerNodeId=${designerNodeId}`) : ''}${designerTab ? `&designerTab=${designerTab}` : ''}` :
                 instanceId === 'new' ? `/Workflows/instances/new?workflowId=${workflowId}` :
-                instanceId && instanceId !== 'new' ? `/Workflows/instances/${instanceId}` :
+                (from?.startsWith('/') && instanceId && instanceId !== 'new') ? `${from}?instanceId=${instanceId}&nodeId=${nodeId}` :
+                instanceId && instanceId !== 'new' ? `/Workflows/instances/${instanceId}?nodeId=${nodeId}` :
                 (from === 'user' ? "/User/Allforms" : "/admin/AllForms")
               }
               className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500 shrink-0"
@@ -301,41 +306,26 @@ function Form2PageContent() {
               </h1>
               <div className="flex items-center gap-2 mt-0.5">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Fillable Protocol • </p>
-                {form.steps?.some((s: any) => s.status === 'approved') ? (
-                  <span className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-200 uppercase tracking-wider leading-none">
-                    <CheckCircle2 className="w-2.5 h-2.5" /> Validated
+                {isExecuted ? (
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 uppercase tracking-wider leading-none">
+                    <CheckCircle2 className="w-2.5 h-2.5" /> Executed
                   </span>
                 ) : (
                   <span className="flex items-center gap-1 text-[10px] font-bold text-yellow-600 bg-yellow-50 px-1.5 py-0.5 rounded border border-yellow-200 uppercase tracking-wider leading-none">
-                    <Clock className="w-2.5 h-2.5" /> In Progress
+                    <Clock className="w-2.5 h-2.5" /> Pending
                   </span>
                 )}
               </div>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => handleStatusUpdate('approved')}
-                className="px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg text-xs sm:text-sm font-bold hover:bg-green-700 transition-all shadow-sm whitespace-nowrap"
-              >
-                Approve
-              </button>
-              <button
-                onClick={() => handleStatusUpdate('rejected')}
-                className="px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg text-xs sm:text-sm font-bold hover:bg-red-700 transition-all shadow-sm whitespace-nowrap"
-              >
-                Reject
-              </button>
-            </div>
-            <div className="hidden sm:block w-px h-6 bg-gray-200 mx-1"></div>
             <button
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="flex items-center gap-2 px-4 sm:px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-xs sm:text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 disabled:opacity-70 whitespace-nowrap"
+              className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-xs sm:text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 disabled:opacity-70 whitespace-nowrap"
             >
               {isSubmitting ? <Clock className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              {isSubmitting ? 'Submitting...' : 'Submit Form'}
+              {isSubmitting ? 'Submitting...' : (isExecuted ? 'Update Data' : 'Submit Form')}
             </button>
           </div>
         </div>
@@ -477,14 +467,18 @@ function Form2PageContent() {
             <CheckCircle2 className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-indigo-900">Ready to submit?</h3>
-            <p className="text-sm text-indigo-600 mt-1">Make sure all required fields are filled correctly before sending.</p>
+            <h3 className="text-lg font-bold text-indigo-900">
+              {isExecuted ? 'Update and Resubmit?' : 'Ready to submit?'}
+            </h3>
+            <p className="text-sm text-indigo-600 mt-1">
+              {isExecuted ? 'Updates will be tracked in the workflow sequence.' : 'Make sure all required fields are filled correctly before sending.'}
+            </p>
           </div>
           <button
             onClick={handleSubmit}
-            className="mt-2 w-full max-w-xs py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 flex items-center justify-center gap-2"
+            className="mt-2 w-full max-w-xs py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 flex items-center justify-center gap-3"
           >
-            <Send className="w-4 h-4" /> Final Submission
+            <Send className="w-4 h-4" /> {isExecuted ? 'Update Submission' : 'Final Submission'}
           </button>
         </div>
       </div>

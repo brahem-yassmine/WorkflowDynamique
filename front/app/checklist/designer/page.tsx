@@ -107,6 +107,11 @@ export default function WorkflowChecklist() {
   const [source, setSource] = useState<string | null>(null);
   const [workflowDetailsId, setWorkflowDetailsId] = useState<string | null>(null);
 
+  // Execution Context
+  const [instanceId, setInstanceId] = useState<string | null>(null);
+  const [nodeId, setNodeId] = useState<string | null>(null);
+  const [from, setFrom] = useState<string | null>(null);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const id = params.get('id');
@@ -115,6 +120,10 @@ export default function WorkflowChecklist() {
     const fWorkflow = params.get('fromWorkflow') === 'true';
     const src = params.get('source');
     const wdId = params.get('workflowDetailsId');
+    const instId = params.get('instanceId');
+    const nId = params.get('nodeId');
+    const fromPath = params.get('from');
+
     if (id) {
       setChecklistId(id);
       fetchChecklist(id);
@@ -124,7 +133,33 @@ export default function WorkflowChecklist() {
     if (fWorkflow) setFromWorkflow(true);
     if (src) setSource(src);
     if (wdId) setWorkflowDetailsId(wdId);
+    if (instId) setInstanceId(instId);
+    if (nId) setNodeId(nId);
+    if (fromPath) setFrom(fromPath);
+
+    if (instId && nId && !id) {
+      fetchInstanceData(instId, nId);
+    }
   }, []);
+
+  const fetchInstanceData = async (instId: string, nId: string) => {
+    setIsLoading(true);
+    try {
+      const res = await apiService.getInstance(instId);
+      if (res.success) {
+        const nodes = res.data.workflowId?.nodes || res.data.nodes || [];
+        const node = nodes.find((n: any) => n.id === nId);
+        if (node?.linkedObjectId) {
+          setChecklistId(node.linkedObjectId);
+          fetchChecklist(node.linkedObjectId);
+        }
+      }
+    } catch (e) {
+      console.error("Error fetching instance data:", e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const fetchChecklist = async (id?: string) => {
     const targetId = id || checklistId;
@@ -135,7 +170,26 @@ export default function WorkflowChecklist() {
       const response = await apiService.request(`/checklists/${targetId}`);
       if (response.success && response.data) {
         const checklist = response.data;
-        setTasks(checklist.tasks || []);
+        let finalTasks = checklist.tasks || [];
+        
+        // If we are in execution mode, we might want to blend with instance variables
+        const params = new URLSearchParams(window.location.search);
+        const instId = params.get('instanceId');
+        const nId = params.get('nodeId');
+        
+        if (instId && nId) {
+          try {
+             const instRes = await apiService.getInstance(instId);
+             if (instRes.success) {
+                const savedTasks = instRes.data.variables?.[nId] || instRes.data.variables?.[`${nId}_data`];
+                if (savedTasks && Array.isArray(savedTasks)) {
+                   finalTasks = savedTasks;
+                }
+             }
+          } catch(e) {}
+        }
+
+        setTasks(finalTasks);
         setChecklistName(checklist.name);
         setChecklistDescription(checklist.description || '');
         setChecklistStatus(checklist.status || 'draft');
@@ -187,6 +241,30 @@ export default function WorkflowChecklist() {
 
     setIsSaving(true);
     try {
+      if (instanceId && nodeId) {
+        const res = await apiService.request(`/forms/null/submit`, {
+           method: 'POST',
+           body: JSON.stringify({
+              data: tasks,
+              name: checklistName,
+              instanceId,
+              nodeId
+           })
+        });
+        
+        if (res.success) {
+          toast.success('Checklist progress synchronized');
+          setIsSaveModalOpen(false);
+          const isPath = from?.startsWith('/');
+          if (isPath) {
+             router.push(`${from}?instanceId=${instanceId}&nodeId=${nodeId}&executed=true`);
+          } else {
+             router.push(`/Workflows/instances/${instanceId}?nodeId=${nodeId}&executed=true`);
+          }
+          return;
+        }
+      }
+
       const payload = {
         name: checklistName,
         description: checklistDescription,
@@ -209,7 +287,8 @@ export default function WorkflowChecklist() {
         } else if (source === 'allchecks') {
           router.push('/admin/AllCheck');
         } else if (designerWorkflowId || fromWorkflow) {
-          router.push(`/${userRole}/admin/Create_workflows?id=${designerWorkflowId}`);
+          const basePath = userRole.toLowerCase().includes('admin') ? '/admin' : '/User';
+          router.push(`${basePath}/create_workflows?id=${designerWorkflowId}`);
         } else {
           router.push(`/admin/AllCheck`);
         }
@@ -224,9 +303,18 @@ export default function WorkflowChecklist() {
     }
   };
 
+  const isExecutionMode = !!(instanceId && nodeId);
+
   return (
     <div className="min-h-screen bg-gray-50/50 pb-20">
       <Toaster position="top-right" richColors />
+      
+      {isExecutionMode && (
+        <div className="bg-amber-600 text-white px-4 py-2 text-center text-[10px] font-black uppercase tracking-[0.2em] shadow-lg sticky top-0 z-[60]">
+          Protocol Execution Active — Synchronizing with Live Lattice
+        </div>
+      )}
+
       <AnimatePresence>
         {isSaveModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
@@ -237,7 +325,9 @@ export default function WorkflowChecklist() {
               className="bg-white w-full max-w-lg rounded-[32px] overflow-hidden shadow-2xl border border-slate-100"
             >
               <div className="bg-indigo-600 p-8 text-white">
-                <h2 className="text-2xl font-black tracking-tight uppercase">Checklist Identification</h2>
+                <h2 className="text-2xl font-black tracking-tight uppercase">
+                  {isExecutionMode ? 'Synchronize Progress' : 'Checklist Identification'}
+                </h2>
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80 mt-1">Lattice Persistence</p>
               </div>
 
@@ -252,15 +342,17 @@ export default function WorkflowChecklist() {
                   />
                 </div>
 
-                <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Description (What is this for?)</label>
-                  <textarea
-                    value={checklistDescription}
-                    onChange={(e) => setChecklistDescription(e.target.value)}
-                    placeholder="Describe the purpose of this checklist..."
-                    className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-700 font-bold focus:border-indigo-500 focus:bg-white outline-none transition-all min-h-[120px] resize-none"
-                  />
-                </div>
+                {!isExecutionMode && (
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Description (What is this for?)</label>
+                    <textarea
+                      value={checklistDescription}
+                      onChange={(e) => setChecklistDescription(e.target.value)}
+                      placeholder="Describe the purpose of this checklist..."
+                      className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-700 font-bold focus:border-indigo-500 focus:bg-white outline-none transition-all min-h-[120px] resize-none"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="p-8 pt-0 flex items-center justify-between">
@@ -275,7 +367,7 @@ export default function WorkflowChecklist() {
                   disabled={isSaving}
                   className="px-10 py-4 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-indigo-700 active:scale-95 transition-all shadow-xl shadow-indigo-100 disabled:opacity-50"
                 >
-                  {isSaving ? 'Synchronizing...' : 'Commit Save'}
+                  {isSaving ? 'Synchronizing...' : (isExecutionMode ? 'Save and Continue' : 'Commit Save')}
                 </button>
               </div>
             </motion.div>
@@ -283,19 +375,22 @@ export default function WorkflowChecklist() {
         )}
       </AnimatePresence>
 
-      <div className="bg-white border-b border-gray-100 sticky top-0 z-30 mb-10 shadow-sm">
+      <div className={`bg-white border-b border-gray-100 z-30 mb-10 shadow-sm ${isExecutionMode ? '' : 'sticky top-0'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-0 sm:h-20 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4 w-full sm:w-auto">
             <button 
               onClick={() => {
-                if (source === 'workflow_details' && workflowDetailsId) {
+                const basePath = userRole.toLowerCase().includes('admin') ? '/admin' : '/User';
+                if (instanceId) {
+                  router.push(`/Workflows/instances/${instanceId}`);
+                } else if (source === 'workflow_details' && workflowDetailsId) {
                   router.push(`/admin/workflows/${workflowDetailsId}`);
                 } else if (source === 'allchecks') {
-                  router.push('/admin/AllCheck');
+                  router.push(`${basePath}/AllCheck`);
                 } else if (designerWorkflowId || fromWorkflow) {
-                  router.push(`/admin/Create_workflows${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}`);
+                  router.push(`${basePath}/Create_workflows?id=${designerWorkflowId}`);
                 } else {
-                  router.push('/admin/AllCheck');
+                  router.push(`${basePath}/AllCheck`);
                 }
               }}
               className="p-2.5 bg-slate-50 text-slate-400 hover:text-indigo-600 rounded-xl hover:bg-indigo-50 transition-all border border-transparent hover:border-indigo-100 shrink-0"
@@ -307,23 +402,26 @@ export default function WorkflowChecklist() {
               <ListTodo className="w-5 h-5 text-white" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-lg sm:text-xl font-black text-slate-800 tracking-tight uppercase truncate">Checklist Designer</h1>
+              <h1 className="text-lg sm:text-xl font-black text-slate-800 tracking-tight uppercase truncate">
+                {isExecutionMode ? 'Protocol Execution' : 'Checklist Designer'}
+              </h1>
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-1 truncate">
-                {isLoading ? 'Loading Knowledge Schema...' : checklistId ? 'Architecture' : 'Provisioning New Schema'}
+                {isLoading ? 'Loading Knowledge Schema...' : (isExecutionMode ? `Instance: ${instanceId}` : (checklistId ? 'Architecture' : 'Provisioning New Schema'))}
               </p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
-            {(designerWorkflowId || fromWorkflow) && (
+            {!isExecutionMode && (designerWorkflowId || fromWorkflow) && (
               <button 
                 onClick={() => {
+                  const basePath = userRole.toLowerCase().includes('admin') ? '/admin' : '/User';
                   if (source === 'workflow_details' && workflowDetailsId) {
                     router.push(`/admin/workflows/${workflowDetailsId}`);
                   } else if (source === 'allchecks') {
-                    router.push('/admin/AllCheck');
+                    router.push(`${basePath}/AllCheck`);
                   } else {
-                    router.push(`/admin/Create_workflows${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}`);
+                    router.push(`${basePath}/Create_workflows?id=${designerWorkflowId}`);
                   }
                 }}
                 className="flex items-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-slate-50 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-slate-100 active:scale-95 transition-all border border-slate-200 shadow-sm whitespace-nowrap"
@@ -334,10 +432,10 @@ export default function WorkflowChecklist() {
             <button 
               onClick={handleSave} 
               disabled={isSaving || isLoading} 
-              className="flex items-center gap-2 px-6 sm:px-8 py-2.5 sm:py-3 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-indigo-700 active:scale-95 transition-all shadow-xl shadow-indigo-100 disabled:opacity-50 whitespace-nowrap"
+              className="flex items-center gap-3 px-6 sm:px-8 py-2.5 sm:py-3 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-indigo-700 active:scale-95 transition-all shadow-xl shadow-indigo-100 disabled:opacity-50 whitespace-nowrap"
             >
-              {isSaving ? <Clock className="w-4 h-4 animate-spin" /> : <Save size={18} />}
-              {isSaving ? 'Saving...' : 'Save Checklist'}
+              {isSaving ? <Clock className="w-4 h-4 animate-spin" /> : (isExecutionMode ? <CheckSquare size={18} /> : <Save size={18} />)}
+              {isSaving ? 'Saving...' : (isExecutionMode ? 'Synchronize' : 'Save Checklist')}
             </button>
           </div>
         </div>
@@ -353,12 +451,16 @@ export default function WorkflowChecklist() {
           <div className="bg-white rounded-[40px] border border-slate-100 p-10 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="flex items-center justify-between mb-10 gap-8">
               <div className="flex-1">
-                <input
-                  value={checklistName}
-                  onChange={(e) => setChecklistName(e.target.value)}
-                  className="text-3xl font-black text-slate-800 bg-transparent border-b-2 border-transparent focus:border-indigo-500 outline-none w-full transition-all"
-                  placeholder="Untitled Checklist..."
-                />
+                {isExecutionMode ? (
+                   <h2 className="text-3xl font-black text-slate-800 tracking-tight">{checklistName}</h2>
+                ) : (
+                  <input
+                    value={checklistName}
+                    onChange={(e) => setChecklistName(e.target.value)}
+                    className="text-3xl font-black text-slate-800 bg-transparent border-b-2 border-transparent focus:border-indigo-500 outline-none w-full transition-all"
+                    placeholder="Untitled Checklist..."
+                  />
+                )}
               </div>
 
               <div className="flex items-center gap-3">
@@ -374,12 +476,14 @@ export default function WorkflowChecklist() {
                   <option value="completed">Completed</option>
                 </select>
 
-                <button
-                  onClick={addTask}
-                  className="flex items-center gap-2 px-8 py-4 bg-indigo-50 text-indigo-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-100 transition-all border border-indigo-100 shadow-sm whitespace-nowrap active:scale-95"
-                >
-                  <Plus size={18} /> Add new Task
-                </button>
+                {!isExecutionMode && (
+                  <button
+                    onClick={addTask}
+                    className="flex items-center gap-2 px-8 py-4 bg-indigo-50 text-indigo-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-100 transition-all border border-indigo-100 shadow-sm whitespace-nowrap active:scale-95"
+                  >
+                    <Plus size={18} /> Add new Task
+                  </button>
+                )}
               </div>
             </div>
 
@@ -389,25 +493,41 @@ export default function WorkflowChecklist() {
               <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
                 <div className="space-y-4">
                   {tasks.map(task => (
-                    <SortableTask key={task.id} task={task} onUpdate={updateTask} onDelete={deleteTask} />
+                    <SortableTask key={task.id} task={task} onUpdate={updateTask} onDelete={isExecutionMode ? undefined : deleteTask} />
                   ))}
                   {tasks.length === 0 && (
                     <div className="text-center py-32 border-2 border-dashed border-slate-100 rounded-[40px] bg-slate-50/30">
                       <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm mx-auto mb-6">
                         <AlertCircle className="w-8 h-8 text-slate-200" />
                       </div>
-                      <p className="text-sm font-black text-slate-400 uppercase tracking-[0.2em]">No ongoing tasks defined for this checklist</p>
-                      <button 
-                        onClick={addTask}
-                        className="mt-8 text-[11px] font-black text-indigo-600 uppercase tracking-widest hover:text-indigo-700 underline underline-offset-8"
-                      >
-                        Start Architecting
-                      </button>
+                      <p className="text-sm font-black text-slate-400 uppercase tracking-[0.2em]">No valid task sequence identified</p>
                     </div>
                   )}
                 </div>
               </SortableContext>
             </DndContext>
+            
+            {isExecutionMode && (
+              <div className="mt-12 flex flex-col items-center p-8 bg-slate-50 rounded-[32px] border border-slate-100">
+                 <div className="flex items-center gap-4 mb-6">
+                   <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-100">
+                     <CheckSquare className="w-6 h-6" />
+                   </div>
+                   <div className="text-left">
+                     <h3 className="font-black text-slate-800 uppercase tracking-tight">Protocol Verification</h3>
+                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                       {tasks.filter(t => t.completed).length} of {tasks.length} tasks completed
+                     </p>
+                   </div>
+                 </div>
+                 <button 
+                  onClick={handleSave}
+                  className="w-full max-w-sm py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 active:scale-95"
+                 >
+                   Synchronize and Finalize
+                 </button>
+              </div>
+            )}
           </div>
         )}
       </div>

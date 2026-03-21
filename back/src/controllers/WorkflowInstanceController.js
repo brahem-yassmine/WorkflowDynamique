@@ -127,6 +127,12 @@ exports.createInstance = async (req, res) => {
     await checklist.save();
     instance.checklistId = checklist._id;
 
+    // 🔥 AUTO-PROGRESS: Transition immediately from START node to the first REAL task(s)
+    await processNodeTransition(req, instance, workflow, startNode.id);
+    
+    // Explicitly set instance status if it was changed by transition logic
+    if (instance.currentNodes.length > 0) instance.status = 'in_progress';
+
     await instance.save();
 
     // Notification logic
@@ -393,10 +399,12 @@ exports.approveNode = async (req, res) => {
       if (!allApproved) {
         // NOT everyone has finished yet, just save and return
         instance.history.push({
+          nodeId: nodeId, // Useful to filter
           action: 'partial_approval',
           title: `Approbation partielle`,
           performedBy: req.user.id,
-          comments: `L'utilisateur a validé, en attente des autres membres (${nodeEntry.approvedBy.length}/${nodeEntry.assignees.length})`
+          comments: comments || '',
+          data: data
         });
         await instance.save();
         return res.json({
@@ -434,160 +442,23 @@ exports.approveNode = async (req, res) => {
       comments: comments || `Action validée sur le noeud ${nodeId}`
     });
 
-    const nodesToActivate = [];
+    // 🔍 Trigger transitions to next nodes
+    await processNodeTransition(req, instance, workflow, nodeId);
 
-    // 🔍 Find nodes to activate, handling Parallel Joins automatically
-    const findNextExecutableNodes = (sourceId, targetNodesArray) => {
-      const edges = workflow.edges.filter(e => e.source === sourceId);
-      for (const edge of edges) {
-        const targetNode = workflow.nodes.find(n => n.id === edge.target);
-        if (!targetNode) continue;
-
-        if (targetNode.type === 'parallel_split') {
-          // Split is automatic: Record and continue to children
-          if (!instance.executionPath.some(p => p.nodeId === targetNode.id)) {
-            instance.executionPath.push({
-              nodeId: targetNode.id,
-              nodeType: 'parallel_split',
-              action: 'auto_approved',
-              timestamp: new Date()
-            });
-          }
-          findNextExecutableNodes(targetNode.id, targetNodesArray);
-        } else if (targetNode.type === 'parallel_join') {
-          const incoming = workflow.edges.filter(e => e.target === targetNode.id);
-          const completed = instance.executionPath.map(p => p.nodeId);
-          // Also include the node we just finished approving
-          if (!completed.includes(nodeId)) completed.push(nodeId);
-
-          if (incoming.every(e => completed.includes(e.source))) {
-            // Join condition met! This node is specialized but automatic.
-            // Record it in execution path and move forward
-            if (!instance.executionPath.some(p => p.nodeId === targetNode.id)) {
-              instance.executionPath.push({
-                nodeId: targetNode.id,
-                nodeType: 'parallel_join',
-                action: 'auto_approved',
-                timestamp: new Date()
-              });
-            }
-            // Recursively find what's after the join
-            findNextExecutableNodes(targetNode.id, targetNodesArray);
-          } else {
-            instance.history.push({
-              action: 'sync_waiting',
-              title: `En attente de synchronisation`,
-              performedBy: req.user.id,
-              comments: `La branche arrivant à "${targetNode.data?.label || targetNode.id}" est terminée, attend les autres branches.`
-            });
-          }
-        } else {
-          // If it's not a join/split, or it's a join/split that we've already decided is ready (handled in recursion), add to pendings
-          targetNodesArray.push(targetNode);
-        }
-      }
-    };
-
-    findNextExecutableNodes(nodeId, nodesToActivate);
-
-    let isFlowFinished = false;
-    if (nodesToActivate.length === 0) {
-      if (instance.currentNodes.length === 0) isFlowFinished = true;
-    } else {
-      const UserModel = req.tenantConn.model('User');
-      const DomainModel = req.tenantConn.model('Domain');
-
-      for (const node of nodesToActivate) {
-        if (node.type === 'end') {
-          // If we reach an END node, we only finish if no other nodes are active
-          // Wait until the end of the loop to decide if the whole thing is finished
-          continue;
-        } else {
-          const RoleModel = req.tenantConn.model('Role');
-          let nodeAssignees = node.data?.assigneeIds || [];
-          let domainName = node.data?.responsibleDomain || node.data?.domain;
-
-          let responsibleUser = null;
-          let responsibleDomain = domainName;
-
-          // Advanced Assignment Resolution
-          const assignmentType = node.data?.assignmentType || 'SINGLE';
-          const assignedId = node.data?.assignedTo;
-
-          // Resolve domain name if only ID is provided
-          if (!domainName && assignedId && mongoose.Types.ObjectId.isValid(assignedId) && assignmentType !== 'SINGLE') {
-            const domain = await DomainModel.findById(assignedId);
-            if (domain) domainName = domain.name;
-          }
-
-          if (assignmentType === 'ALL' && assignedId && (domainName || mongoose.Types.ObjectId.isValid(assignedId))) {
-            const dName = domainName || (mongoose.Types.ObjectId.isValid(assignedId) ? (await DomainModel.findById(assignedId))?.name : null);
-            if (dName) {
-              const isGlobal = ['GLOBAL', 'ALL', 'PUBLIC'].includes(dName.toUpperCase());
-              const domainUsers = isGlobal ? await UserModel.find({}) : await UserModel.find({ domain: dName });
-              nodeAssignees = domainUsers.map(u => u._id);
-            }
-          }
-
-          if (assignmentType === 'SINGLE' && assignedId && mongoose.Types.ObjectId.isValid(assignedId)) {
-            // Check if it's a domain, role, or user
-            const domainMaybe = await DomainModel.findById(assignedId);
-            if (domainMaybe) {
-              responsibleDomain = domainMaybe.name;
-            } else {
-              const roleMaybe = await req.tenantConn.model('Role').findById(assignedId);
-              if (roleMaybe) {
-                responsibleDomain = roleMaybe.name;
-              } else {
-                responsibleUser = assignedId;
-              }
-            }
-          } else if (node.data?.assigneeSelectionType === 'role' && assignedId) {
-            // Priority to designated role assigned in designer
-             if (mongoose.Types.ObjectId.isValid(assignedId)) {
-                const roleMaybe = await req.tenantConn.model('Role').findById(assignedId);
-                if (roleMaybe) responsibleDomain = roleMaybe.name;
-                else responsibleDomain = assignedId; // Fallback to ID string if name resolution fails
-             } else {
-                responsibleDomain = assignedId; // Already a name
-             }
-          } else {
-            responsibleUser = node.data?.assignedUser || (node.data?.assigneeSelectionType === 'user' ? (node.data.assigneeIds?.[0]) : null);
-            responsibleDomain = domainName || (assignmentType !== 'SINGLE' ? assignedId : null);
-          }
-
-          // Final check: resolve domain ID to name if still an ID
-          if (responsibleDomain && mongoose.Types.ObjectId.isValid(responsibleDomain)) {
-            const domainObj = await DomainModel.findById(responsibleDomain) || await req.tenantConn.model('Role').findById(responsibleDomain);
-            if (domainObj) responsibleDomain = domainObj.name;
-          }
-
-          instance.currentNodes.push({
-            nodeId: node.id,
-            status: 'in_progress',
-            startedAt: new Date(),
-            responsibleUser,
-            responsibleDomain,
-            assignees: nodeAssignees
-          });
-        }
-      }
-
-      // After processing all potential new nodes, check if any are actually active
-      if (instance.currentNodes.length === 0) {
-        isFlowFinished = true;
-      }
-    }
+    // After transition, check if the workflow is now finished
+    const isFlowFinished = instance.status === 'completed' || instance.currentNodes.length === 0;
 
     if (isFlowFinished) {
-      instance.status = 'completed';
-      instance.timeCompleted = new Date();
-      instance.history.push({
-        action: 'workflow_completed',
-        title: 'Terminé',
-        performedBy: req.user.id,
-        comments: 'Workflow terminé avec succès'
-      });
+      if (instance.status !== 'completed') {
+        instance.status = 'completed';
+        instance.timeCompleted = new Date();
+        instance.history.push({
+          action: 'workflow_completed',
+          title: 'Terminé',
+          performedBy: req.user.id,
+          comments: 'Workflow terminé avec succès'
+        });
+      }
     }
 
     await instance.save();
@@ -624,8 +495,11 @@ exports.approveNode = async (req, res) => {
         });
       } else {
         const UserModel = req.tenantConn.model('User');
+        // Only notify for nodes that were JUST activated (still have startedAt close to now)
+        const recentTime = new Date(Date.now() - 5000); // 5 seconds grace
+        
         for (const newNode of instance.currentNodes) {
-          if (newNode.status !== 'in_progress') continue;
+          if (newNode.status !== 'in_progress' || newNode.startedAt < recentTime) continue;
 
           // Find node data from workflow
           const nodeData = workflow.nodes.find(n => n.id === newNode.nodeId)?.data || {};
@@ -1076,3 +950,116 @@ exports.deleteInstance = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
+
+// ============================================
+// INTERNAL HELPER: Process node transition logic
+// ============================================
+async function processNodeTransition(req, instance, workflow, sourceNodeId) {
+  const nodesToActivate = [];
+
+  // Recursive search for next manual nodes (skip logic blocks)
+  const isLogicNode = (type) => {
+    if (!type) return false;
+    const logicTypes = ['parallel_split', 'parallel_join', 'parallelstart', 'parallelStart', 'parallel_start', 'parallel', 'start', 'syncJoin', 'sync_join', 'condition', 'gateway', 'split', 'join'];
+    return logicTypes.some(t => t.toLowerCase() === type.toLowerCase());
+  };
+
+  const findNextExecutableNodes = (srcId, targetNodesArray) => {
+    const edges = workflow.edges.filter(e => e.source === srcId);
+    for (const edge of edges) {
+      const targetNode = workflow.nodes.find(n => n.id === edge.target);
+      if (!targetNode) continue;
+
+      if (isLogicNode(targetNode.type)) {
+        // Log it as auto-approved so it shows in history but doesn't block
+        if (!instance.executionPath.some(p => p.nodeId === targetNode.id)) {
+          instance.executionPath.push({
+            nodeId: targetNode.id,
+            nodeType: targetNode.type,
+            action: 'auto_approved',
+            timestamp: new Date()
+          });
+        }
+        // Recursively find the real tasks after this logic block
+        findNextExecutableNodes(targetNode.id, targetNodesArray);
+      } else {
+        targetNodesArray.push(targetNode);
+      }
+    }
+  };
+
+  findNextExecutableNodes(sourceNodeId, nodesToActivate);
+
+  const UserModel = req.tenantConn.model('User');
+  const DomainModel = req.tenantConn.model('Domain');
+  const RoleModel = req.tenantConn.model('Role');
+
+  // Always clear the specific transitioning node from currentNodes before adding new ones
+  instance.currentNodes = instance.currentNodes.filter(n => n.nodeId !== sourceNodeId);
+
+  for (const node of nodesToActivate) {
+    if (node.type === 'end') {
+       instance.status = 'completed';
+       instance.timeCompleted = new Date();
+       continue;
+    }
+
+    let nodeAssignees = node.data?.assigneeIds || [];
+    let domainName = node.data?.responsibleDomain || node.data?.domain;
+    let responsibleUser = null;
+    let responsibleDomain = domainName;
+
+    const assignmentType = node.data?.assignmentType || 'SINGLE';
+    const assignedId = node.data?.assignedTo;
+
+    if (!domainName && assignedId && mongoose.Types.ObjectId.isValid(assignedId) && assignmentType !== 'SINGLE') {
+      const dom = await DomainModel.findById(assignedId) || await RoleModel.findById(assignedId);
+      if (dom) domainName = dom.name;
+    }
+
+    if (assignmentType === 'ALL' && assignedId) {
+      const dName = domainName || (mongoose.Types.ObjectId.isValid(assignedId) ? (await DomainModel.findById(assignedId))?.name : null);
+      if (dName) {
+        const isGlobal = ['GLOBAL', 'ALL', 'PUBLIC'].includes(dName.toUpperCase());
+        const domainUsers = isGlobal ? await UserModel.find({}) : await UserModel.find({ domain: dName });
+        nodeAssignees = domainUsers.map(u => u._id);
+      }
+    }
+
+    if (assignmentType === 'SINGLE' && assignedId && mongoose.Types.ObjectId.isValid(assignedId)) {
+      const domainMaybe = await DomainModel.findById(assignedId);
+      if (domainMaybe) {
+        responsibleDomain = domainMaybe.name;
+      } else {
+        const roleMaybe = await RoleModel.findById(assignedId);
+        if (roleMaybe) responsibleDomain = roleMaybe.name;
+        else responsibleUser = assignedId;
+      }
+    } else if (node.data?.assigneeSelectionType === 'role' && assignedId) {
+      if (mongoose.Types.ObjectId.isValid(assignedId)) {
+        const roleMaybe = await RoleModel.findById(assignedId);
+        responsibleDomain = roleMaybe ? roleMaybe.name : assignedId;
+      } else {
+        responsibleDomain = assignedId;
+      }
+    } else {
+      responsibleUser = node.data?.assignedUser || (node.data?.assigneeSelectionType === 'user' ? node.data.assigneeIds?.[0] : null);
+      responsibleDomain = domainName || (assignmentType !== 'SINGLE' ? assignedId : null);
+    }
+
+    if (responsibleDomain && mongoose.Types.ObjectId.isValid(responsibleDomain)) {
+      const dom = await DomainModel.findById(responsibleDomain) || await RoleModel.findById(responsibleDomain);
+      if (dom) responsibleDomain = dom.name;
+    }
+
+    instance.currentNodes.push({
+      nodeId: node.id,
+      status: 'in_progress',
+      startedAt: new Date(),
+      responsibleUser,
+      responsibleDomain,
+      restrictedDomain: node.data?.restrictedDomain || null,
+      assignees: nodeAssignees
+    });
+  }
+}

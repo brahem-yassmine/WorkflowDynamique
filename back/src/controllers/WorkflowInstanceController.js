@@ -436,10 +436,12 @@ exports.approveNode = async (req, res) => {
     });
 
     instance.history.push({
+      nodeId: nodeId,
       action: 'step_approved',
       title: `Étape validée`,
       performedBy: req.user.id,
-      comments: comments || `Action validée sur le noeud ${nodeId}`
+      comments: comments || '',
+      data: data
     });
 
     // 🔍 Trigger transitions to next nodes

@@ -367,6 +367,26 @@ class ApiService {
   getTenantLogs() {
     return this.request('/tenant/logs');
   }
+
+  // Task Reports (Admin to User)
+  getTaskReports(all: boolean = false) {
+    const endpoint = all ? '/task-reports/all' : '/task-reports/my-requests';
+    return this.request(endpoint);
+  }
+
+  createTaskReport(data: any) {
+    return this.request('/task-reports', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  updateTaskReportStatus(id: string, status: string, response?: string) {
+    return this.request(`/task-reports/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, response })
+    });
+  }
 }
 
 export const apiService = new ApiService();

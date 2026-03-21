@@ -19,7 +19,10 @@ import {
   Paperclip,
   Activity,
   ChevronRight,
-  AlertCircle
+  AlertCircle,
+  ShieldAlert,
+  Send,
+  Users as UsersIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -36,6 +39,9 @@ export default function TaskLogView({ workflowId }: TaskLogViewProps) {
   const [workflow, setWorkflow] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportForm, setReportForm] = useState({ message: '', recipientId: '' });
+  const [reportingTask, setReportingTask] = useState<any>(null);
 
   useEffect(() => {
     fetchData();
@@ -177,8 +183,37 @@ export default function TaskLogView({ workflowId }: TaskLogViewProps) {
 
   const getUserName = (userId: string) => {
     if (!userId) return 'Pending';
-    const user = users.find(u => u._id === userId);
+    const user = users.find(u => u._id === userId || u.id === userId);
     return user ? `${user.firstName} ${user.lastName}` : 'System / Unknown';
+  };
+
+  const handleReportSubmit = async () => {
+    if (!reportForm.message || !reportForm.recipientId) {
+       toast.error('Please select a recipient and enter a message.');
+       return;
+    }
+
+    try {
+       const res = await apiService.request('/task-reports', {
+          method: 'POST',
+          body: JSON.stringify({
+             instanceId: reportingTask.instanceId,
+             nodeId: reportingTask.nodeId,
+             workflowId: workflowId,
+             recipientId: reportForm.recipientId,
+             message: reportForm.message,
+             submissionData: reportingTask.outputData
+          })
+       });
+
+       if (res.success) {
+          toast.success('Incident reported to user successfully.');
+          setShowReportModal(false);
+          setReportForm({ message: '', recipientId: '' });
+       }
+    } catch (err) {
+       toast.error('Failed to send report.');
+    }
   };
 
   if (loading) return <div className="flex flex-col items-center justify-center h-64 gap-4 animate-pulse"><Activity className="text-indigo-600 w-10 h-10" /><p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Processing Node Log...</p></div>;
@@ -214,6 +249,51 @@ export default function TaskLogView({ workflowId }: TaskLogViewProps) {
           ))}
         </div>
       </div>
+
+      <AnimatePresence>
+        {showReportModal && (
+          <div className="fixed inset-0 z-[600] flex items-center justify-center p-4">
+             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowReportModal(false)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-md" />
+             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white rounded-[40px] p-10 w-full max-w-lg relative z-10 shadow-2xl border border-rose-100">
+                <div className="flex items-center gap-4 mb-8 text-rose-600">
+                   <div className="p-3 bg-rose-50 rounded-2xl">
+                      <ShieldAlert size={24} />
+                   </div>
+                   <h3 className="text-2xl font-black uppercase tracking-tight">Generate Incident Report</h3>
+                </div>
+
+                <div className="space-y-6">
+                   <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Target User</label>
+                      <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 font-bold text-slate-700 flex items-center gap-3">
+                         <div className="w-6 h-6 bg-slate-200 rounded-full flex items-center justify-center text-[9px]">
+                            {getUserName(reportForm.recipientId).substring(0, 2)}
+                         </div>
+                         {getUserName(reportForm.recipientId)}
+                      </div>
+                   </div>
+
+                   <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Admin Remark / Technical Note</label>
+                      <textarea
+                        value={reportForm.message}
+                        onChange={(e) => setReportForm({ ...reportForm, message: e.target.value })}
+                        placeholder="Describe the issue or required modifications..."
+                        className="w-full h-32 p-6 bg-slate-50 border-none rounded-[24px] focus:ring-4 focus:ring-rose-50 outline-none text-sm font-bold text-slate-800 placeholder:text-slate-300 transition-all shadow-inner"
+                      />
+                   </div>
+
+                   <button 
+                     onClick={handleReportSubmit}
+                     className="w-full py-5 bg-rose-600 text-white rounded-[24px] font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center gap-4 hover:bg-rose-700 transition-all shadow-xl shadow-rose-200"
+                   >
+                     <Send size={18} /> Dispatch Report
+                   </button>
+                </div>
+             </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Task List */}
       <div className="space-y-4">
@@ -306,7 +386,7 @@ export default function TaskLogView({ workflowId }: TaskLogViewProps) {
               {task.assignmentType !== 'SINGLE' && (
                 <div className="px-10 pb-8 pt-4 bg-slate-50/50 border-t border-slate-50 flex flex-wrap gap-4">
                   <div className="w-full flex items-center gap-2 mb-2">
-                     <Users size={14} className="text-indigo-500" />
+                     <UsersIcon size={14} className="text-indigo-500" />
                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Consensus Tracking ({task.assignmentType})</span>
                      <div className="h-px flex-1 bg-slate-100"></div>
                   </div>
@@ -345,89 +425,96 @@ export default function TaskLogView({ workflowId }: TaskLogViewProps) {
               className="bg-white rounded-[48px] shadow-2xl w-full max-w-2xl relative z-10 overflow-hidden border border-white/20 flex flex-col max-h-[90vh]"
             >
               <div className="bg-indigo-600 p-12 text-white relative overflow-hidden shrink-0">
-                <div className="absolute -right-20 -top-20 w-64 h-64 bg-white/10 rounded-full blur-3xl opacity-50"></div>
-                <button 
-                  onClick={() => setSelectedTask(null)}
-                  className="absolute right-10 top-10 p-4 hover:bg-white/10 rounded-[22px] transition-all group"
-                >
-                  <X size={24} className="group-hover:rotate-90 transition-transform" />
-                </button>
-                <div className="flex items-center gap-5 mb-4 relative z-10">
-                   <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md shadow-2xl border border-white/10">
-                      <FileText size={28} />
+                <div className="absolute -right-20 -top-20 w-80 h-80 bg-white/10 rounded-full blur-3xl opacity-50"></div>
+                
+                <div className="flex items-center gap-6 mb-4 relative z-10">
+                   <div className="w-16 h-16 bg-white/20 rounded-3xl flex items-center justify-center backdrop-blur-md shadow-2xl border border-white/10">
+                      <FileText size={32} />
                    </div>
                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.4em] opacity-70">Forensic Work Scan</p>
+                      <p className="text-[11px] font-black uppercase tracking-[0.4em] opacity-70 mb-1">Process Forensic Scan</p>
                       <h2 className="text-4xl font-black tracking-tight uppercase leading-tight">{selectedTask.name}</h2>
                    </div>
                 </div>
               </div>
 
-              <div className="p-12 overflow-y-auto custom-scrollbar space-y-12 flex-grow bg-slate-50/30">
-                <div className="grid grid-cols-2 gap-10">
+              <div className="p-12 overflow-y-auto custom-scrollbar flex-grow bg-slate-50/30 space-y-12">
+                <div className="grid grid-cols-2 gap-10 pt-6 border-t border-slate-100">
                   <div className="space-y-2">
-                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] underline decoration-indigo-200 underline-offset-4">Lead Operator</p>
-                    <p className="text-xl font-black text-slate-800 tracking-tight">{getUserName(selectedTask.performedBy)}</p>
-                    <p className="text-xs font-bold text-indigo-500 opacity-60 font-mono tracking-tighter overflow-hidden text-ellipsis">{selectedTask.performedBy && users.find(u => u._id === selectedTask.performedBy)?.email}</p>
+                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] underline decoration-indigo-200 underline-offset-4">Active Operator</p>
+                    <p className="text-2xl font-black text-slate-800 tracking-tight">{getUserName(selectedTask.performedBy)}</p>
+                    <p className="text-[10px] font-black text-indigo-400 tracking-widest uppercase opacity-70">Protocol Alignment</p>
                   </div>
                   <div className="space-y-2 text-right">
-                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] underline decoration-indigo-200 underline-offset-4">Timestamp</p>
+                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] underline decoration-indigo-200 underline-offset-4">Execution Timestamp</p>
                     <p className="text-xl font-black text-slate-800 tracking-tight">{new Date(selectedTask.timestamp).toLocaleDateString()}</p>
-                    <p className="text-xs font-bold text-indigo-500">{new Date(selectedTask.timestamp).toLocaleTimeString()}</p>
+                    <p className="text-[10px] font-bold text-slate-400">{new Date(selectedTask.timestamp).toLocaleTimeString()}</p>
                   </div>
                 </div>
 
-                <div className="space-y-10">
+                <div className="space-y-12">
                    <div className="flex items-center gap-4">
                       <div className="h-px flex-1 bg-slate-200"></div>
                       <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-3">
-                         <Activity size={18} className="text-indigo-500" /> Evidence Capture
+                         <Activity size={18} className="text-indigo-500" /> Evidence Analysis
                       </span>
                       <div className="h-px flex-1 bg-slate-200"></div>
                    </div>
 
-                   <div className="space-y-8">
-                      {selectedTask.comments && (
-                         <div className="space-y-4">
-                            <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
-                               <MessageSquare size={16} /> User Rational / Narrative
-                            </p>
-                            <div className="p-10 bg-white rounded-[32px] border border-slate-100 shadow-sm text-lg font-bold text-slate-600 italic leading-relaxed relative border-l-8 border-l-indigo-200">
-                               "{selectedTask.comments}"
-                            </div>
+                   {selectedTask.comments && (
+                      <div className="space-y-4">
+                         <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
+                            <MessageSquare size={16} /> User Rational / Remarks
+                         </p>
+                         <div className="p-10 bg-white rounded-[32px] border border-slate-100 shadow-sm text-lg font-bold text-slate-600 italic leading-relaxed relative border-l-8 border-l-indigo-500">
+                            "{selectedTask.comments}"
                          </div>
-                      )}
+                      </div>
+                   )}
 
-                      {selectedTask.outputData && Object.keys(selectedTask.outputData).length > 0 ? (
-                        <div className="space-y-6">
-                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">Structural Payload Analysis</p>
-                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              {Object.entries(selectedTask.outputData).map(([key, value]: [string, any]) => (
-                                <div key={key} className="flex flex-col gap-2 p-6 bg-white rounded-3xl border border-slate-100 shadow-sm hover:border-indigo-100 transition-colors group/item">
-                                   <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest group-hover/item:text-indigo-600">{key.replace(/_/g, ' ')}</span>
-                                   <span className="text-sm font-black text-slate-800 break-words opacity-90">
-                                     {typeof value === 'boolean' ? (value ? 'YES' : 'NO') : String(value)}
-                                   </span>
-                                </div>
-                              ))}
-                           </div>
-                        </div>
-                      ) : (
-                        <div className="bg-white rounded-[32px] border border-slate-100 p-16 text-center opacity-70 border-2 border-dashed">
-                           <CheckCircle2 size={48} className="mx-auto text-emerald-500 mb-6" />
-                           <p className="text-xs font-black text-slate-400 uppercase tracking-widest leading-loose">Automated protocol verification successful.<br/>No manual data extraction detected for this node.</p>
-                        </div>
-                      )}
-                   </div>
+                   {selectedTask.outputData && Object.keys(selectedTask.outputData).length > 0 ? (
+                    <div className="space-y-6">
+                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">Data Payload Extraction</p>
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {Object.entries(selectedTask.outputData).map(([key, value]: [string, any]) => (
+                            <div key={key} className="flex flex-col gap-2 p-6 bg-white rounded-3xl border border-slate-100 shadow-sm hover:border-indigo-100 transition-colors group/item">
+                               <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest group-hover/item:text-indigo-600">{key.replace(/_/g, ' ')}</span>
+                               <span className="text-sm font-black text-slate-800 break-words opacity-90">
+                                 {typeof value === 'boolean' ? (value ? 'YES' : 'NO') : String(value)}
+                               </span>
+                            </div>
+                          ))}
+                       </div>
+                    </div>
+                  ) : (
+                    <div className="bg-white rounded-[32px] border-2 border-dashed border-slate-200 p-20 text-center opacity-70">
+                       <CheckCircle2 size={48} className="mx-auto text-emerald-500 mb-6" />
+                       <p className="text-xs font-black text-slate-400 uppercase tracking-widest leading-loose">No dynamic data captured for this operator.<br/>Action confirmed via manual validation.</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
               <div className="p-10 bg-white border-t border-slate-100 flex gap-4 shrink-0">
                  <button 
                    onClick={() => setSelectedTask(null)}
-                   className="flex-1 py-5 bg-slate-900 text-white rounded-[26px] font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center gap-4 hover:bg-indigo-600 transition-all active:scale-95 shadow-2xl shadow-slate-100"
+                   className="flex-1 py-5 bg-slate-900 text-white rounded-[26px] font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center gap-4 hover:bg-slate-800 transition-all shadow-2xl"
                  >
-                   Exit Scan
+                   Exit Protocol
+                 </button>
+                 {selectedTask.type === 'Formulaire' && (
+                    <button 
+                      onClick={() => toast.info('Generating PDF document preview...')}
+                      className="flex-1 py-5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-[26px] font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center gap-4 hover:bg-indigo-100 transition-all"
+                    >
+                      <FileText size={18} /> Review Document
+                    </button>
+                  )}
+                 <button 
+                    onClick={() => { setReportingTask(selectedTask); setReportForm({ ...reportForm, recipientId: selectedTask.performedBy }); setShowReportModal(true); }}
+                    className="flex-1 py-5 bg-rose-500 text-white rounded-[26px] font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center gap-4 hover:bg-rose-600 transition-all shadow-xl shadow-rose-100"
+                 >
+                    <ShieldAlert size={18} /> Send Incident Report
                  </button>
               </div>
             </motion.div>

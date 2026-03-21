@@ -96,7 +96,7 @@ const workflowInstanceSchema = new mongoose.Schema({
   },
 
   history: [{
-    // Kept for UI compatibility / general logs
+    nodeId: String,
     action: String,
     title: String,
     performedBy: {

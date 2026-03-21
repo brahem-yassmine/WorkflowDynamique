@@ -158,7 +158,8 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                     toast.error(res.message || 'Finalization failed');
                 }
             } else {
-                const res = await apiService.approveNode(instance._id, node.id, comment);
+                const nodeDataPayload = variables[node.id] || variables[`${node.id}_data`] || {};
+                const res = await apiService.approveNode(instance._id, node.id, comment, nodeDataPayload);
                 if (res.success) {
                     toast.success('Stage approved successfully');
                     onRefresh();

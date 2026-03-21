@@ -35,6 +35,7 @@ interface WorkflowTask {
     type: 'workflow' | 'kanban';
     taskType: 'Formulaire' | 'Tâche' | 'validation' | 'upload' | 'informative' | 'form' | 'normal' | string;
     status: 'pending' | 'completed';
+    isEditable?: boolean;
     priority: string;
     createdAt: string;
     dueDate?: string;
@@ -114,51 +115,53 @@ export default function UserTasksPage() {
     }, [searchParams, tasks]);
 
     const handleTaskClick = async (task: WorkflowTask) => {
-        if (task.status === 'completed') {
-            toast.info("This task is already completed.");
+        if (task.status === 'completed' && !task.isEditable) {
+            toast.info("This task is already completed and validated.");
             return;
         }
 
-        try {
-            setIsFetchingTask(true);
-            if (task.type === 'kanban') {
-                // Mock instance and node for Kanban task
-                setSelectedInstance({
-                    _id: task._id,
-                    title: task.instanceTitle || 'Direct Task',
-                    status: 'in_progress',
-                    isKanban: true
-                } as any);
+        // Only block if actually completed and NOT editable
+        if (task.status === 'completed' && task.isEditable) {
+            toast.success("Ready for modification.");
+        }
 
-                setSelectedNode({
-                    id: task._id,
-                    data: {
-                        label: task.title,
-                        description: task.description,
-                        taskType: task.taskType === 'Formulaire' || task.taskType === 'form' ? 'Form' : 'normal',
-                        linkedObjectId: task.linkedFormId,
-                        userAction: (task.taskType === 'Formulaire' || task.taskType === 'form') ? 'Fill Form' : 'Complete Task'
-                    }
-                } as any);
+        setIsFetchingTask(true);
+
+        try {
+            // Task type differentiation
+            if (task.type === 'kanban') {
+                const res = await apiService.getTaskById(task._id);
+                if (res.success) {
+                    const taskData = res.data;
+                    setSelectedInstance({
+                        ...taskData,
+                        isKanban: true,
+                        status: taskData.status === 'done' ? 'completed' : 'active'
+                    });
+                    setSelectedNode({
+                        id: taskData._id,
+                        type: taskData.type === 'form' ? 'form' : 'action',
+                        data: {
+                            label: taskData.title,
+                            description: taskData.description,
+                            linkedObjectId: taskData.formId || taskData.linkedObjectId
+                        }
+                    });
+                }
             } else {
                 const res = await apiService.getInstance(task.instanceId);
                 if (res.success) {
-                    const instance = res.data;
-                    const node = (instance.workflowId?.nodes || []).find((n: any) => n.id === task.nodeId);
+                    const inst = res.data;
+                    setSelectedInstance(inst);
 
-                    if (node) {
-                        setSelectedInstance(instance);
-                        setSelectedNode(node);
-                    } else {
-                        toast.error("Task details not found in workflow lattice");
-                    }
-                } else {
-                    toast.error("Failed to fetch instance details");
+                    const nodes = inst.workflowId?.nodes || [];
+                    const node = nodes.find((n: any) => n.id === task.nodeId);
+                    setSelectedNode(node);
                 }
             }
-        } catch (err) {
-            console.error("Task fetch error:", err);
-            toast.error("Network synchronization failed");
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to load task details");
         } finally {
             setIsFetchingTask(false);
         }
@@ -309,23 +312,23 @@ function TaskCard({ task, onClick, isFetching, currentSelected }: { task: Workfl
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            whileHover={!isCompleted ? { y: -5, boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)' } : {}}
+            whileHover={(!isCompleted || task.isEditable) ? { y: -5, boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)' } : {}}
             onClick={onClick}
-            className={`p-6 rounded-[2rem] border transition-all h-full group relative overflow-hidden ${isCompleted
-                ? 'bg-slate-50/50 border-slate-100 border-dashed'
+            className={`p-6 rounded-[2rem] border transition-all h-full group relative overflow-hidden ${(isCompleted && !task.isEditable)
+                ? 'bg-slate-50/50 border-slate-100 border-dashed opacity-60'
                 : 'bg-white border-slate-100 shadow-sm cursor-pointer'
                 }`}
         >
             {/* Background Accent */}
-            <div className={`absolute top-0 right-0 w-32 h-32 rounded-bl-full -mr-16 -mt-16 transition-transform group-hover:scale-110 duration-700 opacity-50 ${isCompleted ? 'bg-emerald-50' : 'bg-slate-50'
+            <div className={`absolute top-0 right-0 w-32 h-32 rounded-bl-full -mr-16 -mt-16 transition-transform group-hover:scale-110 duration-700 opacity-50 ${(isCompleted && !task.isEditable) ? 'bg-emerald-50' : (task.isEditable ? 'bg-amber-50' : 'bg-slate-50')
                 }`}></div>
 
             <div className="flex items-start justify-between mb-4 relative z-10">
                 <div className={`p-3 rounded-2xl ${isCompleted
-                    ? 'bg-emerald-50 text-emerald-500'
+                    ? (task.isEditable ? 'bg-amber-50 text-amber-500' : 'bg-emerald-50 text-emerald-500')
                     : task.taskType === 'Formulaire' || task.taskType === 'form' ? 'bg-amber-50 text-amber-600' : 'bg-indigo-50 text-indigo-600'
                     }`}>
-                    {isCompleted ? <CheckCircle2 size={20} /> :
+                    {isCompleted ? (task.isEditable ? <Clock size={20} /> : <CheckCircle2 size={20} />) :
                         (task.taskType === 'Formulaire' || task.taskType === 'form' ? <FileText size={20} /> : <Zap size={20} />)}
                 </div>
                 {!isCompleted && (
@@ -342,37 +345,50 @@ function TaskCard({ task, onClick, isFetching, currentSelected }: { task: Workfl
                     </div>
                 )}
                 {isCompleted && (
-                    <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                        Completed
-                    </span>
+                    <div className="flex flex-col items-end gap-1 text-right">
+                        <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border ${task.isEditable ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-emerald-50 text-emerald-600 border-emerald-200'}`}>
+                            {task.isEditable ? 'Awaiting Validation' : 'Completed'}
+                        </span>
+                        {task.isEditable && (
+                            <span className="text-[8px] font-black text-amber-500 uppercase tracking-widest bg-white/50 px-1.5 py-0.5 rounded border border-amber-100">
+                                Revision Active
+                            </span>
+                        )}
+                    </div>
                 )}
             </div>
 
             <div className="flex-1 relative z-10">
-                <h4 className={`text-lg font-black leading-tight mb-3 transition-colors ${isCompleted ? 'text-slate-500' : 'text-slate-800 group-hover:text-indigo-600'
+                <h4 className={`text-lg font-black leading-tight mb-3 transition-colors ${isCompleted ? (task.isEditable ? 'text-slate-700' : 'text-slate-500') : 'text-slate-800 group-hover:text-indigo-600'
                     }`}>
                     {task.title}
                 </h4>
 
-                <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-slate-500">
-                        <FolderKanban size={14} className={isCompleted ? "text-slate-300" : "text-indigo-400"} />
-                        <span className="text-[11px] font-bold uppercase tracking-tight truncate">
-                            Project: <span className={isCompleted ? "text-slate-400" : "text-slate-700"}>{task.projectName}</span>
-                        </span>
-                    </div>
-                    <div className="flex items-center gap-2 text-slate-500">
-                        <Workflow size={14} className={isCompleted ? "text-slate-300" : "text-indigo-400"} />
-                        <span className="text-[11px] font-bold uppercase tracking-tight truncate">
-                            Flow: <span className={isCompleted ? "text-slate-400" : "text-slate-700"}>{task.workflowName}</span>
-                        </span>
-                    </div>
-                    {task.instanceTitle && (
+                <div className="space-y-4">
+                    <div className="space-y-2">
                         <div className="flex items-center gap-2 text-slate-500">
-                            <Layers size={14} className={isCompleted ? "text-slate-300" : "text-indigo-400"} />
+                            <FolderKanban size={14} className={isCompleted && !task.isEditable ? "text-slate-300" : "text-indigo-400"} />
                             <span className="text-[11px] font-bold uppercase tracking-tight truncate">
-                                Instance: <span className={isCompleted ? "text-slate-400" : "text-slate-700"}>{task.instanceTitle}</span>
+                                Project: <span className={isCompleted && !task.isEditable ? "text-slate-400" : "text-slate-700"}>{task.projectName}</span>
                             </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-slate-500">
+                            <Workflow size={14} className={isCompleted && !task.isEditable ? "text-slate-300" : "text-indigo-400"} />
+                            <span className="text-[11px] font-bold uppercase tracking-tight truncate">
+                                Flow: <span className={isCompleted && !task.isEditable ? "text-slate-400" : "text-slate-700"}>{task.workflowName}</span>
+                            </span>
+                        </div>
+                    </div>
+
+                    {task.isEditable && (
+                        <div className="pt-2 animate-in fade-in slide-in-from-top-2 duration-1000">
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); onClick(); }}
+                                className="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-black uppercase tracking-[0.15em] rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-amber-100 border-0"
+                            >
+                                <Zap size={14} className="animate-pulse" />
+                                Modify My Submission
+                            </button>
                         </div>
                     )}
                 </div>
@@ -385,8 +401,8 @@ function TaskCard({ task, onClick, isFetching, currentSelected }: { task: Workfl
                         {new Date(task.createdAt).toLocaleDateString()}
                     </span>
                 </div>
-                {!isCompleted && (
-                    <div className="p-2 bg-slate-50 text-slate-400 group-hover:bg-indigo-600 group-hover:text-white rounded-xl transition-all">
+                {(!isCompleted || task.isEditable) && (
+                    <div className={`p-2 rounded-xl transition-all ${isCompleted && task.isEditable ? 'bg-amber-50 text-amber-500 group-hover:bg-amber-500 group-hover:text-white' : 'bg-slate-50 text-slate-400 group-hover:bg-indigo-600 group-hover:text-white'}`}>
                         {isFetching && currentSelected === task.nodeId ? (
                             <Loader2 size={16} className="animate-spin" />
                         ) : (

@@ -317,6 +317,17 @@ class ApiService {
     });
   }
 
+  updateNodeData(instanceId: string, nodeId: string, comment?: string, variables?: any) {
+    return this.request(`/workflow-instances/${instanceId}/update-node`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        nodeId,
+        comments: comment || '',
+        data: variables || {}
+      })
+    });
+  }
+
   rejectNode(instanceId: string, nodeId: string, comment?: string) {
     return this.request(`/workflow-instances/${instanceId}/reject`, {
       method: 'POST',

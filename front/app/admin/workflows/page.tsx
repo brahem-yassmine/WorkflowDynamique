@@ -406,8 +406,8 @@ function WorkflowsContent() {
                         onChange={(e) => setEditForm({ ...editForm, domain: e.target.value })}
                         className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-indigo-50 font-bold text-slate-700 outline-none transition-all"
                       >
-                        {['HR', 'Finance', 'IT', 'Sales', 'Management'].map(d => (
-                          <option key={d} value={d}>{d}</option>
+                        {['HR', 'Finance', 'IT', 'Sales', 'Management', 'TOUTE L\'ENTREPRISE'].map(d => (
+                          <option key={d} value={d}>{d === 'TOUTE L\'ENTREPRISE' ? '🏢 TOUTE L\'ENTREPRISE' : d}</option>
                         ))}
                       </select>
                     </div>

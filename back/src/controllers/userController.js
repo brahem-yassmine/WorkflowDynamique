@@ -470,22 +470,28 @@ exports.getUserTasks = async (req, res) => {
         const hasApproved = node.approvedBy?.some(u => u.toString() === userId.toString());
 
         if (isVisible && !hasApproved) {
-          workflowTasks.push({
-            _id: `${instance._id}_${node.nodeId}`,
-            instanceId: instance._id,
-            nodeId: node.nodeId,
-            title: nodeDef.data?.label || nodeDef.type || 'Task',
-            workflowName: workflowData.name || 'Workflow',
-            instanceTitle: instance.title,
-            projectName: workflowData.projectId?.name || 'No Project',
-            type: 'workflow',
-            taskType: (nodeDef.type === 'form' || !!nodeDef.data?.formId || !!nodeDef.data?.linkedObjectId) ? 'Formulaire' : 'Tâche',
-            status: 'pending',
-            priority: instance.priority || 'medium',
-            createdAt: node.startedAt || instance.createdAt,
-            dueDate: instance.dueDate || workflowData.dueDate,
-            description: instance.description || workflowData.description || nodeDef.data?.description
-          });
+          const taskId = `${instance._id}_${node.nodeId}`;
+          // Check if we already added this logical task to avoid duplicates if currentNodes has redundant entries
+          const exists = workflowTasks.some(t => t._id === taskId);
+          
+          if (!exists) {
+            workflowTasks.push({
+              _id: taskId,
+              instanceId: instance._id,
+              nodeId: node.nodeId,
+              title: nodeDef.data?.label || nodeDef.type || 'Task',
+              workflowName: workflowData.name || 'Workflow',
+              instanceTitle: instance.title,
+              projectName: workflowData.projectId?.name || 'No Project',
+              type: 'workflow',
+              taskType: (nodeDef.type === 'form' || !!nodeDef.data?.formId || !!nodeDef.data?.linkedObjectId) ? 'Formulaire' : 'Tâche',
+              status: 'pending',
+              priority: instance.priority || 'medium',
+              createdAt: node.startedAt || instance.createdAt,
+              dueDate: instance.dueDate || workflowData.dueDate,
+              description: instance.description || workflowData.description || nodeDef.data?.description
+            });
+          }
         }
       });
     });
@@ -508,6 +514,35 @@ exports.getUserTasks = async (req, res) => {
         const nodeDef = nodesData.find(n => n.id === action.nodeId);
         if (!nodeDef || systemNodeTypes.includes((nodeDef.type || '').toLowerCase())) return;
 
+        // Recursive search for next manual nodes (skip logic blocks)
+        const isLogicNode = (type) => {
+          if (!type) return false;
+          const logicTypes = ['parallel_split', 'parallel_join', 'parallelstart', 'parallelStart', 'parallel_start', 'parallel', 'start', 'syncJoin', 'sync_join', 'condition', 'gateway', 'split', 'join'];
+          return logicTypes.some(t => t.toLowerCase() === type.toLowerCase());
+        };
+
+        const getNextTaskNodes = (srcId, visited = new Set()) => {
+          if (visited.has(srcId)) return [];
+          visited.add(srcId);
+          
+          let tasks = [];
+          const edges = (workflowData.edges || []).filter(e => e.source === srcId);
+          for (const edge of edges) {
+            const target = nodesData.find(n => n.id === edge.target);
+            if (!target) continue;
+            if (isLogicNode(target.type)) {
+              tasks = [...tasks, ...getNextTaskNodes(target.id, visited)];
+            } else {
+              tasks.push(target.id);
+            }
+          }
+          return tasks;
+        };
+
+        const nextExecutableIds = getNextTaskNodes(action.nodeId);
+        const isActiveNext = instance.currentNodes.some(cn => nextExecutableIds.includes(cn.nodeId));
+        const isEditable = instance.status === 'in_progress' && isActiveNext;
+
         workflowTasks.push({
           _id: `${instance._id}_${action.nodeId}_${new Date(action.timestamp).getTime()}`,
           instanceId: instance._id,
@@ -519,6 +554,7 @@ exports.getUserTasks = async (req, res) => {
           type: 'workflow',
           taskType: (nodeDef.type === 'form' || !!nodeDef.data?.formId) ? 'Formulaire' : 'Tâche',
           status: 'completed',
+          isEditable, // New field
           priority: instance.priority || 'medium',
           createdAt: action.timestamp,
           dueDate: instance.dueDate || workflowData.dueDate,

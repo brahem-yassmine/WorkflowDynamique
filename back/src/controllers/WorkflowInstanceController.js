@@ -580,6 +580,77 @@ exports.approveNode = async (req, res) => {
 };
 
 
+
+// 4.5 UPDATE NODE DATA (For revisions)
+exports.updateNodeData = async (req, res) => {
+  try {
+    const { instanceId } = req.params;
+    const { nodeId, data, comments } = req.body;
+    const userId = req.user.id;
+
+    const WorkflowInstance = req.tenantConn.model('WorkflowInstance');
+    const Workflow = req.tenantConn.model('Workflow');
+    const instance = await WorkflowInstance.findById(instanceId);
+    
+    if (!instance) return res.status(404).json({ success: false, message: 'Instance not found' });
+    if (instance.status !== 'in_progress') return res.status(400).json({ success: false, message: 'Instance is no longer active' });
+
+    let lastActionIdx = -1;
+    for (let i = instance.executionPath.length - 1; i >= 0; i--) {
+        if (instance.executionPath[i].nodeId === nodeId && instance.executionPath[i].action === 'approved') {
+            lastActionIdx = i;
+            break;
+        }
+    }
+
+    if (lastActionIdx === -1) {
+      return res.status(400).json({ success: false, message: 'No approved action found for this node to update' });
+    }
+
+    if (instance.executionPath[lastActionIdx].performedBy.toString() !== userId.toString()) {
+       if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+          return res.status(403).json({ success: false, message: 'You can only update your own responses' });
+       }
+    }
+
+    const workflow = await Workflow.findById(instance.workflowId);
+    const nodeSuccessors = (workflow?.edges || []).filter(e => e.source === nodeId).map(e => e.target);
+    const hasActiveSuccessors = instance.currentNodes.some(cn => nodeSuccessors.includes(cn.nodeId));
+    
+    if (!hasActiveSuccessors) {
+       return res.status(400).json({ success: false, message: 'This task has already been validated and cannot be modified' });
+    }
+
+    if (data) {
+      for (const [key, value] of Object.entries(data)) {
+        instance.variables.set(key, value);
+      }
+      instance.executionPath[lastActionIdx].outputData = data;
+    }
+    
+    if (comments) instance.executionPath[lastActionIdx].comments = comments;
+
+    instance.markModified('variables');
+    instance.markModified('executionPath');
+
+    instance.history.push({
+      nodeId: nodeId,
+      action: 'step_updated',
+      title: `Étape modifiée`,
+      performedBy: userId,
+      comments: `Réponse mise à jour: ${comments || ''}`
+    });
+
+    await instance.save();
+    res.json({ success: true, message: 'Response updated successfully', data: instance });
+
+  } catch (error) {
+    console.error('❌ updateNodeData Error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+
 // ============================================
 // 5. REJECT STEP
 // ============================================
@@ -681,10 +752,14 @@ exports.lockNode = async (req, res) => {
     const isAllowed = (
       userRoleStr === 'admin' || 
       userRoleStr === 'super_admin' ||
-      nodeEntry.assignees.some(id => id.toString() === req.user.id) ||
+      nodeEntry.assignees.some(id => 
+        id.toString() === req.user.id || 
+        (req.user.specificRoleId && id.toString() === req.user.specificRoleId.toString())
+      ) ||
       (nodeEntry.responsibleDomain && (
         nodeEntry.responsibleDomain.toLowerCase() === (userDomain || '').toLowerCase() ||
-        nodeEntry.responsibleDomain.toLowerCase() === (specificRole || '').toLowerCase()
+        nodeEntry.responsibleDomain.toLowerCase() === (specificRole || '').toLowerCase() ||
+        ['GLOBAL', 'ALL', 'PUBLIC', 'TOUTE L\'ENTREPRISE'].includes(nodeEntry.responsibleDomain.toUpperCase())
       ))
     );
 
@@ -1022,8 +1097,10 @@ async function processNodeTransition(req, instance, workflow, sourceNodeId) {
     if (assignmentType === 'ALL' && assignedId) {
       const dName = domainName || (mongoose.Types.ObjectId.isValid(assignedId) ? (await DomainModel.findById(assignedId))?.name : null);
       if (dName) {
-        const isGlobal = ['GLOBAL', 'ALL', 'PUBLIC'].includes(dName.toUpperCase());
-        const domainUsers = isGlobal ? await UserModel.find({}) : await UserModel.find({ domain: dName });
+        const isGlobal = ['GLOBAL', 'ALL', 'PUBLIC', 'TOUTE L\'ENTREPRISE'].includes(dName.toUpperCase());
+        const domainUsers = isGlobal 
+          ? await UserModel.find({}) 
+          : await UserModel.find({ $or: [{ domain: dName }, { specificRole: dName }] });
         nodeAssignees = domainUsers.map(u => u._id);
       }
     }

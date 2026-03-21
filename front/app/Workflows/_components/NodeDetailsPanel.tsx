@@ -135,7 +135,8 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
 
             // Infer domain scope from domain name if needed
             const isGlobal = ['GLOBAL', 'ALL', 'PUBLIC', 'TOUS'].includes(rDomain.toUpperCase());
-            setDomainScope(isGlobal ? 'all' : ((selectedNode.data.domainScope as 'all' | 'specific') || 'specific'));
+            const currentScope = isGlobal ? 'all' : ((selectedNode.data.domainScope as 'all' | 'specific') || 'specific');
+            setDomainScope(currentScope);
             setValidationType((selectedNode.data.validationType as 'automatic' | 'simple' | 'multi') || 'simple');
             setValidatorType((selectedNode.data.validatorType as 'user' | 'role') || 'role');
             setValidatorIds((selectedNode.data.validatorIds as string[]) || []);
@@ -147,7 +148,11 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
             setKanbanBoardId(selectedNode.data.kanbanBoardId as string || '');
             setAttachments(Array.isArray(selectedNode.data.attachments) ? selectedNode.data.attachments : []);
 
-            setAssignmentType((selectedNode.data.assignmentType as 'ANY' | 'ALL' | 'SINGLE') || 'SINGLE');
+            let aType = (selectedNode.data.assignmentType as 'ANY' | 'ALL' | 'SINGLE') || 'SINGLE';
+            if (currentScope === 'all' && aType === 'SINGLE') {
+                aType = 'ALL';
+            }
+            setAssignmentType(aType);
             const savedContent = selectedNode.data.taskContent;
             if (Array.isArray(savedContent)) {
                 setTaskContent(savedContent);
@@ -507,12 +512,12 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
                                                     <>
                                                         <div className="space-y-4">
                                                             <Label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] text-[#6366f1]">2. Assignment Strategy</Label>
-                                                            <div className="grid grid-cols-3 gap-4">
+                                                            <div className={`grid ${domainScope === 'all' ? 'grid-cols-2' : 'grid-cols-3'} gap-4`}>
                                                                 {[
                                                                     { id: 'SINGLE', label: 'INDIVIDUAL', icon: <Users size={16} />, desc: 'One person' },
                                                                     { id: 'ANY', label: 'POOL (ANY)', icon: <Users size={16} />, desc: 'First claim' },
                                                                     { id: 'ALL', label: 'TEAM (ALL)', icon: <GraduationCap size={16} />, desc: 'Consensus' }
-                                                                ].map((opt: any) => (
+                                                                ].filter(opt => domainScope !== 'all' || opt.id !== 'SINGLE').map((opt: any) => (
                                                                     <motion.button
                                                                         whileHover={{ scale: 1.02 }}
                                                                         whileTap={{ scale: 0.98 }}
@@ -536,7 +541,7 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
                                                             </div>
                                                         </div>
 
-                                                        {assignmentType !== 'ALL' && (
+                                                        {assignmentType !== 'ALL' && domainScope !== 'all' && (
                                                             <div className="space-y-4 pt-4 border-t border-slate-50">
                                                                 <Label className="text-[11px] font-black text-slate-500 uppercase tracking-widest text-[#6366f1]">3. Target Selection</Label>
                                                                 <div className="flex bg-slate-50 p-1 rounded-2xl gap-1">
@@ -567,9 +572,10 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
                                                                             }}
                                                                         >
                                                                             <option value="">-- Select Specific Role --</option>
+                                                                            <option value="TOUTE L'ENTREPRISE" className="font-black text-indigo-600">🏢 TOUTE L'ENTREPRISE (Standard)</option>
                                                                             {roles.map(r => <option key={r._id} value={r.name}>{r.name}</option>)}
                                                                         </select>
-                                                                        <p className="text-[9px] font-bold text-slate-400 italic px-2">Tasks will be visible to all users assigned this specific role.</p>
+                                                                        <p className="text-[9px] font-bold text-slate-400 italic px-2">Tasks will be visible to all users assigned this specific role or enterprise scope.</p>
                                                                     </div>
                                                                 ) : (
                                                                     <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
@@ -831,15 +837,17 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
                                                     </div>
                                                 )}
 
-                                                <div className="space-y-3">
-                                                    <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Public context</Label>
-                                                    <Textarea
-                                                        value={description}
-                                                        onChange={(e) => setDescription(e.target.value)}
-                                                        placeholder="Execution instructions..."
-                                                        className="min-h-[100px] bg-slate-50 border-none rounded-xl"
-                                                    />
-                                                </div>
+                                                {taskContent.includes('Text') && (
+                                                    <div className="animate-in fade-in slide-in-from-top-2 space-y-4 pt-4 border-t border-slate-50">
+                                                        <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-[#6366f1]">Task Instructions / Text Content</Label>
+                                                        <Textarea
+                                                            value={description}
+                                                            onChange={(e) => setDescription(e.target.value)}
+                                                            placeholder="Enter the read-only text or instructions for the user..."
+                                                            className="min-h-[120px] bg-slate-50 border-none rounded-xl p-6 font-medium text-slate-600 focus:ring-4 focus:ring-indigo-100 transition-all leading-relaxed"
+                                                        />
+                                                    </div>
+                                                )}
                                             </div>
 
                                             <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-6">
@@ -852,11 +860,9 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
                                                 <div className="space-y-4">
                                                     {[
                                                         { id: 'Fill Form', icon: <ListChecks size={16} />, desc: 'Link dynamic forms' },
-                                                        { id: 'Approve / Reject', icon: <ShieldAlert size={16} />, desc: 'Mandatory validation' },
                                                         { id: 'Upload File', icon: <FilePlus size={16} />, desc: 'Evidence submission' },
                                                         { id: 'Upload Image', icon: <ImageIcon size={16} />, desc: 'Image submission' },
                                                         { id: 'Write Report', icon: <ClipboardType size={16} />, desc: 'Detailed feedback' },
-                                                        { id: 'Complete Task', icon: <CheckSquare size={16} />, desc: 'Standard execution' }
                                                     ].map((opt) => (
                                                         <motion.button
                                                             whileHover={{ x: 6, scale: 1.01 }}

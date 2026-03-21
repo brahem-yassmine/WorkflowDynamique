@@ -80,6 +80,7 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
     const isAnyAssignment = data.assignmentType === 'ANY';
     const canPerformAny = isAnyAssignment && (!isLocked || isLockedByMe);
     const needsLock = isAnyAssignment && !isLocked;
+    const isHistoryNode = instance?.currentNodes ? !instance.currentNodes.some((cn: any) => cn.nodeId === node.id) : false;
 
     const isActive = instance?.status === 'active' || instance?.status === 'in_progress' || instance?.status === 'pending';
     const isInstanceActive = !instance || ['active', 'in_progress', 'pending'].includes(instance.status);
@@ -159,9 +160,12 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                 }
             } else {
                 const nodeDataPayload = variables[node.id] || variables[`${node.id}_data`] || {};
-                const res = await apiService.approveNode(instance._id, node.id, comment, nodeDataPayload);
+                const res = isHistoryNode 
+                    ? await apiService.updateNodeData(instance._id, node.id, comment, nodeDataPayload)
+                    : await apiService.approveNode(instance._id, node.id, comment, nodeDataPayload);
+                    
                 if (res.success) {
-                    toast.success('Stage approved successfully');
+                    toast.success(isHistoryNode ? 'Modification saved successfully' : 'Stage approved successfully');
                     onRefresh();
                     onClose();
                 } else {
@@ -228,7 +232,7 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                 </button>
 
                 {/* SCROLLABLE AREA: Header + Content Together */}
-                <div className="flex-grow overflow-y-auto custom-scrollbar scroll-smooth flex flex-col">
+                <div className="flex-grow overflow-y-auto overflow-x-hidden custom-scrollbar scroll-smooth flex flex-col">
                         {/* MODIFICATION STATE INDICATOR */}
                         {isExecuted && (
                             <div className="mx-10 mt-6 p-4 bg-emerald-50 border border-emerald-100 rounded-3xl flex items-center justify-between gap-4 animate-in slide-in-from-top-4 duration-500">
@@ -254,9 +258,10 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                 {isExecuted ? <CheckCircle2 size={32} /> : 
                                     node.type === 'start' ? <ArrowRight size={32} strokeWidth={3} /> :
                                     (userAction === 'Fill Form' || taskType === 'form') ? <ClipboardList size={32} /> :
-                                        (userAction === 'Upload File' || taskType === 'upload') ? <FilePlus size={32} /> :
-                                            (userAction === 'Approve / Reject' || taskType === 'validation') ? <ShieldCheck size={32} /> :
-                                                <AlertCircle size={32} strokeWidth={3} />}
+                                        (String(userAction).includes('Image') || taskType === 'upload') ? <ImageIcon size={32} /> :
+                                            (String(userAction).includes('File') || taskType === 'upload') ? <FilePlus size={32} /> :
+                                                (userAction === 'Approve / Reject' || taskType === 'validation') ? <ShieldCheck size={32} /> :
+                                                    <AlertCircle size={32} strokeWidth={3} />}
                             </div>
 
                             <div className="space-y-2">
@@ -338,7 +343,7 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                         {data.linkedObjectId && (
                             <div className="space-y-4">
                                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500/80 flex items-center gap-2">
-                                    <LayoutGrid size={14} /> Workflow Assets
+                                    <LayoutGrid size={14} /> Required Process Resource
                                 </p>
 
                                 <div className={`p-8 border rounded-[32px] transition-all duration-500 ${isExecuted ? 'bg-emerald-50/30 border-emerald-200' : 'bg-slate-50 border-slate-100 hover:border-indigo-200'}`}>
@@ -349,36 +354,51 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                             </div>
                                             <div>
                                                 <h4 className={`text-lg font-black ${isExecuted ? 'text-emerald-900' : 'text-slate-800'}`}>
-                                                    {String(data.taskType || 'Task').toUpperCase()} Integration
+                                                    {String(data.taskType || 'Task').toUpperCase()} Required
                                                 </h4>
-                                                <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">Linked Process Endpoint</p>
+                                                <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">Submit details to continue</p>
                                             </div>
                                         </div>
-                                        <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${isExecuted ? 'bg-emerald-500 text-white' : 'bg-indigo-50 text-indigo-600'}`}>
-                                            {isExecuted ? 'Complete' : 'Pending'}
+                                        <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${isExecuted ? 'bg-emerald-500 text-white' : 'bg-rose-50 text-rose-600'}`}>
+                                            {isExecuted ? 'Completed' : 'Mandatory'}
                                         </div>
                                     </div>
 
-                                    <Link
-                                        href={
-                                            (data.taskType === 'form' || !!data.formId || String(userAction || '').toLowerCase().includes('form')) 
-                                                ? `/form/form2?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}${data.linkedObjectId ? `&formId=${data.linkedObjectId}` : ''}&from=${typeof window !== 'undefined' ? window.location.pathname : ''}` :
-                                            (data.taskType === 'checklist' || String(userAction || '').toLowerCase().includes('checklist')) 
-                                                ? `/checklist/designer?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}${data.linkedObjectId ? `&id=${data.linkedObjectId}` : ''}&from=${typeof window !== 'undefined' ? window.location.pathname : ''}` :
-                                            `/${data.taskType || 'task'}s/${data.linkedObjectId}?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}&from=${typeof window !== 'undefined' ? window.location.pathname : ''}`
-                                        }
-                                        onClick={() => {
-                                            if (!data.taskType?.includes('form')) setIsExecuted(true);
-                                            handleClose();
-                                        }}
-                                        className={`w-full h-14 rounded-[22px] flex items-center justify-center gap-3 text-xs font-black uppercase tracking-[0.15em] transition-all ${isExecuted
-                                            ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-100'
-                                            : isActive ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-xl shadow-indigo-100' : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                    {(data.taskType === 'form' || data.taskType === 'checklist' || data.taskType === 'kanban' || data.formId) ? (
+                                        <Link
+                                            href={
+                                                (data.taskType === 'form' || !!data.formId || String(userAction || '').toLowerCase().includes('form')) 
+                                                    ? `/form/form2?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}${data.linkedObjectId ? `&formId=${data.linkedObjectId}` : ''}&from=${typeof window !== 'undefined' ? window.location.pathname : ''}` :
+                                                (data.taskType === 'checklist' || String(userAction || '').toLowerCase().includes('checklist')) 
+                                                    ? `/checklist/designer?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}${data.linkedObjectId ? `&id=${data.linkedObjectId}` : ''}&from=${typeof window !== 'undefined' ? window.location.pathname : ''}` :
+                                                data.taskType === 'kanban' 
+                                                    ? `/kanban?boardId=${data.linkedObjectId}&instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}&from=${typeof window !== 'undefined' ? window.location.pathname : ''}` :
+                                                `/${data.taskType || 'task'}/${data.linkedObjectId}?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}&from=${typeof window !== 'undefined' ? window.location.pathname : ''}`
+                                            }
+                                            onClick={() => {
+                                                if (!data.taskType?.includes('form')) setIsExecuted(true);
+                                                handleClose();
+                                            }}
+                                            className={`w-full h-14 rounded-[22px] flex items-center justify-center gap-3 text-xs font-black uppercase tracking-[0.15em] transition-all ${isExecuted
+                                                ? 'bg-indigo-900 text-white hover:bg-slate-800 shadow-lg shadow-emerald-100'
+                                                : isActive ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-xl shadow-indigo-100' : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                                }`}
+                                        >
+                                            {isExecuted ? 'Modify My Submission' : 'Complete Required Action'} 
+                                            {isExecuted ? <CheckCircle2 size={18} /> : <ExternalLink size={18} />}
+                                        </Link>
+                                    ) : (
+                                        <button
+                                            onClick={() => setIsExecuted(true)}
+                                            className={`w-full h-14 rounded-[22px] flex items-center justify-center gap-3 text-xs font-black uppercase tracking-[0.15em] transition-all ${isExecuted
+                                                ? 'bg-emerald-600 text-white shadow-lg'
+                                                : isActive ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-xl' : 'bg-slate-100 text-slate-400 cursor-not-allowed'
                                             }`}
-                                    >
-                                        {isExecuted ? 'Update Data / Modify' : 'Execute Task Protocol'} 
-                                        {isExecuted ? <CheckCircle2 size={18} /> : <ExternalLink size={18} />}
-                                    </Link>
+                                        >
+                                            {isExecuted ? 'Action Confirmed' : 'Mark Task as Executed'}
+                                            {isExecuted ? <CheckCircle2 size={18} /> : <Send size={18} />}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -386,7 +406,7 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                         {/* 2. DESCRIPTION & INSTRUCTIONS */}
                         <div className="space-y-4">
                             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Context & Instructions</p>
-                            <div className="p-8 bg-slate-50 border border-slate-100 rounded-[32px]">
+                            <div className="p-8 bg-white border border-slate-100 rounded-[32px] shadow-sm">
                                 <p className="text-sm font-medium text-slate-600 leading-relaxed">
                                     {data.description || "Active operations cycle. Please follow the defined protocols for this workflow node."}
                                 </p>
@@ -394,21 +414,26 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                         </div>
 
                         {/* 3. UPLOAD SECTIONS (If applicable) */}
-                        {(userAction === 'Upload File' || userAction === 'Upload Image') && (
+                        {(String(userAction).includes('File') || String(userAction).includes('Image')) && (
                             <div className="space-y-6">
-                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Action: Document Submission</p>
-                                <div className={`p-8 border-2 border-dashed rounded-[32px] transition-all ${localAttachments.length > 0 ? 'bg-emerald-50/30 border-emerald-200' : 'bg-slate-50 border-slate-200 hover:border-indigo-400'}`}>
+                                <div className="flex items-center justify-between">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Section: Digital Proof / Submission</p>
+                                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border ${localAttachments.length > 0 ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
+                                        {localAttachments.length > 0 ? 'Supplied' : 'Required'}
+                                    </span>
+                                </div>
+                                <div className={`p-10 border-2 border-dashed rounded-[32px] transition-all ${localAttachments.length > 0 ? 'bg-emerald-50/30 border-emerald-200' : 'bg-slate-50 border-slate-200 hover:border-indigo-400'}`}>
                                     <input type="file" id="exec-panel-upload" accept={userAction === 'Upload Image' ? 'image/*' : '*'} className="hidden" onChange={handleFileUpload} />
                                     <div className="flex flex-col items-center gap-5 text-center">
                                         <div className={`w-20 h-20 rounded-[28px] flex items-center justify-center shadow-lg transition-transform ${localAttachments.length > 0 ? 'bg-emerald-500 text-white scale-90' : 'bg-white text-indigo-500'}`}>
-                                            {isUploading ? <Clock size={32} className="animate-spin" /> : localAttachments.length > 0 ? <CheckCircle2 size={32} /> : (userAction === 'Upload Image' ? <ImageIcon size={32} /> : <FilePlus size={32} />)}
+                                            {isUploading ? <Clock size={32} className="animate-spin" /> : localAttachments.length > 0 ? <CheckCircle2 size={32} /> : (String(userAction).includes('Image') ? <ImageIcon size={32} /> : <FilePlus size={32} />)}
                                         </div>
                                         <div className="space-y-2">
                                             <h4 className="text-base font-black text-slate-800 uppercase tracking-tight">
-                                                {localAttachments.length > 0 ? "Documents Ready" : (userAction === 'Upload Image' ? "Upload Image Proof" : "Upload File Asset")}
+                                                {String(userAction).includes('Image') ? "Upload Image Report" : "Upload File Asset"}
                                             </h4>
                                             <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest max-w-[280px]">
-                                                {localAttachments.length > 0 ? `Total files attached: ${localAttachments.length}` : "Required for stage progression"}
+                                                {localAttachments.length > 0 ? `Confirmed: ${localAttachments.length} items` : "Please upload the requested digital assets"}
                                             </p>
                                         </div>
                                         <Button
@@ -416,39 +441,82 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                             disabled={isUploading}
                                             className={`h-12 px-8 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all ${localAttachments.length > 0 ? 'bg-slate-900 text-white' : 'bg-indigo-600 text-white'}`}
                                         >
-                                            {localAttachments.length > 0 ? "Add More Files" : "Select Document"}
+                                            {localAttachments.length > 0 ? "Add More Items" : "Click to Upload"}
                                         </Button>
                                     </div>
 
-                                    {localAttachments.length > 0 && (
+                                    {localAttachments.length > 0 ? (
                                         <div className="grid grid-cols-1 gap-3 mt-8 pt-8 border-t border-emerald-100">
                                             {localAttachments.map((att, idx) => (
-                                                <div key={idx} className="flex items-center justify-between p-4 bg-white border border-emerald-100 rounded-2xl shadow-sm">
+                                                <div key={idx} className="flex items-center justify-between p-4 bg-white border border-emerald-100 rounded-2xl shadow-sm group/att">
                                                     <div className="flex items-center gap-3 overflow-hidden">
                                                         <CheckSquare size={14} className="text-emerald-500 shrink-0" />
-                                                        <span className="text-[10px] font-bold text-slate-600 truncate">{att.filename}</span>
+                                                        <a 
+                                                            href={att.url || '#'} 
+                                                            target="_blank" 
+                                                            rel="noopener noreferrer"
+                                                            className="text-[10px] font-bold text-slate-600 truncate hover:text-indigo-600 transition-colors underline-offset-4 hover:underline"
+                                                        >
+                                                            {att.filename}
+                                                        </a>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <ExternalLink size={12} className="text-slate-300 group-hover/att:text-indigo-500 transition-colors" />
                                                     </div>
                                                 </div>
                                             ))}
                                         </div>
+                                    ) : (
+                                        (String(userAction).includes('Image') || String(userAction).includes('File')) && data.linkedObjectId && (
+                                            <div className="mt-6 animate-in fade-in zoom-in-95 duration-700">
+                                                <Link
+                                                    href={`/form/form2?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}&formId=${data.linkedObjectId}&from=${typeof window !== 'undefined' ? window.location.pathname : ''}`}
+                                                    className="w-full h-12 bg-white border border-indigo-100 rounded-2xl flex items-center justify-center gap-3 text-indigo-600 text-[10px] font-black uppercase tracking-widest hover:bg-indigo-50 transition-all shadow-sm"
+                                                >
+                                                    <ClipboardType size={16} />
+                                                    Fill Associated Form First
+                                                </Link>
+                                            </div>
+                                        )
                                     )}
                                 </div>
                             </div>
                         )}
 
                         {/* 4. TEXT AREAS */}
-                        {(userAction === 'Write Report' || userAction !== 'Fill Form') && (
+                        {(String(userAction).toLowerCase().includes('report') || String(userAction).toLowerCase().includes('text') || userAction === 'Write Report') && (
                             <div className="space-y-4">
-                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-                                    {userAction === 'Write Report' ? 'Mandatory Report' : 'Observations & Optional Notes'}
+                                <div className="flex items-center justify-between">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                                        Section: Mandatory Report & Synthesis
+                                    </p>
+                                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border ${comment.trim().length > 10 ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
+                                        {comment.trim().length > 10 ? 'Satisfied' : 'Required'}
+                                    </span>
+                                </div>
+                                <Textarea
+                                    value={comment}
+                                    onChange={(e) => setComment(e.target.value)}
+                                    placeholder="Please provide a detailed report of the activities or findings..."
+                                    className="min-h-[220px] rounded-[32px] bg-slate-50 border-slate-100 p-8 text-sm placeholder:text-slate-300 focus:ring-4 focus:ring-indigo-100 transition-all shadow-inner border-2 focus:bg-white"
+                                />
+                                <p className="text-[9px] font-bold text-slate-400 italic px-2">Minimum 10 characters required for finalization.</p>
+                            </div>
+                        )}
+                        
+                        {/* Fallback optional notes if no specific text action */}
+                        {!(String(userAction).toLowerCase().includes('report') || String(userAction).toLowerCase().includes('text') || userAction === 'Write Report') && (
+                             <div className="space-y-4 pt-10 border-t border-slate-50">
+                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">
+                                    Internal Observations (Optional)
                                 </p>
                                 <Textarea
                                     value={comment}
                                     onChange={(e) => setComment(e.target.value)}
-                                    placeholder="Enter report content or execution notes here..."
-                                    className="min-h-[160px] rounded-[32px] bg-slate-50 border-slate-100 p-8 text-sm placeholder:text-slate-300 focus:ring-4 focus:ring-indigo-100 transition-all shadow-inner"
+                                    placeholder="Enter optional notes for the audit trail..."
+                                    className="min-h-[120px] rounded-[24px] bg-slate-50/50 border-slate-100 p-6 text-sm placeholder:text-slate-300 focus:ring-4 focus:ring-indigo-50/20 transition-all"
                                 />
-                            </div>
+                             </div>
                         )}
                     </div>
                 </div>
@@ -456,7 +524,7 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                 {/* FIXED FOOTER: Action Hub */}
                 <div className="p-8 bg-white border-t border-slate-100 shadow-[0_-12px_48px_rgba(0,0,0,0.06)] shrink-0 z-20">
                     <div className="flex gap-4">
-                        {(userAction === 'Approve / Reject' || canValidate) && (
+                        {userAction === 'Approve / Reject' && (
                             <Button
                                 variant="outline"
                                 onClick={handleReject}
@@ -468,19 +536,33 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                         )}
                         <Button
                             onClick={handleApprove}
-                            disabled={loading || !canPerform || (data.linkedObjectId && !isExecuted) || ((userAction === 'Upload File' || userAction === 'Upload Image') && localAttachments.length === 0)}
-                            className={`h-16 ${(userAction === 'Approve / Reject' || canValidate) ? 'flex-[1.8]' : 'w-full'} ${(!canPerform || (data.linkedObjectId && !isExecuted) || ((userAction === 'Upload File' || userAction === 'Upload Image') && localAttachments.length === 0)) 
-                                ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed' 
+                            disabled={
+                                loading || 
+                                !canPerform || 
+                                (data.linkedObjectId && !isExecuted) || 
+                                ((String(userAction).includes('File') || String(userAction).includes('Image')) && localAttachments.length === 0) ||
+                                ((String(userAction).toLowerCase().includes('report') || String(userAction).toLowerCase().includes('text')) && comment.trim().length < 10)
+                            }
+                            className={`h-16 ${(userAction === 'Approve / Reject' || canValidate) ? 'flex-[1.8]' : 'w-full'} ${(
+                                loading || 
+                                !canPerform || 
+                                (data.linkedObjectId && !isExecuted) || 
+                                ((String(userAction).includes('File') || String(userAction).includes('Image')) && localAttachments.length === 0) ||
+                                ((String(userAction).toLowerCase().includes('report') || String(userAction).toLowerCase().includes('text')) && comment.trim().length < 10)
+                            ) 
+                                ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-70' 
                                 : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xl shadow-indigo-100 transition-transform active:scale-95'
                             } rounded-[24px] font-black uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-3`}
                         >
                             {loading ? <Clock size={20} className="animate-spin" /> : isExecuted ? <CheckCircle2 size={20} /> : <Send size={18} />}
                             {userAction === 'Fill Form' ? (isExecuted ? 'Update & Finalize' : 'Submit & Continue') :
                              userAction === 'Approve / Reject' ? 'Authorize Progression' :
-                             userAction === 'Upload File' ? 'Upload & Complete' : 'Finalize Stage'}
+                             (String(userAction).includes('File') || String(userAction).includes('Image')) ? (isHistoryNode ? 'Update Assets' : 'Upload & Finalize') : 
+                             isHistoryNode ? 'Update Data' : 'Finalize Stage'}
                         </Button>
                     </div>
                 </div>
+
             </motion.div>
         </div>
     );

@@ -17,17 +17,6 @@ export default function Sidebar() {
             </div>
 
             <div className="space-y-2">
-                {/* Start */}
-                <div
-                    className="flex items-center gap-3 p-3 bg-emerald-50 border-2 border-emerald-100/50 rounded-2xl cursor-grab hover:border-emerald-200 hover:bg-emerald-100/50 transition-all active:scale-95 group"
-                    onDragStart={(e) => onDragStart(e, 'start')}
-                    draggable
-                >
-                    <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center text-emerald-500 shadow-sm border border-emerald-100 group-hover:rotate-12 transition-transform">
-                        <Play size={10} fill="currentColor" />
-                    </div>
-                    <span className="text-[10px] font-black text-emerald-900 uppercase tracking-widest">Entry Node</span>
-                </div>
 
                 {/* Task */}
                 <div

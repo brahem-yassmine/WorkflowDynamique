@@ -1,6 +1,7 @@
 // back/src/controllers/workflowController.js
 const fs = require('fs');
 const path = require('path');
+const mongoose = require('mongoose');
 const notificationController = require('./notificationController');
 const { recordActivity } = require('../services/auditLogger');
 
@@ -532,6 +533,7 @@ async function _internalStartInstance(tenantConn, workflow, user, options = {}) 
         startedAt: new Date(),
         responsibleUser: responsibleUser,
         responsibleDomain: responsibleDomain,
+        restrictedDomain: targetNode.data?.restrictedDomain || null,
         assignees: nodeAssignees
       };
     }));

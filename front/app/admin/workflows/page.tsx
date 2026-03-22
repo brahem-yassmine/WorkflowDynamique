@@ -55,7 +55,7 @@ function WorkflowsContent() {
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  const [editForm, setEditForm] = useState({ name: '', domain: 'HR', projectId: '' });
+  const [editForm, setEditForm] = useState({ name: '', domain: 'HR', projectId: '', status: 'draft' });
   const [isUpdating, setIsUpdating] = useState(false);
   const [editingWorkflowId, setEditingWorkflowId] = useState<string | null>(null);
 
@@ -132,13 +132,28 @@ function WorkflowsContent() {
   };
 
   const handleUpdateMetadata = async () => {
-    if (!editingWorkflowId || !editForm.name.trim()) return;
+    if (!editingWorkflowId) return;
+
+    if (!editForm.name.trim()) {
+      toast.error('Workflow Name is required!');
+      return;
+    }
+    if (!editForm.domain || editForm.domain === 'Select Domain') {
+      toast.error('Department / Domain is required!');
+      return;
+    }
+    if (!editForm.projectId) {
+      toast.error('Workflow must be linked to a Project!');
+      return;
+    }
+
     try {
       setIsUpdating(true);
       const response = await apiService.updateWorkflow(editingWorkflowId, {
         name: editForm.name,
         domain: editForm.domain,
-        projectId: editForm.projectId || undefined
+        projectId: editForm.projectId || undefined,
+        status: editForm.status
       });
 
       if (response.success) {
@@ -159,7 +174,8 @@ function WorkflowsContent() {
     setEditForm({
       name: workflow.name,
       domain: workflow.domain,
-      projectId: workflow.projectId || ''
+      projectId: workflow.projectId || '',
+      status: workflow.status || 'draft'
     });
     setEditingWorkflowId(workflow._id);
     setShowEditModal(true);
@@ -382,18 +398,32 @@ function WorkflowsContent() {
                   </select>
                 </div>
 
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Domain</label>
-                  <select
-                    value={editForm.domain}
-                    onChange={(e) => setEditForm({ ...editForm, domain: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-indigo-50 font-bold text-slate-700 outline-none transition-all"
-                  >
-                    {['HR', 'Finance', 'IT', 'Sales', 'Management'].map(d => (
-                      <option key={d} value={d}>{d}</option>
-                    ))}
-                  </select>
-                </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Domain</label>
+                      <select
+                        value={editForm.domain}
+                        onChange={(e) => setEditForm({ ...editForm, domain: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-indigo-50 font-bold text-slate-700 outline-none transition-all"
+                      >
+                        {['HR', 'Finance', 'IT', 'Sales', 'Management', 'TOUTE L\'ENTREPRISE'].map(d => (
+                          <option key={d} value={d}>{d === 'TOUTE L\'ENTREPRISE' ? '🏢 TOUTE L\'ENTREPRISE' : d}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Status</label>
+                      <select
+                        value={editForm.status}
+                        onChange={(e) => setEditForm({ ...editForm, status: e.target.value as any })}
+                        className={`w-full px-4 py-3 bg-slate-50 border-none rounded-2xl focus:ring-4 font-bold outline-none transition-all ${editForm.status === 'active' ? 'text-emerald-600 focus:ring-emerald-50' : 'text-slate-700 focus:ring-indigo-50'}`}
+                      >
+                        <option value="draft">Draft</option>
+                        <option value="active">Active (Start)</option>
+                        <option value="archived">Archived</option>
+                      </select>
+                    </div>
+                  </div>
 
                 <div className="flex gap-3 pt-4">
                   <button

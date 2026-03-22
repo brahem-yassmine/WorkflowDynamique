@@ -5,6 +5,7 @@ import { Save } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiService } from '@/service/api.service';
 import { useSearchParams } from 'next/navigation';
+import { toast } from 'sonner';
 
 interface SaveButtonProps {
   onSave: (data: { name: string; domain: string; projectId?: string }) => Promise<void>;
@@ -73,7 +74,18 @@ const SaveButton = ({ onSave, isSaving, initialName = '', initialDomain = 'HR', 
   };
 
   const handleSave = async () => {
-    if (!name.trim()) return;
+    if (!name.trim()) {
+      toast.error('Workflow Name is required!');
+      return;
+    }
+    if (!domain || domain === 'Select Domain') {
+      toast.error('Please select a target Domain!');
+      return;
+    }
+    if (!projectId) {
+      toast.error('Please associate this workflow with a Project!');
+      return;
+    }
 
     if (onSave) {
       try {

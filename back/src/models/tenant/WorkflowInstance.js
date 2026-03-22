@@ -58,7 +58,10 @@ const workflowInstanceSchema = new mongoose.Schema({
       ref: 'User'
     },
     responsibleDomain: {
-      type: String // e.g., 'HR', 'IT', etc.
+      type: String // e.g., 'HR', 'IT', etc. (specific Role/Target)
+    },
+    restrictedDomain: {
+      type: String // e.g., 'Finance' (organizational constraint)
     },
     assignees: [{
       type: mongoose.Schema.Types.ObjectId,
@@ -93,7 +96,7 @@ const workflowInstanceSchema = new mongoose.Schema({
   },
 
   history: [{
-    // Kept for UI compatibility / general logs
+    nodeId: String,
     action: String,
     title: String,
     performedBy: {
@@ -101,6 +104,7 @@ const workflowInstanceSchema = new mongoose.Schema({
       ref: 'User'
     },
     comments: String,
+    data: mongoose.Schema.Types.Mixed,
     timestamp: { type: Date, default: Date.now }
   }],
 

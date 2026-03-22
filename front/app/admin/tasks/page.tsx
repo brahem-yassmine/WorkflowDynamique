@@ -1,449 +1,555 @@
 'use client';
 
-const API_URL = 'http://localhost:5000/api';
-
-import React, { useState, useEffect, useRef } from 'react';
-import {
-  DndContext,
-  DragOverlay,
-  closestCorners,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragStartEvent,
-  DragOverEvent,
-  DragEndEvent,
-  defaultDropAnimationSideEffects,
-  useDroppable,
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-  useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import {
-  Plus,
-  GripVertical,
-  Trash2,
-  Save,
-  Check,
+import React, { useEffect, useState } from 'react';
+import { apiService } from '@/service/api.service';
+import { 
+  Search, 
+  CheckCircle2, 
+  Clock, 
+  XCircle, 
+  PlayCircle,
+  FileText,
+  ClipboardList,
+  Mail,
+  Eye,
+  MessageSquare,
   X,
-  LayoutDashboard,
+  Play,
+  Flag,
+  Paperclip,
+  Activity,
+  ChevronRight,
+  AlertCircle,
+  Users,
+  ShieldAlert,
+  Send,
+  User as UserIcon
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import axios from 'axios';
-import { motion } from 'framer-motion';
 
-// --- Types ---
-interface Task {
-  _id: string;
-  title: string;
-  description?: string;
-  status: 'todo' | 'doing' | 'done';
-  position: number;
-}
-
-const COLUMNS: { id: 'todo' | 'doing' | 'done'; title: string; bg: string; headerBg: string; edgeColor: string }[] = [
-  { id: 'todo', title: 'To Do', bg: 'bg-rose-50/50', headerBg: 'bg-rose-100/50', edgeColor: 'bg-rose-500' },
-  { id: 'doing', title: 'Doing', bg: 'bg-amber-50/50', headerBg: 'bg-amber-100/50', edgeColor: 'bg-amber-500' },
-  { id: 'done', title: 'Done', bg: 'bg-emerald-50/50', headerBg: 'bg-emerald-100/50', edgeColor: 'bg-emerald-500' },
-];
-
-// --- Inline Editable Task ---
-function SortableTask({
-  task,
-  onDelete,
-  onRename,
-}: {
-  task: Task;
-  onDelete: (id: string) => void;
-  onRename: (id: string, newTitle: string) => void;
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: task._id,
-    data: { type: 'Task', task },
-  });
-
-  const [editing, setEditing] = useState(false);
-  const [draftTitle, setDraftTitle] = useState(task.title);
-  const inputRef = useRef<HTMLInputElement>(null);
+export default function GlobalTasksPage() {
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('ALL');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [users, setUsers] = useState<any[]>([]);
+  const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportForm, setReportForm] = useState({ message: '', recipientId: '' });
+  const [reportingTask, setReportingTask] = useState<any>(null);
 
   useEffect(() => {
-    if (editing) inputRef.current?.focus();
-  }, [editing]);
-
-  const commitEdit = () => {
-    const trimmed = draftTitle.trim();
-    if (trimmed && trimmed !== task.title) onRename(task._id, trimmed);
-    setEditing(false);
-  };
-
-  const cancelEdit = () => {
-    setDraftTitle(task.title);
-    setEditing(false);
-  };
-
-  const style = {
-    transform: CSS.Translate.toString(transform),
-    transition,
-    opacity: isDragging ? 0.3 : 1,
-  };
-
-  return (
-    <motion.div
-      ref={setNodeRef}
-      style={style}
-      layout
-      className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all group mb-3 relative overflow-hidden"
-    >
-      <div className="absolute top-0 left-0 w-1 h-full bg-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-      <div className="flex items-start justify-between gap-2">
-        {editing ? (
-          <div className="flex-1 flex items-center gap-2">
-            <input
-              ref={inputRef}
-              value={draftTitle}
-              onChange={(e) => setDraftTitle(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') commitEdit();
-                if (e.key === 'Escape') cancelEdit();
-              }}
-              className="flex-1 text-sm font-bold text-slate-700 border-b-2 border-indigo-400 outline-none bg-transparent"
-            />
-            <button onClick={commitEdit} className="text-emerald-500 hover:text-emerald-600 p-1">
-              <Check className="w-4 h-4" />
-            </button>
-            <button onClick={cancelEdit} className="text-rose-400 hover:text-rose-500 p-1">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        ) : (
-          <h4
-            className="flex-1 text-sm font-bold text-slate-700 cursor-pointer hover:text-indigo-600 transition-colors leading-tight"
-            onClick={() => setEditing(true)}
-            title="Click to edit"
-          >
-            {task.title}
-          </h4>
-        )}
-
-        {!editing && (
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button
-              {...attributes}
-              {...listeners}
-              className="p-1.5 hover:bg-slate-50 rounded-lg text-slate-400 cursor-grab active:cursor-grabbing"
-            >
-              <GripVertical className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => onDelete(task._id)}
-              className="p-1.5 hover:bg-rose-50 rounded-lg text-slate-400 hover:text-rose-500"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
-      </div>
-    </motion.div>
-  );
-}
-
-// --- Droppable Column ---
-function KanbanColumn({
-  id,
-  title,
-  tasks,
-  onAdd,
-  onDelete,
-  onRename,
-  bg,
-  headerBg,
-  edgeColor,
-}: {
-  id: 'todo' | 'doing' | 'done';
-  title: string;
-  tasks: Task[];
-  onAdd: (status: 'todo' | 'doing' | 'done') => void;
-  onDelete: (id: string) => void;
-  onRename: (id: string, newTitle: string) => void;
-  bg: string;
-  headerBg: string;
-  edgeColor: string;
-}) {
-  const { setNodeRef } = useDroppable({ id, data: { type: 'Column' } });
-
-  return (
-    <div ref={setNodeRef} className={`flex flex-col ${bg} rounded-[32px] p-5 border border-slate-100 h-full`}>
-      <div className={`flex items-center justify-between mb-6 px-3 py-2.5 rounded-2xl ${headerBg} border border-white/50 backdrop-blur-sm`}>
-        <div className="flex items-center gap-3">
-          <div className={`w-2 h-2 rounded-full ${edgeColor}`}></div>
-          <h3 className="font-black text-slate-700 uppercase text-[10px] tracking-[0.15em]">{title}</h3>
-          <span className="bg-white/80 text-slate-500 text-[10px] font-black px-2 py-0.5 rounded-lg border border-white shadow-sm">
-            {tasks.length}
-          </span>
-        </div>
-        <button
-          onClick={() => onAdd(id)}
-          className="p-1.5 bg-white/50 hover:bg-white rounded-xl text-slate-400 hover:text-indigo-600 transition-all border border-transparent hover:border-white shadow-sm"
-        >
-          <Plus className="w-4 h-4" />
-        </button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto min-h-[200px] pr-1 custom-scrollbar">
-        <SortableContext items={tasks.map((t) => t._id)} strategy={verticalListSortingStrategy}>
-          {tasks.map((task) => (
-            <SortableTask key={task._id} task={task} onDelete={onDelete} onRename={onRename} />
-          ))}
-        </SortableContext>
-      </div>
-    </div>
-  );
-}
-
-// --- Main Page ---
-export default function TasksPage() {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [activeTask, setActiveTask] = useState<Task | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-
-  const getAuthInfo = () => {
-    if (typeof window === 'undefined') return { tenantId: null, token: null };
-    const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
-    const tenantId =
-      localStorage.getItem('tenantId') ||
-      (() => {
-        try {
-          return JSON.parse(localStorage.getItem('tenant') || '{}')?._id;
-        } catch { return null; }
-      })() ||
-      (() => {
-        try {
-          return JSON.parse(localStorage.getItem('user') || '{}')?.tenantId;
-        } catch { return null; }
-      })();
-    return { tenantId, token };
-  };
-
-  const fetchTasks = async () => {
-    const { tenantId, token } = getAuthInfo();
-    if (!tenantId || !token) {
-      setIsLoading(false);
-      return;
-    }
-    try {
-      const res = await axios.get('http://localhost:5000/api/tasks', {
-        headers: { Authorization: `Bearer ${token}`, 'x-tenant-id': tenantId },
-      });
-      if (res.data.success) setTasks(res.data.data);
-    } catch (error) {
-      console.error('Fetch error:', error);
-      toast.error('Failed to load tasks');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchTasks();
+    fetchData();
   }, []);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [instancesRes, workflowsRes, usersRes] = await Promise.all([
+        apiService.getInstances(),
+        apiService.getWorkflows(),
+        apiService.getUsers()
+      ]);
+
+      if (usersRes.success) setUsers(usersRes.data);
+
+      if (instancesRes.success && workflowsRes.success) {
+        const aggregatedTasks: any[] = [];
+        const workflows = workflowsRes.data;
+        const instances = instancesRes.data;
+
+        const isLogicBlock = (type: string) => {
+            const logicTypes = ['syncJoin', 'parallelStart', 'parallel_split', 'parallel_join', 'start', 'end', 'condition', 'gateway', 'split', 'join'];
+            return logicTypes.some(t => t.toLowerCase() === type.toLowerCase());
+        };
+
+        instances.forEach((inst: any) => {
+          const workflow = workflows.find((w: any) => w._id === inst.workflowId?._id || w._id === inst.workflowId);
+          if (!workflow) return;
+
+          // Process history to find ALL submissions (even partial ones for consensus)
+          const nodeSubmissions: Record<string, any[]> = {};
+          inst.history?.forEach((h: any) => {
+             if (h.nodeId && (h.action === 'step_approved' || h.action === 'partial_approval')) {
+                if (!nodeSubmissions[h.nodeId]) nodeSubmissions[h.nodeId] = [];
+                nodeSubmissions[h.nodeId].push({
+                   userId: h.performedBy,
+                   userName: getUserName(h.performedBy),
+                   data: h.data,
+                   comments: h.comments,
+                   timestamp: h.timestamp,
+                   action: h.action
+                });
+             }
+          });
+
+          // 1. Completed nodes from executionPath
+          inst.executionPath?.forEach((path: any) => {
+            const nodeDef = workflow.nodes?.find((n: any) => n.id === path.nodeId);
+            if (!nodeDef || isLogicBlock(nodeDef.type)) return;
+            
+            aggregatedTasks.push({
+              id: `${inst._id}-${path.nodeId}-${path.timestamp}`,
+              instanceId: inst._id,
+              workflowId: workflow._id,
+              instanceTitle: inst.title,
+              nodeId: path.nodeId,
+              name: nodeDef?.data?.label || 'Action Sequence',
+              status: path.action === 'rejected' ? 'REJECTED' : 'COMPLETED',
+              performedBy: path.performedBy,
+              timestamp: path.timestamp,
+              type: nodeDef?.data?.userAction || 'Manual Step',
+              assignmentType: nodeDef?.data?.assignmentType || 'SINGLE',
+              responsibleDomain: nodeDef?.data?.responsibleDomain,
+              submissions: nodeSubmissions[path.nodeId] || [],
+              nodeData: nodeDef?.data,
+              outputData: path.outputData,
+              comments: path.comments
+            });
+          });
+
+          // 2. In Progress tasks from currentNodes
+          inst.currentNodes?.forEach((curr: any) => {
+            const nodeDef = workflow.nodes?.find((n: any) => n.id === curr.nodeId);
+            if (!nodeDef || isLogicBlock(nodeDef.type)) return;
+
+            aggregatedTasks.push({
+              id: `${inst._id}-${curr.nodeId}`,
+              instanceId: inst._id,
+              workflowId: workflow._id,
+              instanceTitle: inst.title,
+              nodeId: curr.nodeId,
+              name: nodeDef?.data?.label || 'Active Step',
+              status: 'IN_PROGRESS',
+              performedBy: null,
+              timestamp: curr.startedAt,
+              type: nodeDef?.data?.userAction || 'Manual Step',
+              assignmentType: nodeDef?.data?.assignmentType || 'SINGLE',
+              responsibleDomain: nodeDef?.data?.responsibleDomain,
+              submissions: nodeSubmissions[curr.nodeId] || [],
+              nodeData: nodeDef?.data
+            });
+          });
+        });
+
+        // Filter and Sort (descending by timestamp)
+        const uniqueTasks = Array.from(new Map(aggregatedTasks.map(item => [item.id, item])).values());
+        setTasks(uniqueTasks.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      toast.error('Failed to aggregate global tasks.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredTasks = tasks.filter(t => {
+    const matchesSearch = t.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          t.instanceTitle.toLowerCase().includes(searchTerm.toLowerCase());
+    if (filter === 'ALL') return matchesSearch;
+    return t.status === filter && matchesSearch;
+  });
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'REJECTED': return <span className="px-3 py-1 bg-rose-50 text-rose-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-rose-100 flex items-center gap-1.5"><XCircle size={10} /> Rejected</span>;
+      case 'COMPLETED': return <span className="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-100 flex items-center gap-1.5"><CheckCircle2 size={10} /> Completed</span>;
+      case 'IN_PROGRESS': return <span className="px-3 py-1 bg-amber-50 text-amber-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-amber-100 flex items-center gap-1.5"><PlayCircle size={10} /> In Progress</span>;
+      default: return null;
+    }
+  };
+
+  const getUserName = (userId: string) => {
+    if (!userId) return 'Unassigned';
+    const user = users.find(u => u._id === userId || u.id === userId);
+    return user ? `${user.firstName} ${user.lastName}` : 'Unknown Operator';
+  };
+
+  const getUserRole = (userId: string) => {
+    const user = users.find(u => u._id === userId || u.id === userId);
+    return user?.role || 'User';
+  };
+
+  const handleReportSubmit = async () => {
+    if (!reportForm.message || !reportForm.recipientId) {
+       toast.error('Please select a recipient and enter a message.');
+       return;
+    }
+
+    try {
+       const res = await apiService.request('/task-reports', {
+          method: 'POST',
+          body: JSON.stringify({
+             instanceId: reportingTask.instanceId,
+             nodeId: reportingTask.nodeId,
+             workflowId: reportingTask.workflowId,
+             recipientId: reportForm.recipientId,
+             message: reportForm.message,
+             submissionData: reportingTask.submissions.find((s: any) => s.userId === reportForm.recipientId)?.data
+          })
+       });
+
+       if (res.success) {
+          toast.success('Incident reported to user successfully.');
+          setShowReportModal(false);
+          setReportForm({ message: '', recipientId: '' });
+       }
+    } catch (err) {
+       toast.error('Failed to send report.');
+    }
+  };
+
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+      <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Syncing Global Task Data...</p>
+    </div>
   );
 
-  const handleDragStart = (event: DragStartEvent) => {
-    if (event.active.data.current?.type === 'Task') {
-      setActiveTask(event.active.data.current.task);
-    }
-  };
-
-  const handleDragOver = (event: DragOverEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
-    const isActiveATask = active.data.current?.type === 'Task';
-    if (!isActiveATask) return;
-
-    const isOverATask = over.data.current?.type === 'Task';
-    const isOverAColumn = over.data.current?.type === 'Column';
-
-    setTasks((prev) => {
-      const updated = [...prev];
-      const activeIndex = updated.findIndex((t) => t._id === active.id);
-      if (activeIndex === -1) return prev;
-
-      if (isOverATask) {
-        const overIndex = updated.findIndex((t) => t._id === over.id);
-        if (overIndex === -1) return prev;
-
-        // Only update if they are different so we don't trigger unnecessary re-renders
-        if (updated[activeIndex].status !== updated[overIndex].status) {
-          updated[activeIndex] = { ...updated[activeIndex], status: updated[overIndex].status };
-        }
-        return arrayMove(updated, activeIndex, overIndex);
-      }
-
-      if (isOverAColumn) {
-        const newStatus = over.id as 'todo' | 'doing' | 'done';
-        if (updated[activeIndex].status !== newStatus) {
-          updated[activeIndex] = { ...updated[activeIndex], status: newStatus };
-        }
-        return arrayMove(updated, activeIndex, activeIndex);
-      }
-
-      return prev;
-    });
-  };
-
-  const handleDragEnd = async (event: DragEndEvent) => {
-    setActiveTask(null);
-  };
-
-  const saveBoard = async () => {
-    const { tenantId, token } = getAuthInfo();
-    if (!tenantId || !token) return;
-    setIsSaving(true);
-    try {
-      await axios.post(
-        'http://localhost:5000/api/tasks/reorder',
-        { tasks: tasks.map((t, i) => ({ id: t._id, position: i, status: t.status })) },
-        { headers: { Authorization: `Bearer ${token}`, 'x-tenant-id': tenantId } }
-      );
-      toast.success('Kanban saved!');
-    } catch {
-      toast.error('Failed to sync board state');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const createTask = async (status: 'todo' | 'doing' | 'done') => {
-    const { tenantId, token } = getAuthInfo();
-    if (!tenantId || !token) return;
-    try {
-      const res = await axios.post(
-        'http://localhost:5000/api/tasks',
-        { title: 'New Node', status, position: tasks.length },
-        { headers: { Authorization: `Bearer ${token}`, 'x-tenant-id': tenantId } }
-      );
-      if (res.data.success) setTasks((prev) => [...prev, res.data.data]);
-    } catch {
-      toast.error('Failed to provision new node');
-    }
-  };
-
-  const deleteTask = async (id: string) => {
-    const { tenantId, token } = getAuthInfo();
-    if (!tenantId || !token) return;
-    setTasks((prev) => prev.filter((t) => t._id !== id));
-    try {
-      await axios.delete(`http://localhost:5000/api/tasks/${id}`, {
-        headers: { Authorization: `Bearer ${token}`, 'x-tenant-id': tenantId },
-      });
-    } catch {
-      toast.error('Failed to terminate node');
-    }
-  };
-
-  const renameTask = async (id: string, newTitle: string) => {
-    const { tenantId, token } = getAuthInfo();
-    if (!tenantId || !token) return;
-    setTasks((prev) => prev.map((t) => (t._id === id ? { ...t, title: newTitle } : t)));
-    try {
-      await axios.patch(
-        `http://localhost:5000/api/tasks/${id}`,
-        { title: newTitle },
-        { headers: { Authorization: `Bearer ${token}`, 'x-tenant-id': tenantId } }
-      );
-    } catch {
-      toast.error('Failed to update node title');
-    }
-  };
-
-  const columnTasks = (status: 'todo' | 'doing' | 'done') =>
-    tasks.filter((t) => t.status === status);
-
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      {/* Sub-Header with Action Button */}
-      <div className="flex flex-col md:flex-row items-center justify-between gap-6 px-2">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-indigo-600 text-white rounded-2xl shadow-lg shadow-indigo-100">
-            <LayoutDashboard size={20} />
-          </div>
-          <div>
-            <p className="text-sm font-black text-slate-800 tracking-tight uppercase">Kanban</p>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none">Status: {isLoading ? 'Syncing...' : 'Kanban Online'}</p>
+    <div className="max-w-[1600px] mx-auto space-y-8 pb-20 p-6 md:p-10 animate-in fade-in duration-700">
+      {/* Header */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 bg-white p-8 md:p-10 rounded-[40px] border border-slate-100 shadow-xl shadow-slate-100/50">
+        <div className="space-y-3">
+          <div className="flex items-center gap-4">
+            <div className="p-4 bg-indigo-600 text-white rounded-3xl shadow-2xl shadow-indigo-100">
+              <ClipboardList size={32} />
+            </div>
+            <div>
+              <h1 className="text-4xl font-black text-slate-800 tracking-tight leading-none uppercase">Task Inspector</h1>
+              <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mt-2 flex items-center gap-2">
+                <Activity size={12} className="text-indigo-500" /> Real-time Operational Governance
+              </p>
+            </div>
           </div>
         </div>
 
-        <button
-          onClick={saveBoard}
-          disabled={isSaving || isLoading}
-          className="flex items-center gap-2 px-8 py-3 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-indigo-700 active:scale-95 transition-all shadow-xl shadow-indigo-100 disabled:opacity-50"
-        >
-          <Save size={16} />
-          {isSaving ? 'Synchronizing...' : 'Save Kanban'}
-        </button>
-      </div>
-
-      {/* Board Canvas */}
-      <div className="h-[calc(100vh-280px)] min-h-[500px]">
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center h-full bg-white rounded-[40px] border border-slate-100 shadow-sm">
-            <div className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
-            <p className="text-sm font-black text-slate-400 uppercase tracking-widest">Accessing Kanban...</p>
-          </div>
-        ) : (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCorners}
-            onDragStart={handleDragStart}
-            onDragOver={handleDragOver}
-            onDragEnd={handleDragEnd}
-          >
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 h-full">
-              {COLUMNS.map((col) => (
-                <KanbanColumn
-                  key={col.id}
-                  id={col.id}
-                  title={col.title}
-                  tasks={columnTasks(col.id)}
-                  onAdd={createTask}
-                  onDelete={deleteTask}
-                  onRename={renameTask}
-                  bg={col.bg}
-                  headerBg={col.headerBg}
-                  edgeColor={col.edgeColor}
-                />
-              ))}
-            </div>
-
-            <DragOverlay
-              dropAnimation={{
-                sideEffects: defaultDropAnimationSideEffects({
-                  styles: { active: { opacity: '0.5' } },
-                }),
-              }}
+        <div className="flex flex-wrap items-center gap-3">
+          {['ALL', 'COMPLETED', 'IN_PROGRESS', 'REJECTED'].map(opt => (
+            <button
+              key={opt}
+              onClick={() => setFilter(opt)}
+              className={`px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all ${
+                filter === opt 
+                ? 'bg-slate-900 text-white shadow-2xl shadow-slate-200' 
+                : 'bg-slate-50 text-slate-400 hover:bg-white hover:shadow-lg border border-transparent hover:border-slate-100'
+              }`}
             >
-              {activeTask ? (
-                <div className="bg-white p-5 rounded-2xl border-2 border-indigo-500 shadow-2xl scale-105 cursor-grabbing w-[320px] relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-1 h-full bg-indigo-600"></div>
-                  <h4 className="text-sm font-black text-slate-800">{activeTask.title}</h4>
-                </div>
-              ) : null}
-            </DragOverlay>
-          </DndContext>
-        )}
+              {opt.replace('_', ' ')}
+            </button>
+          ))}
+        </div>
       </div>
+
+      {/* Search and List */}
+      <div className="space-y-6">
+        <div className="relative group">
+          <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={20} />
+          <input
+            type="text"
+            placeholder="Search by task name, instance title, or operator..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-16 pr-8 py-6 bg-white border border-slate-100 rounded-[32px] focus:outline-none focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 gap-4">
+          {filteredTasks.length === 0 ? (
+            <div className="bg-white rounded-[40px] p-24 text-center border-2 border-dashed border-slate-200">
+               <AlertCircle size={48} className="mx-auto text-slate-300 mb-6" />
+               <h3 className="text-2xl font-black text-slate-800 tracking-tight uppercase">Operational Void</h3>
+               <p className="text-slate-400 text-xs mt-2 uppercase tracking-widest font-bold">No active or historic tasks match your filters.</p>
+            </div>
+          ) : (
+            filteredTasks.map((task, idx) => (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.98, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ delay: idx * 0.05 }}
+                key={task.id}
+                className="bg-white rounded-[32px] border border-slate-100 p-8 shadow-sm hover:shadow-2xl transition-all group border-l-8 hover:border-l-indigo-500 border-l-slate-200"
+              >
+                <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-8">
+                  <div className="flex items-center gap-6">
+                    <div className={`w-16 h-16 rounded-2x; flex items-center justify-center shrink-0 shadow-inner ${
+                      task.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-600' : 
+                      task.status === 'REJECTED' ? 'bg-rose-50 text-rose-600' : 'bg-amber-50 text-amber-600'
+                    }`}>
+                      {task.type === 'Fill Form' ? <ClipboardList size={28} /> : 
+                       task.type === 'Upload File' ? <Paperclip size={28} /> : <Activity size={28} />}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-3 mb-1">
+                        <h4 className="text-xl font-black text-slate-800 tracking-tight leading-none uppercase group-hover:text-indigo-600 transition-colors">
+                          {task.name}
+                        </h4>
+                        {getStatusBadge(task.status)}
+                      </div>
+                      <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] uppercase max-w-[300px] truncate">
+                        {task.instanceTitle}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-10 w-full xl:w-auto">
+                     <div className="hidden sm:block">
+                        <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1.5 underline decoration-indigo-100 underline-offset-4">Lead Assignment</p>
+                        <div className="flex items-center gap-3">
+                           <div className="w-8 h-8 bg-slate-100 rounded-xl flex items-center justify-center text-[10px] font-black text-slate-500">
+                             {getUserName(task.performedBy || (task.submissions[0]?.userId)).substring(0, 2)}
+                           </div>
+                           <div>
+                              <p className="text-xs font-black text-slate-700">{getUserName(task.performedBy || (task.submissions[0]?.userId))}</p>
+                              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{getUserRole(task.performedBy || (task.submissions[0]?.userId))}</p>
+                           </div>
+                        </div>
+                     </div>
+
+                     <div className="hidden lg:block text-right">
+                         <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1">Timeline</p>
+                         <p className="text-xs font-black text-slate-700 leading-none">{new Date(task.timestamp).toLocaleDateString()}</p>
+                         <p className="text-[9px] font-black text-indigo-500 mt-1 uppercase opacity-70 tracking-tighter">{new Date(task.timestamp).toLocaleTimeString()}</p>
+                     </div>
+
+                     <div className="flex items-center gap-3 ml-auto">
+                        <button 
+                          onClick={() => setSelectedTask(task)}
+                          className="px-6 py-3.5 bg-slate-900 text-white rounded-2xl hover:bg-indigo-600 transition-all text-[11px] font-black uppercase tracking-widest flex items-center gap-3 shadow-xl"
+                        >
+                          <Eye size={16} /> Consult Work
+                        </button>
+                        <button 
+                          onClick={() => { setReportingTask(task); setReportForm({ ...reportForm, recipientId: task.performedBy || task.submissions[0]?.userId }); setShowReportModal(true); }}
+                          className="p-3.5 bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white rounded-2xl transition-all border border-rose-100 shadow-sm"
+                          title="Report Incident"
+                        >
+                          <ShieldAlert size={18} />
+                        </button>
+                     </div>
+                  </div>
+                </div>
+
+                {/* Consensus / Multiple Submissions Strip */}
+                {task.submissions.length > 1 && (
+                   <div className="mt-8 pt-6 border-t border-slate-50 overflow-x-auto no-scrollbar">
+                      <div className="flex items-center gap-4">
+                         <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest whitespace-nowrap">Collaborative Submissions ({task.submissions.length}):</span>
+                         {task.submissions.map((sub: any, sIdx: number) => (
+                            <div key={sIdx} className="flex items-center gap-2 group/sub relative">
+                               <div className="w-8 h-8 rounded-full border-2 border-white bg-indigo-50 text-indigo-500 flex items-center justify-center text-[9px] font-black hover:scale-110 transition-transform cursor-help shadow-sm">
+                                  {sub.userName.substring(0, 2)}
+                               </div>
+                               <div className="absolute top-10 left-0 bg-slate-900 text-white p-2 rounded-lg text-[8px] font-bold uppercase opacity-0 group-hover/sub:opacity-100 transition-opacity z-10 whitespace-nowrap shadow-xl">
+                                  {sub.userName} - {sub.action.replace('_', ' ')}
+                               </div>
+                            </div>
+                         ))}
+                      </div>
+                   </div>
+                )}
+              </motion.div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* Detail Modal */}
+      <AnimatePresence>
+        {selectedTask && (
+          <div className="fixed inset-0 z-[500] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedTask(null)}
+              className="absolute inset-0 bg-slate-900/80 backdrop-blur-xl"
+            />
+            <motion.div
+              layoutId={selectedTask.id}
+              initial={{ scale: 0.9, opacity: 0, y: 30 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 30 }}
+              className="bg-white rounded-[48px] shadow-[0_32px_80px_-16px_rgba(0,0,0,0.5)] w-full max-w-4xl relative z-10 overflow-hidden border border-white/20 flex flex-col max-h-[90vh]"
+            >
+              <div className="bg-indigo-600 p-12 text-white relative overflow-hidden shrink-0">
+                <div className="absolute -right-20 -top-20 w-80 h-80 bg-white/10 rounded-full blur-3xl opacity-50"></div>
+                <div className="flex items-center gap-6 mb-4 relative z-10">
+                   <div className="w-16 h-16 bg-white/20 rounded-3xl flex items-center justify-center backdrop-blur-md shadow-2xl border border-white/10">
+                      <FileText size={32} />
+                   </div>
+                   <div>
+                      <p className="text-[11px] font-black uppercase tracking-[0.4em] opacity-70 mb-1">Process Forensic Scan</p>
+                      <h2 className="text-4xl font-black tracking-tight uppercase leading-tight">{selectedTask.name}</h2>
+                   </div>
+                </div>
+              </div>
+
+              <div className="p-12 overflow-y-auto custom-scrollbar flex-grow bg-slate-50/30 space-y-12">
+                
+                {/* Operator Selector for Consensus Tasks */}
+                {selectedTask.submissions.length > 0 && (
+                  <div className="space-y-6">
+                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                       <Users size={16} className="text-indigo-500" /> Selective Review: Choose Operator Work
+                    </p>
+                    <div className="flex flex-wrap gap-3">
+                       {selectedTask.submissions.length === 0 ? (
+                           <div className="px-6 py-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-xs font-black text-slate-800 flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center">
+                                 <AlertCircle size={16} />
+                              </div>
+                              No individual submissions captured for this state.
+                           </div>
+                       ) : (
+                         selectedTask.submissions.map((sub: any, subIdx: number) => (
+                           <button
+                             key={subIdx}
+                             onClick={() => setSelectedTask({ ...selectedTask, currentViewingSub: sub, outputData: sub.data, comments: sub.comments, performedBy: sub.userId })}
+                             className={`px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-3 border ${
+                               selectedTask.performedBy === sub.userId 
+                               ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100 scale-105' 
+                               : 'bg-white text-slate-600 border-slate-100 hover:border-indigo-200'
+                             }`}
+                           >
+                             <UserIcon size={14} /> {sub.userName}
+                           </button>
+                         ))
+                       )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-10 pt-6 border-t border-slate-100">
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] underline decoration-indigo-200 underline-offset-4">Active Operator</p>
+                    <p className="text-2xl font-black text-slate-800 tracking-tight">{getUserName(selectedTask.performedBy)}</p>
+                    <p className="text-[10px] font-black text-indigo-400 tracking-widest uppercase opacity-70">{getUserRole(selectedTask.performedBy)} Protocol Role</p>
+                  </div>
+                  <div className="space-y-2 text-right">
+                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] underline decoration-indigo-200 underline-offset-4">Execution Timestamp</p>
+                    <p className="text-xl font-black text-slate-800 tracking-tight">{new Date(selectedTask.timestamp).toLocaleDateString()}</p>
+                    <p className="text-[10px] font-bold text-slate-400">{new Date(selectedTask.timestamp).toLocaleTimeString()}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-12">
+                   <div className="flex items-center gap-4">
+                      <div className="h-px flex-1 bg-slate-200"></div>
+                      <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-3">
+                         <Activity size={18} className="text-indigo-500" /> Evidence Analysis
+                      </span>
+                      <div className="h-px flex-1 bg-slate-200"></div>
+                   </div>
+
+                   {selectedTask.comments && (
+                      <div className="space-y-4">
+                         <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
+                            <MessageSquare size={16} /> User Rational / Remarks
+                         </p>
+                         <div className="p-10 bg-white rounded-[32px] border border-slate-100 shadow-sm text-lg font-bold text-slate-600 italic leading-relaxed relative border-l-8 border-l-indigo-500">
+                            "{selectedTask.comments}"
+                         </div>
+                      </div>
+                   )}
+
+                   {selectedTask.outputData && Object.keys(selectedTask.outputData).length > 0 ? (
+                    <div className="space-y-6">
+                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">Data Payload Extraction</p>
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {Object.entries(selectedTask.outputData).map(([key, value]: [string, any]) => (
+                            <div key={key} className="flex flex-col gap-2 p-6 bg-white rounded-3xl border border-slate-100 shadow-sm hover:border-indigo-100 transition-colors group/item">
+                               <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest group-hover/item:text-indigo-600">{key.replace(/_/g, ' ')}</span>
+                               <span className="text-sm font-black text-slate-800 break-words opacity-90">
+                                 {typeof value === 'boolean' ? (value ? 'YES' : 'NO') : String(value)}
+                               </span>
+                            </div>
+                          ))}
+                       </div>
+                    </div>
+                  ) : (
+                    <div className="bg-white rounded-[32px] border-2 border-dashed border-slate-200 p-20 text-center opacity-70">
+                       <CheckCircle2 size={48} className="mx-auto text-emerald-500 mb-6" />
+                       <p className="text-xs font-black text-slate-400 uppercase tracking-widest leading-loose">No dynamic data captured for this operator.<br/>Action confirmed via manual validation.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-10 bg-white border-t border-slate-100 flex gap-4 shrink-0">
+                 <button 
+                   onClick={() => setSelectedTask(null)}
+                   className="flex-1 py-5 bg-slate-900 text-white rounded-[26px] font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center gap-4 hover:bg-slate-800 transition-all shadow-2xl"
+                 >
+                   Exit Protocol
+                 </button>
+                 {selectedTask.type === 'Fill Form' && (
+                    <button 
+                      onClick={() => toast.info('Generating PDF document preview...')}
+                      className="flex-1 py-5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-[26px] font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center gap-4 hover:bg-indigo-100 transition-all"
+                    >
+                      <FileText size={18} /> Review Document
+                    </button>
+                  )}
+                 <button 
+                    onClick={() => { setReportingTask(selectedTask); setReportForm({ ...reportForm, recipientId: selectedTask.performedBy }); setShowReportModal(true); }}
+                    className="flex-1 py-5 bg-rose-500 text-white rounded-[26px] font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center gap-4 hover:bg-rose-600 transition-all shadow-xl shadow-rose-100"
+                 >
+                    <ShieldAlert size={18} /> Send Incident Report
+                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Report Modal */}
+      <AnimatePresence>
+        {showReportModal && (
+          <div className="fixed inset-0 z-[600] flex items-center justify-center p-4">
+             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowReportModal(false)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-md" />
+             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white rounded-[40px] p-10 w-full max-w-lg relative z-10 shadow-2xl border border-rose-100">
+                <div className="flex items-center gap-4 mb-8 text-rose-600">
+                   <div className="p-3 bg-rose-50 rounded-2xl">
+                      <ShieldAlert size={24} />
+                   </div>
+                   <h3 className="text-2xl font-black uppercase tracking-tight">Generate Incident Report</h3>
+                </div>
+
+                <div className="space-y-6">
+                   <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Target User</label>
+                      <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 font-bold text-slate-700 flex items-center gap-3">
+                         <div className="w-6 h-6 bg-slate-200 rounded-full flex items-center justify-center text-[9px]">
+                            {getUserName(reportForm.recipientId).substring(0, 2)}
+                         </div>
+                         {getUserName(reportForm.recipientId)}
+                      </div>
+                   </div>
+
+                   <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Admin Remark / Technical Note</label>
+                      <textarea
+                        value={reportForm.message}
+                        onChange={(e) => setReportForm({ ...reportForm, message: e.target.value })}
+                        placeholder="Describe the issue or required modifications..."
+                        className="w-full h-32 p-6 bg-slate-50 border-none rounded-[24px] focus:ring-4 focus:ring-rose-50 outline-none text-sm font-bold text-slate-800 placeholder:text-slate-300 transition-all shadow-inner"
+                      />
+                   </div>
+
+                   <button 
+                     onClick={handleReportSubmit}
+                     className="w-full py-5 bg-rose-600 text-white rounded-[24px] font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center gap-4 hover:bg-rose-700 transition-all shadow-xl shadow-rose-200"
+                   >
+                     <Send size={18} /> Dispatch Report
+                   </button>
+                </div>
+             </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

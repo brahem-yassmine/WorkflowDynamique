@@ -17,7 +17,12 @@ import {
   Layers,
   ListTodo,
   LayoutGrid,
-  ChevronRight
+  ChevronRight,
+  ShieldAlert,
+  AlertCircle,
+  FileText,
+  Eye,
+  X
 } from 'lucide-react';
 import { apiService } from '@/service/api.service';
 
@@ -59,6 +64,7 @@ function UserSidebar() {
     { icon: Plus, label: "Initiate Workflow", href: "/User/create_workflows" },
     { icon: Bell, label: "Alert Inbox", href: "/User/Notifications" },
     { icon: GitBranch, label: "My History", href: "/User/Workflows" },
+    { icon: ShieldAlert, label: "Critical Requests", href: "/User/requests", color: "text-rose-400" },
     { icon: Users, label: "Team Space", href: "/User/InviteTeam" },
     { icon: Layers, label: "Forms Lab", href: "/User/Allforms" },
     { icon: ListTodo, label: "Operations Registry", href: "/User/Allchecks" },

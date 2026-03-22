@@ -25,7 +25,8 @@ import {
   Activity,
   Briefcase,
   LifeBuoy,
-  Stethoscope
+  Stethoscope,
+  ClipboardList
 } from 'lucide-react';
 
 const menuGroups = [
@@ -34,6 +35,7 @@ const menuGroups = [
     items: [
       { icon: LayoutGrid, label: "Command Center", href: "/admin" },
       { icon: Activity, label: "Live Operations Global", href: "/admin/operations" },
+      { icon: ClipboardList, label: "Global Tasks", href: "/admin/tasks" },
       { icon: Stethoscope, label: "All workflows", href: "/admin/workflows" },
       { icon: ListTodo, label: "Checklists", href: "/admin/AllCheck" },
       { icon: FileText, label: "Forms", href: "/admin/AllForms" },

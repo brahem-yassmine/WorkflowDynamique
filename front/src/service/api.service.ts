@@ -317,6 +317,17 @@ class ApiService {
     });
   }
 
+  updateNodeData(instanceId: string, nodeId: string, comment?: string, variables?: any) {
+    return this.request(`/workflow-instances/${instanceId}/update-node`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        nodeId,
+        comments: comment || '',
+        data: variables || {}
+      })
+    });
+  }
+
   rejectNode(instanceId: string, nodeId: string, comment?: string) {
     return this.request(`/workflow-instances/${instanceId}/reject`, {
       method: 'POST',
@@ -366,6 +377,26 @@ class ApiService {
 
   getTenantLogs() {
     return this.request('/tenant/logs');
+  }
+
+  // Task Reports (Admin to User)
+  getTaskReports(all: boolean = false) {
+    const endpoint = all ? '/task-reports/all' : '/task-reports/my-requests';
+    return this.request(endpoint);
+  }
+
+  createTaskReport(data: any) {
+    return this.request('/task-reports', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  updateTaskReportStatus(id: string, status: string, response?: string) {
+    return this.request(`/task-reports/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, response })
+    });
   }
 }
 

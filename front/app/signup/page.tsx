@@ -16,6 +16,9 @@ import {
   CheckCircle2
 } from "lucide-react";
 import { motion } from "framer-motion";
+import Image from "next/image";
+import { toast } from "sonner";
+import { GoogleLogin } from "@react-oauth/google";
 
 interface SignupFormData {
   companyName: string;
@@ -123,6 +126,34 @@ export default function SignupPage() {
     };
     fetchPlans();
   }, []);
+
+  const handleGoogleLoginSuccess = async (response: any) => {
+    try {
+      setLoading(true);
+      const res = await axios.post(`${API_URL}/auth/google-login`, {
+        idToken: response.credential
+      });
+
+      if (res.data.success) {
+        const { token, user } = res.data.data;
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+        toast.success(`Access Granted: ${user.firstName || 'User'}`, { icon: '🔓' });
+        router.push(user.role === 'super_admin' ? '/super_admin' : '/admin');
+      }
+    } catch (err: any) {
+      console.error('❌ Google Registration Search failed:', err);
+      const msg = err.response?.data?.message || 'Google verification failed';
+      toast.error(msg);
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleLoginError = () => {
+    toast.error("Google authentication failed.");
+  };
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -491,17 +522,6 @@ export default function SignupPage() {
         </div>
       )}
 
-      <nav className="w-full flex items-center justify-between px-8 py-6 mx-auto text-base bg-white/95 backdrop-blur-sm z-40 border-b border-gray-100">
-        <div className="flex items-center gap-3 text-2xl font-bold font-sans cursor-pointer">
-          <ChartNetwork size={40} />
-          <span>Axia Workflow</span>
-        </div>
-        <div className="hidden md:flex items-center gap-10 font-medium text-black text-xl">
-          <Link href={"/"}>
-            <button className="hover:text-indigo-600 transition-all">Home</button>
-          </Link>
-        </div>
-      </nav>
 
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
         <div className="max-w-6xl w-full">
@@ -518,116 +538,161 @@ export default function SignupPage() {
               </div>
 
               {error && (
-                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-red-600 text-sm">{error}</p>
+                <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl">
+                  <p className="text-red-600 text-xs font-bold">{error}</p>
                 </div>
               )}
 
               {success && (
-                <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="text-green-600 text-sm">{success}</p>
+                <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-xl">
+                  <p className="text-green-600 text-xs font-bold">{success}</p>
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    {isSuperAdmin ? 'Full Name *' : 'Company Name *'}
-                  </label>
-                  <input
-                    type="text"
-                    name="companyName"
-                    value={formData.companyName}
-                    onChange={handleChange}
-                    placeholder={isSuperAdmin ? "Your full name" : "Your company name"}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900"
-                    required
-                    disabled={loading}
+              {/* Social Signup */}
+              <div className="space-y-4 mb-8 flex justify-center w-full">
+                {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && !process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID.includes("PASTE_YOUR_ID_HERE") ? (
+                  <GoogleLogin
+                    onSuccess={handleGoogleLoginSuccess}
+                    onError={handleGoogleLoginError}
+                    shape="pill"
+                    width="350"
+                    theme="outline"
                   />
-                </div>
-
-                {!isSuperAdmin && (
-                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
-                      <div 
-                          className="flex justify-between items-center cursor-pointer"
-                          onClick={() => setShowDebug(!showDebug)}
-                      >
-                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Debug Protocol: Start Date</span>
-                          <div className={`w-8 h-4 rounded-full transition-colors relative ${showDebug ? 'bg-indigo-600' : 'bg-slate-300'}`}>
-                              <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${showDebug ? 'right-0.5' : 'left-0.5'}`}></div>
-                          </div>
-                      </div>
-                      {showDebug && (
-                          <div className="mt-4">
-                              <input 
-                                  type="date" 
-                                  name="startDate"
-                                  value={formData.startDate}
-                                  onChange={handleChange}
-                                  className="w-full px-4 py-2 border border-indigo-200 rounded-lg text-sm font-bold text-slate-700 bg-white"
-                              />
-                          </div>
-                      )}
-                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => toast.error("Configuration Requise", {
+                      description: "Veuillez remplacer 'PASTE_YOUR_ID_HERE' par votre Client ID réel dans le fichier .env.local",
+                      duration: 5000
+                    })}
+                    className="w-full flex items-center justify-center gap-3 px-6 py-3.5 bg-white border border-gray-200 rounded-full hover:bg-gray-50 transition-all duration-200 shadow-sm hover:shadow-md group active:scale-[0.98]"
+                  >
+                    <svg className="w-5 h-5 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
+                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                    </svg>
+                    <span className="font-bold text-gray-700 tracking-tight">
+                      Continue with Google
+                    </span>
+                  </button>
                 )}
+              </div>
 
-                {!isSuperAdmin && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Industry *
+              <div className="relative mb-8">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-100"></div>
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="px-4 bg-white text-slate-400 font-bold uppercase tracking-widest">or register manually</span>
+                </div>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Basic Info Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className={isSuperAdmin ? "col-span-2" : ""}>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
+                      {isSuperAdmin ? 'Full Name *' : 'Company Name *'}
                     </label>
-                    <select
-                      name="industry"
-                      value={formData.industry}
+                    <input
+                      type="text"
+                      name="companyName"
+                      value={formData.companyName}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900"
+                      placeholder={isSuperAdmin ? "Your name" : "Axia Corp"}
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-600 text-sm text-gray-900 transition-all"
                       required
-                      disabled={loading}
-                    >
-                      <option value="Construction & Engineering">Construction & Engineering</option>
-                      <option value="Information Technology & Software">Information Technology & Software</option>
-                      <option value="Corporate & Business Services">Corporate & Business Services</option>
-                      <option value="Healthcare">Healthcare</option>
-                      <option value="Other">Other</option>
-                    </select>
+                    />
+                  </div>
+
+                  {!isSuperAdmin && (
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
+                        Industry *
+                      </label>
+                      <select
+                        name="industry"
+                        value={formData.industry}
+                        onChange={handleChange}
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-600 text-sm text-gray-900 transition-all appearance-none"
+                        required
+                      >
+                        <option value="Construction & Engineering">Construction</option>
+                        <option value="Information Technology & Software">Tech/IT</option>
+                        <option value="Corporate & Business Services">Business</option>
+                        <option value="Healthcare">Healthcare</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                  )}
+
+                  <div className="col-span-1">
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
+                      Email *
+                    </label>
+                    <input
+                      type="email"
+                      name="adminEmail"
+                      value={formData.adminEmail}
+                      onChange={handleChange}
+                      placeholder="admin@axia.io"
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-600 text-sm text-gray-900 transition-all"
+                      required
+                    />
+                  </div>
+
+                  {!isSuperAdmin && (
+                    <div className="col-span-1">
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
+                        Lock Start Date?
+                      </label>
+                      <div 
+                        className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors"
+                        onClick={() => setShowDebug(!showDebug)}
+                      >
+                        <span className="text-[9px] font-bold text-slate-500 uppercase">Protocol Lock</span>
+                        <div className={`w-8 h-4 rounded-full transition-colors relative ${showDebug ? 'bg-indigo-600' : 'bg-slate-300'}`}>
+                          <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${showDebug ? 'right-0.5' : 'left-0.5'}`}></div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {showDebug && (
+                  <div className="mt-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                    <input 
+                      type="date" 
+                      name="startDate"
+                      value={formData.startDate}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2 border-2 border-indigo-100 rounded-xl text-xs font-bold text-indigo-700 bg-indigo-50/30"
+                    />
                   </div>
                 )}
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email *
-                  </label>
-                  <input
-                    type="email"
-                    name="adminEmail"
-                    value={formData.adminEmail}
-                    onChange={handleChange}
-                    placeholder="admin@company.com"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900"
-                    required
-                    disabled={loading}
-                  />
-                </div>
-
+                {/* Plan Selection Tier */}
                 {!isSuperAdmin && (
-                  <div className="space-y-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Choose your plan *
+                  <div className="space-y-2 mt-4">
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                      Choose Your Protocol *
                     </label>
                     {loadingPlans ? (
-                      <div className="flex items-center space-x-2 p-4 bg-gray-50 rounded-lg">
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-700"></div>
-                        <span className="text-gray-600">Loading plans...</span>
+                      <div className="flex gap-2">
+                        {[1,2,3].map(i => <div key={i} className="h-16 flex-1 bg-slate-100 animate-pulse rounded-xl" />)}
                       </div>
                     ) : (
-                      <div className="space-y-3">
+                      <div className="grid grid-cols-3 gap-2">
                         {plans.map((plan) => (
                           <label
                             key={plan._id}
                             onClick={() => handlePlanSelection(plan._id)}
-                            className={`block p-4 border-2 rounded-lg cursor-pointer transition-all ${formData.planId === plan._id
-                                ? 'border-indigo-700 bg-blue-50'
-                                : 'border-gray-200 hover:border-indigo-500'
+                            className={`block p-3 border-2 rounded-xl cursor-pointer transition-all text-center group ${formData.planId === plan._id
+                                ? 'border-indigo-600 bg-indigo-50 ring-1 ring-indigo-600'
+                                : 'border-slate-100 hover:border-slate-200 bg-slate-50/50'
                               }`}
                           >
                             <input
@@ -638,21 +703,12 @@ export default function SignupPage() {
                               readOnly
                               className="sr-only"
                             />
-                            <div className="flex justify-between items-center">
-                              <div>
-                                <h3 className="font-semibold text-gray-900">{plan.name}</h3>
-                                <p className="text-sm text-gray-600">
-                                  {plan.features?.maxStaff === -1
-                                    ? '👥 Unlimited staff'
-                                    : `👥 Up to ${plan.features?.maxStaff} staff`}
-                                </p>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-lg font-bold text-gray-900">
-                                  {formatPrice(plan.price, plan.currency, plan.interval)}
-                                </p>
-                              </div>
-                            </div>
+                            <p className={`text-[10px] font-black uppercase truncate duration-200 ${formData.planId === plan._id ? 'text-indigo-700' : 'text-slate-500'}`}>
+                              {plan.name}
+                            </p>
+                            <p className={`text-[11px] font-black mt-1 ${formData.planId === plan._id ? 'text-indigo-900' : 'text-slate-900'}`}>
+                              {plan.price === 0 ? 'FREE' : `${plan.price}${plan.currency || 'D'}`}
+                            </p>
                           </label>
                         ))}
                       </div>
@@ -660,131 +716,79 @@ export default function SignupPage() {
                   </div>
                 )}
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Password *
-                  </label>
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    placeholder="Min 8 characters"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900"
-                    required
-                    disabled={loading}
-                    minLength={8}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Confirm Password *
-                  </label>
-                  <input
-                    type={showConfirmPassword ? "text" : "password"}
-                    name="confirmPassword"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    placeholder="Confirm your password"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900"
-                    required
-                    disabled={loading}
-                    minLength={8}
-                  />
+                {/* Password Grid */}
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">Access Key</label>
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      placeholder="Min 8 chars"
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-600 text-sm text-gray-900 transition-all"
+                      required
+                      minLength={8}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">Confirm Key</label>
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      name="confirmPassword"
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      placeholder="Repeat key"
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-600 text-sm text-gray-900 transition-all"
+                      required
+                      minLength={8}
+                    />
+                  </div>
                 </div>
 
                 <button
                   type="submit"
                   disabled={loading || loadingPlans}
-                  className={`w-full text-white font-semibold py-3 px-4 rounded-lg transition-colors ${loading || loadingPlans
-                    ? 'bg-indigo-500 cursor-not-allowed'
-                    : 'bg-indigo-700 hover:bg-indigo-800'
+                  className={`w-full text-white font-black uppercase tracking-widest py-4 px-6 rounded-full transition-all duration-300 transform active:scale-[0.98] shadow-lg shadow-indigo-200 mt-4 ${loading || loadingPlans
+                    ? 'bg-indigo-400 cursor-not-allowed'
+                    : 'bg-indigo-600 hover:bg-indigo-700 hover:-translate-y-0.5'
                     }`}
                 >
-                  {loading ? "Creating Account..." : isSuperAdmin ? "Create Super Admin" : "Start Free Trial"}
+                  {loading ? "Initializing..." : isSuperAdmin ? "Create Super Admin" : "Deploy Network"}
                 </button>
               </form>
 
               <div className="mt-6 text-center">
-                <p className="text-gray-600">
-                  Already have an account?{" "}
-                  <Link href="/signin" className="text-indigo-700 font-medium hover:text-indigo-800">
-                    Log in
+                <p className="text-sm font-medium text-slate-500">
+                  Existing protocol?{" "}
+                  <Link href="/signin" className="text-indigo-700 font-bold hover:underline">
+                    Access Portal
                   </Link>
                 </p>
               </div>
             </div>
 
-            {/* RIGHT SIDE - PLANS PREVIEW */}
-            <div className="bg-indigo-700 rounded-2xl shadow-xl p-8 text-white relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32 blur-3xl"></div>
+            {/* RIGHT SIDE - Image & Vision */}
+            <div className="hidden lg:flex flex-col justify-center bg-slate-900 rounded-2xl overflow-hidden shadow-2xl min-h-[600px] p-4">
+              <div className="relative w-full h-full min-h-[400px]">
+                <Image 
+                  src="/loadingPageImg.jpg" 
+                  alt="Axia Workflow Intelligence" 
+                  fill
+                  className="object-contain"
+                />
+              </div>
               
-              <div className="relative z-10 mb-8">
-                <h1 className="text-3xl font-black mb-4 tracking-tight">
-                  {isSuperAdmin ? 'Platform Control' : 'Choose your protocol'}
-                </h1>
-                <p className="text-blue-100 font-medium">
-                  {isSuperAdmin 
-                    ? 'Global administration for the entire Axia Workflow ecosystem.' 
-                    : 'Dynamic orchestration tiers for your workflow.'}
-                </p>
-              </div>
-
-              <div className="space-y-4 relative z-10">
-                {isSuperAdmin ? (
-                  <div className="space-y-6">
-                    <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10">
-                       <h3 className="font-bold text-lg mb-2">🛡️ Tenant Management</h3>
-                       <p className="text-sm text-blue-100">Oversee all companies and manage global subscriptions.</p>
-                    </div>
-                  </div>
-                ) : (
-                  !loadingPlans && plans.map((plan) => {
-                    const isDemo = (plan.code || '').toLowerCase().includes('demo');
-                    return (
-                      <div key={plan._id} className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 group hover:bg-white/15 transition-all">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h3 className="font-black text-lg tracking-tight">{plan.name}</h3>
-                            <p className="text-xs text-blue-100 font-medium">
-                                {plan.features?.maxStaff === -1 ? 'Unlimited Staff' : `Up to ${plan.features?.maxStaff} Staff`}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-xl font-black tracking-tighter">
-                                {formatPrice(plan.price, plan.currency, plan.interval)}
-                            </p>
-                            <span className="text-[10px] uppercase font-bold text-blue-200">
-                                {plan.trialDays ? `${plan.trialDays}-Day Trial` : (isDemo ? '7-Day Trial' : '30-Day Trial')}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-
-              {!isSuperAdmin && (
-                <div className="mt-8 relative z-10 bg-indigo-800/50 backdrop-blur-sm rounded-2xl p-6 border border-white/5">
-                  <p className="font-black text-[10px] uppercase tracking-[0.2em] text-indigo-300 mb-4">Lattice Standards:</p>
-                  <ul className="space-y-3 text-xs font-bold text-blue-100">
-                    <li className="flex items-center gap-2">
-                        <CheckCircle2 size={12} className="text-emerald-400" />
-                        Flexible Free trials (7-30 days)
-                    </li>
-                    <li className="flex items-center gap-2">
-                        <CheckCircle2 size={12} className="text-emerald-400" />
-                        Zero-friction cancellation
-                    </li>
-                    <li className="flex items-center gap-2">
-                        <CheckCircle2 size={12} className="text-emerald-400" />
-                        24/7 Security support
-                    </li>
-                  </ul>
+              <div className="p-8 w-full mt-4">
+                <div className="backdrop-blur-md bg-white/5 p-6 rounded-[2.5rem] border border-white/10 shadow-xl">
+                  <h2 className="text-2xl font-black text-white mb-2 tracking-tight">
+                    Architect Your Future
+                  </h2>
+                  <p className="text-indigo-200 text-xs font-medium leading-relaxed">
+                    Start your journey with the world's most advanced no-code workflow environment.
+                  </p>
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </div>

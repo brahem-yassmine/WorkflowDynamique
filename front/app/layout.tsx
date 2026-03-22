@@ -11,6 +11,7 @@ export const metadata: Metadata = {
 
 import { Toaster } from "sonner";
 import SubscriptionWarning from "@/components/SubscriptionWarning";
+import { GoogleAuthProvider } from "@/components/providers/GoogleAuthProvider";
 
 export default function RootLayout({
   children,
@@ -21,7 +22,9 @@ export default function RootLayout({
     <html lang="fr">
       <body className={inter.className}>
         <SubscriptionWarning />
-        {children}
+        <GoogleAuthProvider>
+          {children}
+        </GoogleAuthProvider>
         <Toaster position="top-right" richColors />
       </body>
     </html>

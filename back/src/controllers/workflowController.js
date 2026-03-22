@@ -1,6 +1,7 @@
 // back/src/controllers/workflowController.js
 const fs = require('fs');
 const path = require('path');
+const mongoose = require('mongoose');
 const notificationController = require('./notificationController');
 const { recordActivity } = require('../services/auditLogger');
 
@@ -60,6 +61,15 @@ exports.getWorkflows = async (req, res) => {
 exports.getWorkflowById = async (req, res) => {
   try {
     const { workflowId } = req.params;
+    
+    const mongoose = require('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(workflowId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid Workflow ID format'
+      });
+    }
+
     console.log(`🔍 [WorkflowCtrl] Fetching workflow: ${workflowId} | TenantDB: ${req.tenantConn.name}`);
 
     const Workflow = req.tenantConn.model('Workflow');
@@ -523,6 +533,7 @@ async function _internalStartInstance(tenantConn, workflow, user, options = {}) 
         startedAt: new Date(),
         responsibleUser: responsibleUser,
         responsibleDomain: responsibleDomain,
+        restrictedDomain: targetNode.data?.restrictedDomain || null,
         assignees: nodeAssignees
       };
     }));

@@ -206,6 +206,29 @@ exports.submitForm = async (req, res) => {
         form.submissionCount = (form.submissionCount || 0) + 1;
         await form.save();
 
+        // ✅ WORKFLOW INTEGRATION: Update Instance Variables
+        const { instanceId, nodeId } = req.body;
+        if (instanceId && nodeId) {
+            try {
+                const WorkflowInstance = req.tenantConn.model('WorkflowInstance');
+                const instance = await WorkflowInstance.findById(instanceId);
+                if (instance) {
+                    // Store the data in variables
+                    if (!instance.variables) instance.variables = new Map();
+                    instance.variables.set(nodeId, data);
+                    instance.variables.set(`${nodeId}_data`, data);
+                    instance.variables.set(`${nodeId}_executed`, true);
+                    instance.variables.set(`${nodeId}_name`, name || 'Submission');
+                    
+                    instance.markModified('variables');
+                    await instance.save();
+                    console.log(`✅ [DynamicFormCtrl] Synced form data to Instance ${instanceId} / Node ${nodeId}`);
+                }
+            } catch (err) {
+                console.error('❌ [DynamicFormCtrl] Workflow Sync Error:', err);
+            }
+        }
+
         res.status(201).json({
             success: true,
             message: 'Response submitted successfully',

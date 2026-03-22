@@ -4,26 +4,25 @@ import React, { useEffect, useState } from 'react';
 import { apiService } from '@/service/api.service';
 import { 
   Search, 
-  Filter, 
   CheckCircle2, 
   Clock, 
   XCircle, 
   PlayCircle,
-  Users,
-  Bell,
-  ChevronDown,
   FileText,
   ClipboardList,
-  AlertCircle,
   Mail,
   Eye,
   MessageSquare,
   X,
   Play,
   Flag,
-  GitMerge,
-  GitFork,
-  Paperclip
+  Paperclip,
+  Activity,
+  ChevronRight,
+  AlertCircle,
+  ShieldAlert,
+  Send,
+  Users as UsersIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -40,12 +39,20 @@ export default function TaskLogView({ workflowId }: TaskLogViewProps) {
   const [workflow, setWorkflow] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportForm, setReportForm] = useState({ message: '', recipientId: '' });
+  const [reportingTask, setReportingTask] = useState<any>(null);
 
   useEffect(() => {
     fetchData();
   }, [workflowId]);
 
   const fetchData = async () => {
+    if (workflowId === 'standard') {
+      setTasks([]);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const [wfRes, instancesRes, usersRes] = await Promise.all([
@@ -57,62 +64,58 @@ export default function TaskLogView({ workflowId }: TaskLogViewProps) {
       if (wfRes.success) setWorkflow(wfRes.data);
       if (usersRes.success) setUsers(usersRes.data);
 
-      if (instancesRes.success) {
+      if (instancesRes.success && wfRes.success) {
         const aggregatedTasks: any[] = [];
         const instances = instancesRes.data;
 
+        const isLogicBlock = (type: string) => {
+            return ['syncJoin', 'parallelStart', 'parallel_split', 'parallel_join', 'start', 'end', 'condition', 'gateway', 'split', 'join'].includes(type);
+        };
+
         instances.forEach((inst: any) => {
-          // Add Completed/Rejected tasks from executionPath
+          // 1. Completed/Rejected tasks
           inst.executionPath?.forEach((path: any) => {
             const nodeDef = wfRes.data.nodes?.find((n: any) => n.id === path.nodeId);
-            if (nodeDef?.type === 'syncJoin' || nodeDef?.type === 'parallelStart') return;
+            if (!nodeDef || isLogicBlock(nodeDef.type)) return;
             
             aggregatedTasks.push({
               id: `${inst._id}-${path.nodeId}-${path.timestamp}`,
               instanceId: inst._id,
               instanceTitle: inst.title,
               nodeId: path.nodeId,
-              name: nodeDef?.data?.label || 'Unknown Task',
+              name: nodeDef?.data?.label || 'Action Sequence',
               status: path.action === 'rejected' ? 'REJECTED' : 'COMPLETED',
               performedBy: path.performedBy,
               timestamp: path.timestamp,
-              type: nodeDef?.type === 'start' ? 'Début' : 
-                    nodeDef?.type === 'end' ? 'Fin' :
-                    nodeDef?.type === 'syncJoin' ? 'Sync Join' :
-                    nodeDef?.type === 'parallelStart' ? 'Start Parallel' :
-                    nodeDef?.data?.userAction === 'Fill Form' ? 'Formulaire' :
-                    nodeDef?.data?.userAction === 'Write Report' ? 'Texte' :
+              type: nodeDef?.data?.userAction === 'Fill Form' ? 'Formulaire' : 
+                    nodeDef?.data?.userAction === 'Write Report' ? 'Texte' : 
                     nodeDef?.data?.userAction === 'Upload File' ? 'Fichier' :
                     (nodeDef?.data?.userAction || 'Tâche'),
-              assignmentType: nodeDef?.data?.userAction === 'Approver' ? 'SINGLE' : (nodeDef?.data?.assignmentType || 'SINGLE'),
+              assignmentType: nodeDef?.data?.assignmentType || 'SINGLE',
               responsibleDomain: nodeDef?.data?.responsibleDomain,
-              approvedBy: [path.performedBy], 
+              approvedBy: inst.history?.filter((h: any) => h.nodeId === path.nodeId && (h.action === 'partial_approval' || h.action === 'step_approved')).map((h: any) => h.performedBy) || [path.performedBy],
               nodeData: nodeDef?.data,
               outputData: path.outputData,
               comments: path.comments
             });
           });
 
-          // Add In Progress tasks from currentNodes
+          // 2. In Progress tasks
           inst.currentNodes?.forEach((curr: any) => {
             const nodeDef = wfRes.data.nodes?.find((n: any) => n.id === curr.nodeId);
-            if (nodeDef?.type === 'syncJoin' || nodeDef?.type === 'parallelStart') return;
+            if (!nodeDef || isLogicBlock(nodeDef.type)) return;
 
             aggregatedTasks.push({
               id: `${inst._id}-${curr.nodeId}`,
               instanceId: inst._id,
               instanceTitle: inst.title,
               nodeId: curr.nodeId,
-              name: nodeDef?.data?.label || 'Unknown Task',
+              name: nodeDef?.data?.label || 'Active Step',
               status: 'IN_PROGRESS',
               performedBy: null,
               timestamp: curr.startedAt,
-              type: nodeDef?.type === 'start' ? 'Début' : 
-                    nodeDef?.type === 'end' ? 'Fin' :
-                    nodeDef?.type === 'syncJoin' ? 'Sync Join' :
-                    nodeDef?.type === 'parallelStart' ? 'Start Parallel' :
-                    nodeDef?.data?.userAction === 'Fill Form' ? 'Formulaire' :
-                    nodeDef?.data?.userAction === 'Write Report' ? 'Texte' :
+              type: nodeDef?.data?.userAction === 'Fill Form' ? 'Formulaire' : 
+                    nodeDef?.data?.userAction === 'Write Report' ? 'Texte' : 
                     nodeDef?.data?.userAction === 'Upload File' ? 'Fichier' :
                     (nodeDef?.data?.userAction || 'Tâche'),
               assignmentType: nodeDef?.data?.assignmentType || 'SINGLE',
@@ -122,8 +125,9 @@ export default function TaskLogView({ workflowId }: TaskLogViewProps) {
             });
           });
           
+          // 3. Potential tasks (Not Started)
           wfRes.data.nodes?.forEach((node: any) => {
-             if (node.type === 'syncJoin' || node.type === 'parallelStart') return;
+             if (isLogicBlock(node.type)) return;
              
              const isDone = inst.executionPath?.some((p: any) => p.nodeId === node.id);
              const isInProgress = inst.currentNodes?.some((c: any) => c.nodeId === node.id);
@@ -134,16 +138,12 @@ export default function TaskLogView({ workflowId }: TaskLogViewProps) {
                  instanceId: inst._id,
                  instanceTitle: inst.title,
                  nodeId: node.id,
-                 name: node.data?.label || 'Unknown Task',
+                 name: node.data?.label || 'Future Step',
                  status: 'NOT_STARTED',
                  performedBy: null,
                  timestamp: null,
-                 type: node.type === 'start' ? 'Début' : 
-                       node.type === 'end' ? 'Fin' :
-                       node.type === 'syncJoin' ? 'Sync Join' :
-                       node.type === 'parallelStart' ? 'Start Parallel' :
-                       node.data?.userAction === 'Fill Form' ? 'Formulaire' :
-                       node.data?.userAction === 'Write Report' ? 'Texte' :
+                 type: node.data?.userAction === 'Fill Form' ? 'Formulaire' : 
+                       node.data?.userAction === 'Write Report' ? 'Texte' : 
                        node.data?.userAction === 'Upload File' ? 'Fichier' :
                        (node.data?.userAction || 'Tâche'),
                  assignmentType: node.data?.assignmentType || 'SINGLE',
@@ -155,7 +155,8 @@ export default function TaskLogView({ workflowId }: TaskLogViewProps) {
           });
         });
 
-        setTasks(aggregatedTasks.sort((a, b) => {
+        const uniqueTasks = Array.from(new Map(aggregatedTasks.map(item => [item.id, item])).values());
+        setTasks(uniqueTasks.sort((a, b) => {
             if (!a.timestamp) return 1;
             if (!b.timestamp) return -1;
             return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
@@ -168,19 +169,11 @@ export default function TaskLogView({ workflowId }: TaskLogViewProps) {
     }
   };
 
-  const handleNotify = (task: any) => {
-    toast.success(`Notification sent to team members for task: ${task.name}`);
-  };
-
   const filteredTasks = tasks.filter(t => {
     const matchesSearch = t.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           t.instanceTitle.toLowerCase().includes(searchTerm.toLowerCase());
     if (filter === 'ALL') return matchesSearch;
-    if (filter === 'REJECTED') return t.status === 'REJECTED' && matchesSearch;
-    if (filter === 'COMPLETED') return t.status === 'COMPLETED' && matchesSearch;
-    if (filter === 'IN_PROGRESS') return t.status === 'IN_PROGRESS' && matchesSearch;
-    if (filter === 'NOT_STARTED') return t.status === 'NOT_STARTED' && matchesSearch;
-    return matchesSearch;
+    return t.status === filter && matchesSearch;
   });
 
   const getStatusBadge = (status: string) => {
@@ -194,31 +187,54 @@ export default function TaskLogView({ workflowId }: TaskLogViewProps) {
   };
 
   const getUserName = (userId: string) => {
-    const user = users.find(u => u._id === userId);
+    if (!userId) return 'Pending';
+    const user = users.find(u => u._id === userId || u.id === userId);
     return user ? `${user.firstName} ${user.lastName}` : 'System / Unknown';
   };
 
-  const getMissingAssignees = (task: any) => {
-    if (!task.responsibleDomain) return [];
-    const domainUsers = users.filter(u => u.domain === task.responsibleDomain);
-    const approvedIds = task.approvedBy?.map((id: any) => id.toString()) || [];
-    return domainUsers.filter(u => !approvedIds.includes(u._id.toString()));
+  const handleReportSubmit = async () => {
+    if (!reportForm.message || !reportForm.recipientId) {
+       toast.error('Please select a recipient and enter a message.');
+       return;
+    }
+
+    try {
+       const res = await apiService.request('/task-reports', {
+          method: 'POST',
+          body: JSON.stringify({
+             instanceId: reportingTask.instanceId,
+             nodeId: reportingTask.nodeId,
+             workflowId: workflowId,
+             recipientId: reportForm.recipientId,
+             message: reportForm.message,
+             submissionData: reportingTask.outputData
+          })
+       });
+
+       if (res.success) {
+          toast.success('Incident reported to user successfully.');
+          setShowReportModal(false);
+          setReportForm({ message: '', recipientId: '' });
+       }
+    } catch (err) {
+       toast.error('Failed to send report.');
+    }
   };
 
-  if (loading) return <div className="flex items-center justify-center h-64"><Clock className="animate-spin text-indigo-600" /></div>;
+  if (loading) return <div className="flex flex-col items-center justify-center h-64 gap-4 animate-pulse"><Activity className="text-indigo-600 w-10 h-10" /><p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Processing Node Log...</p></div>;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-10">
       {/* Search and Filters */}
       <div className="flex flex-col md:flex-row gap-6 items-center justify-between bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm">
         <div className="relative w-full md:max-w-md group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
+          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
           <input
             type="text"
-            placeholder="Search by task or instance..."
+            placeholder="Search tasks..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-50 transition-all font-medium text-slate-700"
+            className="w-full pl-14 pr-6 py-4 bg-slate-50 border-none rounded-[20px] focus:outline-none focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 text-sm shadow-inner"
           />
         </div>
         
@@ -227,10 +243,10 @@ export default function TaskLogView({ workflowId }: TaskLogViewProps) {
             <button
               key={opt}
               onClick={() => setFilter(opt)}
-              className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+              className={`px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
                 filter === opt 
-                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' 
-                : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
+                ? 'bg-slate-900 text-white shadow-xl' 
+                : 'bg-white text-slate-400 hover:bg-slate-50 border border-slate-100'
               }`}
             >
               {opt.replace('_', ' ')}
@@ -239,29 +255,74 @@ export default function TaskLogView({ workflowId }: TaskLogViewProps) {
         </div>
       </div>
 
+      <AnimatePresence>
+        {showReportModal && (
+          <div className="fixed inset-0 z-[600] flex items-center justify-center p-4">
+             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowReportModal(false)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-md" />
+             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white rounded-[40px] p-10 w-full max-w-lg relative z-10 shadow-2xl border border-rose-100">
+                <div className="flex items-center gap-4 mb-8 text-rose-600">
+                   <div className="p-3 bg-rose-50 rounded-2xl">
+                      <ShieldAlert size={24} />
+                   </div>
+                   <h3 className="text-2xl font-black uppercase tracking-tight">Generate Incident Report</h3>
+                </div>
+
+                <div className="space-y-6">
+                   <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Target User</label>
+                      <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 font-bold text-slate-700 flex items-center gap-3">
+                         <div className="w-6 h-6 bg-slate-200 rounded-full flex items-center justify-center text-[9px]">
+                            {getUserName(reportForm.recipientId).substring(0, 2)}
+                         </div>
+                         {getUserName(reportForm.recipientId)}
+                      </div>
+                   </div>
+
+                   <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Admin Remark / Technical Note</label>
+                      <textarea
+                        value={reportForm.message}
+                        onChange={(e) => setReportForm({ ...reportForm, message: e.target.value })}
+                        placeholder="Describe the issue or required modifications..."
+                        className="w-full h-32 p-6 bg-slate-50 border-none rounded-[24px] focus:ring-4 focus:ring-rose-50 outline-none text-sm font-bold text-slate-800 placeholder:text-slate-300 transition-all shadow-inner"
+                      />
+                   </div>
+
+                   <button 
+                     onClick={handleReportSubmit}
+                     className="w-full py-5 bg-rose-600 text-white rounded-[24px] font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center gap-4 hover:bg-rose-700 transition-all shadow-xl shadow-rose-200"
+                   >
+                     <Send size={18} /> Dispatch Report
+                   </button>
+                </div>
+             </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Task List */}
       <div className="space-y-4">
         {filteredTasks.length === 0 ? (
-          <div className="bg-white rounded-[40px] p-20 text-center border border-dashed border-slate-200">
+          <div className="bg-white rounded-[40px] p-24 text-center border-2 border-dashed border-slate-200 shadow-inner">
              <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center mx-auto mb-6 text-slate-300">
                 <AlertCircle size={40} />
              </div>
-             <h3 className="text-xl font-black text-slate-800 tracking-tight">No actions logged yet</h3>
-             <p className="text-slate-400 text-sm mt-1 uppercase tracking-widest font-bold">Lattice is currently silent</p>
+             <h3 className="text-xl font-black text-slate-800 tracking-tight uppercase">No actionable logs</h3>
+             <p className="text-slate-400 text-xs mt-1 uppercase tracking-widest font-bold">Waiting for protocol execution...</p>
           </div>
         ) : (
           filteredTasks.map((task, idx) => (
             <motion.div
               layout
               key={task.id}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: Math.min(idx * 0.05, 1) }}
-              className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow"
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: Math.min(idx * 0.05, 0.5) }}
+              className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden hover:shadow-xl transition-all group relative border-l-8 border-l-slate-200 hover:border-l-indigo-500"
             >
-              <div className="p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
+              <div className="p-8 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-8">
                 <div className="flex items-center gap-6">
-                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 ${
+                  <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 shadow-inner ${
                     task.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-600' : 
                     task.status === 'REJECTED' ? 'bg-rose-50 text-rose-600' :
                     task.status === 'IN_PROGRESS' ? 'bg-amber-50 text-amber-600' : 'bg-slate-50 text-slate-400'
@@ -269,68 +330,81 @@ export default function TaskLogView({ workflowId }: TaskLogViewProps) {
                     {task.type === 'Formulaire' ? <ClipboardList size={28} /> : 
                      task.type === 'Texte' ? <FileText size={28} /> : 
                      task.type === 'Fichier' ? <Paperclip size={28} /> :
-                     task.type === 'Début' ? <Play size={28} /> :
-                     task.type === 'Fin' ? <Flag size={28} /> :
-                     task.type === 'Sync Join' ? <GitMerge size={28} /> :
-                     task.type === 'Start Parallel' ? <GitFork size={28} /> :
-                     <CheckCircle2 size={28} />}
+                     <Activity size={28} />}
                   </div>
-                  <div className="space-y-1">
-                    <h4 className="text-lg font-black text-slate-800 tracking-tight leading-none uppercase">{task.name}</h4>
-                    <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">{task.instanceTitle}</p>
-                    <div className="flex items-center gap-3 mt-2">
+                  <div className="space-y-2">
+                    <h4 className="text-xl font-black text-slate-800 tracking-tight leading-none uppercase group-hover:text-indigo-600 transition-colors">{task.name}</h4>
+                    <div className="flex items-center gap-3">
                        {getStatusBadge(task.status)}
-                       <span className="text-[9px] font-bold text-slate-400 uppercase flex items-center gap-1.5">
-                         <div className="w-1 h-1 rounded-full bg-slate-300"></div>
+                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                         <div className="w-1.5 h-1.5 rounded-full bg-slate-200"></div>
                          {task.type}
                        </span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-10">
-                   <div className="text-right">
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Execution</p>
-                      <p className="text-xs font-bold text-slate-700">{task.performedBy ? getUserName(task.performedBy) : 'Pending'}</p>
-                      {task.timestamp && (
-                        <p className="text-[8px] font-bold text-slate-400 mt-0.5">{new Date(task.timestamp).toLocaleString()}</p>
-                      )}
+                <div className="flex items-center gap-12 w-full xl:w-auto pt-6 xl:pt-0 border-t xl:border-t-0 border-slate-50">
+                   <div className="min-w-[140px]">
+                      <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1.5 underline decoration-indigo-100 underline-offset-2">Main Operator</p>
+                      <div className="flex items-center gap-3">
+                         <div className="w-7 h-7 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 text-[10px] font-black">
+                            {getUserName(task.performedBy).substring(0, 2)}
+                         </div>
+                         <p className="text-xs font-black text-slate-700">{getUserName(task.performedBy)}</p>
+                      </div>
                    </div>
 
-                   {/* Action Buttons for Completed Tasks */}
-                   {(task.status === 'COMPLETED' || task.status === 'REJECTED') && (
-                      <div className="flex items-center gap-2 pl-6 border-l border-slate-100">
+                   <div className="hidden md:block text-right">
+                       <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1">Execution Log</p>
+                       <p className="text-xs font-black text-slate-700 leading-none">{task.timestamp ? new Date(task.timestamp).toLocaleDateString() : 'Pending'}</p>
+                       {task.timestamp && (
+                        <p className="text-[9px] font-bold text-indigo-500 mt-1 uppercase tracking-tighter opacity-80">{new Date(task.timestamp).toLocaleTimeString()}</p>
+                       )}
+                   </div>
+
+                   {/* Action Buttons */}
+                   <div className="flex items-center gap-3 ml-auto">
+                     {(task.status === 'COMPLETED' || task.status === 'REJECTED') && (
                         <button 
                           onClick={() => setSelectedTask(task)}
-                          className="flex items-center gap-2 px-4 py-2.5 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest shadow-sm group"
+                          className="flex items-center gap-2.5 px-6 py-3.5 bg-slate-900 text-white rounded-2xl hover:bg-indigo-600 transition-all text-[11px] font-black uppercase tracking-[0.1em] shadow-xl shadow-slate-200 group/btn"
                         >
-                          <Eye size={14} className="group-hover:scale-110 transition-transform" />
+                          <Eye size={16} className="group-hover/btn:scale-110 transition-transform" />
                           Consult Work
                         </button>
-                        {task.performedBy && (
-                          <a 
-                            href={`mailto:${users.find(u => u._id === task.performedBy)?.email}?subject=Question about task: ${task.name}`}
-                            className="p-3 bg-slate-50 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all shadow-sm border border-transparent hover:border-emerald-100"
-                            title="Contact user"
-                          >
-                            <Mail size={16} />
-                          </a>
-                        )}
-                      </div>
-                    )}
+                      )}
+                      {task.performedBy && (
+                        <a 
+                          href={`mailto:${users.find(u => u._id === task.performedBy)?.email}?subject=Question: ${task.name}`}
+                          className="p-3.5 bg-white border border-slate-100 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-2xl transition-all shadow-sm"
+                          title="Contact lead"
+                        >
+                          <Mail size={18} />
+                        </a>
+                      )}
+                   </div>
                 </div>
               </div>
 
               {/* Pool Details */}
-              {(task.assignmentType === 'ALL' || task.assignmentType === 'ANY') && (
-                <div className="px-8 pb-6 pt-2 bg-slate-50/30 border-t border-slate-50 flex flex-wrap gap-4">
-                  <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest w-full">Detailed Tracking</span>
-                  {task.approvedBy?.map((uid: any, i: number) => (
-                    <div key={i} className="flex items-center gap-2 px-3 py-1 bg-white rounded-lg border border-slate-100 shadow-sm">
-                       <CheckCircle2 size={10} className="text-emerald-500" />
-                       <span className="text-[9px] font-bold text-slate-600">{getUserName(uid)}</span>
-                    </div>
-                  ))}
+              {task.assignmentType !== 'SINGLE' && (
+                <div className="px-10 pb-8 pt-4 bg-slate-50/50 border-t border-slate-50 flex flex-wrap gap-4">
+                  <div className="w-full flex items-center gap-2 mb-2">
+                     <UsersIcon size={14} className="text-indigo-500" />
+                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Consensus Tracking ({task.assignmentType})</span>
+                     <div className="h-px flex-1 bg-slate-100"></div>
+                  </div>
+                  {task.approvedBy?.length > 0 ? (
+                    [...new Set(task.approvedBy.map(String))].map((uid: any, i: number) => (
+                      <div key={i} className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-left-2 transition-all">
+                         <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.3)]"></div>
+                         <span className="text-[10px] font-black text-slate-700">{getUserName(uid)}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-[10px] font-bold text-slate-300 uppercase italic px-2 tracking-widest">Building team consensus...</p>
+                  )}
                 </div>
               )}
             </motion.div>
@@ -338,115 +412,114 @@ export default function TaskLogView({ workflowId }: TaskLogViewProps) {
         )}
       </div>
 
-      {/* Task Detail Modal */}
+      {/* Detail Modal */}
       <AnimatePresence>
         {selectedTask && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[500] flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSelectedTask(null)}
-              className="absolute inset-0 bg-slate-900/60 backdrop-blur-lg"
+              className="absolute inset-0 bg-slate-900/80 backdrop-blur-xl"
             />
             <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              initial={{ scale: 0.9, opacity: 0, y: 30 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white rounded-[40px] shadow-2xl w-full max-w-2xl relative z-10 overflow-hidden border border-white/20 flex flex-col max-h-[85vh]"
+              exit={{ scale: 0.9, opacity: 0, y: 30 }}
+              className="bg-white rounded-[48px] shadow-2xl w-full max-w-2xl relative z-10 overflow-hidden border border-white/20 flex flex-col max-h-[90vh]"
             >
-              <div className="bg-indigo-600 p-10 text-white relative overflow-hidden shrink-0">
-                <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
-                <button 
-                  onClick={() => setSelectedTask(null)}
-                  className="absolute right-8 top-8 p-3 hover:bg-white/10 rounded-2xl transition-all"
-                >
-                  <X size={20} />
-                </button>
-                <div className="flex items-center gap-4 mb-2">
-                   <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-                      <FileText size={20} />
+              <div className="bg-indigo-600 p-12 text-white relative overflow-hidden shrink-0">
+                <div className="absolute -right-20 -top-20 w-80 h-80 bg-white/10 rounded-full blur-3xl opacity-50"></div>
+                
+                <div className="flex items-center gap-6 mb-4 relative z-10">
+                   <div className="w-16 h-16 bg-white/20 rounded-3xl flex items-center justify-center backdrop-blur-md shadow-2xl border border-white/10">
+                      <FileText size={32} />
                    </div>
-                   <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-80">Task Analysis Report</p>
+                   <div>
+                      <p className="text-[11px] font-black uppercase tracking-[0.4em] opacity-70 mb-1">Process Forensic Scan</p>
+                      <h2 className="text-4xl font-black tracking-tight uppercase leading-tight">{selectedTask.name}</h2>
+                   </div>
                 </div>
-                <h2 className="text-4xl font-black tracking-tight uppercase leading-tight mb-2">{selectedTask.name}</h2>
-                <p className="text-indigo-100/70 font-bold text-sm tracking-wide lowercase">{selectedTask.instanceTitle}</p>
               </div>
 
-              <div className="p-10 overflow-y-auto custom-scrollbar space-y-10 flex-grow">
-                {/* Metadata */}
-                <div className="grid grid-cols-2 gap-8">
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Performed By</p>
-                    <p className="text-lg font-black text-slate-800 tracking-tight">{getUserName(selectedTask.performedBy)}</p>
-                    <p className="text-xs font-bold text-slate-400">{selectedTask.performedBy && users.find(u => u._id === selectedTask.performedBy)?.email}</p>
+              <div className="p-12 overflow-y-auto custom-scrollbar flex-grow bg-slate-50/30 space-y-12">
+                <div className="grid grid-cols-2 gap-10 pt-6 border-t border-slate-100">
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] underline decoration-indigo-200 underline-offset-4">Active Operator</p>
+                    <p className="text-2xl font-black text-slate-800 tracking-tight">{getUserName(selectedTask.performedBy)}</p>
+                    <p className="text-[10px] font-black text-indigo-400 tracking-widest uppercase opacity-70">Protocol Alignment</p>
                   </div>
-                  <div className="space-y-1 text-right">
-                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Completion Date</p>
-                    <p className="text-lg font-black text-slate-800 tracking-tight">{new Date(selectedTask.timestamp).toLocaleDateString()}</p>
-                    <p className="text-xs font-bold text-slate-400">{new Date(selectedTask.timestamp).toLocaleTimeString()}</p>
+                  <div className="space-y-2 text-right">
+                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] underline decoration-indigo-200 underline-offset-4">Execution Timestamp</p>
+                    <p className="text-xl font-black text-slate-800 tracking-tight">{new Date(selectedTask.timestamp).toLocaleDateString()}</p>
+                    <p className="text-[10px] font-bold text-slate-400">{new Date(selectedTask.timestamp).toLocaleTimeString()}</p>
                   </div>
                 </div>
 
-                {/* Work Data */}
-                <div className="space-y-6">
-                   <div className="flex items-center gap-3">
-                      <div className="h-[1px] flex-1 bg-slate-100"></div>
-                      <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest flex items-center gap-2">
-                         <ClipboardList size={12} /> Work Submission Details
+                <div className="space-y-12">
+                   <div className="flex items-center gap-4">
+                      <div className="h-px flex-1 bg-slate-200"></div>
+                      <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-3">
+                         <Activity size={18} className="text-indigo-500" /> Evidence Analysis
                       </span>
-                      <div className="h-[1px] flex-1 bg-slate-100"></div>
+                      <div className="h-px flex-1 bg-slate-200"></div>
                    </div>
 
-                   <div className="bg-slate-50/50 rounded-3xl p-8 border border-slate-100 space-y-6">
-                      {selectedTask.comments && (
-                         <div className="space-y-2">
-                            <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest flex items-center gap-2">
-                               <MessageSquare size={10} /> User Comments
-                            </p>
-                            <div className="p-5 bg-white rounded-2xl border border-slate-100 shadow-sm text-sm font-medium text-slate-600 italic leading-relaxed">
-                               "{selectedTask.comments}"
-                            </div>
+                   {selectedTask.comments && (
+                      <div className="space-y-4">
+                         <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
+                            <MessageSquare size={16} /> User Rational / Remarks
+                         </p>
+                         <div className="p-10 bg-white rounded-[32px] border border-slate-100 shadow-sm text-lg font-bold text-slate-600 italic leading-relaxed relative border-l-8 border-l-indigo-500">
+                            "{selectedTask.comments}"
                          </div>
-                      )}
+                      </div>
+                   )}
 
-                      {selectedTask.outputData && Object.keys(selectedTask.outputData).length > 0 ? (
-                        <div className="space-y-4">
-                           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Form / Data Payload</p>
-                           <div className="grid grid-cols-1 gap-3">
-                              {Object.entries(selectedTask.outputData).map(([key, value]: [string, any]) => (
-                                <div key={key} className="flex flex-col gap-1 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
-                                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">{key.replace(/_/g, ' ')}</span>
-                                   <span className="text-sm font-bold text-slate-700">
-                                     {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value)}
-                                   </span>
-                                </div>
-                              ))}
-                           </div>
-                        </div>
-                      ) : (
-                        <div className="text-center py-6">
-                           <CheckCircle2 size={32} className="mx-auto text-emerald-500 mb-3 opacity-30" />
-                           <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Task completed without additional data</p>
-                        </div>
-                      )}
-                   </div>
+                   {selectedTask.outputData && Object.keys(selectedTask.outputData).length > 0 ? (
+                    <div className="space-y-6">
+                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">Data Payload Extraction</p>
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {Object.entries(selectedTask.outputData).map(([key, value]: [string, any]) => (
+                            <div key={key} className="flex flex-col gap-2 p-6 bg-white rounded-3xl border border-slate-100 shadow-sm hover:border-indigo-100 transition-colors group/item">
+                               <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest group-hover/item:text-indigo-600">{key.replace(/_/g, ' ')}</span>
+                               <span className="text-sm font-black text-slate-800 break-words opacity-90">
+                                 {typeof value === 'boolean' ? (value ? 'YES' : 'NO') : String(value)}
+                               </span>
+                            </div>
+                          ))}
+                       </div>
+                    </div>
+                  ) : (
+                    <div className="bg-white rounded-[32px] border-2 border-dashed border-slate-200 p-20 text-center opacity-70">
+                       <CheckCircle2 size={48} className="mx-auto text-emerald-500 mb-6" />
+                       <p className="text-xs font-black text-slate-400 uppercase tracking-widest leading-loose">No dynamic data captured for this operator.<br/>Action confirmed via manual validation.</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div className="p-8 bg-slate-50 border-t border-slate-100 flex gap-4 shrink-0">
-                 <a 
-                   href={`mailto:${users.find(u => u._id === selectedTask.performedBy)?.email}?subject=Question about task: ${selectedTask.name}`}
-                   className="flex-1 py-4 bg-indigo-600 text-white rounded-[24px] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-indigo-700 transition-all active:scale-95 shadow-xl shadow-indigo-100"
-                 >
-                   <Mail size={18} />
-                   Send Clarification Email
-                 </a>
+              <div className="p-10 bg-white border-t border-slate-100 flex gap-4 shrink-0">
                  <button 
                    onClick={() => setSelectedTask(null)}
-                   className="px-8 py-4 bg-white border border-slate-200 text-slate-600 rounded-[20px] font-black text-[10px] uppercase tracking-widest flex items-center justify-center hover:bg-slate-50 transition-all"
+                   className="flex-1 py-5 bg-slate-900 text-white rounded-[26px] font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center gap-4 hover:bg-slate-800 transition-all shadow-2xl"
                  >
-                   Close
+                   Exit Protocol
+                 </button>
+                 {selectedTask.type === 'Formulaire' && (
+                    <button 
+                      onClick={() => toast.info('Generating PDF document preview...')}
+                      className="flex-1 py-5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-[26px] font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center gap-4 hover:bg-indigo-100 transition-all"
+                    >
+                      <FileText size={18} /> Review Document
+                    </button>
+                  )}
+                 <button 
+                    onClick={() => { setReportingTask(selectedTask); setReportForm({ ...reportForm, recipientId: selectedTask.performedBy }); setShowReportModal(true); }}
+                    className="flex-1 py-5 bg-rose-500 text-white rounded-[26px] font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center gap-4 hover:bg-rose-600 transition-all shadow-xl shadow-rose-100"
+                 >
+                    <ShieldAlert size={18} /> Send Incident Report
                  </button>
               </div>
             </motion.div>

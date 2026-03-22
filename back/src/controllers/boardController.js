@@ -88,6 +88,7 @@ exports.cloneBoard = async (req, res) => {
         const clonedBoard = new Board({
             name: `${originalBoard.name} (Copy)`,
             description: originalBoard.description,
+            workflowId: originalBoard.workflowId,
             createdBy: userId
         });
 

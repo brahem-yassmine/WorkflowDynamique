@@ -204,23 +204,10 @@ export default function AllFormsPage() {
                     </span>
                   </div>
 
-                  {/* Workflows within Project */}
-                  <div className="space-y-8 pl-4 md:pl-8 border-l-2 border-gray-100">
-                    {Object.entries(workflows).map(([workflowName, items]) => (
-                      <div key={workflowName} className="space-y-4 relative">
-                        {/* Sub-header for Workflow */}
-                        <div className="flex items-center gap-3 px-2">
-                          <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center text-gray-500 shadow-sm border border-gray-100">
-                            <GitBranch size={16} />
-                          </div>
-                          <div>
-                            <h4 className="text-lg font-black text-gray-700 tracking-tight">{workflowName}</h4>
-                            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest leading-none mt-0.5">Workflow Group</p>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                          {items.map((form) => (
+                  {/* Forms within Project */}
+                  <div className="pl-4 md:pl-8 border-l-2 border-gray-100 mt-6 md:mt-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {(Object.values(workflows) as any[][]).flat().map((form: any) => (
                             <div
                               key={form._id}
                               onClick={() => router.push(`/form/form3?id=${form._id}`)}
@@ -299,9 +286,7 @@ export default function AllFormsPage() {
                               </div>
                             </div>
                           ))}
-                        </div>
-                      </div>
-                    ))}
+                    </div>
                   </div>
                 </div>
               );

@@ -66,6 +66,15 @@ function WorkflowAdminDetailsContent() {
   }, [workflowId]);
 
   const fetchBaseData = async () => {
+    if (workflowId === 'standard') {
+      setWorkflow({
+        name: 'Standard Protocol',
+        domain: 'GENERIC'
+      });
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const wfRes = await apiService.getWorkflowById(workflowId);
@@ -123,11 +132,11 @@ function WorkflowAdminDetailsContent() {
   ];
 
   return (
-    <div className="flex flex-col h-full bg-[#F8FAFC] overflow-hidden isolate relative">
+    <div className="flex flex-col h-full bg-[#F8FAFC] overflow-hidden relative">
       <Toaster position="top-right" richColors />
       
       {/* HEADER */}
-      <header className="bg-white border-b border-indigo-100 shrink-0 z-[100] shadow-sm relative">
+      <header className="bg-white border-b border-indigo-100 shrink-0 z-[999] shadow-sm relative">
           {/* Top accent line */}
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-600 via-blue-500 to-indigo-600 z-30 pointer-events-none" />
           
@@ -147,7 +156,7 @@ function WorkflowAdminDetailsContent() {
                       router.push('/admin/workflows');
                     }
                   }}
-                  className="w-10 h-10 bg-white hover:bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 transition-all border border-slate-100 shadow-sm active:scale-95 group"
+                  className="w-10 h-10 bg-white hover:bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 transition-all border border-slate-100 shadow-sm active:scale-95 group relative z-[1001] pointer-events-auto"
                 >
                   <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
                 </button>
@@ -182,7 +191,7 @@ function WorkflowAdminDetailsContent() {
           </div>
 
           {/* COMPACT NAVIGATION STRIP */}
-          <div className="px-10 flex items-center gap-1 overflow-x-auto no-scrollbar border-t border-slate-50 py-2 bg-slate-50/30 relative z-[101]">
+          <div className="px-10 flex items-center gap-1 overflow-x-auto no-scrollbar border-t border-slate-50 py-2 bg-slate-50/30 relative z-[1000]">
              {tabs.map((tab) => (
                <button
                  key={tab.id}
@@ -193,7 +202,7 @@ function WorkflowAdminDetailsContent() {
                      setActiveTab(tab.id);
                    }
                  }}
-                  className={`px-5 py-2.5 rounded-xl transition-all flex items-center gap-3 whitespace-nowrap cursor-pointer relative z-[200] pointer-events-auto ${
+                  className={`px-5 py-2.5 rounded-xl transition-all flex items-center gap-3 whitespace-nowrap cursor-pointer relative z-[1001] pointer-events-auto ${
                    activeTab === tab.id 
                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' 
                      : 'text-slate-400 hover:bg-white hover:text-indigo-600 hover:shadow-sm'

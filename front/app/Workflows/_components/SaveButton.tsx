@@ -5,6 +5,7 @@ import { Save } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiService } from '@/service/api.service';
 import { useSearchParams } from 'next/navigation';
+import { toast } from 'sonner';
 
 interface SaveButtonProps {
   onSave: (data: { name: string; domain: string; projectId?: string }) => Promise<void>;
@@ -73,8 +74,14 @@ const SaveButton = ({ onSave, isSaving, initialName = '', initialDomain = 'HR', 
   };
 
   const handleSave = async () => {
-    if (!name.trim()) return;
-
+    if (!name.trim()) {
+      toast.error('Workflow Name is required!');
+      return;
+    }
+    if (!domain || domain === 'Select Domain') {
+      toast.error('Please select a target Domain!');
+      return;
+    }
     if (onSave) {
       try {
         await (onSave as any)({ name, domain, projectId: projectId || undefined, status });
@@ -153,6 +160,7 @@ const SaveButton = ({ onSave, isSaving, initialName = '', initialDomain = 'HR', 
                       className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-indigo-50 font-bold text-slate-700 outline-none transition-all"
                     >
                       <option value="">Select Domain</option>
+                      <option value="Standard">Standard</option>
                       {availableDomains.map(d => (
                         <option key={d._id} value={d.name}>{d.name}</option>
                       ))}

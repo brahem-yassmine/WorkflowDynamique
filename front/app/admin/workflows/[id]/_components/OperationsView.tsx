@@ -26,6 +26,11 @@ export default function OperationsView({ workflowId }: { workflowId: string }) {
   }, [workflowId]);
 
   const fetchInstances = async () => {
+    if (workflowId === 'standard') {
+      setInstances([]);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const res = await apiService.getInstances({ workflowId });

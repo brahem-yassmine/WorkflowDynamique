@@ -101,6 +101,11 @@ export default function VisualFlowView({ workflowId, workflow }: { workflowId: s
   }, [workflowId]);
 
   const fetchInstances = async () => {
+    if (workflowId === 'standard') {
+      setInstances([]);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const res = await apiService.getInstances({ workflowId });

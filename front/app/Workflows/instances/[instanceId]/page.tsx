@@ -57,7 +57,20 @@ export default function InstancePage({ params }: { params: Promise<{ instanceId:
         fetchData();
     }, [instanceId, workflowId]);
 
+    // Auto-open from URL
+    useEffect(() => {
+        const nodeId = searchParams.get('nodeId');
+        if (nodeId && instance) {
+            const node = (instance.workflowId?.nodes || []).find((n: any) => n.id === nodeId);
+            if (node) {
+                setSelectedNode(node);
+            }
+        }
+    }, [searchParams, instance]);
+
     const handleNodeClick = (event: React.MouseEvent, node: any) => {
+        const isLogicNode = ['start', 'end', 'syncJoin', 'parallelStart', 'parallel_split', 'parallel_join', 'condition', 'gateway', 'split', 'join'].some(t => t.toLowerCase() === node.type?.toLowerCase());
+        if (isLogicNode) return;
         setSelectedNode(node);
     };
 
@@ -165,7 +178,10 @@ export default function InstancePage({ params }: { params: Promise<{ instanceId:
                 {selectedNode && (
                     <TaskExecutionPanel
                         instance={instance}
-                        node={selectedNode}
+                        node={{
+                            ...selectedNode,
+                            ...(instance?.currentNodes?.find((cn: any) => cn.nodeId === selectedNode.id) || {})
+                        }}
                         workflowId={workflowId}
                         onClose={() => setSelectedNode(null)}
                         onRefresh={fetchData}

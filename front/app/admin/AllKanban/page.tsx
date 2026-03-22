@@ -11,7 +11,8 @@ import {
   Calendar,
   Layers,
   ArrowRight,
-  LayoutGrid
+  LayoutGrid,
+  Briefcase
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast, Toaster } from 'sonner';
@@ -98,6 +99,23 @@ export default function AllKanbanPage() {
     b.name.toLowerCase().includes(search.toLowerCase())
   );
 
+  // Group boards by Project
+  const groupedBoards: Record<string, Board[]> = {};
+  const uncategorizedBoards: Board[] = [];
+
+  filteredBoards.forEach(board => {
+    const workflow = (board as any).workflowId;
+    if (!workflow || typeof workflow === 'string') {
+      uncategorizedBoards.push(board);
+    } else {
+      const projectName = workflow.projectId?.name || 'Unassigned Project';
+      if (!groupedBoards[projectName]) {
+        groupedBoards[projectName] = [];
+      }
+      groupedBoards[projectName].push(board);
+    }
+  });
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <Toaster position="top-right" richColors />
@@ -181,87 +199,195 @@ export default function AllKanbanPage() {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredBoards.map((board) => (
-            <div 
-              key={board._id} 
-              className="group bg-white rounded-[32px] border border-slate-100 p-6 hover:shadow-2xl hover:shadow-indigo-500/10 hover:border-indigo-100 transition-all relative overflow-hidden flex flex-col"
-            >
-              <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              
-              <div className="flex items-center justify-between mb-6">
-                <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-sm border border-indigo-100 group-hover:bg-indigo-600 group-hover:text-white transition-all">
-                   <LayoutDashboard size={18} />
+        <div className="space-y-12 pb-8">
+          {Object.entries(groupedBoards).map(([projectName, projectBoards]) => (
+            <div key={projectName} className="space-y-6">
+              {/* Project Header */}
+              <div className="flex items-center justify-between px-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100">
+                    <Briefcase size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-slate-800 tracking-tight">{projectName}</h3>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-0.5">Project Collection</p>
+                  </div>
                 </div>
-                <div className="text-[10px] font-black text-slate-400 flex items-center gap-1.5 uppercase tracking-widest">
-                  <Calendar size={12} />
-                  {new Date(board.createdAt).toLocaleDateString()}
-                </div>
+                <span className="px-3 py-1 bg-indigo-600 text-white rounded-full text-[10px] font-black uppercase tracking-wider shadow-lg shadow-indigo-100">
+                  {projectBoards.length} Boards
+                </span>
               </div>
 
-              <h3 className="text-lg font-black text-slate-800 mb-2 truncate group-hover:text-indigo-600 transition-colors">
-                {board.name}
-              </h3>
-              
-              <p className="text-xs text-slate-400 mb-4 font-medium line-clamp-2">
-                {board.description || "Standard organizational throughput management board."}
-              </p>
+              {/* Boards within Project */}
+              <div className="pl-4 md:pl-8 border-l-2 border-slate-100 mt-6 md:mt-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {projectBoards.map((board) => (
+                    <div 
+                      key={board._id} 
+                      className="group bg-white rounded-[32px] border border-slate-100 p-6 hover:shadow-2xl hover:shadow-indigo-500/10 hover:border-indigo-100 transition-all relative overflow-hidden flex flex-col"
+                    >
+                      <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      
+                      <div className="flex items-center justify-between mb-6">
+                        <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-sm border border-indigo-100 group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                           <LayoutDashboard size={18} />
+                        </div>
+                        <div className="text-[10px] font-black text-slate-400 flex items-center gap-1.5 uppercase tracking-widest">
+                          <Calendar size={12} />
+                          {new Date(board.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
 
-              {(board as any).workflowId && (
-                <div className="flex flex-col gap-1.5 mb-6 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <Layers size={14} className="text-indigo-500" />
-                    <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">
-                      {(board as any).workflowId.name}
-                    </span>
-                  </div>
-                  {(board as any).workflowId.projectId && (
-                    <div className="flex items-center gap-2 pt-1.5 border-t border-slate-100">
-                      <LayoutGrid size={12} className="text-slate-400" />
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                        {(board as any).workflowId.projectId.name}
-                      </span>
+                      <h3 className="text-lg font-black text-slate-800 mb-2 truncate group-hover:text-indigo-600 transition-colors">
+                        {board.name}
+                      </h3>
+                      
+                      <p className="text-xs text-slate-400 mb-4 font-medium line-clamp-2">
+                        {board.description || "Standard organizational throughput management board."}
+                      </p>
+
+                      {(board as any).workflowId && (
+                        <div className="flex flex-col gap-1.5 mb-6 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
+                          <div className="flex items-center gap-2">
+                            <Layers size={14} className="text-indigo-500" />
+                            <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">
+                              {(board as any).workflowId.name}
+                            </span>
+                          </div>
+                          {(board as any).workflowId.projectId && (
+                            <div className="flex items-center gap-2 pt-1.5 border-t border-slate-100">
+                              <LayoutGrid size={12} className="text-slate-400" />
+                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                                {(board as any).workflowId.projectId.name}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between mt-auto pt-5 border-t border-slate-50">
+                        <div className="flex items-center gap-1">
+                          <button 
+                            onClick={async () => {
+                              try {
+                                const res = await apiService.request(`/boards/${board._id}/clone`, { method: 'POST' });
+                                if (res.success) {
+                                  toast.success("Board cloned!");
+                                  fetchBoards();
+                                }
+                              } catch { toast.error("Clone failed"); }
+                            }}
+                            className="p-2.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                            title="Clone Board"
+                          >
+                            <Copy size={18} />
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(board._id)}
+                            className="p-2.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                            title="Delete Board"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                        
+                        <button 
+                          onClick={() => router.push(`/kanban?boardId=${board._id}`)}
+                          className="px-4 py-2 bg-slate-50 text-slate-400 group-hover:bg-indigo-600 group-hover:text-white rounded-xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border border-transparent group-hover:shadow-lg group-hover:shadow-indigo-100 active:scale-95"
+                        >
+                          Open Board
+                          <ArrowRight size={14} />
+                        </button>
+                      </div>
                     </div>
-                  )}
+                  ))}
                 </div>
-              )}
-
-              <div className="flex items-center justify-between mt-auto pt-5 border-t border-slate-50">
-                <div className="flex items-center gap-1">
-                  <button 
-                    onClick={async () => {
-                      try {
-                        const res = await apiService.request(`/boards/${board._id}/clone`, { method: 'POST' });
-                        if (res.success) {
-                          toast.success("Board cloned!");
-                          fetchBoards();
-                        }
-                      } catch { toast.error("Clone failed"); }
-                    }}
-                    className="p-2.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                    title="Clone Board"
-                  >
-                    <Copy size={18} />
-                  </button>
-                  <button 
-                    onClick={() => handleDelete(board._id)}
-                    className="p-2.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
-                    title="Delete Board"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-                
-                <button 
-                  onClick={() => router.push(`/kanban?boardId=${board._id}`)}
-                  className="px-4 py-2 bg-slate-50 text-slate-400 group-hover:bg-indigo-600 group-hover:text-white rounded-xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border border-transparent group-hover:shadow-lg group-hover:shadow-indigo-100 active:scale-95"
-                >
-                  Open Board
-                  <ArrowRight size={14} />
-                </button>
               </div>
             </div>
           ))}
+
+          {uncategorizedBoards.length > 0 && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between px-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 shadow-sm border border-slate-100">
+                    <LayoutDashboard size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-slate-800 tracking-tight">Standalone Boards</h3>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-0.5">No Project assigned</p>
+                  </div>
+                </div>
+                <span className="px-3 py-1 bg-slate-200 text-slate-600 rounded-full text-[10px] font-black uppercase tracking-wider">
+                  {uncategorizedBoards.length} Boards
+                </span>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {uncategorizedBoards.map((board) => (
+                  <div 
+                    key={board._id} 
+                    className="group bg-white rounded-[32px] border border-slate-100 p-6 hover:shadow-2xl hover:shadow-indigo-500/10 hover:border-indigo-100 transition-all relative overflow-hidden flex flex-col"
+                  >
+                    <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-sm border border-indigo-100 group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                         <LayoutDashboard size={18} />
+                      </div>
+                      <div className="text-[10px] font-black text-slate-400 flex items-center gap-1.5 uppercase tracking-widest">
+                        <Calendar size={12} />
+                        {new Date(board.createdAt).toLocaleDateString()}
+                      </div>
+                    </div>
+
+                    <h3 className="text-lg font-black text-slate-800 mb-2 truncate group-hover:text-indigo-600 transition-colors">
+                      {board.name}
+                    </h3>
+                    
+                    <p className="text-xs text-slate-400 mb-4 font-medium line-clamp-2">
+                      {board.description || "Standard organizational throughput management board."}
+                    </p>
+
+                    <div className="flex items-center justify-between mt-auto pt-5 border-t border-slate-50">
+                      <div className="flex items-center gap-1">
+                        <button 
+                          onClick={async () => {
+                            try {
+                              const res = await apiService.request(`/boards/${board._id}/clone`, { method: 'POST' });
+                              if (res.success) {
+                                toast.success("Board cloned!");
+                                fetchBoards();
+                              }
+                            } catch { toast.error("Clone failed"); }
+                          }}
+                          className="p-2.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                          title="Clone Board"
+                        >
+                          <Copy size={18} />
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(board._id)}
+                          className="p-2.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                          title="Delete Board"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                      
+                      <button 
+                        onClick={() => router.push(`/kanban?boardId=${board._id}`)}
+                        className="px-4 py-2 bg-slate-50 text-slate-400 group-hover:bg-indigo-600 group-hover:text-white rounded-xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border border-transparent group-hover:shadow-lg group-hover:shadow-indigo-100 active:scale-95"
+                      >
+                        Open Board
+                        <ArrowRight size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

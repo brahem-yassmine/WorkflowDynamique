@@ -1,6 +1,8 @@
 // back/src/controllers/authController.js
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { OAuth2Client } = require('google-auth-library');
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const mongoose = require('mongoose');
 const { recordActivity } = require('../services/auditLogger');
 const crypto = require('crypto');
@@ -728,5 +730,113 @@ module.exports = {
   registerSuperAdmin,
   forgotPassword,
   resetPassword,
-  getProfile
+  getProfile,
+  googleLogin: async (req, res) => {
+    try {
+      const { idToken } = req.body;
+      const logService = new LogService(req.masterDb);
+
+      if (!idToken) {
+        return res.status(400).json({ success: false, message: 'Google ID Token required' });
+      }
+
+      // 1. Verify Google Token
+      const ticket = await googleClient.verifyIdToken({
+        idToken,
+        audience: process.env.GOOGLE_CLIENT_ID
+      });
+      const payload = ticket.getPayload();
+      const email = payload.email.toLowerCase();
+      const name = payload.name;
+
+      console.log('🌐 Google Login attempt:', email);
+
+      // 2. Search hierarchy (Replicating login logic)
+      
+      // Tier 1: Super Admin
+      const SuperAdmin = getSuperAdminModel(req);
+      let user = await SuperAdmin.findOne({ email });
+      let role = 'super_admin';
+      let tenantId = null;
+
+      // Tier 2: Tenant Owner
+      if (!user) {
+        const TenantModel = getTenantModel(req);
+        user = await TenantModel.findOne({ email });
+        if (user) {
+          role = 'admin';
+          tenantId = user._id.toString();
+        }
+      }
+
+      // Tier 3: Tenant User (across all active databases)
+      if (!user) {
+        const TenantModel = getTenantModel(req);
+        const allTenants = await TenantModel.find({ status: 'active' });
+
+        for (const t of allTenants) {
+          try {
+            const conn = mongoose.createConnection(t.databaseUri);
+            const TenantUser = require('../models/tenant/User')(conn);
+            const foundUser = await TenantUser.findOne({ email });
+
+            if (foundUser) {
+              user = foundUser;
+              role = foundUser.role || 'user';
+              tenantId = t._id.toString();
+              await conn.close();
+              break;
+            }
+            await conn.close();
+          } catch (connErr) {
+            console.error(`❌ Google Search in tenant ${t.name} failed`);
+          }
+        }
+      }
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          userNotFound: true,
+          message: 'No account found with this Google email. Please register first.'
+        });
+      }
+
+      // 3. Generate Token (Replicating login's token generation)
+      const token = jwt.sign(
+        {
+          id: user._id,
+          userId: user._id,
+          email: user.email,
+          name: user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : (user.name || user.firstName),
+          role: role,
+          tenantId: tenantId,
+          domain: user.domain || 'HR',
+          permissions: role === 'super_admin' ? ['all'] : [] // Ideally fetch permissions here too
+        },
+        process.env.JWT_SECRET || 'your_jwt_secret',
+        { expiresIn: '30d' }
+      );
+
+      // Success Response (Simplified compared to local login, but providing necessary data)
+      res.json({
+        success: true,
+        data: {
+          token,
+          user: {
+            _id: user._id,
+            email: user.email,
+            role: role,
+            name: user.name || user.firstName,
+            tenantId,
+            hasSelectedPlan: user.hasSelectedPlan ?? true
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('❌ Google Login Controller Error:', error);
+      res.status(500).json({ success: false, message: 'Google Authentication failed: ' + error.message });
+    }
+  }
 };

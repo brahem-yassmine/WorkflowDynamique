@@ -178,8 +178,13 @@ export default function UserWorkflowsPage() {
   const ChecklistPreviewModal = ({ workflow, isOpen, onClose }: { workflow: Workflow | null, isOpen: boolean, onClose: () => void }) => {
     if (!workflow || !isOpen) return null;
 
+    const isLogicBlock = (type: string) => {
+      const logicTypes = ['start', 'end', 'syncJoin', 'parallelStart', 'parallel_split', 'parallel_join', 'condition', 'gateway', 'split', 'join'];
+      return logicTypes.some(t => t.toLowerCase() === type.toLowerCase());
+    };
+
     const tasks = workflow.nodes
-      .filter(node => node.type !== 'start' && node.type !== 'end')
+      .filter(node => !isLogicBlock(node.type))
       .map(node => ({
         id: node.id,
         title: node.data?.label || node.id,

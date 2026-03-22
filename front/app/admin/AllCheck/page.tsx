@@ -179,23 +179,10 @@ export default function AllChecklistsPage() {
                   </span>
                 </div>
 
-                {/* Workflows within Project */}
-                <div className="space-y-8 pl-4 md:pl-8 border-l-2 border-slate-100">
-                  {Object.entries(workflows).map(([workflowName, items]) => (
-                    <div key={workflowName} className="space-y-4 relative">
-                      {/* Sub-header for Workflow */}
-                      <div className="flex items-center gap-3 px-2">
-                        <div className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center text-slate-500 shadow-sm border border-slate-100">
-                          <GitBranch size={16} />
-                        </div>
-                        <div>
-                          <h4 className="text-lg font-black text-slate-700 tracking-tight">{workflowName}</h4>
-                          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-0.5">Workflow Group</p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {items.map((checklist) => (
+                {/* Checklists within Project */}
+                <div className="pl-4 md:pl-8 border-l-2 border-slate-100 mt-6 md:mt-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {(Object.values(workflows) as any[][]).flat().map((checklist: any) => (
                           <div
                             key={checklist._id}
                             onClick={() => {
@@ -294,7 +281,8 @@ export default function AllChecklistsPage() {
                                   if (checklist.instanceId) {
                                     router.push(`/Workflows/instances/${checklist.instanceId}`);
                                   } else if (checklist.workflowId) {
-                                    const wId = typeof checklist.workflowId === 'string' ? checklist.workflowId : checklist.workflowId._id;
+                                    const wObj = checklist.workflowId;
+                                    const wId = typeof wObj === 'string' ? wObj : (wObj._id || wObj.id || '');
                                     if (wId) router.push(`/create-workflow?id=${wId}`);
                                   } else {
                                     router.push(`/checklist/designer?id=${checklist._id}&source=allchecks`);
@@ -307,9 +295,7 @@ export default function AllChecklistsPage() {
                             </div>
                           </div>
                         ))}
-                      </div>
-                    </div>
-                  ))}
+                  </div>
                 </div>
               </div>
             );

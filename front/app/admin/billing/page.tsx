@@ -109,6 +109,7 @@ function BillingPageContent() {
         expiryDate: "",
         cvv: ""
     });
+    const [usageData, setUsageData] = useState<any[]>([]);
 
     const isExpired = isAuthExpired || days >= (plan === 'demo' ? 7 : 30);
 
@@ -192,6 +193,21 @@ function BillingPageContent() {
                             
                             localStorage.setItem('selectedPlan', mappedPlan);
                             localStorage.setItem('planStartDate', sDate.toISOString());
+                        }
+
+                        // 4. Fetch Stats Custom
+                        try {
+                            const statsRes = await axios.get(`${API_URL}/tenant/stats`, {
+                                headers: { 
+                                    Authorization: `Bearer ${token}`,
+                                    'x-tenant-id': tenantId
+                                }
+                            });
+                            if (statsRes.data.success) {
+                                setUsageData(statsRes.data.data.performanceData);
+                            }
+                        } catch (err) {
+                            console.error("Failed to fetch usage stats:", err);
                         }
                     } else {
                         loadFromLocalStorage();
@@ -478,15 +494,15 @@ function BillingPageContent() {
                         />
                         <StatsLedger 
                             label="Renewal Window" 
-                            value={isExpired ? "0 Days" : `${daysRemaining || Math.max(0, (plan === 'demo' ? 7 : 30) - days)} Days`} 
+                            value={isExpired ? "0 Days" : `${Math.max(0, (plan === 'demo' ? 7 : 30) - days)} Days`} 
                             trend={isExpired ? "TERMINAL" : "Approaching"} 
                             icon={<Clock size={24} />} 
-                            color={isExpired ? "text-rose-600" : (daysRemaining <= 3 ? "text-rose-500" : "text-amber-500")} 
+                            color={isExpired ? "text-rose-600" : (Math.max(0, (plan === 'demo' ? 7 : 30) - days) <= 3 ? "text-rose-500" : "text-amber-500")} 
                         />
                     </div>
                     
-                    {/* Re-implemented Statistic Chart */}
-                    <FiscalChart />
+                    {/* Dynamic Statistic Chart Based on Plan */}
+                    <UsageChart plan={plan} days={days} usageData={usageData} startDate={start} />
                 </div>
 
                 {/* Plan Manifest */}
@@ -667,7 +683,7 @@ function BillingPageContent() {
                                     <td className="px-10 py-6 text-center">
                                         <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${inv.status === 'active' || inv.status === 'trial' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>
                                             {inv.status === 'active' || inv.status === 'trial' ? <CheckCircle2 size={10} /> : <Clock size={10} />}
-                                            {inv.status}
+                                            {inv.status === 'canceled' ? 'finished' : inv.status}
                                         </span>
                                     </td>
                                 </tr>
@@ -741,7 +757,25 @@ function BillingPageContent() {
     );
 }
 
-function FiscalChart() {
+function UsageChart({ plan, days, usageData, startDate }: { plan: string, days: number, usageData?: any[], startDate: Date | null }) {
+    const totalDays = plan === 'demo' ? 7 : 30;
+    const startObj = startDate ? new Date(startDate) : new Date();
+    
+    const data = [];
+    for (let i = 0; i < totalDays; i++) {
+        const d = new Date(startObj);
+        d.setDate(d.getDate() + i);
+        const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        
+        const found = usageData?.find(u => u.label === label);
+        data.push({
+            label,
+            usage: found ? found.usage : 0
+        });
+    }
+    
+    const limitStatus = plan === 'pro' ? 'Unlimited Usage' : (plan === 'starter' ? 'Optimal Load' : 'Approaching Limit');
+
     return (
         <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-100 h-[400px] relative overflow-hidden group transition-all duration-500 hover:shadow-xl hover:shadow-indigo-500/5">
             <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.07] transition-opacity">
@@ -749,36 +783,36 @@ function FiscalChart() {
             </div>
             <div className="flex justify-between items-center mb-10 relative z-10">
                 <div>
-                    <h3 className="text-lg font-black text-slate-800 tracking-tight">Fiscal Analytics</h3>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Resource Consumption Vectors</p>
+                    <h3 className="text-lg font-black text-slate-800 tracking-tight">API & Resource Usage</h3>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+                        {plan.toUpperCase()} PLAN CONSUMPTION METRICS
+                    </p>
                 </div>
                 <div className="flex gap-2">
                     <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 rounded-full border border-emerald-100">
                         <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                        <span className="text-[9px] font-black text-emerald-600 uppercase">Optimal Sync</span>
+                        <span className="text-[9px] font-black text-emerald-600 uppercase">{limitStatus}</span>
                     </div>
                 </div>
             </div>
             <div className="h-[240px] w-full relative z-10">
                 <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={FISCAL_DATA}>
+                    <AreaChart data={data}>
                         <defs>
-                            <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
+                            <linearGradient id="colorUsage" x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.15}/>
                                 <stop offset="95%" stopColor="#4f46e5" stopOpacity={0.01}/>
                             </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f8fafc" />
                         <XAxis 
-                            dataKey="month" 
+                            dataKey="label" 
                             axisLine={false} 
                             tickLine={false} 
                             tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700}}
                             dy={10}
                         />
-                        <YAxis 
-                            hide={true}
-                        />
+                        <YAxis hide={true} />
                         <Tooltip 
                             contentStyle={{
                                 borderRadius: '20px', 
@@ -795,11 +829,11 @@ function FiscalChart() {
                         />
                         <Area 
                             type="monotone" 
-                            dataKey="amount" 
+                            dataKey="usage" 
                             stroke="#4f46e5" 
                             strokeWidth={4}
                             fillOpacity={1} 
-                            fill="url(#colorAmount)" 
+                            fill="url(#colorUsage)" 
                             animationDuration={2000}
                         />
                     </AreaChart>

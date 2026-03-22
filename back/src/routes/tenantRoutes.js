@@ -82,16 +82,19 @@ router.get('/stats', requirePlan, async (req, res) => {
       }
     });
 
-    // Mock data for charts (Weekly performance)
-    const performanceData = [
-      { name: 'Mon', active: activeInstances > 5 ? activeInstances - 2 : 3, completed: completedInstances > 2 ? 1 : 0 },
-      { name: 'Tue', active: activeInstances > 3 ? activeInstances - 1 : 5, completed: completedInstances > 3 ? 2 : 1 },
-      { name: 'Wed', active: activeInstances, completed: completedInstances > 5 ? 3 : 2 },
-      { name: 'Thu', active: activeInstances + 2, completed: completedInstances > 8 ? 5 : 3 },
-      { name: 'Fri', active: activeInstances + 5, completed: completedInstances > 10 ? 7 : 4 },
-      { name: 'Sat', active: activeInstances + 1, completed: completedInstances > 12 ? 8 : 5 },
-      { name: 'Sun', active: activeInstances, completed: completedInstances > 15 ? 10 : 6 },
-    ];
+    // Generate real daily usage (all instances since account creation)
+    const allInstances = await WorkflowInstance.find({}).select('createdAt status').lean();
+
+    const dailyUsageMap = {};
+    allInstances.forEach(inst => {
+      if (inst.createdAt) {
+          const label = new Date(inst.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          if (!dailyUsageMap[label]) dailyUsageMap[label] = { label, usage: 0 };
+          dailyUsageMap[label].usage += 1;
+      }
+    });
+
+    const performanceData = Object.values(dailyUsageMap);
 
     const stats = {
       totalWorkflows,

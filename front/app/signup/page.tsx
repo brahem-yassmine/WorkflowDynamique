@@ -229,6 +229,7 @@ export default function SignupPage() {
   };
 
   const handlePaymentSubmit = async () => {
+    setError("");
     // Validate payment details
     const cardNumberClean = paymentDetails.cardNumber.replace(/\s/g, "");
     if (cardNumberClean.length !== 16) {
@@ -358,6 +359,12 @@ export default function SignupPage() {
                 </button>
               </div>
 
+              {error && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-red-600 text-sm font-medium">{error}</p>
+                </div>
+              )}
+
               <div className="mb-6 p-4 bg-indigo-50 rounded-lg">
                 <div className="flex justify-between items-center">
                   <div>
@@ -387,7 +394,7 @@ export default function SignupPage() {
                         value={paymentDetails.cardNumber}
                         onChange={handlePaymentChange}
                         placeholder="1234 5678 9012 3456"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
+                        className="w-full pr-4 pl-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
                         maxLength={19}
                         required
                       />
@@ -406,7 +413,7 @@ export default function SignupPage() {
                         value={paymentDetails.cardHolder}
                         onChange={handlePaymentChange}
                         placeholder="John Doe"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
+                        className="w-full pr-4 pl-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
                         required
                       />
                       <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
@@ -425,7 +432,7 @@ export default function SignupPage() {
                           value={paymentDetails.expiryDate}
                           onChange={handlePaymentChange}
                           placeholder="MM/YY"
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
+                          className="w-full pr-4 pl-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
                           maxLength={5}
                           required
                         />
@@ -444,7 +451,7 @@ export default function SignupPage() {
                           value={paymentDetails.cvv}
                           onChange={handlePaymentChange}
                           placeholder="123"
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
+                          className="w-full pr-4 pl-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
                           maxLength={4}
                           required
                         />

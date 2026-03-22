@@ -10,6 +10,7 @@ const authController = require('../controllers/authController');
 router.post('/register', authController.registerTenant);
 router.post('/register-super-admin', authController.registerSuperAdmin);
 router.post('/login', authController.login);
+router.post('/google-login', authController.googleLogin);
 router.post('/forgot-password', authController.forgotPassword);
 router.post('/reset-password', authController.resetPassword);
 

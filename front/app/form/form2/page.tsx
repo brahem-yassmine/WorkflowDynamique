@@ -103,6 +103,20 @@ function Form2PageContent() {
     fetchData();
   }, [instanceId, nodeId, formId]);
 
+  // Set default submission name from user if NOT an existing submission
+  useEffect(() => {
+    if (!isExecuted && typeof window !== 'undefined') {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          const name = user.firstName || user.name || user.email?.split('@')[0] || 'Member';
+          setSubmissionName(`Submission by ${name}`);
+        } catch (e) {}
+      }
+    }
+  }, [isExecuted]);
+
   const handleChange = (fieldId: string, value: any) => {
     setFormData(prev => ({ ...prev, [fieldId]: value }));
   };

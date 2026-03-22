@@ -178,7 +178,10 @@ export default function InstancePage({ params }: { params: Promise<{ instanceId:
                 {selectedNode && (
                     <TaskExecutionPanel
                         instance={instance}
-                        node={selectedNode}
+                        node={{
+                            ...selectedNode,
+                            ...(instance?.currentNodes?.find((cn: any) => cn.nodeId === selectedNode.id) || {})
+                        }}
                         workflowId={workflowId}
                         onClose={() => setSelectedNode(null)}
                         onRefresh={fetchData}

@@ -254,40 +254,57 @@ exports.getInstances = async (req, res) => {
     console.log(`📊 [InstanceCtrl.getInstances] Sanitized Query:`, JSON.stringify(query));
 
     // 1. Visibility for non-admin users
-    const user = req.user;
-    if (user.role !== 'admin' && user.role !== 'super_admin') {
-      const domainsToMatch = [user.domain];
-      if (user.domain === 'HR' || user.domain === 'RH') {
-        domainsToMatch.push(user.domain === 'HR' ? 'RH' : 'HR');
+    const domainsToMatch = [user.domain];
+    if (user.domain === 'HR' || user.domain === 'RH') {
+      domainsToMatch.push(user.domain === 'HR' ? 'RH' : 'HR');
+    }
+    if (user.specificRole) {
+      domainsToMatch.push(user.specificRole);
+      domainsToMatch.push(user.specificRole.toUpperCase());
+    }
+
+    const globalKeywords = ['GLOBAL', 'ALL', 'PUBLIC', 'TOUS', 'EVERYONE'];
+
+    // 1. Core Visibility: Show if locked by ME OR not locked by anyone (and I have access)
+    query.$or = [
+      // Tasks locked by ME
+      { 'currentNodes.responsibleUser': user.id },
+
+      // Tasks NOT locked by anyone yet, but I am in the domain/assignees
+      {
+        $and: [
+          { 'currentNodes.responsibleUser': { $in: [null, undefined] } },
+          {
+            $or: [
+              { 'currentNodes.responsibleDomain': { $in: domainsToMatch } },
+              { 'currentNodes.responsibleDomain': { $in: globalKeywords } },
+              { 'currentNodes.responsibleDomain': { $in: globalKeywords.map(k => k.toLowerCase()) } },
+              { 'currentNodes.assignees': (user.id && mongoose.Types.ObjectId.isValid(user.id)) ? user.id : undefined }
+            ]
+          }
+        ]
       }
-      
-      // Inclusion of specificRole for visibility
-      if (user.specificRole) {
-        domainsToMatch.push(user.specificRole);
-        domainsToMatch.push(user.specificRole.toUpperCase());
-      }
-      
-      const globalKeywords = ['GLOBAL', 'ALL', 'PUBLIC', 'TOUS', 'EVERYONE'];
-      
-      query.$or = [
-        { 'currentNodes.responsibleDomain': { $in: domainsToMatch } },
-        { 'currentNodes.responsibleDomain': { $in: globalKeywords } },
-        { 'currentNodes.responsibleDomain': { $in: globalKeywords.map(k => k.toLowerCase()) } },
-        { 'currentNodes.responsibleUser': user.id },
-        { 'currentNodes.assignees': (user.id && mongoose.Types.ObjectId.isValid(user.id)) ? user.id : undefined }
-      ].filter(cond => {
-        // filter out invalid conditions
-        const val = Object.values(cond)[0];
-        return val !== undefined;
-      });
-      
-      // also include specificRoleId if valid
-      if (user.specificRoleId && mongoose.Types.ObjectId.isValid(user.specificRoleId)) {
-        query.$or.push({ 'currentNodes.assignees': user.specificRoleId });
-      }
-    } else {
+    ];
+
+    // 2. Admins can ALSO see everything that is NOT locked by others if they want, 
+    // or we can allow them to see EVERYTHING if they are in the Admin Panel.
+    // However, the user request says "doesn't show for others", which usually implies a "To-Do" list.
+    if (user.role === 'admin' || user.role === 'super_admin') {
+      // Overwrite or append? The user wants it HIDDEN if someone else locked it.
+      // So we keep the above but maybe add more admin-specific criteria?
+      // For now, let's stick to the "no lock by others" rule for everyone to satisfy the request.
       if (responsibleUser) query['currentNodes.responsibleUser'] = responsibleUser;
       if (responsibleDomain) query['currentNodes.responsibleDomain'] = responsibleDomain;
+    }
+
+    // specificRoleId check
+    if (user.specificRoleId && mongoose.Types.ObjectId.isValid(user.specificRoleId)) {
+      query.$or.push({
+        $and: [
+          { 'currentNodes.responsibleUser': { $in: [null, undefined, user.id] } },
+          { 'currentNodes.assignees': user.specificRoleId }
+        ]
+      });
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -914,6 +931,48 @@ exports.addAttachment = async (req, res) => {
 
   } catch (error) {
     console.error('❌ addAttachment Error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+exports.removeAttachment = async (req, res) => {
+  try {
+    const { instanceId, attachmentId } = req.params;
+    const WorkflowInstance = req.tenantConn.model('WorkflowInstance');
+    const instance = await WorkflowInstance.findById(instanceId);
+
+    if (!instance) return res.status(404).json({ success: false, message: 'Instance not found' });
+
+    const attachment = instance.attachments.id(attachmentId);
+    if (!attachment) return res.status(404).json({ success: false, message: 'Attachment not found' });
+
+    // Try to delete physical file if it exists locally
+    if (attachment.url.includes('/uploads/')) {
+       try {
+          const filename = attachment.url.split('/').pop();
+          const filePath = path.join(__dirname, '../../uploads', filename);
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
+       } catch (err) {
+         console.error('Error deleting file system attachment:', err);
+       }
+    }
+
+    instance.attachments.pull({ _id: attachmentId });
+    
+    instance.history.push({
+      action: 'attachment_removed',
+      title: 'Fichier supprimé',
+      performedBy: req.user.id,
+      comments: `Fichier supprimé: ${attachment.filename}`
+    });
+
+    await instance.save();
+    res.json({ success: true, message: 'Attachment removed' });
+
+  } catch (error) {
+    console.error('❌ removeAttachment Error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };

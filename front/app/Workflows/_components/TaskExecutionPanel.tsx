@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import { X, CheckCircle2, XCircle, Clock, AlertCircle, ListChecks, ArrowRight, ShieldCheck, Users, ClipboardList, LayoutGrid, ExternalLink, FilePlus, Plus, Send, Save, CheckSquare, Image as ImageIcon, ClipboardType } from 'lucide-react';
+import { X, CheckCircle2, XCircle, Clock, AlertCircle, ListChecks, ArrowRight, ShieldCheck, Users, ClipboardList, LayoutGrid, ExternalLink, FilePlus, Plus, Send, Save, CheckSquare, Image as ImageIcon, ClipboardType, Trash2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { apiService } from '@/service/api.service';
@@ -75,8 +75,8 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
         taskType = 'normal'
     } = data;
 
-    const isLocked = !!instance?.lockedBy;
-    const isLockedByMe = instance?.lockedBy === currentUser?._id;
+    const isLocked = !!node?.responsibleUser;
+    const isLockedByMe = node?.responsibleUser === currentUser?._id;
     const isAnyAssignment = data.assignmentType === 'ANY';
     const canPerformAny = isAnyAssignment && (!isLocked || isLockedByMe);
     const needsLock = isAnyAssignment && !isLocked;
@@ -135,6 +135,26 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
             toast.error(err.message || 'Error occurred');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleDeleteAttachment = async (attachmentId: string) => {
+        if (!attachmentId || !instance?._id) return;
+        
+        try {
+            const res = await apiService.request(`/workflow-instances/${instance._id}/attachments/${attachmentId}`, {
+                method: 'DELETE'
+            });
+
+            if (res.success) {
+                toast.success('Attachment removed');
+                setLocalAttachments(prev => prev.filter(att => (att._id || att.id) !== attachmentId));
+                onRefresh();
+            } else {
+                toast.error(res.message || 'Deletion failed');
+            }
+        } catch (err: any) {
+            toast.error(err.message || 'Error deleting file');
         }
     };
 
@@ -364,7 +384,13 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                         </div>
                                     </div>
 
-                                    {(data.taskType === 'form' || data.taskType === 'checklist' || data.taskType === 'kanban' || data.formId) ? (
+                                    {(data.taskType === 'form' || data.taskType === 'checklist' || data.taskType === 'kanban' || data.formId || 
+                                      String(userAction || '').toLowerCase().includes('form') || 
+                                      String(userAction || '').toLowerCase().includes('checklist') || 
+                                      String(userAction || '').toLowerCase().includes('kanban') ||
+                                      String(taskContent || '').toLowerCase().includes('form') ||
+                                      String(taskContent || '').toLowerCase().includes('checklist') ||
+                                      String(taskContent || '').toLowerCase().includes('kanban')) ? (
                                         <Link
                                             href={
                                                 (data.taskType === 'form' || !!data.formId || String(userAction || '').toLowerCase().includes('form')) 
@@ -388,16 +414,7 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                             {isExecuted ? <CheckCircle2 size={18} /> : <ExternalLink size={18} />}
                                         </Link>
                                     ) : (
-                                        <button
-                                            onClick={() => setIsExecuted(true)}
-                                            className={`w-full h-14 rounded-[22px] flex items-center justify-center gap-3 text-xs font-black uppercase tracking-[0.15em] transition-all ${isExecuted
-                                                ? 'bg-emerald-600 text-white shadow-lg'
-                                                : isActive ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-xl' : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                                            }`}
-                                        >
-                                            {isExecuted ? 'Action Confirmed' : 'Mark Task as Executed'}
-                                            {isExecuted ? <CheckCircle2 size={18} /> : <Send size={18} />}
-                                        </button>
+                                        null
                                     )}
                                 </div>
                             </div>
@@ -414,7 +431,7 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                         </div>
 
                         {/* 3. UPLOAD SECTIONS (If applicable) */}
-                        {(String(userAction).includes('File') || String(userAction).includes('Image')) && (
+                        {(String(userAction).includes('File') || String(userAction).includes('Image') || String(taskContent || '').includes('Document') || String(taskContent || '').includes('Image')) && (
                             <div className="space-y-6">
                                 <div className="flex items-center justify-between">
                                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Section: Digital Proof / Submission</p>
@@ -429,9 +446,13 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                             {isUploading ? <Clock size={32} className="animate-spin" /> : localAttachments.length > 0 ? <CheckCircle2 size={32} /> : (String(userAction).includes('Image') ? <ImageIcon size={32} /> : <FilePlus size={32} />)}
                                         </div>
                                         <div className="space-y-2">
-                                            <h4 className="text-base font-black text-slate-800 uppercase tracking-tight">
-                                                {String(userAction).includes('Image') ? "Upload Image Report" : "Upload File Asset"}
-                                            </h4>
+                                             <h4 className="text-base font-black text-slate-800 uppercase tracking-tight">
+                                                {(String(userAction).includes('Image') || String(taskContent || '').includes('Image')) && (String(userAction).includes('File') || String(taskContent || '').includes('Document')) 
+                                                  ? "Upload Image / File" 
+                                                  : (String(userAction).includes('Image') || String(taskContent || '').includes('Image')) 
+                                                    ? "Upload Image" 
+                                                    : "Upload File"}
+                                             </h4>
                                             <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest max-w-[280px]">
                                                 {localAttachments.length > 0 ? `Confirmed: ${localAttachments.length} items` : "Please upload the requested digital assets"}
                                             </p>
@@ -441,14 +462,19 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                             disabled={isUploading}
                                             className={`h-12 px-8 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all ${localAttachments.length > 0 ? 'bg-slate-900 text-white' : 'bg-indigo-600 text-white'}`}
                                         >
-                                            {localAttachments.length > 0 ? "Add More Items" : "Click to Upload"}
+                                            {localAttachments.length > 0 ? "Add More Items" : 
+                                              (String(userAction).includes('Image') || String(taskContent || '').includes('Image')) && (String(userAction).includes('File') || String(taskContent || '').includes('Document'))
+                                                ? "Upload Image or File"
+                                                : (String(userAction).includes('Image') || String(taskContent || '').includes('Image'))
+                                                  ? "Upload Image Only"
+                                                  : "Upload File Only"}
                                         </Button>
                                     </div>
 
                                     {localAttachments.length > 0 ? (
                                         <div className="grid grid-cols-1 gap-3 mt-8 pt-8 border-t border-emerald-100">
-                                            {localAttachments.map((att, idx) => (
-                                                <div key={idx} className="flex items-center justify-between p-4 bg-white border border-emerald-100 rounded-2xl shadow-sm group/att">
+                                            {Array.from(new Map(localAttachments.map(att => [att.url, att])).values()).map((att, idx) => (
+                                                <div key={att._id || idx} className="flex items-center justify-between p-4 bg-white border border-emerald-100 rounded-2xl shadow-sm group/att">
                                                     <div className="flex items-center gap-3 overflow-hidden">
                                                         <CheckSquare size={14} className="text-emerald-500 shrink-0" />
                                                         <a 
@@ -461,6 +487,13 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                                         </a>
                                                     </div>
                                                     <div className="flex items-center gap-2">
+                                                        <button 
+                                                            onClick={() => handleDeleteAttachment(att._id)}
+                                                            className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg opacity-0 group-hover/att:opacity-100 transition-all"
+                                                            title="Supprimer"
+                                                        >
+                                                            <Trash2 size={12} />
+                                                        </button>
                                                         <ExternalLink size={12} className="text-slate-300 group-hover/att:text-indigo-500 transition-colors" />
                                                     </div>
                                                 </div>
@@ -505,19 +538,6 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                         )}
                         
                         {/* Fallback optional notes if no specific text action */}
-                        {!(String(userAction).toLowerCase().includes('report') || String(userAction).toLowerCase().includes('text') || userAction === 'Write Report') && (
-                             <div className="space-y-4 pt-10 border-t border-slate-50">
-                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">
-                                    Internal Observations (Optional)
-                                </p>
-                                <Textarea
-                                    value={comment}
-                                    onChange={(e) => setComment(e.target.value)}
-                                    placeholder="Enter optional notes for the audit trail..."
-                                    className="min-h-[120px] rounded-[24px] bg-slate-50/50 border-slate-100 p-6 text-sm placeholder:text-slate-300 focus:ring-4 focus:ring-indigo-50/20 transition-all"
-                                />
-                             </div>
-                        )}
                     </div>
                 </div>
 

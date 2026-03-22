@@ -12,6 +12,7 @@ const {
   cancelInstance,
   deleteInstance,
   addAttachment,
+  removeAttachment,
   getInstanceStats,
   updateNodeData
 } = require('../controllers/WorkflowInstanceController.js');
@@ -35,6 +36,7 @@ router.post('/:instanceId/reject', rejectNode);      // POST /api/workflow-insta
 router.post('/:instanceId/lock', lockNode);          // POST /api/workflow-instances/:id/lock // Added lock route
 router.post('/:instanceId/cancel', cancelInstance);  // POST /api/workflow-instances/:id/cancel
 router.post('/:instanceId/attachments', addAttachment); // POST /api/workflow-instances/:id/attachments
+router.delete('/:instanceId/attachments/:attachmentId', removeAttachment); // DELETE /api/workflow-instances/:id/attachments/:attachmentId
 router.patch('/:instanceId/update-node', updateNodeData); // PATCH /api/workflow-instances/:id/update-node
 
 module.exports = router;

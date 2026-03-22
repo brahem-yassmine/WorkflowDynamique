@@ -501,6 +501,7 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
                                                             onChange={(e) => setRestrictedDomain(e.target.value)}
                                                         >
                                                             <option value="">-- Choose Domain --</option>
+                                                            <option value="Standard">Standard</option>
                                                             {domains.map(d => <option key={d._id || d.id} value={d.name}>{d.name}</option>)}
                                                         </select>
                                                     </div>

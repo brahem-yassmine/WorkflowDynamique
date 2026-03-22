@@ -32,7 +32,7 @@ const WorkflowArchitectContent = () => {
                 <div className="flex items-center gap-10">
                     <button
                         onClick={handleBack}
-                        className="flex items-center gap-3 px-6 py-2.5 bg-white/5 border border-white/10 rounded-2xl text-white/70 hover:text-white hover:bg-white/10 transition-all group cursor-pointer backdrop-blur-md relative z-[100000] pointer-events-auto"
+                        className="flex items-center gap-3 px-6 py-2.5 bg-white/5 border border-white/10 rounded-2xl text-white/70 hover:text-white hover:bg-white/10 transition-all group cursor-pointer backdrop-blur-md relative z-[300000] pointer-events-auto"
                     >
                         <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
                         <span className="text-[10px] font-black uppercase tracking-[0.2em] pt-0.5">Exit Architect</span>

@@ -82,11 +82,6 @@ const SaveButton = ({ onSave, isSaving, initialName = '', initialDomain = 'HR', 
       toast.error('Please select a target Domain!');
       return;
     }
-    if (!projectId) {
-      toast.error('Please associate this workflow with a Project!');
-      return;
-    }
-
     if (onSave) {
       try {
         await (onSave as any)({ name, domain, projectId: projectId || undefined, status });
@@ -165,6 +160,7 @@ const SaveButton = ({ onSave, isSaving, initialName = '', initialDomain = 'HR', 
                       className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-indigo-50 font-bold text-slate-700 outline-none transition-all"
                     >
                       <option value="">Select Domain</option>
+                      <option value="Standard">Standard</option>
                       {availableDomains.map(d => (
                         <option key={d._id} value={d.name}>{d.name}</option>
                       ))}

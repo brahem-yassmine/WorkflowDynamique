@@ -10,7 +10,52 @@ exports.getChecklists = async (req, res) => {
         console.log('🔍 Fetching checklists for tenant:', req.tenantId);
         const Checklist = req.tenantConn.model('Checklist');
         const { workflowId } = req.query;
-        const query = workflowId ? { workflowId } : {};
+        let query = workflowId ? { workflowId } : {};
+
+        if (req.user && req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+            const mongoose = require('mongoose');
+            const Workflow = req.tenantConn.model('Workflow');
+            const WorkflowInstance = req.tenantConn.model('WorkflowInstance');
+            const userDomain = req.user.domain || '';
+            const domainsToMatch = [userDomain];
+            if (userDomain.toUpperCase() === 'HR' || userDomain.toUpperCase() === 'RH') {
+                domainsToMatch.push(userDomain.toUpperCase() === 'HR' ? 'RH' : 'HR');
+            }
+            const globalKeywords = ['GLOBAL', 'ALL', 'PUBLIC', 'TOUS', 'EVERYONE'];
+            const userId = req.user.id || req.user.userId || req.user._id;
+            const userObjectId = mongoose.Types.ObjectId.isValid(userId) ? new mongoose.Types.ObjectId(userId) : userId;
+
+            const allowedWorkflows = await Workflow.find({
+                $or: [
+                    { domain: { $in: domainsToMatch } },
+                    { domain: { $in: globalKeywords } },
+                    { domain: { $in: globalKeywords.map(k => k.toLowerCase()) } },
+                    { createdBy: userObjectId }
+                ]
+            }).select('_id');
+            const allowedWorkflowIds = allowedWorkflows.map(w => w._id.toString());
+
+            const activeInstances = await WorkflowInstance.find({
+                $or: [
+                    { 'currentNodes.responsibleDomain': { $in: domainsToMatch.map(d => new RegExp(`^${d}$`, 'i')) } },
+                    { 'currentNodes.responsibleUser': userObjectId },
+                    { 'currentNodes.assignees': userObjectId },
+                    { createdBy: userObjectId }
+                ]
+            }).select('_id workflowId');
+
+            const activeWorkflowIds = activeInstances.map(inst => inst.workflowId?.toString()).filter(Boolean);
+            const activeInstanceIds = activeInstances.map(inst => inst._id.toString());
+
+            const allAllowedWorkflowIds = [...new Set([...allowedWorkflowIds, ...activeWorkflowIds])];
+
+            query.$or = [
+                { createdBy: userId },
+                { workflowId: { $in: allAllowedWorkflowIds } },
+                { instanceId: { $in: activeInstanceIds } }
+            ];
+        }
+
         const checklists = await Checklist.find(query)
             .sort({ createdAt: -1 })
             .populate({

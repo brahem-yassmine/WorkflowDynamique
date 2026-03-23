@@ -13,7 +13,8 @@ import {
   Lock,
   Calendar,
   User,
-  CheckCircle2
+  CheckCircle2,
+  ArrowLeft
 } from "lucide-react";
 import { motion } from "framer-motion";
 import Image from "next/image";
@@ -522,6 +523,9 @@ export default function SignupPage() {
         </div>
       )}
 
+      <Link href="/" className="absolute top-6 left-6 flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-indigo-600 transition-colors bg-white/80 backdrop-blur-md px-4 py-2 rounded-full border border-slate-200 shadow-sm z-50">
+        <ArrowLeft size={16} /> Home
+      </Link>
 
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
         <div className="max-w-6xl w-full">
@@ -762,7 +766,7 @@ export default function SignupPage() {
                 <p className="text-sm font-medium text-slate-500">
                   Existing protocol?{" "}
                   <Link href="/signin" className="text-indigo-700 font-bold hover:underline">
-                    Access Portal
+                    Sign in
                   </Link>
                 </p>
               </div>

@@ -17,7 +17,8 @@ interface LoginFormData {
 }
 
 import {
-  ChartNetwork
+  ChartNetwork,
+  ArrowLeft
 } from "lucide-react";
 
 interface ApiErrorResponse {
@@ -305,7 +306,10 @@ export default function SigninPage() {
 
 
   return (
-    <div >
+    <div className="relative">
+      <Link href="/" className="absolute top-6 left-6 flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-indigo-600 transition-colors bg-white/80 backdrop-blur-md px-4 py-2 rounded-full border border-slate-200 shadow-sm z-50">
+        <ArrowLeft size={16} /> Home
+      </Link>
 
       <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
         <div className="max-w-6xl w-full">

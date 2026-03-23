@@ -1,7 +1,11 @@
 "use client"
 import React, { useState, useEffect } from 'react';
-import { Bell, Mail, MessageSquare, Smartphone, Clock, Zap, XCircle } from 'lucide-react';
+import { Bell, Mail, MessageSquare, Smartphone, Clock, Zap, XCircle, Trash2 } from 'lucide-react';
 import { apiService } from '@/service/api.service';
+import Swal from 'sweetalert2';
+import withReactContent from 'sweetalert2-react-content';
+
+const MySwal = withReactContent(Swal);
 
 const NotificationPage = () => {
   const [stats, setStats] = useState({ delivered: 1240, failed: 2 });
@@ -9,6 +13,34 @@ const NotificationPage = () => {
     email: true,
     sms: false,
     push: true
+  });
+
+  const [triggers, setTriggers] = useState([
+    {
+      id: 1,
+      title: 'Step Entry Trigger',
+      desc: 'Triggered when a task enters a new stage',
+      type: 'Zap',
+      colorName: 'blue',
+      status: 'ACTIVE',
+      msgChannels: ['email', 'push'],
+      preview: '"New task assigned to you in Workflow [Name]"'
+    },
+    {
+      id: 2,
+      title: 'Rejection Alert',
+      desc: 'Triggered when a validator rejects a step',
+      type: 'XCircle',
+      colorName: 'red',
+      status: 'ACTIVE',
+      msgChannels: ['email'],
+      preview: 'Sent to: Requestor & Manager'
+    }
+  ]);
+
+  const [reminders, setReminders] = useState({
+    emailReminder: 'After 24 hours of inactivity',
+    smsEscalation: 'Final escalation (48h)'
   });
 
   useEffect(() => {
@@ -22,19 +54,30 @@ const NotificationPage = () => {
       }
     }
 
+    const savedTriggers = localStorage.getItem('user_notification_triggers');
+    if (savedTriggers) {
+      try {
+        setTriggers(JSON.parse(savedTriggers));
+      } catch (e) { }
+    }
+
+    const savedReminders = localStorage.getItem('user_notification_reminders');
+    if (savedReminders) {
+      try {
+        setReminders(JSON.parse(savedReminders));
+      } catch (e) { }
+    }
+
     // Fetch real notification stats
     const fetchStats = async () => {
       try {
         const res = await apiService.getNotifications();
         if (res.success && res.data) {
-          // Calculate notifications from the last 24h
           const now = new Date();
           const last24h = new Date(now.getTime() - (24 * 60 * 60 * 1000));
-          
           const recentNotifications = res.data.filter((n: any) => new Date(n.createdAt) >= last24h);
-          
           setStats({
-            delivered: recentNotifications.length > 0 ? recentNotifications.length : res.data.length, // Fallback to all if 0 in 24h for visual effect
+            delivered: recentNotifications.length > 0 ? recentNotifications.length : res.data.length,
             failed: 0
           });
         }
@@ -52,6 +95,87 @@ const NotificationPage = () => {
     localStorage.setItem('user_notification_channels', JSON.stringify(newChannels));
   };
 
+  const handleAddTrigger = () => {
+    MySwal.fire({
+      title: 'Create New Trigger',
+      input: 'text',
+      inputLabel: 'Trigger Event Name',
+      inputPlaceholder: 'e.g. Task Overdue',
+      showCancelButton: true,
+      confirmButtonText: 'Create',
+      confirmButtonColor: '#4f46e5',
+      inputValidator: (value) => {
+        if (!value) return 'You need to write something!';
+        return null;
+      }
+    }).then((result) => {
+      if (result.isConfirmed) {
+        const newTriggers = [
+          ...triggers,
+          {
+            id: Date.now(),
+            title: result.value,
+            desc: 'Custom user-defined trigger event',
+            type: 'Bell',
+            colorName: 'indigo',
+            status: 'ACTIVE',
+            msgChannels: ['email'],
+            preview: 'Custom notification message template'
+          }
+        ];
+        setTriggers(newTriggers);
+        localStorage.setItem('user_notification_triggers', JSON.stringify(newTriggers));
+        MySwal.fire('Created!', 'Your new trigger has been added.', 'success');
+      }
+    });
+  };
+
+  const handleDeleteTrigger = (id: number) => {
+    MySwal.fire({
+      title: 'Are you sure?',
+      text: "You won't be able to revert this!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, delete it!'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        const newTriggers = triggers.filter(t => t.id !== id);
+        setTriggers(newTriggers);
+        localStorage.setItem('user_notification_triggers', JSON.stringify(newTriggers));
+        MySwal.fire('Deleted!', 'Trigger has been removed.', 'success');
+      }
+    });
+  };
+
+  const handleEditReminder = (type: 'emailReminder' | 'smsEscalation', title: string) => {
+    MySwal.fire({
+      title: `Edit ${title}`,
+      input: 'textarea',
+      inputValue: reminders[type],
+      showCancelButton: true,
+      confirmButtonText: 'Save',
+      confirmButtonColor: '#4f46e5'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        const newReminders = { ...reminders, [type]: result.value };
+        setReminders(newReminders);
+        localStorage.setItem('user_notification_reminders', JSON.stringify(newReminders));
+        MySwal.fire('Saved!', 'Reminder template has been updated.', 'success');
+      }
+    });
+  };
+
+  const renderIcon = (type: string, size = 20) => {
+    switch (type) {
+      case 'Zap': return <Zap size={size} />;
+      case 'XCircle': return <XCircle size={size} />;
+      case 'Bell': return <Bell size={size} />;
+      default: return <Bell size={size} />;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#F9FAFB] p-8">
       <div className="max-w-5xl mx-auto">
@@ -64,7 +188,10 @@ const NotificationPage = () => {
             </h1>
             <p className="text-slate-500 mt-2">Manage how you receive updates via Email, SMS, and Push.</p>
           </div>
-          <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-semibold transition-all shadow-md">
+          <button 
+            onClick={handleAddTrigger}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-semibold transition-all shadow-md"
+          >
             + New Trigger
           </button>
         </header>
@@ -75,51 +202,50 @@ const NotificationPage = () => {
           <div className="lg:col-span-2 space-y-6">
             <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Active Triggers</h2>
             
-            {/* Trigger Card 1: Step Entry */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:border-indigo-200 transition-all">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
-                    <Zap size={20} />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-slate-800">Step Entry Trigger</h3>
-                    <p className="text-xs text-slate-500">Triggered when a task enters a new stage</p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <span className="px-3 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-bold rounded-full">ACTIVE</span>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-4 py-3 border-t border-slate-50">
-                <div className="flex -space-x-2">
-                   {channels.email && <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center border-2 border-white"><Mail size={14} className="text-indigo-600"/></div>}
-                   {channels.push && <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center border-2 border-white"><Smartphone size={14} className="text-blue-600"/></div>}
-                   {channels.sms && <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center border-2 border-white"><MessageSquare size={14} className="text-slate-600"/></div>}
-                </div>
-                <p className="text-sm text-slate-600 italic">"New task assigned to you in Workflow [Name]"</p>
-              </div>
-            </div>
+            {triggers.length === 0 && (
+               <div className="bg-white border border-slate-200 border-dashed rounded-2xl p-10 text-center text-slate-500">
+                  No active triggers configured. Click "+ New Trigger" to create one.
+               </div>
+            )}
 
-            {/* Trigger Card 2: Rejection */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:border-red-200 transition-all">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-red-50 text-red-600 rounded-lg">
-                    <XCircle size={20} />
+            {triggers.map((trigger) => (
+              <div key={trigger.id} className={`bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:border-${trigger.colorName}-200 transition-all relative group`}>
+                <button 
+                  onClick={() => handleDeleteTrigger(trigger.id)}
+                  className="absolute top-4 right-4 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Delete Trigger"
+                >
+                  <Trash2 size={18} />
+                </button>
+
+                <div className="flex items-start justify-between mb-4 pr-6">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 bg-${trigger.colorName}-50 text-${trigger.colorName}-600 rounded-lg`}>
+                      {renderIcon(trigger.type, 20)}
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-800">{trigger.title}</h3>
+                      <p className="text-xs text-slate-500">{trigger.desc}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-bold text-slate-800">Rejection Alert</h3>
-                    <p className="text-xs text-slate-500">Triggered when a validator rejects a step</p>
+                  <div className="flex gap-2">
+                    <span className="px-3 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-bold rounded-full">{trigger.status}</span>
                   </div>
                 </div>
-                <span className="px-3 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-bold rounded-full">ACTIVE</span>
+                
+                <div className="flex items-center gap-4 py-3 border-t border-slate-50">
+                  <div className="flex -space-x-2">
+                     {(channels.email && trigger.msgChannels.includes('email')) && <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center border-2 border-white" title="Email"><Mail size={14} className="text-indigo-600"/></div>}
+                     {(channels.push && trigger.msgChannels.includes('push')) && <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center border-2 border-white" title="Push"><Smartphone size={14} className="text-blue-600"/></div>}
+                     {(channels.sms && trigger.msgChannels.includes('sms')) && <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center border-2 border-white" title="SMS"><MessageSquare size={14} className="text-slate-600"/></div>}
+                     
+                     {/* Fallback if all disabled but email is default fallback */}
+                     {(!channels.email && !channels.push && trigger.msgChannels.includes('email')) && <Mail size={16} className="text-slate-400" />}
+                  </div>
+                  <p className="text-sm text-slate-600 italic">"{(trigger.title === 'Rejection Alert' && channels.email) ? trigger.preview : trigger.preview}"</p>
+                </div>
               </div>
-              <div className="flex items-center gap-4 py-3 border-t border-slate-50 text-sm text-slate-600">
-                 {channels.email && <Mail size={16} />} <span className="font-medium">Sent to:</span> Requestor & Manager
-              </div>
-            </div>
+            ))}
 
             {/* Reminder Section */}
             <div className="bg-amber-50 border border-amber-100 rounded-2xl p-6">
@@ -129,12 +255,12 @@ const NotificationPage = () => {
               </div>
               <div className="flex flex-col gap-3">
                 <div className="flex justify-between items-center bg-white/50 p-3 rounded-lg border border-amber-200/50">
-                  <span className="text-sm text-amber-900 font-medium">After 24 hours of inactivity</span>
-                  <button className="text-xs font-bold text-amber-700 underline">Edit Email Template</button>
+                  <span className="text-sm text-amber-900 font-medium">{reminders.emailReminder}</span>
+                  <button onClick={() => handleEditReminder('emailReminder', 'Email Reminder')} className="text-xs font-bold text-amber-700 underline hover:text-amber-900">Edit Email Template</button>
                 </div>
                 <div className="flex justify-between items-center bg-white/50 p-3 rounded-lg border border-amber-200/50">
-                  <span className="text-sm text-amber-900 font-medium">Final escalation (48h)</span>
-                  <span className="text-xs font-bold text-amber-600 uppercase">SMS Alert</span>
+                  <span className="text-sm text-amber-900 font-medium">{reminders.smsEscalation}</span>
+                  <button onClick={() => handleEditReminder('smsEscalation', 'SMS Alert')} className="text-xs font-bold text-amber-600 uppercase hover:text-amber-900 underline">Edit SMS Alert</button>
                 </div>
               </div>
             </div>

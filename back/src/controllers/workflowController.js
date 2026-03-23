@@ -31,6 +31,8 @@ exports.getWorkflows = async (req, res) => {
         { domain: { $in: globalKeywords } },
         { domain: { $in: globalKeywords.map(k => k.toLowerCase()) } }
       ];
+
+      query.createdBy = user.id || user.userId || user._id;
     } else {
       if (projectId) query.projectId = projectId;
       if (domain) query.domain = domain;

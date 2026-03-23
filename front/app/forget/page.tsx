@@ -35,6 +35,9 @@ export default function ForgetPasswordPage() {
 
     return (
         <div className="min-h-screen bg-[#f8fafc] flex flex-col items-center justify-center p-6 relative overflow-hidden">
+            <Link href="/signin" className="absolute top-6 left-6 flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-indigo-600 transition-colors bg-white/80 backdrop-blur-md px-4 py-2 rounded-full border border-slate-200 shadow-sm z-50">
+                <ArrowLeft size={16} /> Back
+            </Link>
             <Toaster position="top-right" richColors />
 
             {/* Background Decorative Elements */}

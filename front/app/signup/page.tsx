@@ -624,9 +624,9 @@ export default function SignupPage() {
                         className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-600 text-sm text-gray-900 transition-all appearance-none"
                         required
                       >
-                        <option value="Construction & Engineering">Construction</option>
-                        <option value="Information Technology & Software">Tech/IT</option>
-                        <option value="Corporate & Business Services">Business</option>
+                        <option value="Construction">Construction</option>
+                        <option value="Tech/IT">Tech/IT</option>
+                        <option value="Business">Business</option>
                         <option value="Healthcare">Healthcare</option>
                         <option value="Other">Other</option>
                       </select>

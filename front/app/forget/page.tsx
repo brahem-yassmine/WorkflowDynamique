@@ -51,16 +51,6 @@ export default function ForgetPasswordPage() {
                 animate={{ opacity: 1, y: 0 }}
                 className="w-full max-w-xl bg-white rounded-[40px] shadow-2xl shadow-indigo-100/50 p-14 relative z-10 border border-slate-100"
             >
-                <Link
-                    href="/signin"
-                    className="group flex items-center gap-2 text-slate-400 hover:text-indigo-600 transition-colors mb-10 text-xs font-black uppercase tracking-widest"
-                >
-                    <div className="w-9 h-9 rounded-xl bg-slate-50 flex items-center justify-center group-hover:bg-indigo-50 transition-colors border border-transparent group-hover:border-indigo-100">
-                        <ArrowLeft size={16} />
-                    </div>
-                    Back to Login
-                </Link>
-
                 <AnimatePresence mode="wait">
                     {!submitted ? (
                         <motion.div

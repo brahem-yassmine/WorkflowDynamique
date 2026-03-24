@@ -1,9 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import useUser from '@/hooks/useUser';
 import { UserCircle, Bell, Menu, PanelLeft } from 'lucide-react';
 import NotificationBell from '@/components/NotificationBell';
+import Link from 'next/link';
 
 interface HeaderProps {
     title: string;
@@ -16,6 +17,19 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ title, subtitle, icon, rightContent, onToggleSidebar, isSidebarOpen }) => {
     const { user, tenant } = useUser();
+    const [avatar, setAvatar] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (user) {
+            const userId = (user as any)._id || (user as any).id;
+            if ((user as any).avatar) {
+                setAvatar((user as any).avatar);
+            } else if (userId) {
+                const lsAvatar = localStorage.getItem('avatar_' + userId);
+                if (lsAvatar) setAvatar(lsAvatar);
+            }
+        }
+    }, [user]);
 
     return (
         <div className="bg-white border-b border-slate-100 px-8 py-4 flex justify-between items-center relative z-30">
@@ -49,7 +63,7 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle, icon, rightContent, on
                         <NotificationBell />
 
                         {/* Profile Info */}
-                        <div className="flex items-center gap-3 pl-6 border-l border-slate-100">
+                        <Link href="/admin/profile" className="flex flex-row items-center gap-3 pl-6 border-l border-slate-100 cursor-pointer hover:opacity-80 transition-opacity outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-lg">
                             <div className="text-right hidden sm:block">
                                 <p className="text-sm font-black text-slate-800 leading-none capitalize">
                                     {user?.firstName || user?.name || user?.email?.split('@')[0] || 'User'}
@@ -68,10 +82,14 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle, icon, rightContent, on
                                     )}
                                 </div>
                             </div>
-                            <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center border border-indigo-100 shadow-sm">
-                                <UserCircle size={24} />
+                            <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center border border-indigo-100 shadow-sm transition-colors hover:bg-indigo-100 overflow-hidden">
+                                {avatar ? (
+                                    <img src={avatar} alt="Avatar" className="w-full h-full object-cover" />
+                                ) : (
+                                    <UserCircle size={24} />
+                                )}
                             </div>
-                        </div>
+                        </Link>
                     </div>
                 )}
             </div>

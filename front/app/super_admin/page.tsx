@@ -82,79 +82,44 @@ export default function SuperAdminDashboard() {
         return;
       }
 
-      const tenantsResponse = await fetch('http://localhost:5000/api/admin/tenants', {
+      const response = await fetch('http://localhost:5000/api/admin/stats', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
-      if (!tenantsResponse.ok) throw new Error('Data synchronization failed');
+      if (!response.ok) throw new Error('Data synchronization failed');
 
-      const tenantsData = await tenantsResponse.json();
+      const apiData = await response.json();
 
-      if (tenantsData.success && Array.isArray(tenantsData.data)) {
-        const tenants = tenantsData.data;
+      if (apiData.success && apiData.data) {
+        const statsData = apiData.data;
 
-        const activeCount = tenants.filter((t: any) => t.status === 'active').length;
-        const suspendedCount = tenants.filter((t: any) => t.status === 'suspended').length;
-
-        let totalUsers = 0;
-        let totalRevenue = 0;
-        let totalWorkflows = 0;
-        let totalExecutions = 0;
-        const sectorCounts: Record<string, number> = {};
-        const planCounts: Record<string, number> = {};
-
-        tenants.forEach((tenant: any) => {
-          totalUsers += tenant.userCount || 0;
-          totalWorkflows += tenant.workflowNodeCount || 0;
-          totalExecutions += tenant.executionCount || 0;
-          
-          // Calculate Revenue based on Plan
-          const planPrice = tenant.selectedPlan?.monthlyPrice || tenant.selectedPlan?.price;
-          if (typeof planPrice === 'number') {
-            totalRevenue += planPrice;
-          } else {
-            const planNameLower = (tenant.selectedPlan?.name || '').toLowerCase();
-            if (planNameLower.includes('pro')) totalRevenue += 299;
-            else if (planNameLower.includes('starter')) totalRevenue += 79;
-          }
-
-          const sector = tenant.industry || 'General';
-          sectorCounts[sector] = (sectorCounts[sector] || 0) + 1;
-          const planName = tenant.selectedPlan?.name || 'Standard';
-          planCounts[planName] = (planCounts[planName] || 0) + 1;
-        });
-
-        // GPU usage calculation (Saturation Curve)
-        const capacity = 2000;
-        const saturation = 100 * (1 - Math.exp(-activeCount / capacity));
-        const activityFactor = totalExecutions > 0 ? (totalExecutions / tenants.length / 50) : 0;
-        const gpuUsage = Math.min(100, Math.round(saturation + activityFactor));
-
-        setSectorData(Object.entries(sectorCounts).map(([sector, value]) => ({ sector, value })));
-        setPlanDistribution(Object.entries(planCounts).map(([name, value]) => ({ name, value })));
+        setSectorData(statsData.sectorDistribution || []);
+        
+        // Ensure planDistribution is properly formatted for PieChart
+        const mappedPlanDist = (statsData.planDistribution || []).map((p: any) => ({
+          name: p.name || 'Unknown',
+          value: p.value || 0
+        }));
+        setPlanDistribution(mappedPlanDist);
 
         setStats({
-          totalCompanies: tenants.length,
-          activeCompanies: activeCount,
-          suspendedCompanies: suspendedCount,
-          totalUsers,
-          totalRevenue,
-          totalWorkflows,
-          workflowExecutions: totalExecutions,
-          averageGpuUsage: gpuUsage,
-          trialCompanies: planCounts['Demo'] || 5,
-          paidCompanies: tenants.length - (planCounts['Demo'] || 5),
+          totalCompanies: statsData.totalCompanies || 0,
+          activeCompanies: statsData.activeCompanies || 0,
+          suspendedCompanies: statsData.suspendedCompanies || 0,
+          totalUsers: statsData.totalUsers || 0,
+          totalRevenue: statsData.revenue?.total || 0,
+          totalWorkflows: statsData.totalWorkflows || 0,
+          workflowExecutions: statsData.totalExecutions || 0,
+          averageGpuUsage: statsData.averageGpuUsage || 0,
+          trialCompanies: statsData.trialCompanies || 0,
+          paidCompanies: statsData.paidCompanies || 0,
         });
-      }
 
-      setRevenueTrend([
-        { month: "Sep", revenue: 45000 },
-        { month: "Oct", revenue: 52000 },
-        { month: "Nov", revenue: 48000 },
-        { month: "Dec", revenue: 61000 },
-        { month: "Jan", revenue: 58000 },
-        { month: "Feb", revenue: 75000 },
-      ]);
+        // Use backend revenue trend
+        if (statsData.revenue?.monthly) {
+          setRevenueTrend(statsData.revenue.monthly);
+        }
+      }
 
     } catch (error) {
       setError(error instanceof Error ? error.message : "Critical system error");

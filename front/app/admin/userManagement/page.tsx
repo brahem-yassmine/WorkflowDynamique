@@ -25,6 +25,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { apiService } from '@/service/api.service';
 import { toast } from 'sonner';
 import { showAlert, showConfirm } from '@/lib/alerts';
+import { useRouter } from 'next/navigation';
 
 // Types matches backend User model
 interface Persona {
@@ -51,6 +52,7 @@ interface Domain {
 }
 
 export default function UserManagementPage() {
+    const router = useRouter();
     const [users, setUsers] = useState<Persona[]>([]);
     const [roles, setRoles] = useState<Role[]>([]);
     const [domains, setDomains] = useState<Domain[]>([]);
@@ -58,6 +60,7 @@ export default function UserManagementPage() {
     const [selectedUser, setSelectedUser] = useState<Persona | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
+    const [hidePasswordInput, setHidePasswordInput] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
 
     // Form states
@@ -154,7 +157,30 @@ export default function UserManagementPage() {
             fetchData();
             resetForm();
         } catch (error: any) {
-            toast.error(error.message || 'Injection error');
+            const msg = error.message || 'Injection error';
+            if (msg.startsWith('LIMIT:')) {
+                // Vider les champs et masquer complètement l'input pour Google Chrome
+                setPassword('');
+                setEmail('');
+                setHidePasswordInput(true);
+                
+                // Pause to let React physically remove the DOM element
+                setTimeout(async () => {
+                    const confirmed = await showConfirm({
+                        title: "User Limit Reached",
+                        text: msg.replace('LIMIT:', '').trim(),
+                        confirmButtonText: 'Upgrade Plan'
+                    });
+                    if (confirmed) {
+                        router.push('/admin/billing');
+                    } else {
+                        // Restore if they cancel
+                        setHidePasswordInput(false);
+                    }
+                }, 100);
+            } else {
+                toast.error(msg);
+            }
         }
     };
 
@@ -198,6 +224,7 @@ export default function UserManagementPage() {
         setFormSpecificRole('');
         setFormSpecificRoleId('');
         setIsEditing(false);
+        setHidePasswordInput(false);
     };
 
     const handleEdit = (user: Persona) => {
@@ -445,7 +472,7 @@ export default function UserManagementPage() {
                                     <X size={24} />
                                 </button>
                             </div>
-                            <form onSubmit={handleSaveUser} className="p-8 space-y-5">
+                            <div className="p-8 space-y-5">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1.5">
                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">First Name</label>
@@ -464,6 +491,7 @@ export default function UserManagementPage() {
 
                                 <div className="space-y-1.5">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Identity Key (Password)</label>
+                                    {!hidePasswordInput && (
                                     <div className="relative">
                                         <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
                                         <input
@@ -471,10 +499,12 @@ export default function UserManagementPage() {
                                             onChange={(e) => setPassword(e.target.value)}
                                             required={!isEditing}
                                             type="password"
+                                            autoComplete="new-password"
                                             placeholder={isEditing ? "(Leave blank to keep current)" : "Minimum 6 characters"}
                                             className="w-full h-11 bg-slate-50 rounded-xl pl-12 pr-4 font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none text-sm"
                                         />
                                     </div>
+                                    )}
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
@@ -516,9 +546,9 @@ export default function UserManagementPage() {
                                 </div>
                                 <div className="flex gap-4 pt-6">
                                     <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 text-slate-400 font-bold hover:text-slate-600 transition-all uppercase text-xs tracking-widest">Discard</button>
-                                    <button type="submit" className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 uppercase text-xs tracking-widest">Commit Injection</button>
+                                    <button type="button" onClick={handleSaveUser} className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 uppercase text-xs tracking-widest">Commit Injection</button>
                                 </div>
-                            </form>
+                            </div>
                         </motion.div>
                     </div>
                 )}

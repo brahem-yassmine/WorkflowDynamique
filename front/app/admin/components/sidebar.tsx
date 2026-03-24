@@ -43,7 +43,7 @@ const menuGroups = [
     ]
   },
   {
-    title: "Spécifique",
+    title: "Specific",
     items: [
       { icon: Briefcase, label: "Project workspace", href: "/admin/projects" },
       { icon: Zap, label: "Standard Flows", href: "/admin/workflows/standard" },
@@ -52,8 +52,9 @@ const menuGroups = [
   {
     title: "Configuration and Security",
     items: [
+      { icon: ShieldCheck, label: 'Role & permission', href: '/admin/roles' },
       { icon: UserCircle, label: "Profile", href: "/admin/profile" },
-      { icon: FileText, label: "Logs", href: "/admin/logs" },
+      { icon: FileText, label: "Logs",  href: "/admin/Log" },
       { icon: CreditCard, label: "Billing", href: "/admin/billing" },
       { icon: LifeBuoy, label: "Reports", href: "/admin/reports" },
     ]

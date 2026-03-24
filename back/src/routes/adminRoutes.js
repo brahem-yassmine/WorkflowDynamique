@@ -527,7 +527,15 @@ router.get('/stats', async (req, res) => {
 
     for (const tenant of tenants) {
       // Base stats
-      const sector = tenant.industry || 'Not specified';
+      let sector = tenant.industry || 'Other';
+      const industryMap = {
+        'Construction & Engineering': 'Construction',
+        'Information Technology & Software': 'Tech/IT',
+        'Corporate & Business Services': 'Business',
+        'Non spécifié': 'Other'
+      };
+      if (industryMap[sector]) sector = industryMap[sector];
+
       sectorCounts[sector] = (sectorCounts[sector] || 0) + 1;
 
       const planName = tenant.selectedPlan?.name || tenant.planDetails?.name || 'No plan';

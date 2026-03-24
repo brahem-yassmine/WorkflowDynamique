@@ -106,10 +106,16 @@ const checkPlanLimits = (resourceType) => {
       if (resourceType === 'users') {
         const User = req.tenantConn?.model('User');
         if (User) {
-          const count = await User.countDocuments();
+          // Ne pas compter les administrateurs
+          const count = await User.countDocuments({ role: { $nin: ['admin', 'super_admin'] } });
           const maxUsers = limits.maxUsers || defaultLimits.maxUsers;
           if (count >= maxUsers) {
-            return res.status(403).json({ success: false, message: `Limite de ${maxUsers} utilisateurs atteinte` });
+            let nextPlan = maxUsers <= 5 ? 'Starter' : 'Pro';
+            let currentPlan = maxUsers <= 5 ? 'Demo' : 'Starter';
+            return res.status(403).json({ 
+                success: false, 
+                message: `LIMIT: You have reached the limit of ${maxUsers} users for the ${currentPlan} plan. Please upgrade to the ${nextPlan} plan to add more users.` 
+            });
           }
         }
       }

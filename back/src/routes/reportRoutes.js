@@ -124,4 +124,33 @@ router.patch('/:id/status', auth, requireRole('super_admin'), async (req, res) =
   }
 });
 
+// Delete a report (Admin or Super Admin)
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    const masterDb = req.app.locals.masterDb;
+    const SystemReport = masterDb.model('SystemReport');
+
+    const report = await SystemReport.findById(req.params.id);
+    if (!report) {
+      return res.status(404).json({ success: false, message: 'Report not found' });
+    }
+
+    // Verify ownership or super_admin role
+    if (req.user.role !== 'super_admin' && req.user.tenantId?.toString() !== report.tenantId?.toString()) {
+      return res.status(403).json({ success: false, message: 'Not authorized to delete this report' });
+    }
+
+    await SystemReport.findByIdAndUpdate(req.params.id, {
+      status: 'deleted',
+      respondedAt: new Date(),
+      response: 'Report permanently deleted.'
+    });
+
+    res.json({ success: true, message: 'Report moved to history successfully' });
+  } catch (error) {
+    console.error('Error deleting report:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;

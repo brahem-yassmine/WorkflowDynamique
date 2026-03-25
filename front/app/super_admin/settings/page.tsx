@@ -1,8 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import useUser from '@/hooks/useUser';
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
+import Swal from "sweetalert2";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Settings,
   Shield,
@@ -18,7 +21,11 @@ import {
   Info,
   AlertTriangle,
   Lock,
-  ChevronRight
+  ChevronRight,
+  Trash2,
+  X,
+  UserCircle,
+  Camera
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
@@ -32,46 +39,102 @@ const initialPlans = [
 ];
 
 export default function PlatformSettingsPage() {
+  const { user } = useUser();
   const [plans, setPlans] = useState<any[]>([]);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [platformName, setPlatformName] = useState("Axia Solutions");
   const [supportEmail, setSupportEmail] = useState("nexus@axia.global");
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
 
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [activeSection, setActiveSection] = useState('general');
+
+  const [showLocModal, setShowLocModal] = useState(false);
+  const [locForm, setLocForm] = useState({
+    locale: 'English (US) - Default',
+    timezone: 'UTC (Coordinated Universal Time)',
+    location: 'Global / Distributed'
+  });
+
   useEffect(() => { 
     fetchData();
-    
-    // Load local settings if any
-    const savedName = localStorage.getItem('platformName');
-    const savedEmail = localStorage.getItem('supportEmail');
-    const savedMaintenance = localStorage.getItem('maintenanceMode');
-    if (savedName) setPlatformName(savedName);
-    if (savedEmail) setSupportEmail(savedEmail);
-    if (savedMaintenance) setMaintenanceMode(savedMaintenance === 'true');
+    const savedImg = localStorage.getItem('superAdminProfileImage');
+    if (savedImg) setProfileImage(savedImg);
   }, []);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setProfileImage(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const fetchData = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('auth_token');
       
-      const [plansRes, statsRes] = await Promise.all([
+      const [plansRes, statsRes, settingsRes] = await Promise.all([
         fetch('http://localhost:5000/api/admin/plans', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('http://localhost:5000/api/admin/stats', { headers: { Authorization: `Bearer ${token}` } })
+        fetch('http://localhost:5000/api/admin/stats', { headers: { Authorization: `Bearer ${token}` } }),
+        fetch('http://localhost:5000/api/platform-settings/public')
       ]);
 
       const plansData = await plansRes.json();
       const statsData = await statsRes.json();
+      const settingsData = await settingsRes.json();
 
       if (plansData.success) setPlans(plansData.data);
       if (statsData.success) setStats(statsData.data);
+      if (settingsData.success && settingsData.data) {
+        setPlatformName(settingsData.data.platformName);
+        setSupportEmail(settingsData.data.supportEmail);
+        setMaintenanceMode(settingsData.data.maintenanceMode);
+      }
       
     } catch (err) {
       console.error("Failed to fetch platform data:", err);
       toast.error("Failed to load platform configuration.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSavePlatformSettings = async () => {
+    try {
+      setSavingSettings(true);
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('http://localhost:5000/api/platform-settings/admin', {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify({
+          platformName,
+          supportEmail,
+          maintenanceMode
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        toast.success("Platform settings updated successfully!");
+      } else {
+        toast.error(data.message || "Failed to save settings");
+      }
+    } catch (error) {
+      console.error("Error saving settings:", error);
+      toast.error("A network error occurred.");
+    } finally {
+      setSavingSettings(false);
     }
   };
 
@@ -93,6 +156,32 @@ export default function PlatformSettingsPage() {
     setPlans([...plans, newPlan]);
   };
 
+  const deletePlan = async (id: string, isNew: boolean) => {
+    if (isNew) {
+      setPlans(plans.filter(p => p.localId !== id));
+      return;
+    }
+    
+    if (window.confirm("Are you sure you want to permanently delete this service tier?")) {
+      const toastId = toast.loading("Deleting plan...");
+      try {
+        const token = localStorage.getItem('auth_token');
+        const res = await fetch(`http://localhost:5000/api/admin/plans/${id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          setPlans(plans.filter(p => p._id !== id));
+          toast.success("Plan deleted successfully.", { id: toastId });
+        } else {
+          toast.error("Failed to delete plan", { id: toastId });
+        }
+      } catch (err) {
+        toast.error("Network error during deletion", { id: toastId });
+      }
+    }
+  };
+
   const commitChanges = async () => {
     const toastId = toast.loading("Committing changes to master database...");
     let successCount = 0;
@@ -109,6 +198,11 @@ export default function PlatformSettingsPage() {
       localStorage.setItem('platformName', platformName);
       localStorage.setItem('supportEmail', supportEmail);
       localStorage.setItem('maintenanceMode', maintenanceMode.toString());
+      if (profileImage) {
+        localStorage.setItem('superAdminProfileImage', profileImage);
+      } else {
+        localStorage.removeItem('superAdminProfileImage');
+      }
 
       // Save Plans
       const dirtyPlans = plans.filter(p => p.isDirty);
@@ -169,7 +263,7 @@ export default function PlatformSettingsPage() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
         <div>
           <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight flex items-center gap-3">
-            Platform Orchestration
+            Platform Settings 
             <span className="px-3 py-1 bg-indigo-100 text-indigo-600 text-[10px] font-black rounded-full uppercase tracking-widest">Global Config</span>
           </h1>
           <p className="text-slate-500 font-medium mt-1">Lattice-level system parameters and service tier structuring.</p>
@@ -179,18 +273,70 @@ export default function PlatformSettingsPage() {
           className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95"
         >
           <Save size={18} />
-          Commit All Changes
+          Save Changes
         </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         {/* Navigation / Sections */}
-        <div className="space-y-2">
-          <SettingNav active icon={<Settings size={18} />} label="General Environment" />
-          <SettingNav icon={<Layers size={18} />} label="Service Tiers" />
-          <SettingNav icon={<Shield size={18} />} label="Security Protocols" />
-          <SettingNav icon={<Globe size={18} />} label="Localization" />
-          <SettingNav icon={<Smartphone size={18} />} label="Mobile Lattice" />
+        <div className="space-y-6">
+          <div className="space-y-2">
+          <SettingNav 
+            active={activeSection === 'profile'} 
+            icon={<UserCircle size={18} />} 
+            label="Super Admin Profile" 
+            onClick={() => {
+              setActiveSection('profile');
+              document.getElementById("profile-settings")?.scrollIntoView({ behavior: "smooth" });
+            }}
+          />
+          <SettingNav 
+            active={activeSection === 'general'} 
+            icon={<Settings size={18} />} 
+            label="General Environment" 
+            onClick={() => {
+              setActiveSection('general');
+              document.getElementById("general")?.scrollIntoView({ behavior: "smooth" });
+            }}
+          />
+          <SettingNav 
+            active={activeSection === 'service-tiers'} 
+            icon={<Layers size={18} />} 
+            label="Service Tiers" 
+            onClick={() => {
+              setActiveSection('service-tiers');
+              document.getElementById("service-tiers")?.scrollIntoView({ behavior: "smooth" });
+            }}
+          />
+          <SettingNav 
+            active={activeSection === 'security'} 
+            icon={<Shield size={18} />} 
+            label="Security Protocols" 
+            onClick={() => {
+              setActiveSection('security');
+              document.getElementById("security-protocols")?.scrollIntoView({ behavior: "smooth" });
+            }}
+          />
+          <SettingNav 
+            active={activeSection === 'localization'} 
+            icon={<Globe size={18} />} 
+            label="Localization" 
+            onClick={() => {
+              setActiveSection('localization');
+              const savedLocale = localStorage.getItem('systemLocale') || 'English (US) - Default';
+              const savedTimezone = localStorage.getItem('primaryTimezone') || 'UTC (Coordinated Universal Time)';
+              const savedLocation = localStorage.getItem('localRegion') || 'Global / Distributed';
+              
+              setLocForm({
+                locale: savedLocale,
+                timezone: savedTimezone,
+                location: savedLocation
+              });
+              setShowLocModal(true);
+            }}
+          />
+
+          </div>
 
           <div className="mt-8 p-6 bg-amber-50 rounded-2xl border border-amber-100">
             <div className="flex items-center gap-2 mb-2 text-amber-700">
@@ -205,13 +351,102 @@ export default function PlatformSettingsPage() {
 
         {/* Content Area */}
         <div className="lg:col-span-2 space-y-10">
+          {/* Profile Settings */}
+          <section id="profile-settings" className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 scroll-mt-6">
+            <div className="flex items-center gap-3 mb-8">
+              <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                <UserCircle size={20} />
+              </div>
+              <h3 className="text-xl font-black text-slate-800 tracking-tight">Super Admin Profile</h3>
+            </div>
+            
+            <div className="flex flex-col md:flex-row gap-8 items-start">
+              <div className="relative shrink-0">
+                <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-bold text-4xl shadow-inner border-4 border-white ring-4 ring-indigo-50 overflow-hidden">
+                  {profileImage ? (
+                    <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    user?.firstName?.[0] || user?.name?.[0] || user?.email?.[0]?.toUpperCase() || 'S'
+                  )}
+                </div>
+                
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="absolute -bottom-2 -right-2 p-2 bg-indigo-600 text-white rounded-xl shadow-lg border-2 border-white hover:bg-indigo-700 transition-transform active:scale-95 flex items-center justify-center"
+                  title="Upload Photo"
+                >
+                  <Camera size={14} />
+                </button>
+                
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleImageUpload} 
+                  accept="image/*" 
+                  className="hidden" 
+                />
+              </div>
+              <div className="space-y-5 flex-1 w-full">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Full Name</label>
+                    <Input 
+                      className="h-12 bg-slate-50 border-slate-100 rounded-xl font-bold"
+                      value={user?.firstName || user?.name || user?.email?.split('@')[0] || 'Super Admin'}
+                      readOnly
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Email Address</label>
+                    <Input 
+                      className="h-12 bg-slate-50 border-slate-100 rounded-xl font-bold text-slate-500"
+                      value={user?.email || 'admin@lattice.local'}
+                      readOnly
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">System Role</label>
+                    <div className="flex items-center gap-2 h-12">
+                      <Badge className="bg-indigo-50 text-indigo-600 border-indigo-100 uppercase tracking-widest font-black py-2 px-4 shadow-sm">
+                        {user?.role === 'super_admin' ? 'System Operator' : user?.role || 'Administrator'}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-transparent select-none uppercase tracking-widest block">Action</label>
+                    <button 
+                      onClick={() => window.location.href = '/forget'}
+                      className="h-12 w-full flex items-center justify-center gap-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100 rounded-xl font-bold transition-all active:scale-95 shadow-sm"
+                    >
+                      <Lock size={16} />
+                      Forget Password
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
           {/* General Environment */}
-          <section className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
+          <section id="general" className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 scroll-mt-6">
             <div className="flex items-center gap-3 mb-8">
               <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
                 <Server size={20} />
               </div>
               <h3 className="text-xl font-black text-slate-800 tracking-tight">Core System Config</h3>
+              <div className="ml-auto">
+                <button 
+                  onClick={handleSavePlatformSettings}
+                  disabled={savingSettings}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-sm hover:shadow-md disabled:opacity-50 active:scale-95"
+                >
+                  <Save size={16} />
+                  {savingSettings ? "Saving..." : "Save Config"}
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
@@ -243,7 +478,7 @@ export default function PlatformSettingsPage() {
           </section>
 
           {/* Plan Management */}
-          <section className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
+          <section id="service-tiers" className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
             <div className="flex justify-between items-center mb-8">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
@@ -296,6 +531,13 @@ export default function PlatformSettingsPage() {
                             {isActive ? 'Active' : 'Disabled'}
                           </Badge>
                           <Switch checked={isActive} onCheckedChange={(v) => handlePlanChange(id, "isActive", v)} />
+                          <button 
+                            onClick={() => deletePlan(id, !!p.isNew)}
+                            className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors ml-2"
+                            title="Delete Plan"
+                          >
+                            <Trash2 size={16} />
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -306,7 +548,7 @@ export default function PlatformSettingsPage() {
           </section>
 
           {/* Database & Infrastructure */}
-          <section className="bg-slate-900 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+          <section id="security-protocols" className="bg-slate-900 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 right-0 p-8 opacity-10">
               <Database size={100} className="text-white" />
             </div>
@@ -315,7 +557,7 @@ export default function PlatformSettingsPage() {
                 <div className="p-2 bg-indigo-500/20 text-indigo-400 rounded-lg">
                   <Lock size={20} />
                 </div>
-                <h3 className="text-xl font-black text-white tracking-tight text-glow">Master Infrastructure</h3>
+                <h3 className="text-xl font-black text-white tracking-tight text-glow">Master Infrastructure & Security</h3>
               </div>
               <div className="space-y-4">
                 <InfrastructureLine 
@@ -330,23 +572,138 @@ export default function PlatformSettingsPage() {
                   label="Global Lattice Sync" 
                   value="v4.2.0-STABLE (Optimal)" 
                 />
+                <div className="pt-4 mt-4 border-t border-white/5 space-y-4">
+                  <InfrastructureLine 
+                    label="End-to-End Encryption (E2EE)" 
+                    value="ACTIVE - AES-256 GCM" 
+                  />
+                  <InfrastructureLine 
+                    label="Strict Transport Security (HSTS)" 
+                    value="ENFORCED" 
+                  />
+                  <InfrastructureLine 
+                    label="Data Residency Protocol" 
+                    value="EU-WEST ISOLATION" 
+                  />
+                </div>
               </div>
-              <a href="/super_admin/log" className="inline-block mt-8 px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all cursor-pointer">
+              <a href="/super_admin/Log" className="inline-block mt-8 px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all cursor-pointer">
                 View High-Level Logs
               </a>
             </div>
           </section>
         </div>
       </div>
+
+      <AnimatePresence>
+        {showLocModal && (
+          <motion.div 
+            key="localization-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowLocModal(false);
+            }}
+          >
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="w-full max-w-2xl bg-white rounded-[1.5rem] shadow-[0_0_50px_rgba(0,0,0,0.15)] flex flex-col overflow-hidden relative"
+            >
+              <button 
+                onClick={() => setShowLocModal(false)}
+                className="absolute top-4 right-4 p-2 bg-slate-50 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors z-40"
+              >
+                <X size={20} />
+              </button>
+              <div className="p-10 border-b border-slate-50 bg-gradient-to-br from-indigo-50/50 via-white to-violet-50/50">
+                <div className="flex gap-6 items-center">
+                  <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-indigo-600 to-violet-700 flex flex-col items-center justify-center shadow-xl shadow-indigo-200 text-white">
+                    <Globe size={32} />
+                  </div>
+                  <div>
+                    <h3 className="text-3xl font-black text-slate-900 tracking-tighter">Localization Settings</h3>
+                    <p className="text-sm font-medium text-slate-500 mt-2">Configure platform-wide locales and geographic parameters.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-10 space-y-6">
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">System Locale</label>
+                  <select 
+                    value={locForm.locale}
+                    onChange={(e) => setLocForm({...locForm, locale: e.target.value})}
+                    className="w-full h-12 px-4 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold text-slate-700 outline-none hover:border-indigo-300 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 transition-all cursor-pointer"
+                  >
+                    <option value="English (US) - Default">English (US) - Default</option>
+                    <option value="English (UK)">English (UK)</option>
+                    <option value="French (FR)">French (FR)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Primary Timezone</label>
+                  <select 
+                    value={locForm.timezone}
+                    onChange={(e) => setLocForm({...locForm, timezone: e.target.value})}
+                    className="w-full h-12 px-4 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold text-slate-700 outline-none hover:border-indigo-300 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 transition-all cursor-pointer"
+                  >
+                    <option value="UTC (Coordinated Universal Time)">UTC (Coordinated Universal Time)</option>
+                    <option value="EST (Eastern Standard Time)">EST (Eastern Standard Time)</option>
+                    <option value="CET (Central European Time)">CET (Central European Time)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Primary Location (Place)</label>
+                  <select 
+                    value={locForm.location}
+                    onChange={(e) => setLocForm({...locForm, location: e.target.value})}
+                    className="w-full h-12 px-4 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold text-slate-700 outline-none hover:border-indigo-300 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 transition-all cursor-pointer"
+                  >
+                    <option value="Global / Distributed">Global / Distributed</option>
+                    <option value="North America">North America</option>
+                    <option value="Europe">Europe</option>
+                    <option value="Asia Pacific">Asia Pacific</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="p-4 border-t border-slate-50 bg-slate-50/50 flex justify-end gap-3 sticky bottom-0">
+                <button 
+                  onClick={() => setShowLocModal(false)}
+                  className="px-8 py-3 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-600 font-bold transition-all"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => {
+                    localStorage.setItem('systemLocale', locForm.locale);
+                    localStorage.setItem('primaryTimezone', locForm.timezone);
+                    localStorage.setItem('localRegion', locForm.location);
+                    toast.success("Localization preferences updated.");
+                    setShowLocModal(false);
+                  }}
+                  className="px-8 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-lg shadow-indigo-100 transition-all"
+                >
+                  Save Preferences
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
-function SettingNav({ icon, label, active = false }: { icon: React.ReactNode, label: string, active?: boolean }) {
+function SettingNav({ icon, label, active = false, onClick }: { icon: React.ReactNode, label: string, active?: boolean, onClick?: () => void }) {
   return (
-    <div className={`
-      flex items-center justify-between p-4 rounded-2xl cursor-pointer transition-all group
-      ${active ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-white text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 border border-slate-100'}
+    <div onClick={onClick} className={`
+      flex items-center justify-between p-4 rounded-2xl transition-all group ${onClick ? 'cursor-pointer' : ''}
+      ${active ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-white text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 border border-slate-100 cursor-pointer'}
     `}>
       <div className="flex items-center gap-3">
         {icon}

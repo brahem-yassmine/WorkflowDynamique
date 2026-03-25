@@ -89,6 +89,7 @@ masterConnection.once('connected', () => {
     require('./src/models/master/Role')(masterConnection);
     require('./src/models/master/SystemReport')(masterConnection);
     require('./src/models/master/Notification')(masterConnection);
+    require('./src/models/master/PlatformSettings')(masterConnection);
 
     console.log('📦 Modèles master chargés:', Object.keys(masterConnection.models).join(', '));
 
@@ -147,6 +148,7 @@ app.use((req, res, next) => {
 // ========================
 app.use('/api/plans', planRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/platform-settings', require('./src/routes/platformSettingsRoutes'));
 
 // ========================
 // ADMIN ROUTES

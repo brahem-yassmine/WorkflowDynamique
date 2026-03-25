@@ -4,6 +4,7 @@ import React from 'react';
 import { UserCircle, Search, HelpCircle, Menu } from 'lucide-react';
 import useUser from '@/hooks/useUser';
 import NotificationBell from '@/components/NotificationBell';
+import Link from 'next/link';
 
 interface HeaderProps {
   toggleSidebar: () => void;
@@ -60,11 +61,11 @@ export default function Header({ toggleSidebar }: HeaderProps) {
               {user?.role === 'super_admin' ? 'Global Master' : (user?.role || 'Admin')}
             </p>
           </div>
-          <div className="relative group cursor-pointer">
+          <Link href="/super_admin/settings" className="relative group cursor-pointer block">
             <div className="h-10 w-10 bg-gradient-to-br from-indigo-50 to-slate-100 rounded-2xl flex items-center justify-center text-indigo-600 border border-indigo-100 shadow-sm group-hover:shadow-md transition-all">
               <UserCircle size={26} />
             </div>
-          </div>
+          </Link>
         </div>
       </div>
     </header>

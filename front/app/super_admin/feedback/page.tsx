@@ -20,12 +20,14 @@ import {
     Zap,
     Shield,
     Layers,
-    LayoutDashboard
+    LayoutDashboard,
+    Trash2,
+    Edit
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { showAlert, showConfirm } from '@/lib/alerts';
 
-type ReportStatus = 'pending' | 'in_review' | 'resolved' | 'closed';
+type ReportStatus = 'pending' | 'in_review' | 'resolved' | 'closed' | 'deleted';
 
 interface SystemReport {
     _id: string;
@@ -46,9 +48,10 @@ export default function FeedbackPage() {
     const [reports, setReports] = useState<SystemReport[]>([]);
     const [selectedCompanyId, setSelectedCompanyId] = useState<string>("ALL");
     const [selectedReport, setSelectedReport] = useState<SystemReport | null>(null);
-    const [groupingMode, setGroupingMode] = useState<'user' | 'company' | 'all' | 'workflow'>('all');
+    const [groupingMode, setGroupingMode] = useState<'user' | 'company' | 'all' | 'workflow' | 'task'>('all');
     const [searchTerm, setSearchTerm] = useState("");
-    const [decision, setDecision] = useState<'ACCEPT' | 'REJECT' | 'RESPOND' | null>(null);
+    const [decision, setDecision] = useState<'ACCEPT' | 'REJECT' | null>(null);
+    const [isResponding, setIsResponding] = useState(false);
     const [response, setResponse] = useState("");
     const [loading, setLoading] = useState(true);
 
@@ -79,16 +82,22 @@ export default function FeedbackPage() {
     // Define the hubs
     const totalGlobalReports = reports.length;
     const hubs = [
-        { id: "ALL", name: "All Global Reports", count: totalGlobalReports, icon: <Layers size={14} /> },
-        { id: "WORKFLOW", name: "Workflow Reports", count: reports.filter(r => r.type?.toLowerCase() === 'workflow').length, icon: <Workflow size={14} /> },
-        { id: "COMPANIES", name: "Companies Reports", count: reports.filter(r => r.type?.toLowerCase() !== 'workflow').length, icon: <Building2 size={14} /> }
+        { id: "ALL", name: "All Global Reports", count: reports.filter(r => r.status !== 'deleted').length, icon: <Layers size={14} /> },
+        { id: "WORKFLOW", name: "Workflow Reports", count: reports.filter(r => r.type?.toLowerCase() === 'workflow' && r.status !== 'deleted').length, icon: <Workflow size={14} /> },
+        { id: "COMPANIES", name: "Companies Reports", count: reports.filter(r => r.type?.toLowerCase() !== 'workflow' && r.status !== 'deleted').length, icon: <Building2 size={14} /> },
+        { id: "HISTORY", name: "Action History", count: reports.filter(r => r.status === 'resolved' || r.status === 'closed' || r.status === 'deleted').length, icon: <Clock size={14} /> }
     ];
 
     // Multi-mode filtering and grouping
     const filteredReports = useMemo(() => {
         return reports.filter(report => {
+            const isHistory = selectedCompanyId === "HISTORY";
+            if (isHistory && (report.status === 'pending' || report.status === 'in_review')) return false;
+            if (!isHistory && report.status === 'deleted') return false;
+
             const isWorkflow = report.type?.toLowerCase() === 'workflow';
             const matchesHub = selectedCompanyId === "ALL" || 
+                               isHistory ||
                                (selectedCompanyId === "WORKFLOW" && isWorkflow) ||
                                (selectedCompanyId === "COMPANIES" && !isWorkflow);
             const matchesSearch = report.adminEmail?.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -99,53 +108,175 @@ export default function FeedbackPage() {
     }, [reports, selectedCompanyId, searchTerm]);
 
     const groupedData = useMemo(() => {
-        // First group by the selected mode if it's user or company
+        // Sort all filtered reports by date descending (Newest first)
+        const sortedReports = [...filteredReports].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
         let grouped: Record<string, SystemReport[]> = {};
 
-        // Always group into NEW and OLD as primary or secondary? The user screenshot shows "NEW" as the main header.
-        // Let's group all by NEW / OLD. The tabs at the top (user/company/all) can be used for secondary filtering later,
-        // or we just group by NEW/OLD first. Let's group by "NEW" and "OLD".
-        const newReports = filteredReports.filter(r => r.status === 'pending');
-        const oldReports = filteredReports.filter(r => r.status !== 'pending');
-
-        if (groupingMode === 'all') {
-            grouped = {};
-            if (newReports.length > 0) grouped['NEW'] = newReports;
-            if (oldReports.length > 0) grouped['OLD'] = oldReports;
+        // If 'all' mode, or hub is ALL or HISTORY (which don't have sub-tabs), return a flat list
+        if (groupingMode === 'all' || selectedCompanyId === 'ALL' || selectedCompanyId === 'HISTORY') {
+            if (sortedReports.length > 0) {
+                grouped['RECENT REPORTS'] = sortedReports;
+            }
             return grouped;
         }
 
-        // If grouped by user or company or workflow, we apply the logic.
-        if (groupingMode === 'user' || groupingMode === 'company' || groupingMode === 'workflow') {
-            return filteredReports.reduce((acc, report) => {
-                // Filter: company grouping only shows reports submitted by the company admin
-                if (groupingMode === 'company' && report.adminEmail !== report.tenantId?.email) {
-                    return acc;
-                }
-                
-                const key = groupingMode === 'company' ? (report.tenantId?.name || 'Unknown') : (report.adminEmail || 'Unknown');
-                const finalKey = report.status === 'pending' ? `NEW - ${key}` : `OLD - ${key}`;
-                if (!acc[finalKey]) acc[finalKey] = [];
-                acc[finalKey].push(report);
-                return acc;
-            }, {} as Record<string, SystemReport[]>);
+        // Apply specific grouping modes
+        if (groupingMode === 'company') {
+            sortedReports.forEach(report => {
+                const key = report.tenantId?.name || 'Unknown Company';
+                if (!grouped[key]) grouped[key] = [];
+                grouped[key].push(report);
+            });
+        } 
+        else if (groupingMode === 'user') {
+            sortedReports.forEach(report => {
+                const key = report.adminEmail || 'Unknown User';
+                if (!grouped[key]) grouped[key] = [];
+                grouped[key].push(report);
+            });
+        }
+        else if (groupingMode === 'workflow') {
+            sortedReports.forEach(report => {
+                const key = 'Unknown Workflow'; // Backend schema lacks explicit field
+                if (!grouped[key]) grouped[key] = [];
+                grouped[key].push(report);
+            });
+        }
+        else if (groupingMode === 'task') {
+            sortedReports.forEach(report => {
+                const key = 'Unknown Task'; // Backend schema lacks explicit field
+                if (!grouped[key]) grouped[key] = [];
+                grouped[key].push(report);
+            });
         }
 
         return grouped;
-    }, [filteredReports, groupingMode]);
+    }, [filteredReports, groupingMode, selectedCompanyId]);
+
+    const timelineActions = useMemo(() => {
+        if (selectedCompanyId !== "HISTORY") return [];
+        
+        const actions: { id: string; type: string; date: number; report: SystemReport; title: string; description: React.ReactNode; icon: any; colorClass: string; }[] = [];
+        
+        reports.forEach(report => {
+            // 1. Submit Action 
+            actions.push({
+                id: `${report._id}-submit`,
+                type: 'SUBMITTED',
+                date: new Date(report.createdAt).getTime(),
+                report: report,
+                title: 'Report Received',
+                description: (
+                    <div className="flex flex-col gap-1.5 mt-1">
+                        <span className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">
+                            Submitted by <span className="text-indigo-600">{report.adminEmail.split('@')[0]}</span>
+                        </span>
+                        <span className="text-sm font-medium text-slate-600 line-clamp-2 leading-relaxed">
+                            "{report.description}"
+                        </span>
+                    </div>
+                ),
+                icon: <MessageSquare size={14} strokeWidth={3} />,
+                colorClass: 'text-indigo-500 border-indigo-200 bg-indigo-50'
+            });
+
+            // 2. Evaluation Action
+            if (report.status !== 'pending') {
+                let title = 'In Review';
+                let icon = <Clock size={14} strokeWidth={3} />;
+                let colorClass = 'text-amber-500 border-amber-200 bg-amber-50';
+
+                if (report.status === 'resolved') {
+                    title = 'ACCEPTED';
+                    icon = <CheckCircle2 size={14} strokeWidth={3} />;
+                    colorClass = 'text-emerald-500 border-emerald-200 bg-emerald-50';
+                } else if (report.status === 'closed') {
+                    title = 'REJECTED';
+                    icon = <X size={14} strokeWidth={3} />;
+                    colorClass = 'text-rose-500 border-rose-200 bg-rose-50';
+                } else if (report.status === 'deleted') {
+                    title = 'DELETED';
+                    icon = <Trash2 size={14} strokeWidth={3} />;
+                    colorClass = 'text-slate-500 border-slate-200 bg-slate-50';
+                }
+
+                actions.push({
+                    id: `${report._id}-eval`,
+                    type: report.status.toUpperCase(),
+                    date: report.respondedAt ? new Date(report.respondedAt).getTime() : new Date(report.createdAt).getTime() + 1000,
+                    report: report,
+                    title: title,
+                    description: (
+                        <div className="flex flex-col gap-1.5 mt-1">
+                            <span className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">
+                                Evaluated by <span className="text-emerald-600">Super Admin</span> • Report from <span className="text-indigo-600">{report.adminEmail.split('@')[0]}</span>
+                            </span>
+                            <span className={`text-sm font-medium text-slate-600 italic leading-relaxed ${!report.response && 'opacity-60'}`}>
+                                {report.response ? `"${report.response}"` : 'No resolution narrative provided.'}
+                            </span>
+                        </div>
+                    ),
+                    icon: icon,
+                    colorClass: colorClass
+                });
+            }
+        });
+
+        const filtered = actions.filter(a => 
+            a.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+            a.report.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            a.report.adminEmail.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+
+        return filtered.sort((a, b) => b.date - a.date);
+    }, [reports, selectedCompanyId, searchTerm]);
 
     const handleDecision = (type: 'ACCEPT' | 'REJECT' | 'RESPOND') => {
-        setDecision(type);
+        if (type === 'RESPOND') {
+            setIsResponding(prev => {
+                if (prev) setResponse("");
+                return !prev;
+            });
+        } else {
+            setDecision(prev => prev === type ? null : type);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!selectedReport) return;
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`http://localhost:5000/api/reports/${selectedReport._id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (data.success) {
+                setReports(prev => prev.map(r => r._id === selectedReport._id ? { ...r, status: 'deleted', respondedAt: new Date().toISOString() } : r));
+                setSelectedReport(null);
+                setDecision(null);
+                setIsResponding(false);
+                setResponse("");
+                await showAlert('Archived', 'The report has been moved to History.', 'success');
+            } else {
+                await showAlert('Deletion Error', 'Failed to delete report: ' + data.message, 'error');
+            }
+        } catch (error) {
+            console.error('Error deleting report:', error);
+            await showAlert('Connection Error', 'Failed to connect to the server.', 'error');
+        }
     };
 
     const handleSubmit = async () => {
         if (!selectedReport) return;
+        if (!decision && (!isResponding || response.trim().length === 0)) return;
         
         // Map decision to status
-        let newStatus: ReportStatus = 'in_review';
+        let newStatus: ReportStatus = selectedReport.status;
         if (decision === 'ACCEPT') newStatus = 'resolved';
         if (decision === 'REJECT') newStatus = 'closed';
-        if (decision === 'RESPOND') newStatus = 'in_review';
+        if (!decision && isResponding) newStatus = 'in_review';
         
         try {
             const token = localStorage.getItem('token');
@@ -157,7 +288,7 @@ export default function FeedbackPage() {
                 },
                 body: JSON.stringify({
                     status: newStatus,
-                    response: response.trim() || undefined
+                    response: isResponding ? response.trim() : undefined
                 })
             });
 
@@ -165,14 +296,14 @@ export default function FeedbackPage() {
             if (data.success) {
                 // Update local state and show alert
                 setReports(prev => prev.map(r => 
-                    r._id === selectedReport._id ? { ...r, status: newStatus, response: response.trim() } : r
+                    r._id === selectedReport._id ? { ...r, status: newStatus, response: isResponding ? response.trim() : r.response } : r
                 ));
-                setSelectedReport(prev => prev ? { ...prev, status: newStatus, response: response.trim() } : null);
+                setSelectedReport(prev => prev ? { ...prev, status: newStatus, response: isResponding ? response.trim() : prev.response } : null);
 
-                const isResponding = response.trim().length > 0;
                 await showAlert('Transmission Complete', `Status: ${newStatus}\n${isResponding ? 'Response Sent' : 'Protocol Only'}`, 'success');
                 
                 setDecision(null);
+                setIsResponding(false);
                 setResponse("");
             } else {
                 await showAlert('Update Error', 'Error updating report: ' + data.message, 'error');
@@ -184,70 +315,62 @@ export default function FeedbackPage() {
     };
 
     return (
-        <div className="flex h-[calc(100vh-100px)] gap-0 bg-slate-50/50 overflow-hidden border border-slate-100 rounded-3xl m-2 shadow-sm">
-            {/* 1. COMPANY SIDEBAR */}
-            <div className="w-64 bg-white border-r border-slate-100 flex flex-col pt-8 shadow-sm relative z-10">
-                <div className="px-6 mb-10">
-                    <div className="flex items-center justify-between mb-4 mt-2">
-                        <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-100">
-                                <Shield size={14} />
-                            </div>
-                            <h2 className="text-[11px] font-black text-slate-800 uppercase tracking-widest leading-none">Intelligence Hub</h2>
-                        </div>
+        <div className="flex h-full w-full flex-col bg-slate-50 overflow-y-auto overflow-x-hidden custom-scrollbar">
+            
+            <div className="w-full max-w-7xl mx-auto p-8 relative flex-1 flex flex-col">
+                {/* Header */}
+                <div className="mb-8 mt-2 flex justify-between items-end">
+                    <div>
+                        <h1 className="text-4xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                            <Layers className="text-indigo-600" size={32} />
+                            Feedback Center <span className="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-700 text-xs font-bold uppercase tracking-widest mt-2">GLOBAL</span>
+                        </h1>
+                        <p className="text-slate-500 font-medium mt-2 text-sm ml-1">Real-time feedback monitoring across all platforms.</p>
                     </div>
-                    
-                    <div className="space-y-1.5">
-                        {hubs.map(c => (
-                            <button
-                                key={c.id}
+                </div>
+
+                {/* Stat Cards / Hubs */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                    {hubs.map(hub => {
+                        const isSelected = selectedCompanyId === hub.id;
+                        return (
+                            <div 
+                                key={hub.id} 
                                 onClick={() => {
-                                    setSelectedCompanyId(c.id);
+                                    setSelectedCompanyId(hub.id);
                                     setSelectedReport(null);
                                     setGroupingMode("all"); // Reset toggle when switching hubs
                                 }}
-                                className={`w-full group flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-300 ${
-                                    selectedCompanyId === c.id 
-                                    ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-xl shadow-indigo-200 -translate-y-0.5' 
-                                    : 'text-slate-500 hover:bg-slate-50 hover:text-indigo-600'
+                                className={`bg-white rounded-3xl p-6 border transition-all cursor-pointer shadow-sm hover:shadow-md ${
+                                    isSelected ? 'border-indigo-500 ring-2 ring-indigo-500 shadow-indigo-100 -translate-y-1' : 'border-slate-100 hover:border-indigo-200 hover:-translate-y-0.5'
                                 }`}
                             >
-                                <div className="flex items-center gap-2.5">
-                                    <div className={`p-1.5 rounded-lg transition-all ${selectedCompanyId === c.id ? 'bg-white/20' : 'bg-slate-50'}`}>
-                                        {React.cloneElement(c.icon as React.ReactElement<any>, { 
-                                            size: 14, 
-                                            className: selectedCompanyId === c.id ? 'text-white' : 'text-slate-400' 
+                                <div className="flex justify-between items-start mb-4">
+                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isSelected ? 'bg-indigo-600 shadow-md shadow-indigo-200' : 'bg-slate-50'}`}>
+                                        {React.cloneElement(hub.icon as React.ReactElement<any>, { 
+                                            size: 18, 
+                                            className: isSelected ? 'text-white' : 'text-slate-400' 
                                         })}
                                     </div>
-                                    <span className="text-sm font-black tracking-tight">{c.name}</span>
+                                    {isSelected && <div className="text-[9px] font-black uppercase text-indigo-600 tracking-widest bg-indigo-50 px-2 py-1 rounded">ACTIVE VIEW</div>}
                                 </div>
-                                <div className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${selectedCompanyId === c.id ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-400'}`}>
-                                    {c.count}
-                                </div>
-                            </button>
-                        ))}
-                    </div>
+                                <h3 className={`text-3xl font-black tracking-tight ${isSelected ? 'text-indigo-900' : 'text-slate-800'}`}>{hub.count}</h3>
+                                <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">{hub.name}</p>
+                            </div>
+                        );
+                    })}
                 </div>
 
-                <div className="mt-auto p-4 bg-slate-50 border-t border-slate-100">
-                    <div className="flex items-center gap-2 mb-1">
-                        <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                        <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest">Network Active</p>
-                    </div>
-                    <p className="text-[9px] text-slate-500 font-medium tracking-tight">Monitoring {reports.length} secure nodes.</p>
-                </div>
-            </div>
-
-            {/* 2. REPORT FEED */}
-            <div className="w-[380px] bg-white border-r border-slate-100 flex flex-col shadow-sm relative z-0">
+                {/* 2. REPORT FEED (Card container) */}
+                <div className="flex-1 bg-white rounded-3xl border border-slate-100 shadow-xs flex flex-col relative overflow-hidden min-h-[500px]">
                 <div className="p-4 border-b border-slate-50 bg-white sticky top-0 z-10 space-y-4">
-                    {selectedCompanyId === "WORKFLOW" ? (
-                        <div className="flex items-center gap-1.5 p-1 bg-slate-100/50 rounded-xl">
-                            {(['all', 'workflow'] as const).map((mode) => (
+                    {selectedCompanyId === "WORKFLOW" && (
+                        <div className="flex items-center gap-1.5 p-1 bg-slate-100/50 rounded-xl w-full max-w-sm">
+                            {(['all', 'workflow', 'user', 'task'] as const).map((mode) => (
                                 <button
                                     key={mode}
                                     onClick={() => setGroupingMode(mode)}
-                                    className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${
+                                    className={`flex-1 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${
                                         groupingMode === mode 
                                         ? 'bg-white text-indigo-600 shadow-sm' 
                                         : 'text-slate-400 hover:text-slate-600'
@@ -257,13 +380,14 @@ export default function FeedbackPage() {
                                 </button>
                             ))}
                         </div>
-                    ) : (
-                        <div className="flex items-center gap-1.5 p-1 bg-slate-100/50 rounded-xl">
+                    )}
+                    {selectedCompanyId === "COMPANIES" && (
+                        <div className="flex items-center gap-1.5 p-1 bg-slate-100/50 rounded-xl w-full max-w-sm">
                             {(['all', 'company', 'user'] as const).map((mode) => (
                                 <button
                                     key={mode}
                                     onClick={() => setGroupingMode(mode)}
-                                    className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${
+                                    className={`flex-1 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${
                                         groupingMode === mode 
                                         ? 'bg-white text-indigo-600 shadow-sm' 
                                         : 'text-slate-400 hover:text-slate-600'
@@ -280,82 +404,125 @@ export default function FeedbackPage() {
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             placeholder="Decrypt report stream..."
-                            className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-50 focus:bg-white transition-all text-sm font-bold text-slate-700 placeholder:text-slate-300 shadow-inner"
+                            className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-50 focus:bg-white transition-all text-base font-bold text-slate-700 placeholder:text-slate-300 shadow-inner"
                         />
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar bg-slate-50/20">
-                    {Object.entries(groupedData).map(([groupName, reports]) => (
-                        <div key={groupName} className="space-y-4">
-                            <div className="flex items-center gap-2 px-1">
-                                <div className="p-1 rounded-md bg-indigo-50 text-indigo-600">
-                                    {groupName.includes('NEW') ? <User size={14} /> : <CheckCircle2 size={14} />}
-                                </div>
-                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{groupName}</span>
-                                <span className="text-[10px] font-black text-indigo-300 ml-1">({reports.length})</span>
-                                <div className="h-[2px] bg-indigo-100 flex-1 ml-2 rounded-full opacity-50" />
-                            </div>
-                            {reports.map(report => (
-                                <motion.div
-                                    key={report._id}
-                                    layout
-                                    onClick={() => setSelectedReport(report)}
-                                    className={`p-5 rounded-3xl border transition-all duration-300 cursor-pointer relative group flex flex-col gap-2 ${
-                                        selectedReport?._id === report._id 
-                                        ? 'bg-white border-indigo-200 shadow-xl shadow-indigo-100/50 ring-1 ring-indigo-50 scale-[1.02]' 
-                                        : 'bg-white border-slate-100 hover:border-indigo-100 hover:shadow-lg hover:shadow-slate-100'
-                                    }`}
-                                >
-                                    {report.status === 'pending' && (
-                                        <div className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-rose-500 rounded-full border-2 border-white shadow-sm animate-bounce" />
-                                    )}
-                                    <div className="flex justify-between items-start">
-                                        <div className="flex flex-col">
-                                            <span className={`text-base font-black tracking-tight transition-colors ${selectedReport?._id === report._id ? 'text-indigo-600' : 'text-slate-800'}`}>
-                                                {report.adminEmail.split('@')[0]}
-                                            </span>
-                                            {selectedCompanyId === "ALL" && (
-                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter -mt-0.5">
-                                                    {report.tenantId?.name || 'Unknown'}
-                                                </span>
-                                            )}
+                <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-slate-50/30">
+                    {selectedCompanyId === "HISTORY" ? (
+                        <div className="max-w-4xl mx-auto space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:w-[2px] before:bg-gradient-to-b before:from-transparent before:via-slate-200 before:to-transparent px-4 py-8">
+                            {timelineActions.length === 0 ? (
+                                <div className="text-center text-slate-400 font-bold p-12">No activity history matches your search.</div>
+                            ) : (
+                                timelineActions.map((action) => (
+                                    <div key={action.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group transition-all">
+                                        <div className={`flex items-center justify-center w-10 h-10 rounded-full border-4 border-white shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow-sm ${action.colorClass} relative z-10 transition-transform duration-300 group-hover:scale-110`}>
+                                            {action.icon}
                                         </div>
-                                        <span className="text-[10px] font-bold text-slate-400 tabular-nums bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100">
-                                            {new Date(report.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                        </span>
-                                    </div>
-                                    <p className="text-sm font-bold text-slate-700">{report.subject}</p>
-                                    <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed italic opacity-80 font-medium">"{report.description}"</p>
-                                    <div className="mt-2 flex items-center justify-between">
-                                        <div className={`flex items-center gap-1.5 px-3 py-1 rounded-xl border ${
-                                            report.status === 'pending' ? 'bg-rose-50 border-rose-100 text-rose-600' : 
-                                            report.status === 'in_review' ? 'bg-amber-50 border-amber-100 text-amber-600' : 
-                                            report.status === 'resolved' ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 
-                                            'bg-slate-50 border-slate-100 text-slate-400'
-                                        }`}>
-                                            <span className="text-[10px] font-black uppercase tracking-widest">{report.status.replace('_', ' ')}</span>
+                                        <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-5 rounded-3xl border border-slate-100 bg-white shadow-sm hover:shadow-lg transition-all cursor-pointer hover:border-indigo-100 group-hover:-translate-y-1" onClick={() => setSelectedReport(action.report)}>
+                                            <div className="flex flex-col gap-1 mb-2 border-b border-slate-50 pb-3">
+                                                <div className="flex items-center justify-between">
+                                                    <span className={`font-black text-sm uppercase tracking-wider ${action.colorClass.replace('bg-', 'text-').split(' ')[0]}`}>{action.title}</span>
+                                                    <span className="text-[10px] font-black uppercase text-slate-400 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
+                                                        {new Date(action.date).toLocaleDateString()} {new Date(action.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <h4 className="text-sm font-bold text-slate-800 mb-1 leading-tight">{action.report.subject}</h4>
+                                            <div className="mt-1">{action.description}</div>
                                         </div>
-                                        <ChevronRight size={18} className={`transition-transform duration-300 ${selectedReport?._id === report._id ? 'translate-x-1 text-indigo-600' : 'text-slate-200 group-hover:text-slate-400'}`} />
                                     </div>
-                                </motion.div>
-                            ))}
+                                ))
+                            )}
                         </div>
-                    ))}
+                    ) : (
+                        Object.entries(groupedData).map(([groupName, reports]) => (
+                            <div key={groupName} className="space-y-4">
+                                <div className="flex items-center gap-2 px-1">
+                                    <div className="p-1 rounded-md bg-indigo-50 text-indigo-600">
+                                        {groupName.includes('NEW') ? <User size={14} /> : <CheckCircle2 size={14} />}
+                                    </div>
+                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{groupName}</span>
+                                    <span className="text-[10px] font-black text-indigo-300 ml-1">({reports.length})</span>
+                                    <div className="h-[2px] bg-indigo-100 flex-1 ml-2 rounded-full opacity-50" />
+                                </div>
+                                {reports.map(report => (
+                                    <motion.div
+                                        key={report._id}
+                                        layout
+                                        onClick={() => { setSelectedReport(report); setDecision(null); setIsResponding(false); setResponse(""); }}
+                                        className={`p-5 mx-4 mb-3 border rounded-2xl transition-all duration-300 cursor-pointer relative group flex flex-col gap-3 shadow-sm hover:shadow-md hover:-translate-y-1 ${
+                                            selectedReport?._id === report._id ? 'bg-indigo-50/20 border-indigo-200 ring-2 ring-indigo-50' : 'bg-white border-slate-100 hover:border-indigo-100'
+                                        }`}
+                                    >
+                                        <div className="flex justify-between items-start">
+                                            <div className="flex flex-col">
+                                                <span className={`text-lg font-black tracking-tight transition-colors ${selectedReport?._id === report._id ? 'text-indigo-600' : 'text-slate-800 group-hover:text-indigo-500'}`}>
+                                                    {report.adminEmail.split('@')[0]}
+                                                </span>
+                                                {selectedCompanyId === "ALL" && (
+                                                    <span className="text-xs font-black text-slate-400 uppercase tracking-widest -mt-0.5">
+                                                        {report.tenantId?.name || 'Unknown'}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <span className="text-xs font-bold text-slate-400 tabular-nums bg-slate-50 px-2 py-1 rounded border border-slate-100 min-w-[4rem] text-center">
+                                                {new Date(report.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </span>
+                                        </div>
+                                        <p className="text-base font-bold text-slate-700 leading-tight">{report.subject}</p>
+                                        <p className="text-sm text-slate-500 line-clamp-2 leading-relaxed italic opacity-80 font-medium">"{report.description}"</p>
+                                        <div className="mt-3 flex items-center justify-between border-t border-slate-50 pt-3">
+                                            <div className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border shadow-sm ${
+                                                report.status === 'resolved' ? 'bg-emerald-50 border-emerald-200 text-emerald-600' :
+                                                report.status === 'closed' ? 'bg-rose-50 border-rose-200 text-rose-600' :
+                                                report.status === 'deleted' ? 'bg-slate-100 border-slate-300 text-slate-500 line-through opacity-80' :
+                                                report.status === 'in_review' ? 'bg-amber-50 border-amber-200 text-amber-600' :
+                                                'bg-white border-slate-200 text-slate-500'
+                                            }`}>
+                                                {report.status === 'resolved' ? <CheckCircle2 size={12} strokeWidth={3} /> : report.status === 'closed' ? <X size={12} strokeWidth={3} /> : report.status === 'deleted' ? <Trash2 size={12} strokeWidth={3} /> : <Clock size={12} />}
+                                                <span className="text-[10px] font-black uppercase tracking-widest">
+                                                    {report.status === 'resolved' ? 'ACCEPTED' : 
+                                                     report.status === 'closed' ? 'REJECTED' : 
+                                                     report.status.replace('_', ' ')}
+                                                </span>
+                                            </div>
+                                            <ChevronRight size={18} className={`transition-transform duration-300 ${selectedReport?._id === report._id ? 'translate-x-1 text-indigo-600' : 'text-slate-300 group-hover:text-indigo-400'}`} />
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </div>
+                        ))
+                    )}
                 </div>
             </div>
 
-            {/* 3. DETAILED ACTION VIEW */}
-            <div className="flex-1 bg-white flex flex-col relative overflow-hidden shadow-2xl z-20">
-                <AnimatePresence mode="wait">
-                    {selectedReport ? (
+            {/* 3. DETAILED ACTION VIEW (MODAL) */}
+            <AnimatePresence>
+                {selectedReport && (
+                    <motion.div 
+                        key={selectedReport._id + '-modal'}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4"
+                        onClick={(e) => {
+                            if (e.target === e.currentTarget) setSelectedReport(null);
+                        }}
+                    >
                         <motion.div 
-                            key={selectedReport._id}
-                            initial={{ opacity: 0, scale: 0.98 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 1.02 }}
-                            className="flex flex-col h-full"
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="w-full max-w-4xl max-h-[90vh] bg-white rounded-3xl shadow-2xl flex flex-col overflow-hidden relative"
                         >
+                            <button 
+                                onClick={() => setSelectedReport(null)}
+                                className="absolute top-4 right-4 p-2 bg-white/50 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors z-40"
+                            >
+                                <X size={20} />
+                            </button>
                             <div className="p-10 border-b border-slate-50 bg-gradient-to-br from-indigo-50/50 via-white to-violet-50/50">
                                 <div className="flex justify-between items-center">
                                     <div className="flex gap-6 items-center">
@@ -365,33 +532,43 @@ export default function FeedbackPage() {
                                         </div>
                                         <div>
                                             <div className="flex items-center gap-3 mb-2">
-                                                <h3 className="text-2xl font-black text-slate-900 tracking-tighter flex items-center gap-2">
+                                                <h3 className="text-3xl font-black text-slate-900 tracking-tighter flex items-center gap-2">
                                                     {selectedReport.adminEmail.split('@')[0]}
-                                                    <span className="text-sm font-medium text-slate-400">({selectedReport.adminEmail})</span>
+                                                    <span className="text-base font-medium text-slate-400">({selectedReport.adminEmail})</span>
                                                 </h3>
                                             </div>
                                             <div className="flex gap-2 mb-2 items-center flex-wrap">
-                                                <span className="flex items-center gap-1.5 bg-white px-3 py-1 rounded-xl shadow-sm border border-slate-100 text-[11px] font-black uppercase tracking-wider text-slate-600">
-                                                    <Building2 size={12} className="text-indigo-500" /> {selectedReport.tenantId?.name || 'Unknown'}
+                                                <span className="flex items-center gap-1.5 bg-white px-3 py-1 rounded-xl shadow-sm border border-slate-100 text-sm font-black uppercase tracking-wider text-slate-600">
+                                                    <Building2 size={14} className="text-indigo-500" /> {selectedReport.tenantId?.name || 'Unknown'}
                                                 </span>
-                                                <span className="flex items-center gap-1.5 bg-white px-3 py-1 rounded-xl shadow-sm border border-slate-100 text-[11px] font-black uppercase tracking-wider text-slate-600">
-                                                    <AlertCircle size={12} className="text-violet-500" /> Priority: <span className="uppercase">{selectedReport.priority}</span>
+                                                <span className={`flex items-center gap-1.5 px-3 py-1 rounded-xl shadow-sm border text-sm font-black uppercase tracking-wider ${
+                                                    selectedReport.priority?.toLowerCase() === 'high' ? 'bg-rose-50 border-rose-100 text-rose-700' :
+                                                    selectedReport.priority?.toLowerCase() === 'medium' ? 'bg-amber-50 border-amber-100 text-amber-700' :
+                                                    selectedReport.priority?.toLowerCase() === 'low' ? 'bg-emerald-50 border-emerald-100 text-emerald-700' :
+                                                    'bg-white border-slate-100 text-slate-600'
+                                                }`}>
+                                                    <AlertCircle size={14} className={
+                                                        selectedReport.priority?.toLowerCase() === 'high' ? 'text-rose-500' :
+                                                        selectedReport.priority?.toLowerCase() === 'medium' ? 'text-amber-500' :
+                                                        selectedReport.priority?.toLowerCase() === 'low' ? 'text-emerald-500' :
+                                                        'text-violet-500'
+                                                    } /> Priority: <span>{selectedReport.priority}</span>
                                                 </span>
                                             </div>
                                         </div>
                                     </div>
                                     <div className="text-right bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 items-center justify-end gap-1.5 flex">
-                                            <Clock size={12} /> Received
+                                        <p className="text-xs font-black text-indigo-400 uppercase tracking-widest mb-1 items-center justify-end gap-1.5 flex">
+                                            <Clock size={14} /> Received
                                         </p>
-                                        <p className="text-xs font-bold text-slate-800 tabular-nums">{new Date(selectedReport.createdAt).toLocaleString()}</p>
+                                        <p className="text-sm font-bold text-slate-800 tabular-nums">{new Date(selectedReport.createdAt).toLocaleString()}</p>
                                     </div>
                                 </div>
                             </div>
 
                             <div className="flex-1 p-10 overflow-y-auto space-y-12">
                                 <section>
-                                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] mb-8 flex items-center gap-3">
+                                    <h4 className="text-base font-extrabold text-slate-700 tracking-wide uppercase flex items-center gap-3 mb-8">
                                         <div className="w-2 h-2 bg-indigo-500 rounded-full" />
                                         Inbound Intel Payload
                                     </h4>
@@ -400,8 +577,8 @@ export default function FeedbackPage() {
                                             <MessageSquare size={160} />
                                         </div>
                                         <div className="relative z-10">
-                                            <CornerDownRight size={20} className="text-indigo-500 mb-6" />
-                                            <p className="text-sm text-slate-700 leading-relaxed font-black font-mono italic">
+                                            <CornerDownRight size={24} className="text-indigo-500 mb-6" />
+                                            <p className="text-lg text-slate-700 leading-relaxed font-black font-mono italic">
                                                 "{selectedReport.description}"
                                             </p>
                                         </div>
@@ -409,7 +586,7 @@ export default function FeedbackPage() {
                                 </section>
 
                                 <section className="space-y-8">
-                                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-3">
+                                    <h4 className="text-base font-extrabold text-slate-700 tracking-wide uppercase flex items-center gap-3">
                                         <div className="w-2 h-2 bg-violet-500 rounded-full" />
                                         Executive Protocols
                                     </h4>
@@ -417,101 +594,99 @@ export default function FeedbackPage() {
                                         <button 
                                             onClick={() => handleDecision('ACCEPT')}
                                             className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all duration-500 gap-1.5 group scale-active shadow-hover ${
-                                                decision === 'ACCEPT' || selectedReport.status === 'resolved'
+                                                decision === 'ACCEPT'
                                                 ? 'bg-emerald-50 border-emerald-500 text-emerald-700 shadow-lg shadow-emerald-100' 
                                                 : 'bg-white border-slate-100 text-slate-400 hover:border-emerald-200 hover:text-emerald-500 hover:-translate-y-0.5'
                                             }`}
                                         >
-                                            <div className={`p-1.5 rounded-lg transition-all ${decision === 'ACCEPT' || selectedReport.status === 'resolved' ? 'bg-emerald-500 text-white rotate-6' : 'bg-slate-50 text-slate-300 group-hover:bg-emerald-50 group-hover:text-emerald-500'}`}>
-                                                <Check size={16} strokeWidth={3} />
+                                            <div className={`p-1.5 rounded-lg transition-all ${decision === 'ACCEPT' ? 'bg-emerald-500 text-white rotate-6' : 'bg-slate-50 text-slate-300 group-hover:bg-emerald-50 group-hover:text-emerald-500'}`}>
+                                                <Check size={20} strokeWidth={3} />
                                             </div>
-                                            <span className="text-[9px] font-black uppercase tracking-widest leading-none text-center">Accept</span>
+                                            <span className="text-xs font-black uppercase tracking-widest leading-none text-center">Accept</span>
                                         </button>
 
                                         <button 
                                             onClick={() => handleDecision('REJECT')}
                                             className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all duration-500 gap-1.5 group scale-active shadow-hover ${
-                                                decision === 'REJECT' || selectedReport.status === 'closed'
+                                                decision === 'REJECT'
                                                 ? 'bg-rose-50 border-rose-500 text-rose-700 shadow-lg shadow-rose-100' 
                                                 : 'bg-white border-slate-100 text-slate-400 hover:border-rose-200 hover:text-rose-500 hover:-translate-y-0.5'
                                             }`}
                                         >
-                                            <div className={`p-1.5 rounded-lg transition-all ${decision === 'REJECT' || selectedReport.status === 'closed' ? 'bg-rose-500 text-white -rotate-6' : 'bg-slate-50 text-slate-300 group-hover:bg-rose-50 group-hover:text-rose-500'}`}>
-                                                <X size={16} strokeWidth={3} />
+                                            <div className={`p-1.5 rounded-lg transition-all ${decision === 'REJECT' ? 'bg-rose-500 text-white -rotate-6' : 'bg-slate-50 text-slate-300 group-hover:bg-rose-50 group-hover:text-rose-500'}`}>
+                                                <X size={20} strokeWidth={3} />
                                             </div>
-                                            <span className="text-[9px] font-black uppercase tracking-widest leading-none text-center">Reject</span>
+                                            <span className="text-xs font-black uppercase tracking-widest leading-none text-center">Reject</span>
                                         </button>
 
                                         <button 
                                             onClick={() => handleDecision('RESPOND')}
                                             className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all duration-500 gap-1.5 group scale-active shadow-hover ${
-                                                decision === 'RESPOND' || selectedReport.status === 'in_review'
+                                                isResponding
                                                 ? 'bg-indigo-50 border-indigo-500 text-indigo-700 shadow-lg shadow-indigo-100' 
                                                 : 'bg-white border-slate-100 text-slate-400 hover:border-indigo-200 hover:text-indigo-500 hover:-translate-y-0.5'
                                             }`}
                                         >
-                                            <div className={`p-1.5 rounded-lg transition-all ${decision === 'RESPOND' || selectedReport.status === 'in_review' ? 'bg-indigo-500 text-white' : 'bg-slate-50 text-slate-300 group-hover:bg-indigo-50 group-hover:text-indigo-500'}`}>
-                                                <Send size={16} strokeWidth={3} />
+                                            <div className={`p-1.5 rounded-lg transition-all ${isResponding ? 'bg-indigo-500 text-white' : 'bg-slate-50 text-slate-300 group-hover:bg-indigo-50 group-hover:text-indigo-500'}`}>
+                                                <Send size={20} strokeWidth={3} />
                                             </div>
-                                            <span className="text-[9px] font-black uppercase tracking-widest leading-none text-center">Respond</span>
+                                            <span className="text-xs font-black uppercase tracking-widest leading-none text-center">Respond</span>
                                         </button>
                                     </div>
                                 </section>
 
                                 <section className="space-y-6">
-                                    <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-3">
+                                    <h4 className="text-base font-extrabold text-slate-700 tracking-wide uppercase flex items-center gap-3">
                                         <div className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
                                         Resolution Narrative
                                     </h4>
                                     <div className="bg-slate-50 p-0.5 rounded-xl border border-slate-100 shadow-inner">
                                         <textarea 
-                                            value={response}
-                                            onChange={(e) => setResponse(e.target.value)}
-                                            placeholder={selectedReport.response || "Document final analytical resolution..."}
-                                            className="w-full h-28 p-4 bg-transparent focus:bg-white border-none rounded-xl outline-none text-sm font-bold text-slate-700 transition-all placeholder:text-slate-400"
-                                        />
+                                        value={response}
+                                        onChange={(e) => setResponse(e.target.value)}
+                                        disabled={!isResponding}
+                                        placeholder={isResponding ? "Document final analytical resolution..." : "Select RESPOND to unlock narrative..."}
+                                        className={`w-full h-32 p-5 rounded-2xl resize-none transition-all text-sm font-medium ${
+                                            isResponding 
+                                                ? 'bg-white border border-slate-200 focus:ring-4 focus:ring-indigo-50 focus:border-indigo-300 text-slate-700 placeholder:text-slate-400 shadow-sm' 
+                                                : 'bg-slate-50/50 border-transparent text-slate-400 cursor-not-allowed placeholder:text-slate-300/50'
+                                        }`}
+                                    />
                                     </div>
                                 </section>
                             </div>
 
-                            <div className="p-4 border-t border-slate-50 bg-white sticky bottom-0 z-30 flex justify-center">
+                            <div className="p-4 border-t border-slate-50 bg-white sticky bottom-0 z-30 flex justify-center gap-4">
+                                <button 
+                                    onClick={() => showConfirm('Delete Report', 'Are you sure you want to permanently archive this report?', 'warning').then((isConfirmed: any) => isConfirmed && handleDelete())}
+                                    className="flex items-center justify-center gap-2 px-6 py-3 bg-rose-50 text-rose-600 rounded-xl font-bold shadow-lg shadow-rose-100 hover:bg-rose-100 transition-all active:scale-95 flex-1"
+                                >
+                                    <Trash2 size={18} /> Delete
+                                </button>
+                                <button 
+                                    onClick={() => showAlert('Edit Report', 'Edit functionality placeholder.', 'info')}
+                                    className="flex items-center justify-center gap-2 px-6 py-3 bg-sky-50 text-sky-600 rounded-xl font-bold shadow-lg shadow-sky-100 hover:bg-sky-100 transition-all active:scale-95 flex-1"
+                                >
+                                    <Edit size={18} /> Edit
+                                </button>
                                 <button 
                                     onClick={handleSubmit}
-                                    className={`w-1/2 py-2 rounded-lg flex items-center justify-center gap-2 transition-all duration-500 font-black uppercase tracking-[0.2em] text-[10px] shadow-lg ${
-                                        decision || response.trim().length > 0 
-                                        ? 'bg-gradient-to-r from-indigo-600 via-violet-600 to-indigo-700 text-white shadow-indigo-200 hover:scale-[1.01] hover:shadow-indigo-300 active:scale-[0.98]' 
-                                        : 'bg-slate-100 text-slate-300 cursor-not-allowed opacity-50'
+                                    disabled={!decision && (!isResponding || response.trim().length === 0)}
+                                    className={`flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold shadow-lg transition-all active:scale-95 flex-1 ${
+                                        decision || (isResponding && response.trim().length > 0)
+                                        ? 'bg-indigo-600 text-white shadow-indigo-100 hover:bg-indigo-700' 
+                                        : 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'
                                     }`}
                                 >
-                                     {response.trim().length > 0 
-                                        ? 'Submit Response'
-                                        : (decision ? `Submit ${decision}` : 'Submit')
-                                    }
-                                    <ArrowRight size={14} />
+                                    <Send size={18} />
+                                    Submit
                                 </button>
                             </div>
                             <p className="pb-4 text-center text-[8px] font-black text-slate-400 uppercase tracking-widest opacity-50 bg-white">Authorized Personnel Only</p>
                         </motion.div>
-                    ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center bg-slate-50/30 overflow-hidden relative">
-                            <motion.div
-                                animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }}
-                                transition={{ repeat: Infinity, duration: 8, ease: "easeInOut" }}
-                                className="w-40 h-40 rounded-[50px] bg-white shadow-2xl flex items-center justify-center border border-slate-100 relative z-10"
-                            >
-                                <Workflow size={64} className="text-slate-200" />
-                            </motion.div>
-                            <div className="mt-12 text-center relative z-10">
-                                <h3 className="font-black uppercase tracking-[0.5em] text-slate-300 text-lg mb-4">Command Center</h3>
-                                <div className="flex items-center justify-center gap-2">
-                                    <span className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
-                                    <p className="font-black uppercase tracking-[0.2em] text-[10px] text-slate-400">Awaiting Signal Decryption</p>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </AnimatePresence>
-            </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
             
             <style jsx global>{`
                 .custom-scrollbar::-webkit-scrollbar { width: 4px; }
@@ -521,6 +696,7 @@ export default function FeedbackPage() {
                 .scale-active:active { transform: scale(0.96); }
                 .shadow-hover:hover { box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.1); }
             `}</style>
+            </div>
         </div>
     );
 }

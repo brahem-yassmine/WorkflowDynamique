@@ -765,6 +765,9 @@ router.put('/plans/:id', async (req, res) => {
     const masterDb = req.app.locals.masterDb;
     const Plan = masterDb.model('Plan');
 
+    // Get previous plan state to detect deactivation
+    const previousPlan = await Plan.findById(req.params.id);
+
     const plan = await Plan.findByIdAndUpdate(
       req.params.id,
       req.body,
@@ -776,6 +779,48 @@ router.put('/plans/:id', async (req, res) => {
         success: false,
         message: 'Plan not found'
       });
+    }
+
+    // CASCADE DEACTIVATION
+    // Check if the plan was just disabled
+    const previouslyActive = previousPlan ? (previousPlan.isActive !== false && previousPlan.active !== false) : true;
+    const isNowDisabled = (req.body.isActive === false || req.body.active === false);
+
+    if (previouslyActive && isNowDisabled) {
+      console.log(`🛑 Plan ${plan.name} was disabled. Cascading suspension to all assigned tenants...`);
+      const Tenant = masterDb.model('Tenant');
+      const affectedTenants = await Tenant.find({ selectedPlan: plan._id, status: 'active' });
+      
+      for (const tenant of affectedTenants) {
+        // 1. Suspend tenant in master DB
+        await Tenant.findByIdAndUpdate(tenant._id, { status: 'suspended' });
+        
+        // 2. Suspend tenant in their own local Subscription DB
+        try {
+          if (tenant.databaseName) {
+            const tenantConn = mongoose.createConnection(tenant.databaseUri);
+            await new Promise((resolve, reject) => {
+              const timeout = setTimeout(() => reject(new Error('Connection timeout')), 5000);
+              tenantConn.once('connected', () => { clearTimeout(timeout); resolve(); });
+              tenantConn.once('error', (err) => { clearTimeout(timeout); reject(err); });
+            });
+            
+            const Subscription = require('../models/tenant/Subscription')(tenantConn);
+            const latestSub = await Subscription.findOne().sort({ createdAt: -1 });
+            if (latestSub) {
+              await Subscription.findByIdAndUpdate(latestSub._id, {
+                status: 'expired',
+                currentPeriodEnd: new Date(),
+                trialEndDate: new Date()
+              });
+            }
+            await tenantConn.close();
+            console.log(`✅ Suspended tenant: ${tenant.name}`);
+          }
+        } catch (err) {
+          console.error(`❌ Subscription cascade suspend failed for ${tenant.name}:`, err.message);
+        }
+      }
     }
 
     res.json({

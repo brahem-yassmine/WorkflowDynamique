@@ -31,7 +31,7 @@ const menuItems = [
   { icon: Activity, label: "Log", href: "/super_admin/Log" },
   { icon: BarChart4, label: "Statistics", href: "/super_admin/statistics" },
   { icon: MessageSquare, label: "Companies Feedback", href: "/super_admin/feedback" },
-  { icon: Settings, label: "Platform Settings", href: "/super_admin/settings" },
+  { icon: Settings, label: " Settings", href: "/super_admin/settings" },
 ];
 
 export default function Sidebar({ isOpen, toggle }: SidebarProps) {

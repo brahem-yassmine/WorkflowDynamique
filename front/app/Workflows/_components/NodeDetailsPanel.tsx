@@ -573,7 +573,7 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
                                                                             }}
                                                                         >
                                                                             <option value="">-- Select Specific Role --</option>
-                                                                            <option value="TOUTE L'ENTREPRISE" className="font-black text-indigo-600">🏢 TOUTE L'ENTREPRISE (Standard)</option>
+
                                                                             {roles.map(r => <option key={r._id} value={r.name}>{r.name}</option>)}
                                                                         </select>
                                                                         <p className="text-[9px] font-bold text-slate-400 italic px-2">Tasks will be visible to all users assigned this specific role or enterprise scope.</p>
@@ -764,6 +764,15 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
                                                                         setTaskContent(taskContent.filter(c => c !== opt.id));
                                                                     } else {
                                                                         setTaskContent([...taskContent, opt.id]);
+                                                                        
+                                                                        // Auto-select corresponding action for better UX
+                                                                        if (opt.id === 'Form' && !userAction.includes('Fill Form')) {
+                                                                            setUserAction(prev => [...prev, 'Fill Form']);
+                                                                        } else if (opt.id === 'Document' && !userAction.includes('Upload File')) {
+                                                                            setUserAction(prev => [...prev, 'Upload File']);
+                                                                        } else if (opt.id === 'Image' && !userAction.includes('Upload Image')) {
+                                                                            setUserAction(prev => [...prev, 'Upload Image']);
+                                                                        }
                                                                     }
                                                                 }}
                                                                 className={`relative flex items-center gap-3 p-3.5 rounded-[24px] transition-all border-2 text-left overflow-hidden ${isSelected
@@ -874,6 +883,15 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
                                                                     setUserAction(userAction.filter(a => a !== opt.id));
                                                                 } else {
                                                                     setUserAction([...userAction, opt.id]);
+                                                                    
+                                                                    // Reverse auto-select for better UX
+                                                                    if (opt.id === 'Fill Form' && !taskContent.includes('Form')) {
+                                                                        setTaskContent(prev => [...prev, 'Form']);
+                                                                    } else if (opt.id === 'Upload File' && !taskContent.includes('Document')) {
+                                                                        setTaskContent(prev => [...prev, 'Document']);
+                                                                    } else if (opt.id === 'Upload Image' && !taskContent.includes('Image')) {
+                                                                        setTaskContent(prev => [...prev, 'Image']);
+                                                                    }
                                                                 }
                                                             }}
                                                             className={`w-full flex items-center justify-between p-5 rounded-[28px] transition-all border-2 group ${userAction.includes(opt.id)

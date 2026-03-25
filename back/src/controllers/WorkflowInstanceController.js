@@ -251,60 +251,57 @@ exports.getInstances = async (req, res) => {
       query.createdBy = createdBy;
     }
 
-    console.log(`📊 [InstanceCtrl.getInstances] Sanitized Query:`, JSON.stringify(query));
+    const user = req.user || {};
+    const isAdmin = (user.role?.toLowerCase() === 'admin' || user.role?.toLowerCase() === 'super_admin');
 
-    // 1. Visibility for non-admin users
-    const domainsToMatch = [user.domain];
-    if (user.domain === 'HR' || user.domain === 'RH') {
-      domainsToMatch.push(user.domain === 'HR' ? 'RH' : 'HR');
-    }
-    if (user.specificRole) {
-      domainsToMatch.push(user.specificRole);
-      domainsToMatch.push(user.specificRole.toUpperCase());
-    }
+    // 1. Visibility Logic
+    if (!isAdmin) {
 
-    const globalKeywords = ['GLOBAL', 'ALL', 'PUBLIC', 'TOUS', 'EVERYONE'];
-
-    // 1. Core Visibility: Show if locked by ME OR not locked by anyone (and I have access)
-    query.$or = [
-      // Tasks locked by ME
-      { 'currentNodes.responsibleUser': user.id },
-
-      // Tasks NOT locked by anyone yet, but I am in the domain/assignees
-      {
-        $and: [
-          { 'currentNodes.responsibleUser': { $in: [null, undefined] } },
-          {
-            $or: [
-              { 'currentNodes.responsibleDomain': { $in: domainsToMatch } },
-              { 'currentNodes.responsibleDomain': { $in: globalKeywords } },
-              { 'currentNodes.responsibleDomain': { $in: globalKeywords.map(k => k.toLowerCase()) } },
-              { 'currentNodes.assignees': (user.id && mongoose.Types.ObjectId.isValid(user.id)) ? user.id : undefined }
-            ]
-          }
-        ]
+      const domainsToMatch = [user.domain];
+      if (user.domain === 'HR' || user.domain === 'RH') {
+        domainsToMatch.push(user.domain === 'HR' ? 'RH' : 'HR');
       }
-    ];
+      if (user.specificRole) {
+        domainsToMatch.push(user.specificRole);
+        domainsToMatch.push(user.specificRole.toUpperCase());
+      }
 
-    // 2. Admins can ALSO see everything that is NOT locked by others if they want, 
-    // or we can allow them to see EVERYTHING if they are in the Admin Panel.
-    // However, the user request says "doesn't show for others", which usually implies a "To-Do" list.
-    if (user.role === 'admin' || user.role === 'super_admin') {
-      // Overwrite or append? The user wants it HIDDEN if someone else locked it.
-      // So we keep the above but maybe add more admin-specific criteria?
-      // For now, let's stick to the "no lock by others" rule for everyone to satisfy the request.
+      const globalKeywords = ['GLOBAL', 'ALL', 'PUBLIC', 'TOUS', 'EVERYONE'];
+
+      // Core Visibility: Show if locked by ME OR not locked by anyone (and I have access)
+      query.$or = [
+        // Tasks locked by ME
+        { 'currentNodes.responsibleUser': user.id },
+
+        // Tasks NOT locked by anyone yet, but I am in the domain/assignees
+        {
+          $and: [
+            { 'currentNodes.responsibleUser': { $in: [null, undefined] } },
+            {
+              $or: [
+                { 'currentNodes.responsibleDomain': { $in: domainsToMatch } },
+                { 'currentNodes.responsibleDomain': { $in: globalKeywords } },
+                { 'currentNodes.responsibleDomain': { $in: globalKeywords.map(k => k.toLowerCase()) } },
+                { 'currentNodes.assignees': (user.id && mongoose.Types.ObjectId.isValid(user.id)) ? user.id : undefined }
+              ]
+            }
+          ]
+        }
+      ];
+
+      // specificRoleId check
+      if (user.specificRoleId && mongoose.Types.ObjectId.isValid(user.specificRoleId)) {
+        query.$or.push({
+          $and: [
+            { 'currentNodes.responsibleUser': { $in: [null, undefined, user.id] } },
+            { 'currentNodes.assignees': user.specificRoleId }
+          ]
+        });
+      }
+    } else {
+      // For Admins: Can see everything, but respect specific filters if provided in query
       if (responsibleUser) query['currentNodes.responsibleUser'] = responsibleUser;
       if (responsibleDomain) query['currentNodes.responsibleDomain'] = responsibleDomain;
-    }
-
-    // specificRoleId check
-    if (user.specificRoleId && mongoose.Types.ObjectId.isValid(user.specificRoleId)) {
-      query.$or.push({
-        $and: [
-          { 'currentNodes.responsibleUser': { $in: [null, undefined, user.id] } },
-          { 'currentNodes.assignees': user.specificRoleId }
-        ]
-      });
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);

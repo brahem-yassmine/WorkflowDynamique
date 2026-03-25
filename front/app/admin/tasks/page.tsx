@@ -186,7 +186,10 @@ export default function GlobalTasksPage() {
              nodeId: reportingTask.nodeId,
              workflowId: reportingTask.workflowId,
              recipientId: reportForm.recipientId,
+             title: `⚠️ INCIDENT REPORT: ${reportingTask.name}`,
              message: reportForm.message,
+             type: 'incident_report',
+             link: `/Workflows/instances/${reportingTask.instanceId}`,
              submissionData: reportingTask.submissions.find((s: any) => s.userId === reportForm.recipientId)?.data
           })
        });

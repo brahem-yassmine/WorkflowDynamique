@@ -15,6 +15,10 @@ const PAGE_METADATA: Record<string, { title: string, subtitle: string }> = {
         title: "Command Center",
         subtitle: "Manage your organization's workflows and talent."
     },
+    '/admin/alerts': {
+        title: "Operational Security",
+        subtitle: "Monitor critical deadlines and incident reports across the organization."
+    },
     '/admin/operations': {
         title: "Operational Control",
         subtitle: "Monitor active processes, validate global tasks, and analyze organizational throughput."

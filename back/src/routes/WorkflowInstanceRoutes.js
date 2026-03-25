@@ -14,7 +14,8 @@ const {
   addAttachment,
   removeAttachment,
   getInstanceStats,
-  updateNodeData
+  updateNodeData,
+  checkDeadlines
 } = require('../controllers/WorkflowInstanceController.js');
 
 const { auth } = require('../middleware/auth');
@@ -22,6 +23,10 @@ const { checkTenantActive } = require('../middleware/tenantMiddleware');
 
 // All routes require auth + active tenant
 router.use(auth, checkTenantActive);
+
+// Special Action
+router.get('/check-deadlines', checkDeadlines); // GET /api/workflow-instances/check-deadlines
+router.post('/check-deadlines', checkDeadlines); // POST /api/workflow-instances/check-deadlines
 
 // Instances CRUD
 router.post('/', createInstance);                    // POST /api/workflow-instances

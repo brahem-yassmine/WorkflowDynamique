@@ -1194,7 +1194,57 @@ async function processNodeTransition(req, instance, workflow, sourceNodeId) {
       responsibleUser,
       responsibleDomain,
       restrictedDomain: node.data?.restrictedDomain || null,
-      assignees: nodeAssignees
+      assignees: nodeAssignees,
+      deadline: node.data?.deadline ? new Date(node.data.deadline) : null
     });
   }
 }
+
+exports.checkDeadlines = async (req, res) => {
+  try {
+    if (!req.tenantConn) {
+      return res.status(403).json({ success: false, message: 'Tenant context required' });
+    }
+    const WorkflowInstance = req.tenantConn.model('WorkflowInstance');
+    const Notification = req.tenantConn.model('Notification');
+    const User = req.tenantConn.model('User');
+    const notificationController = require('./notificationController');
+
+    const instances = await WorkflowInstance.find({ status: 'in_progress' });
+    const now = new Date();
+    const admins = await User.find({ role: 'admin' });
+
+    let alertsCreated = 0;
+
+    for (const inst of instances) {
+      for (const node of (inst.currentNodes || [])) {
+        if (node.deadline && new Date(node.deadline) < now && node.status === 'in_progress') {
+          const alreadyNotified = await Notification.findOne({
+            recipient: { $in: admins.map(a => a._id) },
+            type: 'deadline_exceeded',
+            link: `/Workflows/instances/${inst._id}/`
+          });
+
+          if (!alreadyNotified) {
+            for (const admin of admins) {
+              await notificationController.createInternalNotification(req.tenantConn, {
+                recipient: admin._id,
+                title: '⏰ DEADLINE EXCEEDED',
+                message: `Task in workflow "${inst.title}" has passed its deadline!`,
+                type: 'deadline_exceeded',
+                link: `/Workflows/instances/${inst._id}/`
+              });
+            }
+            alertsCreated++;
+          }
+        }
+      }
+    }
+
+    res.json({ success: true, alertsCreated });
+  } catch (error) {
+    console.error('Error checking deadlines:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+

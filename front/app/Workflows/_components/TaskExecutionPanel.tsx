@@ -52,6 +52,16 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
         }
     }, [instance, node.id, searchParams]);
 
+    const data = node?.data || {};
+    const {
+        taskContent,
+        userAction,
+        priority,
+        estimatedDuration,
+        deadline,
+        taskType = 'normal'
+    } = data;
+
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const userStr = localStorage.getItem('user');
@@ -65,15 +75,27 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
         }
     }, []);
 
-    const data = node?.data || {};
-    const {
-        taskContent,
-        userAction,
-        priority,
-        estimatedDuration,
-        deadline,
-        taskType = 'normal'
-    } = data;
+    useEffect(() => {
+        if (deadline) {
+            const deadlineDate = new Date(deadline);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const deadlineDay = new Date(deadlineDate);
+            deadlineDay.setHours(0, 0, 0, 0);
+
+            if (deadlineDay.getTime() === today.getTime()) {
+                toast.warning('⚠️ LAST DAY: This task must be completed today!', {
+                    icon: <Clock size={20} className="text-amber-500" />,
+                    duration: 8000
+                });
+            } else if (deadlineDay < today) {
+                toast.error('🚨 OVERDUE: This task has passed its deadline!', {
+                    icon: <AlertCircle size={20} className="text-rose-500" />,
+                    duration: 10000
+                });
+            }
+        }
+    }, [deadline]);
 
     const isLocked = !!node?.responsibleUser;
     const isLockedByMe = node?.responsibleUser === currentUser?._id;

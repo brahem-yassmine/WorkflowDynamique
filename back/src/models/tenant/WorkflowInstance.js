@@ -70,7 +70,8 @@ const workflowInstanceSchema = new mongoose.Schema({
     approvedBy: [{
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
-    }]
+    }],
+    deadline: { type: Date }
   }],
 
   // Execution history (Full traceability)

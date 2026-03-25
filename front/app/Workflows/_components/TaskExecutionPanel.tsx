@@ -179,7 +179,17 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                     toast.error(res.message || 'Finalization failed');
                 }
             } else {
-                const nodeDataPayload = variables[node.id] || variables[`${node.id}_data`] || {};
+                let nodeDataPayload = variables[node.id] || variables[`${node.id}_data`] || {};
+                
+                // If this is an upload task, explicitly include the attachments in the payload 
+                // so they appear in the task execution outputData
+                if (localAttachments.length > 0 && (String(userAction).includes('File') || String(userAction).includes('Image') || String(taskContent || '').includes('Document') || String(taskContent || '').includes('Image'))) {
+                    nodeDataPayload = {
+                        ...nodeDataPayload,
+                        attachments: localAttachments.map(att => att.url)
+                    };
+                }
+
                 const res = isHistoryNode 
                     ? await apiService.updateNodeData(instance._id, node.id, comment, nodeDataPayload)
                     : await apiService.approveNode(instance._id, node.id, comment, nodeDataPayload);

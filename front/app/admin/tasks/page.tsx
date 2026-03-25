@@ -314,13 +314,15 @@ export default function GlobalTasksPage() {
                          <p className="text-[9px] font-black text-indigo-500 mt-1 uppercase opacity-70 tracking-tighter">{new Date(task.timestamp).toLocaleTimeString()}</p>
                      </div>
 
-                     <div className="flex items-center gap-3 ml-auto">
-                        <button 
-                          onClick={() => setSelectedTask(task)}
-                          className="px-6 py-3.5 bg-slate-900 text-white rounded-2xl hover:bg-indigo-600 transition-all text-[11px] font-black uppercase tracking-widest flex items-center gap-3 shadow-xl"
-                        >
-                          <Eye size={16} /> Consult Work
-                        </button>
+                      <div className="flex items-center gap-3 ml-auto">
+                        {(task.status === 'COMPLETED' || task.status === 'REJECTED') && (
+                          <button 
+                            onClick={() => setSelectedTask(task)}
+                            className="px-6 py-3.5 bg-slate-900 text-white rounded-2xl hover:bg-indigo-600 transition-all text-[11px] font-black uppercase tracking-widest flex items-center gap-3 shadow-xl"
+                          >
+                            <Eye size={16} /> Consult Work
+                          </button>
+                        )}
                         <button 
                           onClick={() => { setReportingTask(task); setReportForm({ ...reportForm, recipientId: task.performedBy || task.submissions[0]?.userId }); setShowReportModal(true); }}
                           className="p-3.5 bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white rounded-2xl transition-all border border-rose-100 shadow-sm"
@@ -389,39 +391,6 @@ export default function GlobalTasksPage() {
 
               <div className="p-12 overflow-y-auto custom-scrollbar flex-grow bg-slate-50/30 space-y-12">
                 
-                {/* Operator Selector for Consensus Tasks */}
-                {selectedTask.submissions.length > 0 && (
-                  <div className="space-y-6">
-                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                       <Users size={16} className="text-indigo-500" /> Selective Review: Choose Operator Work
-                    </p>
-                    <div className="flex flex-wrap gap-3">
-                       {selectedTask.submissions.length === 0 ? (
-                           <div className="px-6 py-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-xs font-black text-slate-800 flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center">
-                                 <AlertCircle size={16} />
-                              </div>
-                              No individual submissions captured for this state.
-                           </div>
-                       ) : (
-                         selectedTask.submissions.map((sub: any, subIdx: number) => (
-                           <button
-                             key={subIdx}
-                             onClick={() => setSelectedTask({ ...selectedTask, currentViewingSub: sub, outputData: sub.data, comments: sub.comments, performedBy: sub.userId })}
-                             className={`px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-3 border ${
-                               selectedTask.performedBy === sub.userId 
-                               ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100 scale-105' 
-                               : 'bg-white text-slate-600 border-slate-100 hover:border-indigo-200'
-                             }`}
-                           >
-                             <UserIcon size={14} /> {sub.userName}
-                           </button>
-                         ))
-                       )}
-                    </div>
-                  </div>
-                )}
-
                 <div className="grid grid-cols-2 gap-10 pt-6 border-t border-slate-100">
                   <div className="space-y-2">
                     <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] underline decoration-indigo-200 underline-offset-4">Active Operator</p>
@@ -459,14 +428,84 @@ export default function GlobalTasksPage() {
                     <div className="space-y-6">
                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">Data Payload Extraction</p>
                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {Object.entries(selectedTask.outputData).map(([key, value]: [string, any]) => (
-                            <div key={key} className="flex flex-col gap-2 p-6 bg-white rounded-3xl border border-slate-100 shadow-sm hover:border-indigo-100 transition-colors group/item">
-                               <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest group-hover/item:text-indigo-600">{key.replace(/_/g, ' ')}</span>
-                               <span className="text-sm font-black text-slate-800 break-words opacity-90">
-                                 {typeof value === 'boolean' ? (value ? 'YES' : 'NO') : String(value)}
-                               </span>
-                            </div>
-                          ))}
+                          {Object.entries(selectedTask.outputData).map(([key, value]: [string, any]) => {
+                            const isImageUrl = (url: string) => {
+                              if (typeof url !== 'string') return false;
+                              return /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(url) || url.includes('uploads/');
+                            };
+
+                            const isFileUrl = (url: string) => {
+                              if (typeof url !== 'string') return false;
+                              return /\.(pdf|doc|docx|xls|xlsx|zip|txt)$/i.test(url);
+                            };
+
+                            const getFullUrl = (url: string) => {
+                              if (typeof url !== 'string') return url;
+                              if (url.startsWith('http')) return url;
+                              if (url.startsWith('uploads/')) {
+                                const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
+                                return `${baseUrl}/${url}`;
+                              }
+                              return url;
+                            };
+
+                            const renderMediaValue = (v: any) => {
+                              if (isImageUrl(v)) {
+                                return (
+                                  <div className="relative group/img overflow-hidden rounded-2xl border border-slate-100 shadow-sm transition-all hover:shadow-xl w-full">
+                                     <img src={getFullUrl(v)} alt={key} className="w-full h-auto max-h-[400px] object-cover" />
+                                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+                                        <a href={getFullUrl(v)} target="_blank" rel="noopener noreferrer" className="px-5 py-2.5 bg-white text-slate-900 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-indigo-600 hover:text-white transition-all shadow-xl">
+                                           <Eye size={12} /> Open Full View
+                                        </a>
+                                     </div>
+                                  </div>
+                                );
+                              }
+                              if (isFileUrl(v) || (typeof v === 'string' && v.startsWith('http'))) {
+                                return (
+                                  <a 
+                                    href={getFullUrl(v)} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200 hover:border-indigo-500 hover:bg-slate-100 transition-all group/file w-full"
+                                  >
+                                    <div className="p-2 bg-white rounded-lg border border-slate-100 text-indigo-500 group-hover/file:bg-indigo-500 group-hover/file:text-white transition-all">
+                                       <Paperclip size={16} />
+                                    </div>
+                                    <div className="flex-1 overflow-hidden">
+                                       <p className="text-xs font-black text-slate-700 truncate">{String(v).split('/').pop() || 'Download Attachment'}</p>
+                                       <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Click to access file</p>
+                                    </div>
+                                  </a>
+                                );
+                              }
+                              return (
+                                <span className="text-sm font-black text-slate-800 break-words opacity-90">
+                                  {typeof v === 'boolean' ? (v ? 'YES' : 'NO') : String(v)}
+                                </span>
+                              );
+                            };
+
+                            return (
+                              <div key={key} className={`flex flex-col gap-2 p-6 bg-white rounded-3xl border border-slate-100 shadow-sm hover:border-indigo-100 transition-colors group/item ${Array.isArray(value) ? 'col-span-1 md:col-span-2' : ''}`}>
+                                 <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest group-hover/item:text-indigo-600">{key.replace(/_/g, ' ')}</span>
+                                 <div className="mt-1 w-full">
+                                    {Array.isArray(value) ? (
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        {value.map((v, i) => (
+                                          <div key={i} className="w-full">
+                                            {renderMediaValue(v)}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      renderMediaValue(value)
+                                    )}
+                                 </div>
+                              </div>
+                            );
+                          })}
                        </div>
                     </div>
                   ) : (

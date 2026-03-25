@@ -35,7 +35,7 @@ module.exports = function(masterConn) {
     },
     status: {
       type: String,
-      enum: ['pending', 'in_review', 'resolved', 'closed'],
+      enum: ['pending', 'in_review', 'resolved', 'closed', 'deleted'],
       default: 'pending'
     },
     response: {

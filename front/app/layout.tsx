@@ -12,6 +12,7 @@ export const metadata: Metadata = {
 import { Toaster } from "sonner";
 import SubscriptionWarning from "@/components/SubscriptionWarning";
 import { GoogleAuthProvider } from "@/components/providers/GoogleAuthProvider";
+import MaintenanceGuard from "@/components/MaintenanceGuard";
 
 export default function RootLayout({
   children,
@@ -21,10 +22,12 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body className={inter.className}>
-        <SubscriptionWarning />
-        <GoogleAuthProvider>
-          {children}
-        </GoogleAuthProvider>
+        <MaintenanceGuard>
+          <SubscriptionWarning />
+          <GoogleAuthProvider>
+            {children}
+          </GoogleAuthProvider>
+        </MaintenanceGuard>
         <Toaster position="top-right" richColors />
       </body>
     </html>

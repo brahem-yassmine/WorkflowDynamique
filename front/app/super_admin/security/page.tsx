@@ -105,13 +105,15 @@ export default function SecurityLogsPage() {
 
   // Calculate Real Threat Vector Data
   const realThreatVectorData = [
-    { subject: 'Brute Force', A: stats?.byActionType?.find((a:any) => a._id === 'LOGIN_FAILED')?.count || 0, fullMark: 100 },
-    { subject: 'System Error', A: stats?.byActionType?.find((a:any) => a._id === 'ERROR')?.count || 0, fullMark: 100 },
-    { subject: 'Unauth Acc', A: stats?.byActionType?.find((a:any) => a._id === 'UNAUTHORIZED_ACCESS')?.count || 0, fullMark: 100 },
-    { subject: 'Data Leak', A: 0, fullMark: 100 },
-    { subject: 'API Anomaly', A: stats?.byActionType?.find((a:any) => a._id === 'API_ANOMALY')?.count || 0, fullMark: 100 },
-    { subject: 'XSS/SQli', A: 0, fullMark: 100 },
+    { subject: 'Auth Fails', A: stats?.byActionType?.find((a:any) => a._id === 'LOGIN_FAILED')?.count || 0, fullMark: 100 },
+    { subject: 'Sys Errors', A: stats?.byActionType?.find((a:any) => a._id === 'ERROR')?.count || 0, fullMark: 100 },
+    { subject: 'Creations', A: stats?.byActionType?.find((a:any) => a._id === 'CREATE')?.count || 0, fullMark: 100 },
+    { subject: 'Updates', A: stats?.byActionType?.find((a:any) => a._id === 'UPDATE')?.count || 0, fullMark: 100 },
+    { subject: 'Deletions', A: stats?.byActionType?.find((a:any) => a._id === 'DELETE')?.count || 0, fullMark: 100 },
+    { subject: 'Sessions', A: (stats?.byActionType?.find((a:any) => a._id === 'LOGIN_SUCCESS')?.count || 0) + (stats?.byActionType?.find((a:any) => a._id === 'LOGOUT')?.count || 0), fullMark: 100 },
   ];
+  const maxThreatValue = Math.max(...realThreatVectorData.map(d => d.A));
+  const domainMax = maxThreatValue > 0 ? maxThreatValue + Math.ceil(maxThreatValue * 0.2) : 10;
 
   const exportPDF = async () => {
     if (logs.length === 0) {
@@ -181,20 +183,30 @@ export default function SecurityLogsPage() {
 
       {/* Security Pulse Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <PulseCard label="Detection Latency" value="< 12ms" status="secure" icon={<Cpu size={20} />} />
         <PulseCard 
-          label="Unauthorized Origins" 
+          label="Total Events Analyzed" 
+          value={stats?.totalLogs?.[0]?.total || "0"} 
+          status="secure" 
+          icon={<Search size={20} />} 
+        />
+        <PulseCard 
+          label="Distinct Threat Origins" 
           value={stats?.byTopIPs?.length || "0"} 
           status={ (stats?.byTopIPs?.length > 0) ? 'warning' : 'secure' } 
           icon={<ShieldAlert size={20} />} 
         />
         <PulseCard 
-          label="Failed Attemps" 
+          label="Failed Attempts" 
           value={stats?.byActionType?.find((a:any) => a._id === 'LOGIN_FAILED')?.count || "0"} 
-          status="info" 
+          status={ (stats?.byActionType?.find((a:any) => a._id === 'LOGIN_FAILED')?.count > 0) ? 'warning' : 'info' } 
           icon={<ShieldX size={20} />} 
         />
-        <PulseCard label="System Criticals" value={stats?.byActionType?.find((a:any) => a._id === 'ERROR')?.count || "0"} status={ (stats?.byActionType?.find((a:any) => a._id === 'ERROR')?.count > 0) ? 'warning' : 'info' } icon={<Activity size={20} />} />
+        <PulseCard 
+          label="System Criticals" 
+          value={stats?.byActionType?.find((a:any) => a._id === 'ERROR')?.count || "0"} 
+          status={ (stats?.byActionType?.find((a:any) => a._id === 'ERROR')?.count > 0) ? 'warning' : 'info' } 
+          icon={<Activity size={20} />} 
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -214,7 +226,7 @@ export default function SecurityLogsPage() {
               <RadarChart cx="50%" cy="50%" outerRadius="80%" data={realThreatVectorData}>
                 <PolarGrid stroke="#f1f5f9" />
                 <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fontWeight: 800, fill: '#64748b' }} />
-                <PolarRadiusAxis angle={30} domain={[0, Math.max(...realThreatVectorData.map(d => d.A)) + 10]} tick={false} axisLine={false} />
+                <PolarRadiusAxis angle={30} domain={[0, domainMax]} tick={false} axisLine={false} />
                 <Radar
                   name="Threat Level"
                   dataKey="A"
@@ -231,36 +243,45 @@ export default function SecurityLogsPage() {
           </div>
         </div>
 
-        {/* Top Malicious Actors */}
-        <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
-          <h3 className="text-lg font-black text-slate-800 tracking-tight mb-6 flex items-center gap-2">
-            <Fingerprint className="text-rose-500" size={20} />
-            Suspected Actors
+        {/* Recent Errors */}
+        <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 flex flex-col">
+          <h3 className="text-lg font-black text-slate-800 tracking-tight mb-6 flex items-center gap-2 shrink-0">
+            <ShieldAlert className="text-rose-500" size={20} />
+            Recent Critical Errors
           </h3>
-          <div className="space-y-5">
-              {stats?.byTopActors?.length > 0 ? (
-                  stats.byTopActors.map((actor: any, idx: number) => (
+          <div className="space-y-4 overflow-y-auto max-h-[300px] pr-2 custom-scrollbar flex-1">
+              {logs?.filter((l: any) => l.actionType === 'ERROR' || l.actionType === 'LOGIN_FAILED').slice(0, 4).length > 0 ? (
+                  logs.filter((l: any) => l.actionType === 'ERROR' || l.actionType === 'LOGIN_FAILED').slice(0, 4).map((log: any, idx: number) => (
                       <div key={idx} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-rose-200 transition-colors group">
-                          <div className="flex justify-between items-start mb-2">
-                              <span className="text-[10px] font-mono font-bold text-slate-500 group-hover:text-rose-600 transition-colors">
-                                  {actor.lastIP}
+                          <div className="flex justify-between items-start mb-2 gap-2">
+                              <span className="text-[10px] font-mono font-bold text-slate-500 group-hover:text-rose-600 transition-colors truncate" title={log.userEmail || log.ipAddress || 'System'}>
+                                  {log.userEmail || log.ipAddress || 'System'}
                               </span>
-                              <span className={`text-[8px] font-black px-2 py-0.5 rounded text-white ${actor.count > 10 ? 'bg-rose-600' : actor.count > 5 ? 'bg-orange-500' : 'bg-amber-400'}`}>
-                                  {actor.count > 10 ? 'CRITICAL' : actor.count > 5 ? 'HIGH' : 'MEDIUM'}
+                              <span className={`text-[8px] font-black px-2 py-0.5 rounded text-white shrink-0 ${log.actionType === 'ERROR' ? 'bg-rose-600' : 'bg-orange-500'}`}>
+                                  {log.actionType === 'ERROR' ? 'SYS ERROR' : 'LOGIN FAILED'}
                               </span>
                           </div>
-                          <p className="text-xs font-black text-slate-800 truncate">{actor._id || 'Unknown'}</p>
-                          <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">{actor.count} Failed attempts</p>
+                          <p className="text-xs font-black text-slate-800 line-clamp-2" title={log.description}>{log.description || 'Unknown error occurred'}</p>
+                          <p className="text-[9px] text-slate-400 font-bold uppercase mt-2">
+                            {new Date(log.timestamp).toLocaleString()}
+                          </p>
                       </div>
                   ))
               ) : (
-                <div className="py-12 text-center text-slate-400 text-xs font-bold uppercase tracking-widest">
-                    No threats detected.
+                <div className="py-12 text-center text-slate-400 text-xs font-bold uppercase tracking-widest h-full flex items-center justify-center">
+                    No recent errors detected.
                 </div>
               )}
           </div>
-          <button className="w-full mt-6 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-rose-600 transition-colors">
-              Full Actor Investigation
+          <button 
+            onClick={() => {
+              const el = document.querySelector('[role="tab"][value="LOG"]') as HTMLElement;
+              if (el) el.click();
+              document.getElementById("security-protocols")?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="w-full mt-6 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-rose-600 transition-colors shrink-0"
+          >
+              View Full Error Log
           </button>
         </div>
       </div>
@@ -285,8 +306,7 @@ export default function SecurityLogsPage() {
 
           <ActivityRegistry 
             showTitle={false} 
-            limit={50} 
-            includeActions={['ERROR', 'LOGIN_FAILED']}
+            limit={100} 
             customTabLabels={{
               LOG: 'Security Alerts',
               HISTORY: 'Threat History',

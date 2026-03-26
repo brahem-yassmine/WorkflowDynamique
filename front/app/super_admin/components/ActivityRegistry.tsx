@@ -73,6 +73,11 @@ export default function ActivityRegistry({
     }, [search, limit]);
 
     const getCategory = (actionType: string): any => {
+        if (isSecurityView) {
+            if (['LOGIN_FAILED', 'ERROR'].includes(actionType)) return 'LOG'; // Security Alerts
+            if (['LOGIN_SUCCESS', 'LOGOUT', 'CREATE', 'UPDATE', 'DELETE'].includes(actionType)) return 'HISTORY'; // Threat History / Activity
+            return 'AUDIT';
+        }
         if (['LOGIN_SUCCESS', 'LOGIN_FAILED', 'LOGOUT', 'ERROR'].includes(actionType)) return 'LOG';
         if (['CREATE', 'DELETE', 'STATUS_CHANGE', 'SUBSCRIPTION_RENEWAL', 'SUBSCRIPTION_EXPIRATION'].includes(actionType)) return 'HISTORY';
         return 'AUDIT';
@@ -84,7 +89,7 @@ export default function ActivityRegistry({
         return 'text-indigo-600 bg-indigo-50 border-indigo-100';
     };
 
-    const filteredLogs = logs.filter(log => getCategory(log.actionType) === activeTab);
+    const filteredLogs = activeTab === 'AUDIT' ? logs : logs.filter(log => getCategory(log.actionType) === activeTab);
 
     const tabs = [
         { id: 'LOG', label: customTabLabels?.LOG || 'Technical Logs', icon: <Terminal size={14} />, desc: 'System traces' },

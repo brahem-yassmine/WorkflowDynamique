@@ -75,8 +75,9 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
         }
     }, []);
 
+    const [toastShown, setToastShown] = useState<string | null>(null);
     useEffect(() => {
-        if (deadline) {
+        if (deadline && toastShown !== deadline) {
             const deadlineDate = new Date(deadline);
             const today = new Date();
             today.setHours(0, 0, 0, 0);
@@ -88,14 +89,16 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                     icon: <Clock size={20} className="text-amber-500" />,
                     duration: 8000
                 });
+                setToastShown(deadline);
             } else if (deadlineDay < today) {
                 toast.error('🚨 OVERDUE: This task has passed its deadline!', {
                     icon: <AlertCircle size={20} className="text-rose-500" />,
                     duration: 10000
                 });
+                setToastShown(deadline);
             }
         }
-    }, [deadline]);
+    }, [deadline, toastShown]);
 
     const isLocked = !!node?.responsibleUser;
     const isLockedByMe = node?.responsibleUser === currentUser?._id;

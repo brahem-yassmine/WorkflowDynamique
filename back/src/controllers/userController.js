@@ -403,7 +403,7 @@ exports.getUserTasks = async (req, res) => {
 
       console.log(`📦 [getUserTasks] Processing instance: ${instance._id} | CurrentNodes: ${instance.currentNodes?.length || 0}`);
       
-      instance.currentNodes.forEach(node => {
+      instance.currentNodes.forEach((node, index) => {
         if (!['in_progress', 'pending'].includes(node.status)) return;
 
         // Try to find node in definition
@@ -416,17 +416,21 @@ exports.getUserTasks = async (req, res) => {
             nodeDef = { id: node.nodeId, type: 'action', data: { label: 'Étape en cours' } };
         }
 
-        const nodeType = (nodeDef.type || 'action').toLowerCase();
-        if (systemNodeTypes.includes(nodeType)) return;
+        const nodeType = (nodeDef?.type || 'action').toLowerCase();
+        
+        // Manual verification nodes shouldn't be skipped even if they have "parallel" in name
+        const isManualAction = ['action', 'form', 'formulaire', 'task', 'tache', 'upload', 'validation'].includes(nodeType);
+        if (systemNodeTypes.includes(nodeType) && !isManualAction) return;
 
         // Task visibility calculation
             console.log(`🔎 [getUserTasks] Processing node: ${node.nodeId} for instance: ${instance._id} | Node Status: ${node.status}`);
             
             // Task visibility calculation
             const instCreatorId = instance.createdBy?.toString();
-            let isVisible = isAdmin || instCreatorId === userId.toString();
+            const currentUserIdStr = userId.toString();
+            let isVisible = isAdmin || instCreatorId === currentUserIdStr;
             
-            console.log(`   - Visibility Initial (isAdmin/Creator): ${isVisible}`);
+            console.log(`   - Visibility Initial (isAdmin/Creator): ${isVisible} | Creator: ${instCreatorId} | Me: ${currentUserIdStr}`);
             
             // Only perform assignee checks if not already visible (admins/creators see everything)
             if (!isVisible) {
@@ -466,12 +470,10 @@ exports.getUserTasks = async (req, res) => {
           if (nodeRestricted && isVisible) {
               const isGlobalRestriction = ['GLOBAL', 'ALL', 'PUBLIC', 'TOUS'].includes(nodeRestricted.toUpperCase());
               if (!isGlobalRestriction) {
-                  const userDomainMatch = domainsToMatch.some(d => d && d.toLowerCase() === nodeRestricted.toLowerCase());
+                  const userDomainMatch = domainsToMatch.some(d => d && d.toLowerCase().trim() === nodeRestricted.toLowerCase().trim());
                   if (!userDomainMatch) {
-                      // Even if creator/admin, show if it belongs to their domain? Or strictly restrict?
-                      // Usually Restricted Domain means ONLY users in that domain can see/act.
-                      // But let's keep admins as exception if possible, or strictly follow it.
-                      if (!isAdmin) isVisible = false;
+                      // Creators and Admins should still bypass restriction usually 
+                      if (!isAdmin && instCreatorId !== currentUserIdStr) isVisible = false;
                   }
               }
           }
@@ -480,8 +482,11 @@ exports.getUserTasks = async (req, res) => {
 
         // 7. Final Visibility Decision
         if (isVisible) {
-          const taskId = `${instance._id}_${node.nodeId}`;
-          // Check if we already added this logical task to avoid duplicates if currentNodes has redundant entries
+          // Add timestamp/index to ensure absolute uniqueness for parallel executions of same node
+          const uniqueSuffix = node.startedAt ? new Date(node.startedAt).getTime() : index;
+          const taskId = `${instance._id}_${node.nodeId}_${uniqueSuffix}`;
+          
+          // Check if we already added this logical task
           const exists = workflowTasks.some(t => t._id === taskId);
           
           if (!exists) {

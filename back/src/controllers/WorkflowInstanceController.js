@@ -1097,13 +1097,32 @@ async function processNodeTransition(req, instance, workflow, sourceNodeId) {
     return logicTypes.some(t => t.toLowerCase() === type.toLowerCase());
   };
 
-  const findNextExecutableNodes = (srcId, targetNodesArray) => {
+  const findNextExecutableNodes = (srcId, targetNodesArray, visited = new Set()) => {
+    if (visited.has(srcId)) return;
+    visited.add(srcId);
+
     const edges = workflow.edges.filter(e => e.source === srcId);
     for (const edge of edges) {
       const targetNode = workflow.nodes.find(n => n.id === edge.target);
       if (!targetNode) continue;
 
       if (isLogicNode(targetNode.type)) {
+        // ⚡ JOIN LOGIC: If it's a join node, check if all incoming branches are finished
+        const joinTypes = ['sync_join', 'parallel_join', 'syncjoin', 'parallelmerge', 'join'];
+        const isJoinNode = joinTypes.includes((targetNode.type || '').toLowerCase());
+        
+        if (isJoinNode) {
+          const incoming = workflow.edges.filter(e => e.target === targetNode.id);
+          const allIncomingFinished = incoming.every(ie => 
+             instance.executionPath.some(p => p.nodeId === ie.source && (p.action === 'approved' || p.action === 'auto_approved'))
+          );
+          
+          if (!allIncomingFinished) {
+            console.log(`⏳ Node ${targetNode.id} (JOIN) is waiting for other branches.`);
+            continue; // Stop this path here
+          }
+        }
+
         // Log it as auto-approved so it shows in history but doesn't block
         if (!instance.executionPath.some(p => p.nodeId === targetNode.id)) {
           instance.executionPath.push({
@@ -1114,7 +1133,7 @@ async function processNodeTransition(req, instance, workflow, sourceNodeId) {
           });
         }
         // Recursively find the real tasks after this logic block
-        findNextExecutableNodes(targetNode.id, targetNodesArray);
+        findNextExecutableNodes(targetNode.id, targetNodesArray, visited);
       } else {
         targetNodesArray.push(targetNode);
       }
@@ -1132,8 +1151,12 @@ async function processNodeTransition(req, instance, workflow, sourceNodeId) {
 
   for (const node of nodesToActivate) {
     if (node.type === 'end') {
-       instance.status = 'completed';
-       instance.timeCompleted = new Date();
+       // Only end the flow if this was the last active path. 
+       // This will be checked again in approveNode/rejectNode but let's be safe.
+       if (instance.currentNodes.length === 0) {
+         instance.status = 'completed';
+         instance.timeCompleted = new Date();
+       }
        continue;
     }
 

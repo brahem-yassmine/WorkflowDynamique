@@ -102,7 +102,6 @@ export default function UserTasksPage() {
         fetchTasks();
     }, []);
 
-    // Auto-open from URL
     useEffect(() => {
         const nodeId = searchParams.get('nodeId');
         const instanceId = searchParams.get('instanceId');
@@ -110,6 +109,9 @@ export default function UserTasksPage() {
             const task = tasks.find(t => t.instanceId === instanceId && t.nodeId === nodeId);
             if (task) {
                 handleTaskClick(task);
+                // Clear the URL parameters after opening to prevent re-opening on every tasks update
+                const newUrl = window.location.pathname;
+                window.history.replaceState({}, '', newUrl);
             }
         }
     }, [searchParams, tasks]);

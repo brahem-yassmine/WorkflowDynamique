@@ -20,7 +20,8 @@ import {
   Briefcase,
   Play,
   X,
-  LayoutGrid
+  LayoutGrid,
+  AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
@@ -58,6 +59,9 @@ function WorkflowsContent() {
   const [editForm, setEditForm] = useState({ name: '', domain: 'HR', projectId: '', status: 'draft' });
   const [isUpdating, setIsUpdating] = useState(false);
   const [editingWorkflowId, setEditingWorkflowId] = useState<string | null>(null);
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [workflowToDelete, setWorkflowToDelete] = useState<string | null>(null);
 
 
   const searchParams = useSearchParams();
@@ -103,16 +107,24 @@ function WorkflowsContent() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: string) => {
+    setWorkflowToDelete(id);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!workflowToDelete) return;
     try {
-      const response = await apiService.request(`/workflows/${id}`, { method: 'DELETE' });
+      const response = await apiService.request(`/workflows/${workflowToDelete}`, { method: 'DELETE' });
       if (response.success) {
         toast.success('Workflow deleted successfully');
-        setWorkflows(prev => prev.filter(w => w._id !== id));
+        setWorkflows(prev => prev.filter(w => w._id !== workflowToDelete));
       }
-
     } catch (error: any) {
       toast.error('Error during deletion: ' + error.message);
+    } finally {
+      setShowDeleteModal(false);
+      setWorkflowToDelete(null);
     }
   };
 
@@ -299,6 +311,7 @@ function WorkflowsContent() {
                           workflow={workflow}
                           projectName={project.name}
                           onClick={() => router.push(`/admin/workflows/${workflow._id}`)}
+                          onDelete={handleDelete}
                         />
 
                       ))}
@@ -332,6 +345,7 @@ function WorkflowsContent() {
                         workflow={workflow}
                         projectName="No Project"
                         onClick={() => router.push(`/admin/workflows/${workflow._id}`)}
+                        onDelete={handleDelete}
                       />
 
                     ))}
@@ -445,6 +459,61 @@ function WorkflowsContent() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Custom Delete Modal */}
+      <AnimatePresence>
+        {showDeleteModal && (
+          <motion.div 
+            key="delete-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowDeleteModal(false);
+            }}
+          >
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="w-full max-w-lg bg-white rounded-[1.5rem] shadow-[0_0_50px_rgba(0,0,0,0.15)] flex flex-col overflow-hidden relative"
+            >
+              <button 
+                onClick={() => setShowDeleteModal(false)}
+                className="absolute top-4 right-4 p-2 bg-slate-50 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors z-40"
+              >
+                <X size={20} />
+              </button>
+              
+              <div className="p-8 text-center space-y-4">
+                <div className="w-20 h-20 mx-auto rounded-3xl bg-rose-50 text-rose-500 flex flex-col items-center justify-center shadow-lg shadow-rose-100 mt-2">
+                  <AlertTriangle size={36} />
+                </div>
+                <h3 className="text-3xl font-black text-slate-900 tracking-tighter">Delete Workflow?</h3>
+                <p className="text-sm font-medium text-slate-500 leading-relaxed px-4">
+                  Are you sure you want to permanently remove this workflow schema? This action cannot be undone.
+                </p>
+              </div>
+
+              <div className="p-6 border-t border-slate-50 bg-slate-50/50 flex justify-center gap-4">
+                <button 
+                  onClick={() => setShowDeleteModal(false)}
+                  className="px-8 py-3 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-600 font-bold transition-all"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={confirmDelete}
+                  className="px-8 py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold shadow-lg shadow-rose-200 transition-all flex items-center gap-2"
+                >
+                  <Trash2 size={18} /> Yes, Delete
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -457,7 +526,7 @@ export default function WorkflowsPage() {
   );
 }
 
-function WorkflowCard({ workflow, projectName, onClick }: { workflow: Workflow; projectName: string; onClick: () => void }) {
+function WorkflowCard({ workflow, projectName, onClick, onDelete }: { workflow: Workflow; projectName: string; onClick: () => void; onDelete: (id: string) => void }) {
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -491,13 +560,20 @@ function WorkflowCard({ workflow, projectName, onClick }: { workflow: Workflow; 
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
+          <button 
+            onClick={(e) => { e.stopPropagation(); onDelete(workflow._id); }}
+            className="p-2 hover:bg-rose-50 text-slate-300 hover:text-rose-600 rounded-lg transition-all"
+            title="Delete Workflow"
+          >
+            <Trash2 size={14} />
+          </button>
           <Link href={`/create-workflow?id=${workflow._id}`} onClick={(e) => e.stopPropagation()}>
-            <div className="p-2 hover:bg-indigo-50 text-slate-300 hover:text-indigo-600 rounded-lg transition-all">
+            <div className="p-2 hover:bg-indigo-50 text-slate-300 hover:text-indigo-600 rounded-lg transition-all" title="Edit Schema">
               <Edit size={14} />
             </div>
           </Link>
-          <div className={`w-2.5 h-2.5 rounded-full ${getStatusColor(workflow.status)} animate-pulse`}></div>
+          <div className={`w-2.5 h-2.5 rounded-full ${getStatusColor(workflow.status)} animate-pulse ml-2`}></div>
         </div>
       </div>
 

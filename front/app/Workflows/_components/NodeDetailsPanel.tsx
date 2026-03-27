@@ -50,8 +50,8 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
     const [label, setLabel] = useState('');
     const [description, setDescription] = useState('');
     const [responsibleDomain, setResponsibleDomain] = useState('');
-    const [taskType, setTaskType] = useState('normal');
-    const [priority, setPriority] = useState('medium');
+    const [taskType, setTaskType] = useState('');
+    const [priority, setPriority] = useState('');
     const [estimatedDuration, setEstimatedDuration] = useState('');
     const [condition, setCondition] = useState('');
     const [domains, setDomains] = useState<any[]>([]);
@@ -83,8 +83,8 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
 
     // User's requested fields
     const [assignmentType, setAssignmentType] = useState<'ANY' | 'ALL' | 'SINGLE'>('SINGLE');
-    const [taskContent, setTaskContent] = useState<string[]>(['Form']);
-    const [userAction, setUserAction] = useState<string[]>(['Complete Task']);
+    const [taskContent, setTaskContent] = useState<string[]>([]);
+    const [userAction, setUserAction] = useState<string[]>([]);
     const [assignedTo, setAssignedTo] = useState<string>(''); // For Department or User ID
     const [deadline, setDeadline] = useState('');
 
@@ -128,8 +128,8 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
             const rDomain = selectedNode.data.responsibleDomain as string || '';
             setResponsibleDomain(rDomain);
             setRestrictedDomain(selectedNode.data.restrictedDomain as string || '');
-            setTaskType(selectedNode.data.taskType as string || 'normal');
-            setPriority(selectedNode.data.priority as string || 'medium');
+            setTaskType(selectedNode.data.taskType as string || '');
+            setPriority(selectedNode.data.priority as string || '');
             setEstimatedDuration(selectedNode.data.estimatedDuration as string || '');
             setCondition(selectedNode.data.condition as string || '');
 
@@ -159,7 +159,7 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
             } else if (savedContent) {
                 setTaskContent([savedContent as string]);
             } else {
-                setTaskContent(['Form']);
+                setTaskContent([]);
             }
             const savedAction = selectedNode.data.userAction;
             if (Array.isArray(savedAction)) {
@@ -167,7 +167,7 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
             } else if (savedAction) {
                 setUserAction([savedAction as string]);
             } else {
-                setUserAction(['Complete Task']);
+                setUserAction([]);
             }
             setAssignedTo(selectedNode.data.assignedTo as string || '');
             setDeadline(selectedNode.data.deadline as string || '');
@@ -608,6 +608,7 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
                                                             value={priority}
                                                             onChange={(e) => setPriority(e.target.value)}
                                                         >
+                                                            <option value="">-- Choose Priority --</option>
                                                             <option value="low">Low</option>
                                                             <option value="medium">Standard</option>
                                                             <option value="high">High</option>
@@ -743,7 +744,7 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
                                                     <div className="p-2.5 bg-indigo-500/10 rounded-xl text-indigo-600">
                                                         <ClipboardType size={16} />
                                                     </div>
-                                                    <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-indigo-600">1. Task Content</Label>
+                                                    <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-indigo-600 font-black">1. Task Content (Admin-provided)</Label>
                                                 </div>
 
                                                 <div className="grid grid-cols-2 gap-4">
@@ -764,15 +765,6 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
                                                                         setTaskContent(taskContent.filter(c => c !== opt.id));
                                                                     } else {
                                                                         setTaskContent([...taskContent, opt.id]);
-                                                                        
-                                                                        // Auto-select corresponding action for better UX
-                                                                        if (opt.id === 'Form' && !userAction.includes('Fill Form')) {
-                                                                            setUserAction(prev => [...prev, 'Fill Form']);
-                                                                        } else if (opt.id === 'Document' && !userAction.includes('Upload File')) {
-                                                                            setUserAction(prev => [...prev, 'Upload File']);
-                                                                        } else if (opt.id === 'Image' && !userAction.includes('Upload Image')) {
-                                                                            setUserAction(prev => [...prev, 'Upload Image']);
-                                                                        }
                                                                     }
                                                                 }}
                                                                 className={`relative flex items-center gap-3 p-3.5 rounded-[24px] transition-all border-2 text-left overflow-hidden ${isSelected
@@ -839,11 +831,30 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
                                                         <input type="file" id="content-file-upload-2" className="hidden" onChange={handleFileUpload} />
                                                         <Button
                                                             onClick={() => document.getElementById('content-file-upload-2')?.click()}
-                                                            className="w-full h-14 bg-white border-2 border-dashed border-indigo-200 rounded-2xl flex items-center justify-center gap-3 text-indigo-600 font-bold hover:bg-indigo-50 transition-all"
+                                                            className="w-full h-14 bg-white border-2 border-dashed border-indigo-200 rounded-2xl flex items-center justify-center gap-3 text-indigo-600 font-bold hover:bg-indigo-50 transition-all font-black uppercase text-[10px] tracking-widest"
                                                         >
                                                             <Plus size={18} />
                                                             Import {taskContent.filter(c => ['Document', 'Image'].includes(c)).join(' / ')}
                                                         </Button>
+
+                                                        {attachments.length > 0 && (
+                                                            <div className="grid grid-cols-1 gap-2 mt-4">
+                                                                {attachments.map((att, idx) => (
+                                                                    <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 group">
+                                                                        <div className="flex items-center gap-3 overflow-hidden">
+                                                                            {att.url?.startsWith('data:image') ? <ImageIcon size={14} className="text-indigo-500" /> : <Paperclip size={14} className="text-indigo-500" />}
+                                                                            <span className="text-[10px] font-bold text-slate-600 truncate">{att.filename}</span>
+                                                                        </div>
+                                                                        <button 
+                                                                            onClick={() => setAttachments(attachments.filter((_, i) => i !== idx))}
+                                                                            className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                                                                        >
+                                                                            <Trash2 size={12} />
+                                                                        </button>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 )}
 
@@ -865,7 +876,7 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
                                                     <div className="p-2.5 bg-emerald-500/10 rounded-xl text-emerald-600">
                                                         <CheckSquare size={16} />
                                                     </div>
-                                                    <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-emerald-600">2. Targeted Action</Label>
+                                                    <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-emerald-600 font-black">2. Targeted Action (Required from User)</Label>
                                                 </div>
                                                 <div className="space-y-4">
                                                     {[
@@ -883,15 +894,6 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
                                                                     setUserAction(userAction.filter(a => a !== opt.id));
                                                                 } else {
                                                                     setUserAction([...userAction, opt.id]);
-                                                                    
-                                                                    // Reverse auto-select for better UX
-                                                                    if (opt.id === 'Fill Form' && !taskContent.includes('Form')) {
-                                                                        setTaskContent(prev => [...prev, 'Form']);
-                                                                    } else if (opt.id === 'Upload File' && !taskContent.includes('Document')) {
-                                                                        setTaskContent(prev => [...prev, 'Document']);
-                                                                    } else if (opt.id === 'Upload Image' && !taskContent.includes('Image')) {
-                                                                        setTaskContent(prev => [...prev, 'Image']);
-                                                                    }
                                                                 }
                                                             }}
                                                             className={`w-full flex items-center justify-between p-5 rounded-[28px] transition-all border-2 group ${userAction.includes(opt.id)

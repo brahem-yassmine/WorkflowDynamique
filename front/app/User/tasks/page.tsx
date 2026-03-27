@@ -167,12 +167,15 @@ export default function UserTasksPage() {
         }
     };
 
-    const filteredTasks = tasks.filter(t =>
-        t.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (t.workflowName && t.workflowName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (t.projectName && t.projectName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (t.instanceTitle && t.instanceTitle.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    const filteredTasks = tasks.filter(t => {
+        const search = searchTerm.toLowerCase();
+        return (
+            (t.title || '').toLowerCase().includes(search) ||
+            (t.workflowName || '').toLowerCase().includes(search) ||
+            (t.projectName || '').toLowerCase().includes(search) ||
+            (t.instanceTitle || '').toLowerCase().includes(search)
+        );
+    });
 
     const activeTasksCount = tasks.filter(t => t.status !== 'completed').length;
     const completedTasksCount = tasks.filter(t => t.status === 'completed').length;

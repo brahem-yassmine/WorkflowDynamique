@@ -332,20 +332,20 @@ exports.getUserTasks = async (req, res) => {
     console.log(`🔍 [getUserTasks] User: ${user?.email} | ID: ${userId} | Matching IDs: [${matchingIds.join(', ')}] | Match Domains: ${domainsToMatch.join(', ')}`);
 
     // 1. KANBAN TASKS
-    let kanbanTasksRaw = await Task.find({
-      $or: [
+    let kanbanQuery = { status: { $ne: 'done' } };
+    
+    if (!isAdmin) {
+      kanbanQuery.$or = [
         { assignedTo: { $in: matchingIds } },
         { assignedDomain: { $in: domainsToMatch.map(d => new RegExp(`^${d}$`, 'i')) } }
-      ],
-      status: { $ne: 'done' }
-    }).populate({
-      path: 'boardId',
-      populate: {
-        path: 'workflowId',
-        populate: { path: 'projectId', select: 'name' }
-      }
-    });
+      ];
+    }
 
+    let kanbanTasksRaw = await Task.find(kanbanQuery).populate({
+      path: 'boardId',
+      select: 'name workflowId'
+    }).populate('createdBy', 'firstName lastName avatar email');
+    
     const kanbanEnriched = kanbanTasksRaw.map(t => ({
       _id: t._id,
       title: t.title,
@@ -384,6 +384,7 @@ exports.getUserTasks = async (req, res) => {
         { 'currentNodes.assignees': { $in: matchingIds } },
         { createdBy: new mongoose.Types.ObjectId(userId) }
       ];
+      console.log(`🔍 [getUserTasks] Final query for instances:`, JSON.stringify(pendingQuery, null, 2));
     }
 
     const activeInstances = await WorkflowInstance.find(pendingQuery).populate({
@@ -400,6 +401,8 @@ exports.getUserTasks = async (req, res) => {
       const workflowData = instance.workflowId;
       const nodesData = workflowData.nodes || [];
 
+      console.log(`📦 [getUserTasks] Processing instance: ${instance._id} | CurrentNodes: ${instance.currentNodes?.length || 0}`);
+      
       instance.currentNodes.forEach(node => {
         if (!['in_progress', 'pending'].includes(node.status)) return;
 
@@ -417,23 +420,29 @@ exports.getUserTasks = async (req, res) => {
         if (systemNodeTypes.includes(nodeType)) return;
 
         // Task visibility calculation
-        const instCreatorId = instance.createdBy?.toString();
-        let isVisible = isAdmin || instCreatorId === userId.toString();
-        
-          // Only perform assignee checks if not already visible (admins/creators see everything)
-          if (!isVisible) {
-            // A. Try matching against INSTANCE data (stored at creation/activation time)
-            const instRespUser = node.responsibleUser?.toString();
-            const isInstUserMatch = !!instRespUser && matchingIds.some(mid => mid.toString() === instRespUser);
+            console.log(`🔎 [getUserTasks] Processing node: ${node.nodeId} for instance: ${instance._id} | Node Status: ${node.status}`);
             
-            const isInstAssigneeMatch = node.assignees?.some(a => {
-                const aStr = a.toString();
-                return matchingIds.some(mid => mid.toString() === aStr);
-            });
+            // Task visibility calculation
+            const instCreatorId = instance.createdBy?.toString();
+            let isVisible = isAdmin || instCreatorId === userId.toString();
+            
+            console.log(`   - Visibility Initial (isAdmin/Creator): ${isVisible}`);
+            
+            // Only perform assignee checks if not already visible (admins/creators see everything)
+            if (!isVisible) {
+              const instRespUser = node.responsibleUser?.toString();
+              const isInstUserMatch = !!instRespUser && matchingIds.some(mid => mid.toString() === instRespUser);
+              
+              const isInstAssigneeMatch = node.assignees?.some(a => {
+                  const aStr = a.toString();
+                  return matchingIds.some(mid => mid.toString() === aStr);
+              });
 
-            const isInstDomainMatch = !!node.responsibleDomain && domainsToMatch.some(d => 
-                d && d.toLowerCase() === node.responsibleDomain.toLowerCase()
-            );
+              const isInstDomainMatch = !!node.responsibleDomain && domainsToMatch.some(d => 
+                  d && d.toLowerCase() === node.responsibleDomain.toLowerCase()
+              );
+              
+              console.log(`   - Instance Match (User/Assignee/Domain): ${isInstUserMatch}/${isInstAssigneeMatch}/${isInstDomainMatch}`);
 
             // B. Try matching against LATEST WORKFLOW DEFINITION (Live update)
             const nodeData = nodeDef.data || {};
@@ -469,7 +478,8 @@ exports.getUserTasks = async (req, res) => {
 
         const hasApproved = node.approvedBy?.some(u => u.toString() === userId.toString());
 
-        if (isVisible && !hasApproved) {
+        // 7. Final Visibility Decision
+        if (isVisible) {
           const taskId = `${instance._id}_${node.nodeId}`;
           // Check if we already added this logical task to avoid duplicates if currentNodes has redundant entries
           const exists = workflowTasks.some(t => t._id === taskId);

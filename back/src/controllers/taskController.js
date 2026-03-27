@@ -20,6 +20,22 @@ exports.getTasks = async (req, res) => {
     }
 };
 
+exports.getTask = async (req, res) => {
+    try {
+        const Task = getTaskModel(req);
+        const { id } = req.params;
+        const task = await Task.findById(id).populate({
+            path: 'boardId',
+            populate: { path: 'workflowId' }
+        });
+        if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
+        res.json({ success: true, data: task });
+    } catch (error) {
+        console.error('❌ getTask Error:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
 exports.createTask = async (req, res) => {
     try {
         const Task = getTaskModel(req);

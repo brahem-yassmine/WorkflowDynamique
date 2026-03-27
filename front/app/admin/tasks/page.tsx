@@ -23,7 +23,9 @@ import {
   Users,
   ShieldAlert,
   Send,
-  User as UserIcon
+  User as UserIcon,
+  ExternalLink,
+  Image as ImageIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -423,6 +425,45 @@ export default function GlobalTasksPage() {
                          </p>
                          <div className="p-10 bg-white rounded-[32px] border border-slate-100 shadow-sm text-lg font-bold text-slate-600 italic leading-relaxed relative border-l-8 border-l-indigo-500">
                             "{selectedTask.comments}"
+                         </div>
+                      </div>
+                   )}
+
+                   {selectedTask.nodeData?.attachments && selectedTask.nodeData.attachments.length > 0 && (
+                      <div className="space-y-4">
+                         <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
+                            <Paperclip size={16} /> Referential Assets (Supplied by Admin)
+                         </p>
+                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {selectedTask.nodeData.attachments.map((att: any, idx: number) => (
+                               <div key={idx} className="group relative overflow-hidden rounded-[24px] border border-slate-100 bg-white p-2 hover:shadow-lg transition-all">
+                                  {att.url?.includes('data:image/') ? (
+                                     <div className="space-y-3">
+                                        <div className="aspect-video w-full overflow-hidden rounded-2xl border border-slate-100">
+                                           <img src={att.url} alt={att.filename} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+                                        </div>
+                                        <div className="flex items-center justify-between px-2">
+                                           <span className="text-[10px] font-bold text-slate-600 truncate max-w-[150px]">{att.filename}</span>
+                                           <a href={att.url} download={att.filename} className="p-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all">
+                                              <Eye size={12} />
+                                           </a>
+                                        </div>
+                                     </div>
+                                  ) : (
+                                     <div className="flex items-center justify-between p-3">
+                                        <div className="flex items-center gap-3">
+                                           <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl">
+                                              <Activity size={16} />
+                                           </div>
+                                           <span className="text-[10px] font-bold text-slate-600 truncate max-w-[140px] font-mono">{att.filename}</span>
+                                        </div>
+                                        <a href={att.url} download={att.filename} className="p-2.5 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 rounded-xl transition-all">
+                                           <ExternalLink size={16} />
+                                        </a>
+                                     </div>
+                                  )}
+                               </div>
+                            ))}
                          </div>
                       </div>
                    )}

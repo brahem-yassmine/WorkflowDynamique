@@ -110,6 +110,16 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
     const canValidate = canPerform && isInstanceActive;
     const showButtons = canPerform || canValidate;
 
+    const getFullUrl = (url: string) => {
+        if (!url || typeof url !== 'string') return url;
+        if (url.startsWith('http') || url.startsWith('data:')) return url;
+        if (url.startsWith('uploads/')) {
+            const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
+            return `${baseUrl}/${url}`;
+        }
+        return url;
+    };
+
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file || !instance?._id) return;
@@ -459,11 +469,48 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                 <p className="text-sm font-medium text-slate-600 leading-relaxed">
                                     {data.description || "Active operations cycle. Please follow the defined protocols for this workflow node."}
                                 </p>
+
+                                {data.attachments && data.attachments.length > 0 && (
+                                    <div className="mt-8 pt-8 border-t border-slate-50 space-y-4">
+                                        <p className="text-[9px] font-black uppercase tracking-widest text-indigo-500 mb-4">Referential Assets Supplied by Admin</p>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            {data.attachments.map((att: any, idx: number) => (
+                                                <div key={idx} className="group relative overflow-hidden rounded-[24px] border border-slate-100 bg-slate-50/50 p-2 hover:bg-white transition-all">
+                                                    {att.url?.includes('data:image/') || att.url?.includes('uploads/') || (typeof att.url === 'string' && /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(att.url)) ? (
+                                                        <div className="space-y-3">
+                                                            <div className="aspect-video w-full overflow-hidden rounded-2xl border border-slate-100">
+                                                                <img src={getFullUrl(att.url)} alt={att.filename} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+                                                            </div>
+                                                            <div className="flex items-center justify-between px-2">
+                                                                <span className="text-[10px] font-bold text-slate-600 truncate max-w-[150px]">{att.filename}</span>
+                                                                <a href={getFullUrl(att.url)} download={att.filename} className="p-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all">
+                                                                    <ImageIcon size={14} />
+                                                                </a>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center justify-between p-3">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="p-2.5 bg-indigo-100 text-indigo-600 rounded-xl">
+                                                                    <FilePlus size={16} />
+                                                                </div>
+                                                                <span className="text-[10px] font-bold text-slate-600 truncate max-w-[140px] font-mono">{att.filename}</span>
+                                                            </div>
+                                                            <a href={getFullUrl(att.url)} target="_blank" rel="noopener noreferrer" className="p-2.5 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 rounded-xl transition-all">
+                                                                <ExternalLink size={16} />
+                                                            </a>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
                         {/* 3. UPLOAD SECTIONS (If applicable) */}
-                        {(String(userAction).includes('File') || String(userAction).includes('Image') || String(taskContent || '').includes('Document') || String(taskContent || '').includes('Image')) && (
+                        {(String(userAction).includes('File') || String(userAction).includes('Image')) && (
                             <div className="space-y-6">
                                 <div className="flex items-center justify-between">
                                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Section: Digital Proof / Submission</p>
@@ -479,9 +526,9 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                         </div>
                                         <div className="space-y-2">
                                              <h4 className="text-base font-black text-slate-800 uppercase tracking-tight">
-                                                {(String(userAction).includes('Image') || String(taskContent || '').includes('Image')) && (String(userAction).includes('File') || String(taskContent || '').includes('Document')) 
+                                                {String(userAction).includes('Image') && String(userAction).includes('File') 
                                                   ? "Upload Image / File" 
-                                                  : (String(userAction).includes('Image') || String(taskContent || '').includes('Image')) 
+                                                  : String(userAction).includes('Image')
                                                     ? "Upload Image" 
                                                     : "Upload File"}
                                              </h4>
@@ -495,9 +542,9 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                             className={`h-12 px-8 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all ${localAttachments.length > 0 ? 'bg-slate-900 text-white' : 'bg-indigo-600 text-white'}`}
                                         >
                                             {localAttachments.length > 0 ? "Add More Items" : 
-                                              (String(userAction).includes('Image') || String(taskContent || '').includes('Image')) && (String(userAction).includes('File') || String(taskContent || '').includes('Document'))
+                                              (String(userAction).includes('Image') && String(userAction).includes('File'))
                                                 ? "Upload Image or File"
-                                                : (String(userAction).includes('Image') || String(taskContent || '').includes('Image'))
+                                                : String(userAction).includes('Image')
                                                   ? "Upload Image Only"
                                                   : "Upload File Only"}
                                         </Button>
@@ -510,7 +557,7 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                                     <div className="flex items-center gap-3 overflow-hidden">
                                                         <CheckSquare size={14} className="text-emerald-500 shrink-0" />
                                                         <a 
-                                                            href={att.url || '#'} 
+                                                            href={getFullUrl(att.url) || '#'} 
                                                             target="_blank" 
                                                             rel="noopener noreferrer"
                                                             className="text-[10px] font-bold text-slate-600 truncate hover:text-indigo-600 transition-colors underline-offset-4 hover:underline"

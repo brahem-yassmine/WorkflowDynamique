@@ -61,13 +61,11 @@ function UserSidebar() {
   const menuItems = [
     { icon: LayoutGrid, label: "Command Center", href: "/User" }, // Replaced My Profile with Command Center for user context
     { icon: CheckSquare, label: "My Tasks", href: "/User/tasks", badge: taskCount },
-    { icon: Plus, label: "Initiate Workflow", href: "/User/create_workflows" },
     { icon: Bell, label: "Alert Inbox", href: "/User/Notifications" },
     { icon: GitBranch, label: "My History", href: "/User/Workflows" },
     { icon: ShieldAlert, label: "Critical Requests", href: "/User/requests", color: "text-rose-400" },
     { icon: Users, label: "Team Space", href: "/User/InviteTeam" },
     { icon: Layers, label: "Forms Lab", href: "/User/Allforms" },
-    { icon: ListTodo, label: "Operations Registry", href: "/User/Allchecks" },
     { icon: Zap, label: "AI Co-pilot", href: "/User/AIGenerate", color: "text-amber-400" },
   ];
 

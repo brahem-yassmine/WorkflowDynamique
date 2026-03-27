@@ -81,18 +81,25 @@ export default function PlatformSettingsPage() {
       setLoading(true);
       const token = localStorage.getItem('auth_token');
       
-      const [plansRes, statsRes, settingsRes] = await Promise.all([
+      const [plansRes, statsRes, logsStatsRes, settingsRes] = await Promise.all([
         fetch('http://localhost:5000/api/admin/plans', { headers: { Authorization: `Bearer ${token}` } }),
         fetch('http://localhost:5000/api/admin/stats', { headers: { Authorization: `Bearer ${token}` } }),
+        fetch('http://localhost:5000/api/admin/logs/stats', { headers: { Authorization: `Bearer ${token}` } }),
         fetch('http://localhost:5000/api/platform-settings/public')
       ]);
 
       const plansData = await plansRes.json();
       const statsData = await statsRes.json();
+      const logsStatsData = await logsStatsRes.json();
       const settingsData = await settingsRes.json();
 
       if (plansData.success) setPlans(plansData.data);
-      if (statsData.success) setStats(statsData.data);
+      if (statsData.success) {
+        setStats({ 
+          ...statsData.data, 
+          logs: logsStatsData.success ? logsStatsData.data : null 
+        });
+      }
       if (settingsData.success && settingsData.data) {
         setPlatformName(settingsData.data.platformName);
         setSupportEmail(settingsData.data.supportEmail);

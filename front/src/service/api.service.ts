@@ -402,6 +402,31 @@ class ApiService {
       body: JSON.stringify({ status, response })
     });
   }
+
+  // Message Templates
+  getMessageTemplates() {
+    return this.request('/message-templates');
+  }
+
+  createMessageTemplate(data: any) {
+    return this.request('/message-templates', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  updateMessageTemplate(id: string, data: any) {
+    return this.request(`/message-templates/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  }
+
+  deleteMessageTemplate(id: string) {
+    return this.request(`/message-templates/${id}`, {
+      method: 'DELETE'
+    });
+  }
 }
 
 export const apiService = new ApiService();

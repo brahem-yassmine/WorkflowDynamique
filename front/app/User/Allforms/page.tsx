@@ -90,8 +90,8 @@ export default function UserAllFormsPage() {
   );
 
   const groupedForms = filteredForms.reduce((acc, form) => {
-    let projectName = "No Project";
-    let workflowName = "No Workflow";
+    let projectName = "Standalone Assets";
+    let workflowName = "Directly Initialized Forms";
 
     if (form.workflowId) {
       const wId = typeof form.workflowId === 'string' ? null : form.workflowId;
@@ -99,7 +99,12 @@ export default function UserAllFormsPage() {
         workflowName = wId.name || "Unknown Workflow";
         if (wId.projectId && wId.projectId.name) {
           projectName = wId.projectId.name;
+        } else {
+          projectName = "Uncategorized Workflows";
         }
+      } else {
+        projectName = "Uncategorized Workflows";
+        workflowName = "Unresolved Links";
       }
     }
 
@@ -109,14 +114,6 @@ export default function UserAllFormsPage() {
     
     return acc;
   }, {} as Record<string, Record<string, Form[]>>);
-
-  const uncategorizedForms = groupedForms["No Project"]?.["No Workflow"] || [];
-  if (groupedForms["No Project"] && groupedForms["No Project"]["No Workflow"]) {
-    delete groupedForms["No Project"]["No Workflow"];
-    if (Object.keys(groupedForms["No Project"]).length === 0) {
-      delete groupedForms["No Project"];
-    }
-  }
 
   return (
     <div className="min-h-screen pb-20">
@@ -249,7 +246,7 @@ export default function UserAllFormsPage() {
                                 <div className="flex flex-col">
                                   <span className="text-[9px] uppercase font-black text-slate-400 tracking-widest mb-1">Field Complexity</span>
                                   <span className="text-xl font-black text-slate-800">
-                                    {(form.steps || []).reduce((acc, step) => acc + (step.fields?.length || 0), 0)}{' '}
+                                    {(form.steps || []).reduce((acc: number, step: any) => acc + (step.fields?.length || 0), 0)}{' '}
                                     <span className="text-xs font-bold text-slate-400">Entries</span>
                                   </span>
                                 </div>
@@ -294,106 +291,7 @@ export default function UserAllFormsPage() {
               );
             })}
 
-            {uncategorizedForms.length > 0 && (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between px-2">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 shadow-sm border border-slate-100">
-                      <FileText size={20} />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-black text-slate-800 tracking-tight">Standalone Forms</h3>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-0.5">No Project assigned</p>
-                    </div>
-                  </div>
-                  <span className="px-3 py-1 bg-slate-200 text-slate-600 rounded-full text-[10px] font-black uppercase tracking-wider">
-                    {uncategorizedForms.length} Forms
-                  </span>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {uncategorizedForms.map((form) => (
-                    <div
-                      key={form._id}
-                      onClick={() => router.push(`/form/form3?id=${form._id}&from=user`)}
-                      className="group bg-white rounded-[2.5rem] border border-slate-100 p-8 hover:shadow-2xl hover:shadow-slate-500/10 hover:border-slate-200 transition-all relative overflow-hidden flex flex-col h-full cursor-pointer"
-                    >
-                      <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-400 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                      <div className="flex items-center justify-between mb-6">
-                        <div className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 border ${form.status === 'published' || form.status === 'approved'
-                            ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                            : form.status === 'rejected'
-                              ? 'bg-rose-50 text-rose-600 border-rose-100'
-                              : 'bg-slate-50 text-slate-500 border-slate-100'
-                          }`}>
-                          {form.status === 'published' || form.status === 'approved' ? (
-                            <CheckCircle2 className="w-3 h-3" />
-                          ) : form.status === 'rejected' ? (
-                            <Clock className="w-3 h-3" />
-                          ) : (
-                            <Clock className="w-3 h-3" />
-                          )}
-                          {form.status || 'Draft'}
-                        </div>
-                        <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                          <Calendar className="w-3.5 h-3.5 text-indigo-400" />
-                          {new Date(form.createdAt).toLocaleDateString()}
-                        </div>
-                      </div>
 
-                      <h3 className="text-xl font-black text-slate-800 group-hover:text-slate-600 transition-colors truncate mb-2 tracking-tight">
-                        {form.name}
-                      </h3>
-                      <p className="text-xs text-slate-500 font-medium line-clamp-2 mb-8 flex-1 leading-relaxed">
-                        {form.description || "Active procedural mapping for organizational consistency and automated tracking."}
-                      </p>
-
-                      <div className="flex items-center justify-between mt-auto pt-6 border-t border-slate-50">
-                        <div className="flex flex-col">
-                          <span className="text-[9px] uppercase font-black text-slate-400 tracking-widest mb-1">Field Complexity</span>
-                          <span className="text-xl font-black text-slate-800">
-                            {(form.steps || []).reduce((acc, step) => acc + (step.fields?.length || 0), 0)}{' '}
-                            <span className="text-xs font-bold text-slate-400">Entries</span>
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleClone(form._id); }}
-                            className="p-3 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-2xl transition-all"
-                            title="Duplicate Unit"
-                          >
-                            <Copy className="w-5 h-5" />
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); router.push(`/form?id=${form._id}&from=user`); }}
-                            className="p-3 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-2xl transition-all"
-                            title="Reconfigure"
-                          >
-                            <Edit3 className="w-5 h-5" />
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleDelete(form._id); }}
-                            className="p-3 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-2xl transition-all"
-                            title="Decommission"
-                          >
-                            <Trash2 className="w-5 h-5" />
-                          </button>
-                          <Link
-                            href={`/form/form3?id=${form._id}&from=user`}
-                            onClick={(e) => e.stopPropagation()}
-                            className="ml-2 w-12 h-12 bg-slate-50 text-slate-400 group-hover:bg-slate-600 group-hover:text-white rounded-2xl flex items-center justify-center transition-all shadow-sm active:scale-90"
-                            title="Run Interactive"
-                          >
-                            <ArrowRight className="w-5 h-5" />
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         )}
       </div>

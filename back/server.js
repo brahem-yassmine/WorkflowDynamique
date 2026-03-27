@@ -192,6 +192,7 @@ app.use('/api/tenant/roles', tenantRoleRoutes);
 app.use('/api/tenant/domains', tenantDomainRoutes);
 app.use('/api/form-responses', formRoutes);
 app.use('/api/task-reports', require('./src/routes/taskReportRoutes'));
+app.use('/api/message-templates', require('./src/routes/messageTemplateRoutes'));
 
 // ========================
 // ROOT ROUTE

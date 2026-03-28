@@ -44,22 +44,8 @@ export default function KanbanView({ workflowId }: { workflowId: string }) {
     }
   };
 
-  const handleCreateBoard = async () => {
-     try {
-       const name = prompt("Enter Kanban Board Name:");
-       if (!name) return;
-       const res = await apiService.createBoard({ 
-         name, 
-         description: `Throughput board for workflow synchronization.`,
-         workflowId 
-       });
-       if (res.success) {
-         toast.success("Kanban board provisioned");
-         fetchBoards();
-       }
-     } catch (err) {
-       toast.error("Board creation failed");
-     }
+  const handleCreateBoard = () => {
+    router.push(`/kanban?designerWorkflowId=${workflowId}&fromWorkflow=true&role=admin`);
   };
 
   if (loading) return <div className="text-center p-10 font-bold text-slate-300">Synchronizing throughput datasets...</div>;
@@ -95,7 +81,7 @@ export default function KanbanView({ workflowId }: { workflowId: string }) {
                 key={board._id}
                 whileHover={{ y: -5 }}
                 className="group bg-white rounded-[32px] border border-slate-100 p-8 flex flex-col hover:shadow-2xl hover:shadow-indigo-500/10 transition-all cursor-pointer relative overflow-hidden"
-                onClick={() => router.push(`/kanban?boardId=${board._id}`)}
+                onClick={() => router.push(`/kanban?boardId=${board._id}&designerWorkflowId=${workflowId}&fromWorkflow=true&role=admin`)}
               >
                 <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                 

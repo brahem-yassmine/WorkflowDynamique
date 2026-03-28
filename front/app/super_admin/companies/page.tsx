@@ -80,7 +80,7 @@ export default function CompanyManagement() {
         setCompanies(data.data.map((tenant: any) => ({
           id: tenant._id || '',
           name: tenant.name || 'Anonymous Entity',
-          plan: tenant.selectedPlan?.name || tenant.planDetails?.name || 'Standard Tier',
+          plan: tenant.selectedPlan?.name || tenant.planDetails?.name || 'Demo Plan',
           users: tenant.userCount || 0,
           registrationDate: tenant.createdAt ? new Date(tenant.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown',
           adminName: tenant.adminName || tenant.email?.split('@')[0] || 'Admin',

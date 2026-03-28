@@ -97,7 +97,7 @@ export default function SuperAdminDashboard() {
         
         // Ensure planDistribution is properly formatted for PieChart
         const mappedPlanDist = (statsData.planDistribution || []).map((p: any) => ({
-          name: p.name || 'Unknown',
+          name: p.name === 'No plan' ? 'Demo' : (p.name || 'Unknown'),
           value: p.value || 0
         }));
         setPlanDistribution(mappedPlanDist);

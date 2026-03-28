@@ -26,6 +26,7 @@ import { apiService } from '@/service/api.service';
 import { toast } from 'sonner';
 import { showAlert, showConfirm } from '@/lib/alerts';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
 
 // Types matches backend User model
 interface Persona {
@@ -53,6 +54,7 @@ interface Domain {
 
 export default function UserManagementPage() {
     const router = useRouter();
+    const { user: currentUser } = useAuth() as { user: Persona | null };
     const [users, setUsers] = useState<Persona[]>([]);
     const [roles, setRoles] = useState<Role[]>([]);
     const [domains, setDomains] = useState<Domain[]>([]);
@@ -433,8 +435,9 @@ export default function UserManagementPage() {
                                             Refine Profile
                                         </button>
                                         <button
+                                            disabled={!!currentUser && ((currentUser as any).email === selectedUser.email || (currentUser as any)._id === selectedUser._id || (currentUser as any).id === selectedUser._id)}
                                             onClick={() => handleDelete(selectedUser._id)}
-                                            className="px-6 py-4 bg-rose-50 text-rose-600 rounded-[20px] hover:bg-rose-500 hover:text-white transition-all border border-rose-100 flex items-center justify-center"
+                                            className={`px-6 py-4 rounded-[20px] transition-all border flex items-center justify-center ${!!currentUser && ((currentUser as any).email === selectedUser.email || (currentUser as any)._id === selectedUser._id || (currentUser as any).id === selectedUser._id) ? 'bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed opacity-60' : 'bg-rose-50 text-rose-600 hover:bg-rose-500 hover:text-white border-rose-100'}`}
                                         >
                                             <Trash2 size={20} />
                                         </button>

@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Node } from '@xyflow/react';
-import { X, Plus, Trash2, ListChecks, Clock, ShieldAlert, Users, GraduationCap, LayoutGrid, ClipboardType, FilePlus, CheckSquare, ExternalLink, Paperclip, Image as ImageIcon } from 'lucide-react';
+import { X, Plus, Trash2, ListChecks, Clock, ShieldAlert, Users, GraduationCap, LayoutGrid, ClipboardType, FilePlus, CheckSquare, ExternalLink, Paperclip, Image as ImageIcon, Check } from 'lucide-react';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -694,18 +694,65 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
 
                                                     <div className="space-y-4">
                                                         <Label className="text-[11px] font-black text-slate-500 uppercase tracking-widest text-indigo-600">3. Select Validators</Label>
-                                                        <select
-                                                            multiple
-                                                            className="w-full p-6 bg-slate-50 rounded-[24px] font-bold text-slate-700 min-h-[220px] outline-none ring-1 ring-slate-100 focus:ring-4 focus:ring-indigo-100 shadow-inner transition-all custom-scrollbar"
-                                                            value={validatorIds}
-                                                            onChange={(e) => setValidatorIds(Array.from(e.target.selectedOptions, o => o.value))}
-                                                        >
-                                                            {validatorType === 'role'
-                                                                ? roles.map(r => <option key={r._id || r.id} value={r._id || r.id}>{r.name}</option>)
-                                                                : users.map(u => <option key={u._id || u.id} value={u._id || u.id}>{u.firstName} {u.lastName} ({u.email || u.id})</option>)
-                                                            }
-                                                        </select>
-                                                        <p className="text-[9px] font-bold text-slate-400 italic px-2">Hold Ctrl (or Cmd) to select multiple validators.</p>
+                                                        <div className={`w-full bg-slate-50 rounded-[24px] overflow-hidden outline-none ring-1 ring-slate-100 focus-within:ring-4 focus-within:ring-indigo-100 shadow-inner transition-all flex flex-col min-h-[220px] max-h-[300px]`}>
+                                                            <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
+                                                                {validatorType === 'role'
+                                                                    ? roles.map(r => {
+                                                                        const isSelected = validationType === 'multi' ? validatorIds.includes(r._id || r.id) : validatorIds[0] === (r._id || r.id);
+                                                                        return (
+                                                                            <div 
+                                                                                key={r._id || r.id} 
+                                                                                onClick={() => {
+                                                                                    const id = r._id || r.id;
+                                                                                    if (validationType === 'multi') {
+                                                                                        if (isSelected) setValidatorIds(validatorIds.filter(vId => vId !== id));
+                                                                                        else setValidatorIds([...validatorIds, id]);
+                                                                                    } else {
+                                                                                        if (!isSelected) setValidatorIds([id]);
+                                                                                    }
+                                                                                }}
+                                                                                className={`p-3.5 px-5 rounded-[16px] cursor-pointer font-bold transition-all text-sm flex items-center justify-between ${isSelected ? 'bg-indigo-600 text-white shadow-md scale-[0.98]' : 'text-slate-600 hover:bg-white hover:shadow-sm'}`}
+                                                                            >
+                                                                                <span>{r.name}</span>
+                                                                                {isSelected && <Check size={18} strokeWidth={3} />}
+                                                                            </div>
+                                                                        );
+                                                                    })
+                                                                    : users.map(u => {
+                                                                        const isSelected = validationType === 'multi' ? validatorIds.includes(u._id || u.id) : validatorIds[0] === (u._id || u.id);
+                                                                        return (
+                                                                            <div 
+                                                                                key={u._id || u.id} 
+                                                                                onClick={() => {
+                                                                                    const id = u._id || u.id;
+                                                                                    if (validationType === 'multi') {
+                                                                                        if (isSelected) setValidatorIds(validatorIds.filter(vId => vId !== id));
+                                                                                        else setValidatorIds([...validatorIds, id]);
+                                                                                    } else {
+                                                                                        if (!isSelected) setValidatorIds([id]);
+                                                                                    }
+                                                                                }}
+                                                                                className={`p-3.5 px-5 rounded-[16px] cursor-pointer font-bold transition-all text-sm flex items-center justify-between ${isSelected ? 'bg-indigo-600 text-white shadow-md scale-[0.98]' : 'text-slate-600 hover:bg-white hover:shadow-sm'}`}
+                                                                            >
+                                                                                <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2 min-w-0">
+                                                                                    <span className="truncate">{u.firstName} {u.lastName}</span>
+                                                                                    <span className={`text-[10px] truncate ${isSelected ? 'text-indigo-200' : 'text-slate-400'}`}>({u.email})</span>
+                                                                                </div>
+                                                                                {isSelected && <Check size={18} strokeWidth={3} className="shrink-0" />}
+                                                                            </div>
+                                                                        );
+                                                                    })
+                                                                }
+                                                                {(validatorType === 'role' ? roles : users).length === 0 && (
+                                                                    <div className="text-center p-10 text-slate-400 font-bold text-xs uppercase tracking-widest mt-4">
+                                                                        No {validatorType}s available
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        {validationType === 'multi' && (
+                                                            <p className="text-[9px] font-bold text-slate-400 italic px-2">Click multiple items to toggle their selection.</p>
+                                                        )}
                                                     </div>
 
                                                     <div className="p-8 bg-slate-900 rounded-[32px] flex items-center gap-6 border border-slate-800 shadow-2xl">

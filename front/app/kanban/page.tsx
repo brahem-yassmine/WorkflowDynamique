@@ -452,9 +452,10 @@ export default function TasksPage() {
 
       toast.success(boardId ? 'Architecture Board updated' : 'Architecture Board created successfully');
       setIsSaveModalOpen(false);
-      
-      if (designerWorkflowId || fromWorkflow) {
-        router.push(`/${userRole}/create_workflows${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}`);
+      if (fromWorkflow && designerWorkflowId) {
+        router.push(`/admin/workflows/${designerWorkflowId}?tab=kanban`);
+      } else if (designerWorkflowId) {
+        router.push(`/${userRole}/create_workflows?id=${designerWorkflowId}`);
       } else {
         router.push('/admin/AllKanban');
       }
@@ -547,7 +548,7 @@ export default function TasksPage() {
     tasks.filter((t) => t.status === status);
 
   return (
-    <div className="min-h-screen bg-gray-50/50 pb-20 -m-8">
+    <div className="min-h-screen bg-gray-50/50 pb-20">
       <AnimatePresence>
         {isTaskModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
@@ -692,8 +693,10 @@ export default function TasksPage() {
           <div className="flex items-center gap-4 w-full sm:w-auto">
             <button 
               onClick={() => {
-                if (designerWorkflowId || fromWorkflow) {
-                  router.push(`/${userRole}/create_workflows${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}`);
+                if (fromWorkflow && designerWorkflowId) {
+                  router.push(`/admin/workflows/${designerWorkflowId}?tab=kanban`);
+                } else if (designerWorkflowId) {
+                  router.push(`/${userRole}/create_workflows?id=${designerWorkflowId}`);
                 } else {
                   router.push('/admin/AllKanban');
                 }
@@ -716,14 +719,6 @@ export default function TasksPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
-            {(designerWorkflowId || fromWorkflow) && (
-              <button 
-                onClick={() => router.push(`/${userRole}/create_workflows${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}`)}
-                className="flex items-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-slate-50 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-slate-100 active:scale-95 transition-all border border-slate-200 shadow-sm whitespace-nowrap"
-              >
-                <ChevronLeft size={16} /> <span className="hidden xs:inline">Back to Workflow</span><span className="xs:hidden">Workflow</span>
-              </button>
-            )}
             <button 
               onClick={saveBoard}
               disabled={isSaving || isLoading} 

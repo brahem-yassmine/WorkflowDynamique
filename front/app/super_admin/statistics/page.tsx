@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { 
   BarChart4, 
   TrendingUp, 
@@ -10,7 +10,10 @@ import {
   Users, 
   ArrowUpRight,
   PieChart as PieChartIcon,
-  Calendar
+  Calendar,
+  Download,
+  FileImage,
+  Loader2
 } from "lucide-react";
 import {
   AreaChart,
@@ -27,12 +30,92 @@ import {
   Pie,
   Legend
 } from "recharts";
+// @ts-ignore
+import html2canvas from "html2canvas-pro";
+import jsPDF from "jspdf";
 
 const COLORS = ['#4f46e5', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b', '#10b981'];
 
 export default function StatisticsPage() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+
+  // Refs for chart elements
+  const areaChartRef = useRef<HTMLDivElement>(null);
+  const pieChartRef = useRef<HTMLDivElement>(null);
+
+  const handleExport = async (ref: React.RefObject<HTMLDivElement | null>, title: string) => {
+    if (!ref.current) return;
+    try {
+      setExporting(true);
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const margin = 10;
+      const usableWidth = pdfWidth - margin * 2;
+
+      // Title
+      pdf.setFontSize(22);
+      pdf.setTextColor(30, 41, 59);
+      pdf.text(`${title} Report`, margin, 20);
+      
+      pdf.setFontSize(10);
+      pdf.setTextColor(148, 163, 184);
+      pdf.text(`Generated on ${new Date().toLocaleDateString()}`, margin, 28);
+
+      // Capture Chart with style sanitization
+      const canvas = await html2canvas(ref.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false, // Reduce noise from unsupported CSS
+        onclone: (clonedDoc: Document) => {
+          // 1. Hide the export buttons and other UI noise in the PDF
+          const actionButtons = clonedDoc.querySelectorAll('button');
+          actionButtons.forEach(btn => {
+            if (btn instanceof HTMLElement) btn.style.display = 'none';
+          });
+
+          // 2. Fix: html2canvas doesn't support modern oklch/lab colors perfectly
+          // We find all elements and ensure they have standard fallbacks
+          const elements = clonedDoc.getElementsByTagName("*");
+          for (let i = 0; i < elements.length; i++) {
+            const el = elements[i] as HTMLElement;
+            const style = el.style;
+            
+            if (style.backgroundColor && (style.backgroundColor.includes("oklch") || style.backgroundColor.includes("lab"))) {
+                style.backgroundColor = "#ffffff";
+            }
+            if (style.color && (style.color.includes("oklch") || style.color.includes("lab"))) {
+                style.color = "#1e293b";
+            }
+
+            const computedStyle = clonedDoc.defaultView?.getComputedStyle(el);
+            if (computedStyle) {
+              if (computedStyle.backgroundColor.includes("oklch") || computedStyle.backgroundColor.includes("lab")) {
+                el.style.backgroundColor = "#ffffff";
+              }
+              if (computedStyle.color.includes("oklch") || computedStyle.color.includes("lab")) {
+                el.style.color = "#1e293b";
+              }
+            }
+          }
+        }
+      });
+
+      const imgData = canvas.toDataURL("image/png");
+      const imgProps = pdf.getImageProperties(imgData);
+      const ratio = imgProps.height / imgProps.width;
+      const imgHeight = usableWidth * ratio;
+
+      pdf.addImage(imgData, "PNG", margin, 40, usableWidth, imgHeight);
+      pdf.save(`Axia_${title.replace(/\s+/g, '_')}_${new Date().getTime()}.pdf`);
+    } catch (error) {
+      console.error("Export failed:", error);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -84,14 +167,14 @@ export default function StatisticsPage() {
           value={newCompaniesWeek} 
           period="Last 7 Days" 
           icon={<Building2 size={24} />} 
-          trend={newCompaniesWeek > 2 ? "+12%" : "Stable"}
+          trend={stats?.companiesTrend || "Stable"}
         />
         <GrowthCard 
           label="New Workflows" 
           value={newWorkflowsWeek} 
           period="Last 7 Days" 
           icon={<Workflow size={24} />} 
-          trend={newWorkflowsWeek > 10 ? "+28%" : "Steady"}
+          trend={stats?.workflowsTrend || "Stable"}
         />
         <GrowthCard 
           label="Total Entities" 
@@ -111,11 +194,24 @@ export default function StatisticsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Company & Workflow Growth Chart */}
-        <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 relative group">
-          <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+        <div 
+          ref={areaChartRef}
+          className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 relative group"
+        >
+          <div className="flex justify-between items-start mb-8">
+            <h3 className="text-xl font-black text-slate-800 tracking-tight">Ecosystem Expansion</h3>
+            <button
+              onClick={() => handleExport(areaChartRef, "Ecosystem Expansion")}
+              disabled={exporting}
+              className="p-3 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-colors disabled:opacity-50"
+              title="Download Graph"
+            >
+              {exporting ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+            </button>
+          </div>
+          <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none">
             <TrendingUp size={120} className="text-indigo-900" />
           </div>
-          <h3 className="text-xl font-black text-slate-800 tracking-tight mb-8">Ecosystem Expansion</h3>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={stats?.growth}>
@@ -153,11 +249,24 @@ export default function StatisticsPage() {
         </div>
 
         {/* Sector Interest Chart */}
-        <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 relative group">
-          <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+        <div 
+          ref={pieChartRef}
+          className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 relative group"
+        >
+          <div className="flex justify-between items-start mb-8">
+            <h3 className="text-xl font-black text-slate-800 tracking-tight">Industry Penetration</h3>
+            <button
+              onClick={() => handleExport(pieChartRef, "Industry Penetration")}
+              disabled={exporting}
+              className="p-3 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-colors disabled:opacity-50"
+              title="Download Graph"
+            >
+              {exporting ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+            </button>
+          </div>
+          <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none">
             <PieChartIcon size={120} className="text-indigo-900" />
           </div>
-          <h3 className="text-xl font-black text-slate-800 tracking-tight mb-8">Industry Penetration</h3>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -179,7 +288,7 @@ export default function StatisticsPage() {
                 </Pie>
                 <Tooltip 
                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                   formatter={(value: number, name: string, props: any) => [value, props.payload.sector || name]}
+                   formatter={(value: any, name: any, props: any) => [value || 0, props.payload.sector || name || ""]}
                 />
                 <Legend 
                   layout="vertical" 
@@ -204,9 +313,9 @@ function GrowthCard({ label, value, period, icon, trend }: { label: string; valu
         <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:scale-110 transition-transform">
           {icon}
         </div>
-        <div className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black ${trend.includes('+') ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-500'}`}>
+        <div className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black ${(trend.includes('+') || trend === 'New') ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-500'}`}>
           {trend}
-          {trend.includes('+') && <ArrowUpRight size={10} />}
+          {(trend.includes('+') || trend === 'New') && <ArrowUpRight size={10} />}
         </div>
       </div>
       <div>

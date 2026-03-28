@@ -5,6 +5,7 @@ import { UserCircle, Search, HelpCircle, Menu } from 'lucide-react';
 import useUser from '@/hooks/useUser';
 import NotificationBell from '@/components/NotificationBell';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 interface HeaderProps {
   toggleSidebar: () => void;
@@ -12,6 +13,8 @@ interface HeaderProps {
 
 export default function Header({ toggleSidebar }: HeaderProps) {
   const { user } = useUser();
+  const pathname = usePathname();
+  const isDashboard = pathname === '/super_admin';
 
   return (
     <header className="h-16 bg-white border-b border-slate-100 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-30 shadow-sm">
@@ -25,15 +28,17 @@ export default function Header({ toggleSidebar }: HeaderProps) {
           <Menu size={22} />
         </button>
 
-        {/* Search Bar - Premium Styled */}
-        <div className="hidden md:flex items-center gap-3 bg-slate-50 border border-slate-100 px-4 py-2 rounded-xl w-80 text-slate-400 focus-within:border-indigo-300 focus-within:ring-4 focus-within:ring-indigo-50 focus-within:bg-white transition-all duration-200">
-          <Search size={18} className="text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search organizations or logs..."
-            className="bg-transparent text-sm font-medium outline-none text-slate-600 w-full placeholder:text-slate-400"
-          />
-        </div>
+        {/* Search Bar - Premium Styled - Only visible on the main dashboard */}
+        {isDashboard && (
+          <div className="hidden md:flex items-center gap-3 bg-slate-50 border border-slate-100 px-4 py-2 rounded-xl w-80 text-slate-400 focus-within:border-indigo-300 focus-within:ring-4 focus-within:ring-indigo-50 focus-within:bg-white transition-all duration-200">
+            <Search size={18} className="text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search organizations or logs..."
+              className="bg-transparent text-sm font-medium outline-none text-slate-600 w-full placeholder:text-slate-400"
+            />
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-3 sm:gap-6">

@@ -499,10 +499,10 @@ router.get('/stats', async (req, res) => {
     // Initialize counters
     let totalUsers = 0;
     let totalWorkflows = 0;
-    let totalNodes = 0; 
+    let totalNodes = 0;
     let totalExecutions = 0;
-    const sectorCounts = {}; 
-    const planCounts = {}; 
+    const sectorCounts = {};
+    const planCounts = {};
     const planRevenueMapping = {};
     let totalMonthlyRevenue = 0;
     let lastMonthRevenue = 0;
@@ -540,7 +540,7 @@ router.get('/stats', async (req, res) => {
 
       const planName = tenant.selectedPlan?.name || tenant.planDetails?.name || 'No plan';
       const planPrice = tenant.selectedPlan?.price || 0;
-      
+
       planCounts[planName] = (planCounts[planName] || 0) + 1;
       planRevenueMapping[planName] = (planRevenueMapping[planName] || 0) + planPrice;
       totalMonthlyRevenue += planPrice;
@@ -641,6 +641,22 @@ router.get('/stats', async (req, res) => {
       };
     });
 
+    // Calculate Trends (Comparison between Today and 7 Days Ago - "Evolution of the Week")
+    const sortedDates = Object.keys(dailyGrowth).sort().reverse(); // [Today, Day1, ..., Day6]
+    
+    // Most recent vs Oldest in the 7-day window
+    const newestKey = sortedDates[0];
+    const oldestKey = sortedDates[sortedDates.length - 1];
+
+    const calcEvolution = (curr, prev) => {
+      if (prev === 0) return curr > 0 ? "+100%" : "Stable";
+      const diff = ((curr - prev) / prev) * 100;
+      return (diff >= 0 ? "+" : "") + diff.toFixed(0) + "%";
+    };
+
+    const companiesTrend = calcEvolution(dailyGrowth[newestKey].companies, dailyGrowth[oldestKey].companies);
+    const workflowsTrend = calcEvolution(dailyGrowth[newestKey].workflows, dailyGrowth[oldestKey].workflows);
+
     // Calculated statistics
     const stats = {
       totalCompanies: tenants.length,
@@ -654,6 +670,10 @@ router.get('/stats', async (req, res) => {
 
       trialCompanies: planCounts['Demo Plan'] || planCounts['DEMO'] || 0,
       paidCompanies: (planCounts['Starter Plan'] || 0) + (planCounts['Pro Plan'] || 0),
+
+      // Trends (Evolution Today vs 7 Days Ago)
+      companiesTrend: companiesTrend,
+      workflowsTrend: workflowsTrend,
 
       // Calculate a "load" proxy based on active users and node complexity
       averageGpuUsage: Math.min(95, Math.max(15, Math.floor((totalUsers * 0.5) + (totalNodes * 0.1)))),
@@ -681,7 +701,7 @@ router.get('/stats', async (req, res) => {
         conversionRate: tenants.length > 0 ? (((tenants.filter(function (t) { return t.virtualStatus === 'active'; }).length) / tenants.length) * 100).toFixed(1) : 0,
         retentionRate: tenants.length > 0 ? (((tenants.filter(t => t.virtualStatus !== 'suspended').length) / tenants.length) * 100).toFixed(1) : 100
       },
-      
+
       growth: Object.keys(dailyGrowth).sort().map(date => ({
         date,
         companies: dailyGrowth[date].companies,
@@ -790,11 +810,11 @@ router.put('/plans/:id', async (req, res) => {
       console.log(`🛑 Plan ${plan.name} was disabled. Cascading suspension to all assigned tenants...`);
       const Tenant = masterDb.model('Tenant');
       const affectedTenants = await Tenant.find({ selectedPlan: plan._id, status: 'active' });
-      
+
       for (const tenant of affectedTenants) {
         // 1. Suspend tenant in master DB
         await Tenant.findByIdAndUpdate(tenant._id, { status: 'suspended' });
-        
+
         // 2. Suspend tenant in their own local Subscription DB
         try {
           if (tenant.databaseName) {
@@ -804,7 +824,7 @@ router.put('/plans/:id', async (req, res) => {
               tenantConn.once('connected', () => { clearTimeout(timeout); resolve(); });
               tenantConn.once('error', (err) => { clearTimeout(timeout); reject(err); });
             });
-            
+
             const Subscription = require('../models/tenant/Subscription')(tenantConn);
             const latestSub = await Subscription.findOne().sort({ createdAt: -1 });
             if (latestSub) {

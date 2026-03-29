@@ -2,17 +2,35 @@
 
 const API_URL = 'http://localhost:5000/api';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import axios from 'axios';
 import { toast, Toaster } from 'sonner';
 import { Mail, ArrowLeft, Send, CheckCircle2, ShieldQuestion } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export default function ForgetPasswordPage() {
+function ForgetPasswordContent() {
     const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
     const [submitted, setSubmitted] = useState(false);
+    const searchParams = useSearchParams();
+    const from = searchParams.get('from');
+
+    const getBackHref = () => {
+        switch (from) {
+            case 'super_admin':
+                return '/super_admin/settings';
+            case 'admin':
+                return '/admin/profile';
+            case 'user':
+                return '/User/prof';
+            default:
+                return '/signin';
+        }
+    };
+
+    const backHref = getBackHref();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -35,7 +53,7 @@ export default function ForgetPasswordPage() {
 
     return (
         <div className="min-h-screen bg-[#f8fafc] flex flex-col items-center justify-center p-6 relative overflow-hidden">
-            <Link href="/signin" className="absolute top-6 left-6 flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-indigo-600 transition-colors bg-white/80 backdrop-blur-md px-4 py-2 rounded-full border border-slate-200 shadow-sm z-50">
+            <Link href={backHref} className="absolute top-6 left-6 flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-indigo-600 transition-colors bg-white/80 backdrop-blur-md px-4 py-2 rounded-full border border-slate-200 shadow-sm z-50">
                 <ArrowLeft size={16} /> Back
             </Link>
             <Toaster position="top-right" richColors />
@@ -139,5 +157,17 @@ export default function ForgetPasswordPage() {
                 Axia Workflow System v2.0
             </p>
         </div>
+    );
+}
+
+export default function ForgetPasswordPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
+                <div className="w-10 h-10 border-4 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin"></div>
+            </div>
+        }>
+            <ForgetPasswordContent />
+        </Suspense>
     );
 }

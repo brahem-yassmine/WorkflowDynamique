@@ -425,7 +425,7 @@ export default function PlatformSettingsPage() {
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-transparent select-none uppercase tracking-widest block">Action</label>
                     <button 
-                      onClick={() => window.location.href = '/forget'}
+                      onClick={() => window.location.href = '/forget?from=super_admin'}
                       className="h-12 w-full flex items-center justify-center gap-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100 rounded-xl font-bold transition-all active:scale-95 shadow-sm"
                     >
                       <Lock size={16} />

@@ -59,7 +59,8 @@ function UserSidebar() {
   };
 
   const menuItems = [
-    { icon: LayoutGrid, label: "Command Center", href: "/User" }, // Replaced My Profile with Command Center for user context
+    { icon: LayoutGrid, label: "Command Center", href: "/User" }, 
+    { icon: User, label: "My Profile", href: "/User/prof" },
     { icon: CheckSquare, label: "My Tasks", href: "/User/tasks", badge: taskCount },
     { icon: Bell, label: "Alert Inbox", href: "/User/Notifications" },
     { icon: GitBranch, label: "My History", href: "/User/Workflows" },

@@ -12,6 +12,8 @@ import {
   LifeBuoy
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast, Toaster } from 'sonner';
+import { api } from '../../services/api';
 
 interface Report {
   _id: string;
@@ -63,26 +65,30 @@ export default function ReportsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.subject.trim() || !formData.description.trim()) {
+      toast.error("Please fill in all mandatory fields.");
+      return;
+    }
+
     setSubmitting(true);
+    const toastId = toast.loading("Establishing connection with support hub...");
+
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/reports', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(formData)
-      });
-      const data = await response.json();
-      if (data.success) {
-        // Reset form and switch to history
+      console.log('📤 Submitting report payload:', formData);
+      const response = await api.post('/api/reports', formData);
+      
+      if (response.data.success) {
+        toast.success("Intelligence transmitted. Super Admin has been notified.", { id: toastId });
         setFormData({ subject: '', description: '', type: 'bug', priority: 'medium' });
         fetchReports();
         setActiveTab('history');
+      } else {
+        toast.error(response.data.message || "Failed to transmit report.", { id: toastId });
       }
-    } catch (error) {
-      console.error('Error submitting report:', error);
+    } catch (error: any) {
+      console.error('❌ Transmission error:', error);
+      const errorMsg = error.response?.data?.message || "Transmission failed. Support node unreachable.";
+      toast.error(errorMsg, { id: toastId });
     } finally {
       setSubmitting(false);
     }
@@ -125,7 +131,10 @@ export default function ReportsPage() {
 
         <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200">
           <button 
-            onClick={() => setActiveTab('new')}
+            onClick={() => {
+                setActiveTab('new');
+                setFormData({ subject: '', description: '', type: 'bug', priority: 'medium' });
+            }}
             className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'new' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
           >
             <MessageSquare size={18} />
@@ -173,8 +182,11 @@ export default function ReportsPage() {
                       className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-bold appearance-none cursor-pointer"
                     >
                       <option value="bug">Report Bug</option>
+                      <option value="error">Error</option>
+                      <option value="help_request">Help Request</option>
                       <option value="improvement">Feature Request</option>
                       <option value="question">General Inquiry</option>
+                      <option value="comment">Add Comment</option>
                       <option value="other">Other</option>
                     </select>
                   </div>
@@ -212,6 +224,7 @@ export default function ReportsPage() {
                   <span>Your tenant information will be sent automatically.</span>
                 </div>
                 <button 
+                  type="submit"
                   disabled={submitting}
                   className="flex items-center gap-2 px-10 py-4 bg-slate-900 text-white rounded-2xl font-black shadow-lg shadow-slate-300 hover:bg-indigo-600 hover:shadow-indigo-200 transition-all disabled:opacity-50"
                 >
@@ -248,7 +261,16 @@ export default function ReportsPage() {
                         {report.priority}
                       </div>
                       <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 text-slate-500 rounded-full text-[10px] font-bold border border-slate-100 uppercase tracking-tight">
-                        {report.type}
+                        {report.type === 'bug' ? 'Bug' : 
+                         report.type === 'error' ? 'Error' :
+                         report.type === 'help_request' ? 'Help Request' :
+                         report.type === 'improvement' ? 'Feature' :
+                         report.type === 'question' ? 'Inquiry' :
+                         report.type === 'comment' ? 'Comment' : report.type}
+                      </div>
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-bold border border-indigo-100 uppercase tracking-tight">
+                        <Send size={10} />
+                        Sent to: Super Admin
                       </div>
                     </div>
                     <div className="text-xs font-bold text-slate-400">
@@ -290,6 +312,7 @@ export default function ReportsPage() {
           </motion.div>
         )}
       </AnimatePresence>
+      <Toaster position="top-right" richColors />
     </div>
   );
 }

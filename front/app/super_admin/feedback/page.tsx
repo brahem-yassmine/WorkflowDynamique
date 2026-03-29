@@ -48,7 +48,8 @@ export default function FeedbackPage() {
     const [reports, setReports] = useState<SystemReport[]>([]);
     const [selectedCompanyId, setSelectedCompanyId] = useState<string>("ALL");
     const [selectedReport, setSelectedReport] = useState<SystemReport | null>(null);
-    const [groupingMode, setGroupingMode] = useState<'user' | 'company' | 'all' | 'workflow' | 'task'>('all');
+    const [groupingMode, setGroupingMode] = useState<'user' | 'company' | 'all' | 'workflow' | 'task' | 'type'>('all');
+    const [selectedTypeFilter, setSelectedTypeFilter] = useState<string>('all');
     const [searchTerm, setSearchTerm] = useState("");
     const [decision, setDecision] = useState<'ACCEPT' | 'REJECT' | null>(null);
     const [isResponding, setIsResponding] = useState(false);
@@ -83,6 +84,7 @@ export default function FeedbackPage() {
     const totalGlobalReports = reports.length;
     const hubs = [
         { id: "ALL", name: "All Global Reports", count: reports.filter(r => r.status !== 'deleted').length, icon: <Layers size={14} /> },
+        { id: "BY_TYPE", name: "Reports by Type", count: reports.filter(r => r.status !== 'deleted').length, icon: <Filter size={14} /> },
         { id: "WORKFLOW", name: "Workflow Reports", count: reports.filter(r => r.type?.toLowerCase() === 'workflow' && r.status !== 'deleted').length, icon: <Workflow size={14} /> },
         { id: "COMPANIES", name: "Companies Reports", count: reports.filter(r => r.type?.toLowerCase() !== 'workflow' && r.status !== 'deleted').length, icon: <Building2 size={14} /> },
         { id: "HISTORY", name: "Action History", count: reports.filter(r => r.status === 'resolved' || r.status === 'closed' || r.status === 'deleted').length, icon: <Clock size={14} /> }
@@ -97,15 +99,19 @@ export default function FeedbackPage() {
 
             const isWorkflow = report.type?.toLowerCase() === 'workflow';
             const matchesHub = selectedCompanyId === "ALL" || 
+                               selectedCompanyId === "BY_TYPE" || 
                                isHistory ||
                                (selectedCompanyId === "WORKFLOW" && isWorkflow) ||
                                (selectedCompanyId === "COMPANIES" && !isWorkflow);
+            
+            const matchesType = selectedTypeFilter === 'all' || report.type?.toLowerCase() === selectedTypeFilter.toLowerCase();
+
             const matchesSearch = report.adminEmail?.toLowerCase().includes(searchTerm.toLowerCase()) || 
                                   report.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                   report.subject?.toLowerCase().includes(searchTerm.toLowerCase());
-            return matchesHub && matchesSearch;
+            return matchesHub && matchesType && matchesSearch;
         });
-    }, [reports, selectedCompanyId, searchTerm]);
+    }, [reports, selectedCompanyId, searchTerm, selectedTypeFilter]);
 
     const groupedData = useMemo(() => {
         // Sort all filtered reports by date descending (Newest first)
@@ -113,8 +119,11 @@ export default function FeedbackPage() {
 
         let grouped: Record<string, SystemReport[]> = {};
 
-        // If 'all' mode, or hub is ALL or HISTORY (which don't have sub-tabs), return a flat list
-        if (groupingMode === 'all' || selectedCompanyId === 'ALL' || selectedCompanyId === 'HISTORY') {
+        // Auto-switch grouping mode if BY_TYPE hub is selected but mode is all
+        const effectiveMode = (selectedCompanyId === 'BY_TYPE' && groupingMode === 'all') ? 'type' : groupingMode;
+
+        // If 'all' mode (and not in BY_TYPE specific hub), return flat list
+        if (effectiveMode === 'all' || selectedCompanyId === 'ALL' || selectedCompanyId === 'HISTORY') {
             if (sortedReports.length > 0) {
                 grouped['RECENT REPORTS'] = sortedReports;
             }
@@ -122,28 +131,44 @@ export default function FeedbackPage() {
         }
 
         // Apply specific grouping modes
-        if (groupingMode === 'company') {
+        if (effectiveMode === 'company') {
             sortedReports.forEach(report => {
                 const key = report.tenantId?.name || 'Unknown Company';
                 if (!grouped[key]) grouped[key] = [];
                 grouped[key].push(report);
             });
         } 
-        else if (groupingMode === 'user') {
+        else if (effectiveMode === 'user') {
             sortedReports.forEach(report => {
                 const key = report.adminEmail || 'Unknown User';
                 if (!grouped[key]) grouped[key] = [];
                 grouped[key].push(report);
             });
         }
-        else if (groupingMode === 'workflow') {
+        else if (effectiveMode === 'type') {
+            sortedReports.forEach(report => {
+                const typeMap: Record<string, string> = {
+                    'bug': 'Reported Bugs',
+                    'error': 'System Errors',
+                    'help_request': 'Help Requests',
+                    'improvement': 'Feature Requests',
+                    'question': 'General Inquiries',
+                    'comment': 'User Comments',
+                    'other': 'Miscellaneous'
+                };
+                const key = typeMap[report.type?.toLowerCase()] || report.type || 'Other';
+                if (!grouped[key]) grouped[key] = [];
+                grouped[key].push(report);
+            });
+        }
+        else if (effectiveMode === 'workflow') {
             sortedReports.forEach(report => {
                 const key = 'Unknown Workflow'; // Backend schema lacks explicit field
                 if (!grouped[key]) grouped[key] = [];
                 grouped[key].push(report);
             });
         }
-        else if (groupingMode === 'task') {
+        else if (effectiveMode === 'task') {
             sortedReports.forEach(report => {
                 const key = 'Unknown Task'; // Backend schema lacks explicit field
                 if (!grouped[key]) grouped[key] = [];
@@ -329,8 +354,8 @@ export default function FeedbackPage() {
                     </div>
                 </div>
 
-                {/* Stat Cards / Hubs */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                {/* Stat Cards / Hubs - Centered Layout */}
+                <div className="flex flex-wrap justify-center gap-4 mb-8">
                     {hubs.map(hub => {
                         const isSelected = selectedCompanyId === hub.id;
                         return (
@@ -339,9 +364,12 @@ export default function FeedbackPage() {
                                 onClick={() => {
                                     setSelectedCompanyId(hub.id);
                                     setSelectedReport(null);
-                                    setGroupingMode("all"); // Reset toggle when switching hubs
+                                    setSelectedTypeFilter('all');
+                                    // Set default grouping based on hub
+                                    if (hub.id === "BY_TYPE") setGroupingMode("type");
+                                    else setGroupingMode("all"); 
                                 }}
-                                className={`bg-white rounded-3xl p-6 border transition-all cursor-pointer shadow-sm hover:shadow-md ${
+                                className={`bg-white rounded-3xl p-6 border transition-all cursor-pointer shadow-sm hover:shadow-md flex-1 min-w-[280px] max-w-[320px] ${
                                     isSelected ? 'border-indigo-500 ring-2 ring-indigo-500 shadow-indigo-100 -translate-y-1' : 'border-slate-100 hover:border-indigo-200 hover:-translate-y-0.5'
                                 }`}
                             >
@@ -364,6 +392,53 @@ export default function FeedbackPage() {
                 {/* 2. REPORT FEED (Card container) */}
                 <div className="flex-1 bg-white rounded-3xl border border-slate-100 shadow-xs flex flex-col relative overflow-hidden min-h-[500px]">
                 <div className="p-4 border-b border-slate-50 bg-white sticky top-0 z-10 space-y-4">
+                    {selectedCompanyId === "BY_TYPE" && (
+                        <div className="flex items-center gap-4 flex-wrap">
+                            <div className="flex items-center gap-1.5 p-1 bg-slate-100/50 rounded-xl w-fit">
+                                {(['all', 'type'] as const).map((mode) => (
+                                    <button
+                                        key={mode}
+                                        onClick={() => {
+                                            setGroupingMode(mode);
+                                            if (mode === 'all') setSelectedTypeFilter('all');
+                                        }}
+                                        className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${
+                                            groupingMode === mode 
+                                            ? 'bg-white text-indigo-600 shadow-sm' 
+                                            : 'text-slate-400 hover:text-slate-600'
+                                        }`}
+                                    >
+                                        {mode === 'type' ? 'Category' : mode === 'all' ? 'Show All' : mode}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Specific Type Selector - Only show if in Category mode */}
+                            {groupingMode === 'type' && (
+                                <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar animate-in slide-in-from-left duration-300">
+                                    {['all', 'bug', 'error', 'help_request', 'improvement', 'question', 'comment', 'other'].map((type) => (
+                                        <button
+                                            key={type}
+                                            onClick={() => setSelectedTypeFilter(type)}
+                                            className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all whitespace-nowrap ${
+                                                selectedTypeFilter === type
+                                                ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
+                                                : 'bg-white border-slate-200 text-slate-400 hover:border-indigo-300'
+                                            }`}
+                                        >
+                                            {type === 'all' ? 'All Types' :
+                                             type === 'bug' ? 'Report Bug' :
+                                             type === 'error' ? 'Error' :
+                                             type === 'help_request' ? 'Help Request' :
+                                             type === 'improvement' ? 'Feature Request' :
+                                             type === 'question' ? 'General Inquiry' :
+                                             type === 'comment' ? 'Add Comment' : 'Other'}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
                     {selectedCompanyId === "WORKFLOW" && (
                         <div className="flex items-center gap-1.5 p-1 bg-slate-100/50 rounded-xl w-full max-w-sm">
                             {(['all', 'workflow', 'user', 'task'] as const).map((mode) => (
@@ -658,7 +733,11 @@ export default function FeedbackPage() {
 
                             <div className="p-4 border-t border-slate-50 bg-white sticky bottom-0 z-30 flex justify-center gap-4">
                                 <button 
-                                    onClick={() => showConfirm('Delete Report', 'Are you sure you want to permanently archive this report?', 'warning').then((isConfirmed: any) => isConfirmed && handleDelete())}
+                                    onClick={() => showConfirm({ 
+                                        title: 'Delete Report', 
+                                        text: 'Are you sure you want to permanently archive this report?', 
+                                        icon: 'warning' 
+                                    }).then((isConfirmed: any) => isConfirmed && handleDelete())}
                                     className="flex items-center justify-center gap-2 px-6 py-3 bg-rose-50 text-rose-600 rounded-xl font-bold shadow-lg shadow-rose-100 hover:bg-rose-100 transition-all active:scale-95 flex-1"
                                 >
                                     <Trash2 size={18} /> Delete

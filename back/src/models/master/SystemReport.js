@@ -25,7 +25,7 @@ module.exports = function(masterConn) {
     },
     type: {
       type: String,
-      enum: ['bug', 'improvement', 'question', 'other'],
+      enum: ['bug', 'improvement', 'question', 'error', 'help_request', 'comment', 'other'],
       default: 'bug'
     },
     priority: {

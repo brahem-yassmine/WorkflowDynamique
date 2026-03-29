@@ -8,6 +8,7 @@ router.use(auth, checkTenantActive);
 
 
 router.get('/', taskController.getTasks);
+router.get('/:id', taskController.getTask);
 router.post('/reorder', taskController.reorderTasks);
 router.post('/', taskController.createTask);
 router.patch('/:id', taskController.updateTask);

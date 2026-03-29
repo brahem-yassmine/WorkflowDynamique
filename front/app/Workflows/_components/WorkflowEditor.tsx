@@ -179,6 +179,27 @@ function WorkflowEditorContent() {
 
     // Mark as dirty when nodes/edges change (after initial load) + persist draft to localStorage
     const isFirstRender = useRef(true);
+    
+    // Utility to strip large data from nodes for localStorage draft
+    const cleanNodesForDraft = (nds: Node[]) => {
+        return nds.map(node => {
+            if (!node.data || !node.data.attachments) return node;
+            
+            // Strip large base64 if it's over 200KB to save space in localStorage
+            const cleanedAttachments = (node.data.attachments as any[]).map(att => {
+                if (att.url && att.url.length > 200000) {
+                    return { ...att, url: '[LARGE_DATA_STRIPPED]', isStripped: true };
+                }
+                return att;
+            });
+            
+            return {
+                ...node,
+                data: { ...node.data, attachments: cleanedAttachments }
+            };
+        });
+    };
+
     useEffect(() => {
         if (isFirstRender.current) {
             // Skip first render to avoid marking dirty on initial load
@@ -187,15 +208,43 @@ function WorkflowEditorContent() {
         }
         setIsDirty(true);
         // Persist draft to localStorage so navigation doesn't lose changes
-        const draftKey = `workflow_draft_${currentWorkflowId || 'new'}`;
-        localStorage.setItem(draftKey, JSON.stringify({
-            nodes,
-            edges,
-            name: workflowName,
-            domain: workflowDomain,
-            savedAt: Date.now()
-        }));
-    }, [nodes, edges]);
+        const currentDraftKey = `workflow_draft_${currentWorkflowId || 'new'}`;
+        
+        try {
+            const draftNodes = cleanNodesForDraft(nodes);
+            localStorage.setItem(currentDraftKey, JSON.stringify({
+                nodes: draftNodes,
+                edges,
+                name: workflowName,
+                domain: workflowDomain,
+                savedAt: Date.now()
+            }));
+        } catch (e: any) {
+            if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
+                console.warn('⚠️ [Draft] LocalStorage quota exceeded. Attempting to clear old drafts to make space...');
+                // Try to clear ONLY draft keys that aren't the current one
+                try {
+                    Object.keys(localStorage).forEach(key => {
+                        if (key.startsWith('workflow_draft_') && key !== currentDraftKey) {
+                            localStorage.removeItem(key);
+                        }
+                    });
+                    // Try one more time
+                    localStorage.setItem(currentDraftKey, JSON.stringify({
+                        nodes,
+                        edges,
+                        name: workflowName,
+                        domain: workflowDomain,
+                        savedAt: Date.now()
+                    }));
+                } catch (retryErr) {
+                    console.error('❌ [Draft] Failed to save draft even after cleanup:', retryErr);
+                }
+            } else {
+                console.error('❌ [Draft] Unexpected localStorage error:', e);
+            }
+        }
+    }, [nodes, edges, workflowName, workflowDomain, currentWorkflowId]);
 
     // Auto-save every 30 seconds if dirty and workflow already exists
     useEffect(() => {

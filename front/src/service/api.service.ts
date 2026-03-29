@@ -165,6 +165,10 @@ class ApiService {
     return this.request('/users/my/tasks');
   }
 
+  getTaskById(id: string) {
+    return this.request(`/tasks/${id}`);
+  }
+
   updateTask(id: string, data: any) {
     return this.request(`/tasks/${id}`, {
       method: 'PATCH',

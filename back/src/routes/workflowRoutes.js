@@ -15,7 +15,7 @@ const {
 } = require('../controllers/workflowController');
 
 const { auth } = require('../middleware/auth');
-const { checkTenantActive } = require('../middleware/tenantMiddleware');
+const { checkTenantActive, checkPlanLimits } = require('../middleware/tenantMiddleware');
 
 router.use(auth, checkTenantActive);
 
@@ -23,8 +23,8 @@ router.use(auth, checkTenantActive);
 router.get('/', getWorkflows);                           // GET all
 router.get('/:workflowId', getWorkflowById);            // GET one
 router.get('/:workflowId/members', getWorkflowMembers);   // GET members
-router.post('/', createWorkflow);                        // CREATE
-router.put('/:workflowId', updateWorkflow);             // UPDATE
+router.post('/', checkPlanLimits('nodes'), createWorkflow);                        // CREATE
+router.put('/:workflowId', checkPlanLimits('nodes'), updateWorkflow);             // UPDATE
 router.delete('/:workflowId', deleteWorkflow);          // DELETE
 
 // Special actions

@@ -115,6 +115,8 @@ router.get('/stats', requirePlan, async (req, res) => {
 });
 
 // Activity logs
-router.get('/logs', getActivityLogs);
+router.get('/logs', requirePlan, exports.getActivityLogs);
+router.delete('/logs/purge', requirePlan, exports.purgeActivityLogs);
+router.delete('/logs/:id', requirePlan, exports.deleteActivityLog);
 
 module.exports = router;

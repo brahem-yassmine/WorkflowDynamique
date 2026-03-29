@@ -1,6 +1,7 @@
 'use client';
 
 import { Search, HelpCircle, User, Bell, Menu, ShieldCheck } from 'lucide-react';
+import Link from 'next/link';
 import useUser from '@/hooks/useUser';
 import NotificationBell from '@/components/NotificationBell';
 
@@ -38,10 +39,9 @@ export default function Header({ toggleSidebar }: HeaderProps) {
 
       {/* Action Icons */}
       <div className="flex items-center gap-6">
-        <div className="flex items-center gap-2 px-4 py-2 hover:bg-slate-50 rounded-xl cursor-pointer transition-all group">
+        <Link href="/User/Help&FirstSteps" className="flex items-center gap-2 px-4 py-2 hover:bg-slate-50 rounded-xl cursor-pointer transition-all group">
           <HelpCircle size={18} className="text-slate-300 group-hover:text-indigo-500 group-hover:rotate-12 transition-all" />
-          <span className="text-[11px] font-black text-slate-400 group-hover:text-slate-600 uppercase tracking-widest">Docs</span>
-        </div>
+        </Link>
 
         <div className="h-8 w-px bg-slate-100 mx-1"></div>
         
@@ -49,7 +49,7 @@ export default function Header({ toggleSidebar }: HeaderProps) {
           <NotificationBell />
         </div>
 
-        <div className="flex items-center gap-4 bg-slate-50/80 p-1.5 pr-4 rounded-[20px] border border-slate-100/50 group hover:border-indigo-100 transition-all cursor-pointer">
+        <Link href="/User/prof" className="flex items-center gap-4 bg-slate-50/80 p-1.5 pr-4 rounded-[20px] border border-slate-100/50 group hover:border-indigo-100 transition-all cursor-pointer">
           <div className="w-10 h-10 rounded-[15px] bg-white border border-slate-100 flex items-center justify-center text-slate-400 transition-all group-hover:bg-indigo-600 group-hover:text-white group-hover:shadow-lg group-hover:shadow-indigo-500/20 group-hover:-rotate-3 overflow-hidden">
              {user?.avatar ? (
                 <img src={user.avatar} alt="User" className="w-full h-full object-cover" />
@@ -76,7 +76,7 @@ export default function Header({ toggleSidebar }: HeaderProps) {
               )}
             </div>
           </div>
-        </div>
+        </Link>
       </div>
     </header>
   );

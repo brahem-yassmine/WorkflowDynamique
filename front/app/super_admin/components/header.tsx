@@ -43,9 +43,9 @@ export default function Header({ toggleSidebar }: HeaderProps) {
 
       <div className="flex items-center gap-3 sm:gap-6">
         {/* Help Icon */}
-        <button className="hidden sm:flex p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">
+        <Link href="/super_admin/feedback" className="hidden sm:flex p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">
           <HelpCircle size={20} />
-        </button>
+        </Link>
 
         {/* Notifications */}
         <NotificationBell />

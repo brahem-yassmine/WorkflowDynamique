@@ -14,7 +14,11 @@ import {
   ArrowUpRight,
   Target,
   Download,
-  Loader2
+  Loader2,
+  X,
+  ExternalLink,
+  ShieldCheck,
+  AlertTriangle
 } from "lucide-react";
 import { motion } from "framer-motion";
 import {
@@ -50,6 +54,33 @@ export default function SubscriptionPaymentPage() {
   const [expiringTenants, setExpiringTenants] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
+  
+  // Subscriber Details Modal State
+  const [selectedPlanDetails, setSelectedPlanDetails] = useState<any>(null);
+  const [subscribers, setSubscribers] = useState<any[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loadingSubscribers, setLoadingSubscribers] = useState(false);
+
+  const handleOpenPlanDetails = async (plan: any) => {
+    setSelectedPlanDetails(plan);
+    setIsModalOpen(true);
+    setLoadingSubscribers(true);
+    setSubscribers([]); // Reset previous
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`http://localhost:5000/api/admin/plans/${plan._id}/subscribers`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setSubscribers(data.subscribers);
+      }
+    } catch (error) {
+      console.error('Error fetching subscribers:', error);
+    } finally {
+      setLoadingSubscribers(false);
+    }
+  };
 
   const handleDownloadPDF = async () => {
     if (expiringTenants.length === 0) return;
@@ -60,32 +91,65 @@ export default function SubscriptionPaymentPage() {
       const autoTable = (await import('jspdf-autotable')).default;
       
       const doc = new jsPDF();
-      
-      doc.setFontSize(18);
+      doc.setFontSize(22);
       doc.setTextColor(79, 70, 229);
-      doc.text('Renewal Risk Report', 14, 22);
+      doc.text('RENEWAL RISK REPORT', 14, 25);
       
       doc.setFontSize(10);
       doc.setTextColor(148, 163, 184);
-      doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30);
+      doc.text(`ANALYTIC NODE: SYSTEM_ADMIN_FINANCE`, 14, 32);
+      doc.text(`TIMESTAMP: ${new Date().toLocaleString().toUpperCase()}`, 14, 37);
+      
+      doc.setDrawColor(241, 245, 249);
+      doc.line(14, 42, 196, 42);
+
+      // Summary Stats in PDF
+      doc.setFontSize(12);
+      doc.setTextColor(30, 41, 59);
+      doc.text(`Executive Summary`, 14, 52);
+      
+      doc.setFontSize(9);
+      doc.setTextColor(71, 85, 105);
+      const criticalCount = expiringTenants.filter((t: any) => t.isExpired).length;
+      doc.text(`Total Organizations at Risk: ${expiringTenants.length}`, 14, 60);
+      doc.text(`Critical (Expired): ${criticalCount}`, 14, 65);
+      doc.text(`Warning (Near Expiration): ${expiringTenants.length - criticalCount}`, 14, 70);
       
       const tableData = expiringTenants.map((t: any) => [
         t.name || 'Unknown Organization',
-        t.isExpired ? 'EXPIRED' : 'NEAR',
+        t.isExpired ? 'CRITICAL / EXPIRED' : 'WARNING / NEAR',
         t.selectedPlan?.name || t.planDetails?.name || 'No Plan Active',
-        t.currentPeriodEnd ? new Date(t.currentPeriodEnd).toLocaleDateString() : 'N/A'
+        t.currentPeriodEnd ? new Date(t.currentPeriodEnd).toLocaleDateString() : 'LIFETIME'
       ]);
       
       autoTable(doc, {
-        startY: 40,
-        head: [['Organization', 'Status', 'Plan', 'Expiration Date']],
+        startY: 80,
+        head: [['ORGANIZATION', 'RISK LEVEL', 'SUBSCRIPTION TIER', 'EXPIRATION DATE']],
         body: tableData,
-        theme: 'grid',
-        headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255] },
-        styles: { fontSize: 9, cellPadding: 4 }
+        theme: 'striped',
+        headStyles: { 
+          fillColor: [79, 70, 229], 
+          textColor: [255, 255, 255],
+          fontSize: 8,
+          fontStyle: 'bold'
+        },
+        styles: { 
+          fontSize: 8, 
+          cellPadding: 5,
+          valign: 'middle'
+        },
+        columnStyles: {
+          1: { fontStyle: 'bold' }
+        },
+        didDrawPage: (data) => {
+          doc.setFontSize(8);
+          doc.setTextColor(148, 163, 184);
+          doc.text('CONFIDENTIAL FINANCIAL DATA - INTERNAL USE ONLY', 14, doc.internal.pageSize.height - 10);
+          doc.text(`PAGE ${data.pageNumber}`, doc.internal.pageSize.width - 25, doc.internal.pageSize.height - 10);
+        }
       });
       
-      doc.save('renewal-risks-report.pdf');
+      doc.save(`renewal-risks-${new Date().toISOString().split('T')[0]}.pdf`);
     } catch (err) {
       console.error('Failed to generate PDF:', err);
     } finally {
@@ -131,7 +195,6 @@ export default function SubscriptionPaymentPage() {
               }
               return false;
             })
-            .slice(0, 3); // Take top 3
           setExpiringTenants(risk);
         }
 
@@ -231,7 +294,7 @@ export default function SubscriptionPaymentPage() {
             <h3 className="text-xl font-black text-slate-800 tracking-tight">Renewal Risk</h3>
             <p className="text-xs text-slate-400 font-bold uppercase tracking-widest text-rose-500">Critical Timeframes</p>
           </div>
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
             {expiringTenants.length === 0 ? (
               <div className="p-10 text-center border-2 border-dashed border-slate-100 rounded-2xl">
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No Critical Risks</p>
@@ -250,7 +313,7 @@ export default function SubscriptionPaymentPage() {
                       <Clock size={14} />
                       <span className="text-xs font-black">{item.isExpired ? 'EXPIRED' : 'NEAR'}</span>
                     </div>
-                    <p className="text-sm font-black text-slate-600">{item.selectedPlan?.name || item.planDetails?.name || 'No Plan'}</p>
+                    <p className="text-sm font-black text-slate-600 truncate max-w-[120px]">{item.selectedPlan?.name || item.planDetails?.name || 'No Plan'}</p>
                   </div>
                 </div>
               ))
@@ -289,7 +352,7 @@ export default function SubscriptionPaymentPage() {
                 </div>
                 <div className="space-y-4 mb-8">
                   <TierMetric label="User Capacity" value={plan.features?.maxUsers || 0} icon={<Users size={14} />} />
-                  <TierMetric label="Flow Nodes" value={plan.features?.maxWorkflows || 0} icon={<Zap size={14} />} />
+                  <TierMetric label="Flow Nodes" value={plan.features?.maxNodes || 0} icon={<Zap size={14} />} />
                   <TierMetric label="Cloud Lattice" value={plan.interval === 'month' ? 'Monthly' : 'Yearly'} icon={<CreditCard size={14} />} />
                 </div>
                 <div className="pt-6 border-t border-slate-50 flex justify-between items-center">
@@ -297,8 +360,11 @@ export default function SubscriptionPaymentPage() {
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Price</p>
                     <p className="text-xl font-black text-indigo-600 mt-1">{plan.price.toLocaleString()} DT</p>
                   </div>
-                  <button className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm">
-                    <ChevronRight size={18} />
+                  <button 
+                    onClick={() => handleOpenPlanDetails(plan)}
+                    className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm active:scale-95"
+                  >
+                    <ChevronRight size={20} className="group-hover:rotate-45 transition-transform duration-300" />
                   </button>
                 </div>
               </div>
@@ -306,6 +372,178 @@ export default function SubscriptionPaymentPage() {
           ))}
         </div>
       </div>
+
+      {/* Subscriber Details Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsModalOpen(false)}
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+          />
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            className="relative w-full max-w-4xl bg-white rounded-[40px] shadow-2xl overflow-hidden border border-white/20"
+          >
+            {/* Modal Header */}
+            <div className="bg-indigo-600 p-8 text-white relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32 blur-3xl"></div>
+              <div className="relative z-10 flex justify-between items-start">
+                <div>
+                  <h2 className="text-3xl font-black tracking-tighter mb-1">{selectedPlanDetails?.name}</h2>
+                  <p className="text-indigo-100 font-bold opacity-80 uppercase tracking-widest text-xs">Capacity Overview & Active Subscribers</p>
+                </div>
+                <button 
+                  onClick={() => setIsModalOpen(false)}
+                  className="p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-8 max-h-[70vh] overflow-y-auto">
+              {/* Features Summary */}
+              <div className="grid grid-cols-3 gap-6 mb-10">
+                <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 group hover:border-indigo-600 transition-colors">
+                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">User Limit</p>
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-indigo-50 rounded-lg text-indigo-600">
+                      <Users size={16} />
+                    </div>
+                    <span className="text-2xl font-black text-slate-800">{selectedPlanDetails?.features?.maxUsers || 0}</span>
+                  </div>
+                </div>
+                <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 group hover:border-amber-500 transition-colors">
+                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Node Limit</p>
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-amber-50 rounded-lg text-amber-500">
+                      <Zap size={16} />
+                    </div>
+                    <span className="text-2xl font-black text-slate-800">{selectedPlanDetails?.features?.maxNodes || 0}</span>
+                  </div>
+                </div>
+                <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 group hover:border-emerald-500 transition-colors">
+                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Total Assigned</p>
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-emerald-50 rounded-lg text-emerald-500">
+                      <Target size={16} />
+                    </div>
+                    <span className="text-2xl font-black text-slate-800">{subscribers.length} Entities</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Subscribers Table */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-black text-slate-800 tracking-tight flex items-center gap-2">
+                  Active Organizations
+                  <span className="px-2 py-0.5 bg-indigo-100 text-indigo-600 text-[10px] font-black rounded-full">{subscribers.length}</span>
+                </h3>
+
+                {loadingSubscribers ? (
+                  <div className="py-20 flex flex-col items-center justify-center gap-4">
+                    <Loader2 className="animate-spin text-indigo-600" size={40} />
+                    <p className="text-indigo-900 font-bold animate-pulse uppercase tracking-widest text-xs">Synchronizing instances...</p>
+                  </div>
+                ) : subscribers.length > 0 ? (
+                  <div className="border border-slate-100 rounded-3xl overflow-hidden shadow-sm">
+                    <table className="w-full text-left">
+                      <thead className="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                        <tr>
+                          <th className="px-6 py-4">Organization Name</th>
+                          <th className="px-6 py-4 text-center">User Load</th>
+                          <th className="px-6 py-4 text-center">Node Usage</th>
+                          <th className="px-6 py-4 text-right">Domain Access</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {subscribers.map((sub) => {
+                          const userPercent = (sub.consumption?.users / (selectedPlanDetails?.features?.maxUsers || 1)) * 100;
+                          const nodePercent = (sub.consumption?.nodes / (selectedPlanDetails?.features?.maxNodes || 1)) * 100;
+                          const isHighUsage = userPercent > 80 || nodePercent > 80;
+
+                          return (
+                            <tr key={sub.id} className="hover:bg-slate-50/50 transition-colors group">
+                              <td className="px-6 py-5">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 font-black text-xs">
+                                    {sub.name.charAt(0)}
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-black text-slate-800">{sub.name}</span>
+                                      {isHighUsage && <AlertTriangle size={12} className="text-amber-500" />}
+                                    </div>
+                                    <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase w-fit ${
+                                      sub.status === 'active' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
+                                    }`}>
+                                      {sub.status}
+                                    </span>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-5">
+                                <div className="flex flex-col items-center gap-1">
+                                  <div className="w-20 h-1 bg-slate-100 rounded-full overflow-hidden">
+                                    <div 
+                                      className={`h-full transition-all duration-500 ${userPercent > 90 ? 'bg-rose-500' : 'bg-indigo-500'}`}
+                                      style={{ width: `${Math.min(userPercent, 100)}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-[9px] font-bold text-slate-500">{sub.consumption?.users || 0}/{selectedPlanDetails?.features?.maxUsers}</span>
+                                </div>
+                              </td>
+                              <td className="px-6 py-5">
+                                <div className="flex flex-col items-center gap-1">
+                                  <div className="w-20 h-1 bg-slate-100 rounded-full overflow-hidden">
+                                    <div 
+                                      className={`h-full transition-all duration-500 ${nodePercent > 90 ? 'bg-rose-500' : 'bg-emerald-500'}`}
+                                      style={{ width: `${Math.min(nodePercent, 100)}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-[9px] font-bold text-slate-500">{sub.consumption?.nodes || 0}/{selectedPlanDetails?.features?.maxNodes}</span>
+                                </div>
+                              </td>
+                              <td className="px-6 py-5 text-right">
+                                <span className="text-[10px] font-bold text-slate-400 tracking-tight">{sub.domain}</span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>                ) : (
+                  <div className="py-20 text-center bg-slate-50 rounded-[40px] border border-dashed border-slate-200">
+                    <div className="flex flex-col items-center">
+                      <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm mb-4">
+                        <Users className="text-slate-300" size={32} />
+                      </div>
+                      <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">No active subscribers documented</p>
+                      <p className="text-xs text-slate-300 mt-1">This cluster has zero entities assigned currently.</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-8 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="px-8 py-3 bg-white text-slate-600 font-bold rounded-2xl border border-slate-200 hover:bg-slate-100 transition-all text-xs"
+              >
+                Close Window
+              </button>
+              
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

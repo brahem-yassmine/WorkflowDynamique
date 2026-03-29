@@ -241,12 +241,7 @@ export default function CompanyManagement() {
             className="w-full pl-12 pr-4 py-3 bg-white border border-slate-100 rounded-2xl shadow-sm focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-indigo-200 transition-all font-medium text-slate-700"
           />
         </div>
-        <div className="flex items-center gap-3">
-          <button className="p-3 bg-white border border-slate-100 rounded-xl text-slate-400 hover:text-indigo-600 transition-colors shadow-sm">
-            <Filter size={20} />
-          </button>
-          <span className="text-xs font-black text-slate-400 uppercase tracking-widest pl-2">Lattice Depth: Global</span>
-        </div>
+
       </div>
 
       {/* Organizations Matrix Table */}

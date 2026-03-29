@@ -341,6 +341,36 @@ class LogService {
       }
     ]);
   }
+  
+  // Delete a single log by ID
+  async deleteLog(id) {
+    return this.Log.findByIdAndDelete(id);
+  }
+
+  // Bulk delete logs by UI category (matching frontend logic)
+  async deleteLogsByCategory(category, isSecurityView = false) {
+    let query = {};
+    
+    if (isSecurityView) {
+      if (category === 'LOG') {
+        query.actionType = { $in: ['LOGIN_FAILED', 'ERROR'] };
+      } else if (category === 'HISTORY') {
+        query.actionType = { $in: ['LOGIN_SUCCESS', 'LOGOUT', 'CREATE', 'UPDATE', 'DELETE'] };
+      } else if (category === 'AUDIT') {
+        query.actionType = { $nin: ['LOGIN_FAILED', 'ERROR', 'LOGIN_SUCCESS', 'LOGOUT', 'CREATE', 'UPDATE', 'DELETE'] };
+      }
+    } else {
+      if (category === 'LOG') {
+        query.actionType = { $in: ['LOGIN_SUCCESS', 'LOGIN_FAILED', 'LOGOUT', 'ERROR'] };
+      } else if (category === 'HISTORY') {
+        query.actionType = { $in: ['CREATE', 'DELETE', 'STATUS_CHANGE', 'SUBSCRIPTION_RENEWAL', 'SUBSCRIPTION_EXPIRATION'] };
+      } else if (category === 'AUDIT') {
+        query.actionType = { $nin: ['LOGIN_SUCCESS', 'LOGIN_FAILED', 'LOGOUT', 'ERROR', 'CREATE', 'DELETE', 'STATUS_CHANGE', 'SUBSCRIPTION_RENEWAL', 'SUBSCRIPTION_EXPIRATION'] };
+      }
+    }
+
+    return this.Log.deleteMany(query);
+  }
 }
 
 module.exports = LogService;

@@ -11,6 +11,7 @@ const planSchema = new mongoose.Schema({
   features: {
     maxUsers: { type: Number, default: 10 },
     maxWorkflows: { type: Number, default: 10 },
+    maxNodes: { type: Number, default: 10 }, // Flow Nodes limit
     maxStaff: { type: Number, default: 5 },
     maxLocations: { type: Number, default: 5 },
     analysis: { type: String, default: 'Fixed' },

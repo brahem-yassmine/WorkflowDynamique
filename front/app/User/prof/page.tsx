@@ -10,7 +10,12 @@ import {
   Save,
   History,
   Camera,
-  ArrowLeft
+  ArrowLeft,
+  Fingerprint,
+  Briefcase,
+  Layers,
+  Activity,
+  ChevronRight
 } from 'lucide-react';
 import Link from 'next/link';
 import { api } from '../../services/api';
@@ -146,177 +151,227 @@ export default function UserProfilePage() {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 max-w-5xl mx-auto py-6 px-4">
+    <div className="space-y-12 animate-in fade-in duration-700 max-w-6xl mx-auto py-10 px-6">
       <Toaster position="top-right" richColors />
       
-      {/* Header Info */}
-      <div className="flex items-center justify-between mb-4 mt-8">
-        <div className="text-slate-500 font-bold transition-all text-sm">
-          Account Profile Management
+      {/* Main Identity Header Card */}
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-[2.5rem] p-8 shadow-2xl shadow-indigo-100/20 border border-slate-100 relative overflow-hidden group"
+      >
+        {/* Abstract background accent */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50 rounded-bl-full -mr-20 -mt-20 opacity-60 transition-transform group-hover:scale-110 duration-[2s]"></div>
+        
+        <div className="flex flex-col md:flex-row items-center gap-10 relative z-10">
+          <div className="relative">
+            <div 
+              className="w-32 h-32 bg-indigo-600 rounded-[2rem] flex items-center justify-center text-white font-black text-4xl shadow-2xl shadow-indigo-200 overflow-hidden cursor-pointer group/avatar relative"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {profileImage ? (
+                <img src={profileImage} alt="Profile" className="w-full h-full object-cover transition-transform group-hover/avatar:scale-110 duration-500" />
+              ) : (
+                formData.name.charAt(0).toUpperCase()
+              )}
+              
+              {/* Overlay for upload */}
+              <div className="absolute inset-0 bg-indigo-900/40 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center">
+                <Camera size={24} className="text-white" />
+              </div>
+            </div>
+            
+            {/* Status Indicator */}
+            <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-emerald-500 border-4 border-white rounded-full shadow-lg flex items-center justify-center animate-pulse">
+               <div className="w-2.5 h-2.5 bg-white rounded-full"></div>
+            </div>
+          </div>
+
+          <div className="text-center md:text-left flex-1">
+            <div className="flex flex-col md:flex-row md:items-center gap-4 mb-2">
+              <h1 className="text-3xl font-black text-slate-800 tracking-tight">System Node Identity</h1>
+              <div className="px-4 py-1.5 bg-indigo-600 text-white text-[10px] font-black rounded-full uppercase tracking-[0.2em] shadow-lg shadow-indigo-200">
+                {formData.role}
+              </div>
+            </div>
+            <p className="text-slate-500 font-bold flex items-center justify-center md:justify-start gap-2.5 text-lg">
+              <Mail size={18} className="text-indigo-400" />
+              {formData.email}
+            </p>
+          </div>
+
+          <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
+          
+          <div className="hidden lg:block h-20 w-px bg-slate-100 mx-6"></div>
+          
+          <div className="flex flex-col items-center md:items-end gap-2 text-right">
+             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Matrix Sync</span>
+             <span className="text-xs font-black text-emerald-500 bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-100 uppercase tracking-tight">Verified Protocol</span>
+          </div>
         </div>
-        <div className="bg-indigo-100 text-indigo-600 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm">
-          User Identity Node
-        </div>
+      </motion.div>
+
+      {/* Grid Panels */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-slate-800">
+        
+        {/* IDENTITY SIGNATURE */}
+        <motion.div 
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-100/50 group hover:border-indigo-100 transition-colors"
+        >
+          <div className="flex items-center gap-4 mb-10">
+            <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl group-hover:bg-indigo-600 group-hover:text-white transition-all duration-500 shadow-lg shadow-indigo-50">
+              <Fingerprint size={24} />
+            </div>
+            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Identity Signature</h3>
+          </div>
+          
+          <div className="space-y-6">
+            <div className="flex justify-between items-end pb-4 border-b border-slate-50">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Status</span>
+              <span className="text-xs font-black text-emerald-500 bg-emerald-50 px-2.5 py-1 rounded-md uppercase tracking-tight">Verified_Node</span>
+            </div>
+            <div className="flex justify-between items-end pb-4 border-b border-slate-50">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Lattice ID</span>
+              <span className="text-xs font-black text-slate-700 font-mono truncate max-w-[150px]">{userId || "N/A"}</span>
+            </div>
+            <div className="flex justify-between items-end">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Active Since</span>
+              <span className="text-xs font-black text-slate-700">{forensics.nodeCreated || "Active Session"}</span>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* ORGANIZATIONAL DOMAIN */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-100/50 group hover:border-indigo-100 transition-colors"
+        >
+          <div className="flex items-center gap-4 mb-10">
+            <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl group-hover:bg-indigo-600 group-hover:text-white transition-all duration-500 shadow-lg shadow-indigo-50">
+              <Briefcase size={24} />
+            </div>
+            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Organizational Domain</h3>
+          </div>
+          
+          <div className="space-y-4">
+            <div className="p-5 bg-slate-50 rounded-[1.5rem] border border-slate-100">
+               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Assigned Domain</p>
+               <p className="text-xl font-black text-indigo-700 tracking-tight">Main Lattice</p>
+            </div>
+            <div className="p-5 bg-indigo-700 text-white rounded-[1.5rem] relative overflow-hidden group/domain">
+               <Activity size={50} className="absolute -right-4 -bottom-4 opacity-10 group-hover/domain:scale-125 transition-transform duration-700" />
+               <p className="text-[9px] font-bold uppercase tracking-widest mb-1.5 opacity-70">Sector Visibility</p>
+               <p className="text-sm font-black leading-snug">Cross-Functional Operational Access</p>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* STRUCTURAL AUTHORITY */}
+        <motion.div 
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-100/50 group hover:border-indigo-100 transition-colors"
+        >
+          <div className="flex items-center gap-4 mb-10">
+            <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl group-hover:bg-indigo-600 group-hover:text-white transition-all duration-500 shadow-lg shadow-indigo-50">
+              <Layers size={24} />
+            </div>
+            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Structural Authority</h3>
+          </div>
+          
+          <div className="flex items-center gap-5 mb-8">
+             <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center font-black text-2xl border border-indigo-100 shadow-inner">
+                <ShieldCheck size={32} />
+             </div>
+             <div>
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 leading-none">Access Role</p>
+                <p className="text-2xl font-black text-slate-800 tracking-tight uppercase">{formData.role}</p>
+             </div>
+          </div>
+          <p className="text-[11px] text-slate-500 font-bold leading-relaxed italic border-t border-slate-50 pt-5">
+            Authorized system persona with level-4 lattice clearance and cross-sector operational visibility.
+          </p>
+        </motion.div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-        {/* Profile Card */}
-        <div className="lg:col-span-1 space-y-6">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 text-center relative overflow-hidden group"
-          >
-            <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-indigo-700 to-indigo-500 opacity-90"></div>
-            <div className="relative mt-8">
-              <div className="w-24 h-24 bg-white rounded-3xl mx-auto p-1 shadow-xl relative">
-                <div 
-                  className="w-full h-full bg-slate-100 rounded-2xl flex items-center justify-center text-indigo-600 font-black text-2xl overflow-hidden cursor-pointer" 
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  {profileImage ? (
-                      <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
-                  ) : (
-                      formData.name.slice(0, 2).toUpperCase()
-                  )}
-                </div>
-                <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
-                <button 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="absolute -bottom-2 -right-2 p-2 bg-indigo-600 text-white rounded-xl shadow-lg border-2 border-white hover:bg-indigo-700 transition-all active:scale-95 z-10"
-                >
-                  <Camera size={14} />
-                </button>
-              </div>
-              <h2 className="text-xl font-black text-slate-800 mt-4 tracking-tight">{formData.name}</h2>
-              <p className="text-xs font-black text-indigo-500 uppercase tracking-widest mt-1.5">{formData.role}</p>
-            </div>
-
-            <div className="mt-8 pt-8 border-t border-slate-50 grid grid-cols-2 gap-4">
-              <div className="text-center">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Authority</p>
-                <p className="text-sm font-bold text-slate-700 mt-1">{forensics.authLevel}</p>
-              </div>
-              <div className="text-center">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Uptime</p>
-                <p className="text-sm font-bold text-slate-700 mt-1">{forensics.uptime}</p>
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="bg-slate-900 rounded-3xl p-8 shadow-2xl relative overflow-hidden"
-          >
-            <div className="absolute top-0 right-0 p-6 opacity-10">
-              <History size={80} className="text-white" />
-            </div>
-            <h3 className="text-[10px] font-black text-white/50 uppercase tracking-[0.3em] mb-6 relative z-10">Access Forensics</h3>
-            <div className="space-y-4 relative z-10">
-              <ForensicRow label="Last Uplink" value={forensics.lastUplink} />
-              <ForensicRow label="Primary IP" value={forensics.primaryIp} />
-              <ForensicRow label="Node Created" value={forensics.nodeCreated} />
-            </div>
-          </motion.div>
+      {/* Profile Configuration Area (Former edit form) */}
+      <motion.section 
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className="bg-white rounded-[2.5rem] p-10 shadow-sm border border-slate-100"
+      >
+        <div className="flex items-center gap-4 mb-12">
+          <div className="p-3 bg-slate-900 text-white rounded-2xl shadow-xl shadow-slate-200">
+            <ShieldCheck size={24} />
+          </div>
+          <div>
+            <h3 className="text-2xl font-black text-slate-800 tracking-tight">Security Credentials</h3>
+            <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Manage your identity spec and authentication keys.</p>
+          </div>
         </div>
 
-        {/* Configuration Area */}
-        <div className="lg:col-span-2 space-y-8">
-          <motion.section 
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100"
-          >
-            <div className="flex items-center gap-3 mb-10">
-              <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl">
-                <ShieldCheck size={20} />
+        <div className="space-y-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+            <InputGroup label="Identity Name" icon={<User size={16} />}>
+              <input
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                className="w-full h-16 bg-slate-50 border border-slate-100 rounded-[1.25rem] px-6 font-bold text-slate-700 focus:ring-4 focus:ring-indigo-500/5 focus:bg-white focus:border-indigo-100 transition-all outline-none text-lg"
+                placeholder="Full Name"
+              />
+            </InputGroup>
+            <InputGroup label="Registered Email" icon={<Mail size={16} />}>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                className="w-full h-16 bg-slate-50 border border-slate-100 rounded-[1.25rem] px-6 font-bold text-slate-400 focus:ring-4 focus:ring-indigo-500/5 focus:bg-white focus:border-indigo-100 transition-all outline-none cursor-not-allowed text-lg"
+                readOnly
+              />
+            </InputGroup>
+          </div>
+
+          <InputGroup label="Access Key (Password)" icon={<Lock size={16} />}>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-6">
+              <div className="flex-1 h-16 bg-slate-50 border border-slate-100 rounded-[1.25rem] px-6 flex items-center font-bold text-slate-300 text-lg tracking-[0.5em]">
+                ••••••••••••••••
               </div>
-              <div>
-                <h3 className="text-xl font-black text-slate-800 tracking-tight">Security Credentials</h3>
-                <p className="text-xs text-slate-400 font-medium mt-0.5">Manage your identity spec and authentication keys.</p>
-              </div>
+              <Link 
+                href="/forget?from=user"
+                className="px-10 py-5 bg-slate-900 text-white rounded-[1.25rem] font-black text-[11px] uppercase tracking-[0.2em] hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 active:scale-95 whitespace-nowrap text-center"
+              >
+                Reset Access Key
+              </Link>
             </div>
+          </InputGroup>
 
-            <div className="space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <InputGroup label="Identity Name" icon={<User size={16} />}>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 font-bold text-slate-700 focus:ring-4 focus:ring-indigo-500/5 focus:bg-white focus:border-indigo-100 transition-all outline-none"
-                    placeholder="Full Name"
-                  />
-                </InputGroup>
-                <InputGroup label="Registered Email" icon={<Mail size={16} />}>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 font-bold text-slate-400 focus:ring-4 focus:ring-indigo-500/5 focus:bg-white focus:border-indigo-100 transition-all outline-none cursor-not-allowed"
-                    readOnly
-                  />
-                </InputGroup>
-              </div>
-
-              <InputGroup label="Access Key (Password)" icon={<Lock size={16} />}>
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-                  <div className="flex-1 h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 flex items-center font-bold text-slate-300">
-                    ••••••••••••••••
-                  </div>
-                  <Link 
-                    href="/forget?from=user"
-                    className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 active:scale-95 whitespace-nowrap text-center"
-                  >
-                    Forget Password?
-                  </Link>
-                </div>
-              </InputGroup>
-
-              <div className="pt-6 flex flex-col sm:flex-row gap-4">
-                <button 
-                  onClick={handleSave}
-                  disabled={isSaving}
-                  className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 active:scale-95 disabled:opacity-50"
-                >
-                  {isSaving ? <RefreshCw size={18} className="animate-spin" /> : <Save size={18} />}
-                  {isSaving ? 'Synchronizing...' : 'Synchronize Identity'}
-                </button>
-                <button 
-                  onClick={() => window.location.reload()}
-                  className="px-6 py-4 bg-slate-50 text-slate-400 rounded-2xl font-black transition-all hover:bg-slate-100 hover:text-slate-600 active:scale-95 border border-slate-100"
-                >
-                  <RefreshCw size={18} />
-                </button>
-              </div>
-            </div>
-          </motion.section>
-
-          {/* User Specific Status/Info */}
-          <motion.div 
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
-            className="p-8 bg-indigo-100/50 rounded-3xl border border-indigo-100"
-          >
-            <div className="flex gap-4">
-               <div className="p-2.5 bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-200 shrink-0">
-                  <ShieldCheck size={20} />
-               </div>
-               <div>
-                  <h4 className="text-sm font-black text-indigo-900 uppercase tracking-widest mb-2">Protocol Verified</h4>
-                  <p className="text-xs text-indigo-700 font-medium leading-relaxed">
-                    Your node is currently active and verified. All operations performed on the lattice are logged for security and forensic compliance. Stay vigilant of system alerts in your Command Center.
-                  </p>
-               </div>
-            </div>
-          </motion.div>
+          <div className="pt-8 flex flex-col sm:flex-row gap-6">
+            <button 
+              onClick={handleSave}
+              disabled={isSaving}
+              className="flex-1 py-5 bg-indigo-600 text-white rounded-[1.25rem] font-black text-[11px] uppercase tracking-[0.3em] flex items-center justify-center gap-4 hover:bg-indigo-700 hover:shadow-2xl hover:shadow-indigo-200 transition-all active:scale-[0.98] disabled:opacity-50"
+            >
+              {isSaving ? <RefreshCw size={20} className="animate-spin" /> : <Save size={20} />}
+              {isSaving ? 'Synchronizing Node...' : 'Synchronize Identity'}
+            </button>
+            <button 
+              onClick={() => window.location.reload()}
+              className="px-8 py-5 bg-slate-50 text-slate-400 rounded-[1.25rem] font-black transition-all hover:bg-slate-100 hover:text-slate-600 active:scale-95 border border-slate-100"
+            >
+              <RefreshCw size={20} />
+            </button>
+          </div>
         </div>
-      </div>
+      </motion.section>
     </div>
   );
 }

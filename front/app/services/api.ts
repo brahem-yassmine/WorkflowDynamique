@@ -51,7 +51,7 @@ api.interceptors.response.use(
       url: error.config?.url,
       method: error.config?.method?.toUpperCase()
     };
-    console.error('❌ API Error Detail:', apiError);
+    console.error('❌ API Error Detail:', JSON.stringify(apiError, null, 2));
     return Promise.reject(error);
   }
 );

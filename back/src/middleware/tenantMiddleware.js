@@ -131,6 +131,33 @@ const checkPlanLimits = (resourceType) => {
         }
       }
 
+      if (resourceType === 'nodes') {
+        const Workflow = req.tenantConn?.model('Workflow');
+        if (Workflow) {
+          // Calculate total nodes across all workflows
+          const workflows = await Workflow.find({});
+          const currentTotalNodes = workflows.reduce((acc, wf) => {
+            // If we are updating an existing workflow, don't count its old nodes yet
+            if (req.params.workflowId && wf._id.toString() === req.params.workflowId) return acc;
+            return acc + (wf.nodes?.length || 0);
+          }, 0);
+
+          const incomingNodesCount = req.body.nodes?.length || 0;
+          const totalAfterOperation = currentTotalNodes + incomingNodesCount;
+
+          const maxNodes = limits.maxNodes || 20; // Default fallback
+
+          if (totalAfterOperation > maxNodes) {
+            return res.status(403).json({ 
+              success: false, 
+              message: `Maximum system capacity reached (${maxNodes} Flow Nodes). You are trying to use ${totalAfterOperation} nodes total across the organization.`,
+              currentTotal: currentTotalNodes,
+              limit: maxNodes
+            });
+          }
+        }
+      }
+
       next();
     } catch (error) {
       console.error('❌ checkPlanLimits Error:', error);

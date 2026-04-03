@@ -299,7 +299,7 @@ export default function ProfilePage() {
                     ••••••••
                   </div>
                   <Link 
-                    href="/forget"
+                    href="/forget?from=admin"
                     className="px-6 py-3 bg-slate-100 text-indigo-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all shadow-sm active:scale-95 whitespace-nowrap"
                   >
                     Forget Password?

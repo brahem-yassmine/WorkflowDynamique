@@ -370,3 +370,53 @@ exports.getActivityLogs = async (req, res) => {
     });
   }
 };
+
+// Delete single log entry
+exports.deleteActivityLog = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!req.tenantConn) {
+      return res.status(500).json({ success: false, message: "Tenant DB unavailable" });
+    }
+
+    const ActivityLog = req.tenantConn.model('ActivityLog');
+    const result = await ActivityLog.findByIdAndDelete(id);
+
+    if (!result) {
+      return res.status(404).json({ success: false, message: "Log entry not found" });
+    }
+
+    res.json({ success: true, message: "Log deleted successfully" });
+  } catch (error) {
+    console.error('❌ deleteActivityLog Error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Purge logs by category
+exports.purgeActivityLogs = async (req, res) => {
+  try {
+    const { category } = req.body;
+    if (!category) {
+      return res.status(400).json({ success: false, message: "Category required" });
+    }
+
+    if (!req.tenantConn) {
+      return res.status(500).json({ success: false, message: "Tenant DB unavailable" });
+    }
+
+    const ActivityLog = req.tenantConn.model('ActivityLog');
+    
+    // Purge based on explicit category field in tenant logs
+    const result = await ActivityLog.deleteMany({ category });
+
+    res.json({ 
+      success: true, 
+      message: `${result.deletedCount} logs purged from ${category}`,
+      data: { deletedCount: result.deletedCount }
+    });
+  } catch (error) {
+    console.error('❌ purgeActivityLogs Error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

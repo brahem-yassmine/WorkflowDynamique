@@ -166,6 +166,71 @@ class LogController {
     }
   }
 
+  // Delete individual log
+  async deleteLog(req, res) {
+    try {
+      const { id } = req.params;
+      const result = await this.logService.deleteLog(id);
+
+      if (!result) {
+        return res.status(404).json({
+          success: false,
+          message: 'Log entry not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Log deleted successfully'
+      });
+    } catch (error) {
+      console.error('Error deleting log:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error deleting log',
+        error: error.message
+      });
+    }
+  }
+
+  // Delete logs by category
+  async deleteBulkLogs(req, res) {
+    try {
+      const { category, isSecurityView = false } = req.body;
+      
+      if (!category) {
+        return res.status(400).json({
+          success: false,
+          message: 'Category is required for bulk deletion'
+        });
+      }
+
+      const result = await this.logService.deleteLogsByCategory(category, isSecurityView);
+
+      // Log this purge action
+      await this.logService.logCreate(
+        req.user,
+        'SECURITY_AUDIT',
+        { _id: 'purge', message: `Bulk purge of ${category} logs` },
+        req,
+        { deletedCount: result.deletedCount, category, isSecurityView }
+      );
+
+      res.json({
+        success: true,
+        message: `${result.deletedCount} logs purged from ${category} category`,
+        data: { deletedCount: result.deletedCount }
+      });
+    } catch (error) {
+      console.error('Error purging logs:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error purging logs',
+        error: error.message
+      });
+    }
+  }
+
   // Convert to CSV
   convertToCSV(logs) {
     if (!logs || logs.length === 0) return '';

@@ -85,12 +85,6 @@ export default function SigninPage() {
       requiresPlanSelection
     });
 
-    // ✅ Only enforce plan selection for 'admin' (Tenant Owner)
-    if (normalizedRole === 'admin' && (requiresPlanSelection || hasSelectedPlan === false)) {
-      console.log('⚠️ Redirection: Forcing plan selection for admin node.');
-      return '/admin/billing';
-    }
-
     // Redirect by role hierarchy
     switch (normalizedRole) {
       case 'super_admin':
@@ -434,7 +428,7 @@ export default function SigninPage() {
 
                   </div>
                   <Link
-                    href="/forget"
+                    href="/forget?from=signin"
                     className="text-sm text-indigo-600 hover:text-indigo-800 font-bold transition-colors"
                   >
                     Forgot password?

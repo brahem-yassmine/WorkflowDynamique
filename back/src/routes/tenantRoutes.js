@@ -10,7 +10,9 @@ const {
   inviteTeamMember,
   removeTeamMember,
   getActivityLogs,
-  updateTenantInfo
+  updateTenantInfo,
+  purgeActivityLogs,
+  deleteActivityLog
 } = require('../controllers/tenantController');
 const { auth } = require('../middleware/auth');
 const { checkTenantActive, requirePlan } = require('../middleware/tenantMiddleware');
@@ -115,6 +117,8 @@ router.get('/stats', requirePlan, async (req, res) => {
 });
 
 // Activity logs
-router.get('/logs', getActivityLogs);
+router.get('/logs', requirePlan, getActivityLogs);
+router.delete('/logs/purge', requirePlan, purgeActivityLogs);
+router.delete('/logs/:id', requirePlan, deleteActivityLog);
 
 module.exports = router;

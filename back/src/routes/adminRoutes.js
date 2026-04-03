@@ -4,6 +4,7 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const { auth, requireRole } = require('../middleware/auth');
 const LogController = require('../controllers/master/logController');
+const plansConfig = require('../config/plans');
 
 // All routes require authentication and super_admin role
 router.use(auth);
@@ -499,10 +500,10 @@ router.get('/stats', async (req, res) => {
     // Initialize counters
     let totalUsers = 0;
     let totalWorkflows = 0;
-    let totalNodes = 0; 
+    let totalNodes = 0;
     let totalExecutions = 0;
-    const sectorCounts = {}; 
-    const planCounts = {}; 
+    const sectorCounts = {};
+    const planCounts = {};
     const planRevenueMapping = {};
     let totalMonthlyRevenue = 0;
     let lastMonthRevenue = 0;
@@ -540,7 +541,7 @@ router.get('/stats', async (req, res) => {
 
       const planName = tenant.selectedPlan?.name || tenant.planDetails?.name || 'No plan';
       const planPrice = tenant.selectedPlan?.price || 0;
-      
+
       planCounts[planName] = (planCounts[planName] || 0) + 1;
       planRevenueMapping[planName] = (planRevenueMapping[planName] || 0) + planPrice;
       totalMonthlyRevenue += planPrice;
@@ -641,6 +642,22 @@ router.get('/stats', async (req, res) => {
       };
     });
 
+    // Calculate Trends (Comparison between Today and 7 Days Ago - "Evolution of the Week")
+    const sortedDates = Object.keys(dailyGrowth).sort().reverse(); // [Today, Day1, ..., Day6]
+    
+    // Most recent vs Oldest in the 7-day window
+    const newestKey = sortedDates[0];
+    const oldestKey = sortedDates[sortedDates.length - 1];
+
+    const calcEvolution = (curr, prev) => {
+      if (prev === 0) return curr > 0 ? "+100%" : "Stable";
+      const diff = ((curr - prev) / prev) * 100;
+      return (diff >= 0 ? "+" : "") + diff.toFixed(0) + "%";
+    };
+
+    const companiesTrend = calcEvolution(dailyGrowth[newestKey].companies, dailyGrowth[oldestKey].companies);
+    const workflowsTrend = calcEvolution(dailyGrowth[newestKey].workflows, dailyGrowth[oldestKey].workflows);
+
     // Calculated statistics
     const stats = {
       totalCompanies: tenants.length,
@@ -654,6 +671,10 @@ router.get('/stats', async (req, res) => {
 
       trialCompanies: planCounts['Demo Plan'] || planCounts['DEMO'] || 0,
       paidCompanies: (planCounts['Starter Plan'] || 0) + (planCounts['Pro Plan'] || 0),
+
+      // Trends (Evolution Today vs 7 Days Ago)
+      companiesTrend: companiesTrend,
+      workflowsTrend: workflowsTrend,
 
       // Calculate a "load" proxy based on active users and node complexity
       averageGpuUsage: Math.min(95, Math.max(15, Math.floor((totalUsers * 0.5) + (totalNodes * 0.1)))),
@@ -681,7 +702,7 @@ router.get('/stats', async (req, res) => {
         conversionRate: tenants.length > 0 ? (((tenants.filter(function (t) { return t.virtualStatus === 'active'; }).length) / tenants.length) * 100).toFixed(1) : 0,
         retentionRate: tenants.length > 0 ? (((tenants.filter(t => t.virtualStatus !== 'suspended').length) / tenants.length) * 100).toFixed(1) : 100
       },
-      
+
       growth: Object.keys(dailyGrowth).sort().map(date => ({
         date,
         companies: dailyGrowth[date].companies,
@@ -720,10 +741,22 @@ router.get('/plans', async (req, res) => {
       });
     }
 
-    // Get Plan model from connection
     const Plan = masterDb.model('Plan');
+    let plans = await Plan.find().sort({ price: 1 });
 
-    const plans = await Plan.find().sort({ price: 1 });
+    // Auto-sync if no plans exist (initial bootstrap)
+    if (plans.length === 0 && plansConfig.plans) {
+      console.log('🌱 No plans found in DB. Initializing from codebase configuration...');
+      for (const p of plansConfig.plans) {
+        await Plan.findOneAndUpdate(
+          { name: p.name },
+          { ...p, isActive: true },
+          { upsert: true }
+        );
+      }
+      plans = await Plan.find().sort({ price: 1 });
+    }
+
     res.json({
       success: true,
       data: plans
@@ -736,6 +769,104 @@ router.get('/plans', async (req, res) => {
     });
   }
 });
+// POST /api/admin/plans/sync - Sync with code configuration
+router.post('/plans/sync', async (req, res) => {
+  try {
+    const masterDb = req.app.locals.masterDb;
+    const Plan = masterDb.model('Plan');
+
+    const results = [];
+    for (const p of plansConfig.plans) {
+      const plan = await Plan.findOneAndUpdate(
+        { name: p.name },
+        { ...p, isActive: true },
+        { upsert: true, new: true }
+      );
+      results.push(plan);
+    }
+
+    res.json({
+      success: true,
+      message: 'Plans synchronized with codebase successfully',
+      data: results
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// GET /api/admin/plans/:id/subscribers - Get subscribers with consumption metrics
+router.get('/plans/:id/subscribers', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const masterDb = req.app.locals.masterDb;
+    const Tenant = masterDb.model('Tenant');
+    const Plan = masterDb.model('Plan');
+
+    const plan = await Plan.findById(id);
+    if (!plan) {
+      return res.status(404).json({ success: false, message: 'Plan not found' });
+    }
+
+    // Query by ID OR by Plan Code (more robust for sync-ed plans)
+    const tenants = await Tenant.find({
+      $or: [
+        { selectedPlan: id },
+        { 'planDetails.code': plan.code }
+      ]
+    });
+
+    const enrichedSubscribers = await Promise.all(tenants.map(async (tenant) => {
+      let userCount = 0;
+      let nodeCount = 0;
+
+      try {
+        if (tenant.databaseName) {
+          const tenantConn = mongoose.createConnection(tenant.databaseUri);
+          await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error('Connection timeout')), 5000);
+            tenantConn.once('connected', () => { clearTimeout(timeout); resolve(); });
+            tenantConn.once('error', (err) => { clearTimeout(timeout); reject(err); });
+          });
+
+          // Count Users (Excluding Admins)
+          const User = tenantConn.model('User', new mongoose.Schema({ role: String }));
+          userCount = await User.countDocuments({ role: { $nin: ['admin', 'super_admin'] } });
+
+          // Count Total Nodes
+          const Workflow = tenantConn.model('Workflow', new mongoose.Schema({ nodes: Array }));
+          const workflows = await Workflow.find({}, 'nodes');
+          nodeCount = workflows.reduce((acc, wf) => acc + (wf.nodes?.length || 0), 0);
+
+          await tenantConn.close();
+        }
+      } catch (err) {
+        console.error(`❌ Subscribers aggregation failed for ${tenant.name}:`, err.message);
+      }
+
+      return {
+        id: tenant._id,
+        name: tenant.name,
+        domain: tenant.domain,
+        status: tenant.status,
+        consumption: {
+          users: userCount,
+          nodes: nodeCount
+        }
+      };
+    }));
+
+    res.json({
+      success: true,
+      plan: plan,
+      subscribers: enrichedSubscribers
+    });
+  } catch (error) {
+    console.error(' Error GET /plans/:id/subscribers:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 
 // POST /api/admin/plans - Create a new plan
 router.post('/plans', async (req, res) => {
@@ -790,11 +921,11 @@ router.put('/plans/:id', async (req, res) => {
       console.log(`🛑 Plan ${plan.name} was disabled. Cascading suspension to all assigned tenants...`);
       const Tenant = masterDb.model('Tenant');
       const affectedTenants = await Tenant.find({ selectedPlan: plan._id, status: 'active' });
-      
+
       for (const tenant of affectedTenants) {
         // 1. Suspend tenant in master DB
         await Tenant.findByIdAndUpdate(tenant._id, { status: 'suspended' });
-        
+
         // 2. Suspend tenant in their own local Subscription DB
         try {
           if (tenant.databaseName) {
@@ -804,7 +935,7 @@ router.put('/plans/:id', async (req, res) => {
               tenantConn.once('connected', () => { clearTimeout(timeout); resolve(); });
               tenantConn.once('error', (err) => { clearTimeout(timeout); reject(err); });
             });
-            
+
             const Subscription = require('../models/tenant/Subscription')(tenantConn);
             const latestSub = await Subscription.findOne().sort({ createdAt: -1 });
             if (latestSub) {
@@ -874,5 +1005,7 @@ router.get('/logs/stats', (req, res) => getLogController(req).getLogStats(req, r
 router.get('/logs/export', (req, res) => getLogController(req).exportLogs(req, res));
 router.get('/logs/:id', (req, res) => getLogController(req).getLogById(req, res));
 router.post('/logs/clean', (req, res) => getLogController(req).cleanOldLogs(req, res));
+router.delete('/logs/purge', (req, res) => getLogController(req).deleteBulkLogs(req, res));
+router.delete('/logs/:id', (req, res) => getLogController(req).deleteLog(req, res));
 
 module.exports = router;

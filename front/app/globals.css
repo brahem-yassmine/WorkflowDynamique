@@ -119,10 +119,9 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    @apply border-border outline-ring/50;
   }
+
   body {
-    @apply bg-background text-foreground;
     @apply bg-background text-foreground;
   }
 }
@@ -142,7 +141,8 @@
   stroke-width: 3 !important;
 }
 
-.react-flow__selection, .react-flow__nodeselection-rect {
+.react-flow__selection,
+.react-flow__nodeselection-rect {
   background: rgba(99, 102, 241, 0.05) !important;
   border: 1px dashed #6366f1 !important;
 }
@@ -153,10 +153,12 @@
   border-radius: 12px !important;
   overflow: hidden !important;
 }
+
 @layer utilities {
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;

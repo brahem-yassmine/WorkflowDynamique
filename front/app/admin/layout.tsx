@@ -110,11 +110,11 @@ export default function AdminLayout({
         checkScreen();
         // Optionnel: window.addEventListener('resize', checkScreen);
     }, []);
-    
+
     const isWorkflowDetail = pathname.match(/^\/admin\/workflows\/.+/);
     // Don't hide for standard flows
     const hideSidebar = isWorkflowDetail && !pathname.includes('/standard');
-    
+
     const metadata = PAGE_METADATA[pathname] || { title: "Axia Admin", subtitle: "Management Console" };
 
     useEffect(() => {
@@ -125,7 +125,7 @@ export default function AdminLayout({
                 setIsSidebarOpen(true);
             }
         };
-        
+
         // Set initial state
         handleResize();
 
@@ -153,14 +153,14 @@ export default function AdminLayout({
         };
 
         checkSubscription();
-        
+
         // Listen for custom events (for same-tab updates)
         window.addEventListener('subscriptionChange', checkSubscription);
         // Listen for storage events (for multi-tab updates)
         window.addEventListener('storage', checkSubscription);
 
         const internal = setInterval(checkSubscription, 10000); // 10s check
-        
+
         return () => {
             clearInterval(internal);
             window.removeEventListener('subscriptionChange', checkSubscription);
@@ -176,12 +176,12 @@ export default function AdminLayout({
                     <>
                         <AnimatePresence mode="wait">
                             {isSidebarOpen && (
-                                <motion.div 
+                                <motion.div
                                     initial={{ width: 0, opacity: 0 }}
                                     animate={{ width: 288, opacity: 1 }}
                                     exit={{ width: 0, opacity: 0 }}
                                     transition={{ duration: 0.3, ease: "circOut" }}
-                                    className={`fixed inset-y-0 left-0 z-40 lg:relative ${pathname.startsWith('/admin/domains/') && pathname !== '/admin/domains' ? 'bg-slate-900 border-r border-white/5' : 'bg-indigo-700'} shadow-2xl overflow-hidden flex-shrink-0`}
+                                    className={`fixed inset-y-0 left-0 z-40 lg:relative ${pathname.startsWith('/admin/domains/') && pathname !== '/admin/domains' ? 'bg-indigo-800' : 'bg-indigo-700'} shadow-2xl overflow-hidden flex-shrink-0`}
                                 >
                                     {pathname.startsWith('/admin/domains/') && pathname !== '/admin/domains' ? (
                                         <DomainSidebar domainId={pathname.split('/')[3]} />
@@ -212,9 +212,9 @@ export default function AdminLayout({
                 <div className="flex-1 flex flex-col min-w-0 relative">
                     {/* Header integrated into the content area */}
                     {!hideSidebar && (
-                        <Header 
-                            title={metadata.title} 
-                            subtitle={metadata.subtitle} 
+                        <Header
+                            title={metadata.title}
+                            subtitle={metadata.subtitle}
                             onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
                             isSidebarOpen={isSidebarOpen}
                         />

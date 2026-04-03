@@ -59,7 +59,7 @@ function UserSidebar() {
   };
 
   const menuItems = [
-    { icon: LayoutGrid, label: "Command Center", href: "/User" }, 
+    { icon: LayoutGrid, label: "Command Center", href: "/User" },
     { icon: User, label: "My Profile", href: "/User/prof" },
     { icon: CheckSquare, label: "My Tasks", href: "/User/tasks", badge: taskCount },
     { icon: Bell, label: "Alert Inbox", href: "/User/Notifications" },
@@ -79,8 +79,8 @@ function UserSidebar() {
       <div className="p-8 relative z-10">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-lg border border-white/10 overflow-hidden">
-             <div className="absolute inset-0 bg-gradient-to-br from-indigo-400 to-indigo-600 opacity-20"></div>
-             <LayoutGrid size={24} className="text-white relative z-10" />
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-400 to-indigo-600 opacity-20"></div>
+            <LayoutGrid size={24} className="text-white relative z-10" />
           </div>
           <div>
             <h1 className="text-xl font-black text-white tracking-tight leading-none">Axia Core</h1>
@@ -99,14 +99,14 @@ function UserSidebar() {
                 href={item.href}
                 className={`
                   flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 group relative
-                  ${isActive 
-                    ? 'bg-white text-indigo-700 shadow-xl shadow-indigo-900/20 font-black' 
+                  ${isActive
+                    ? 'bg-white text-indigo-700 shadow-xl shadow-indigo-900/20 font-black'
                     : 'text-indigo-100 hover:bg-white/10 hover:text-white font-bold'}
                 `}
               >
                 <item.icon className={`h-4.5 w-4.5 transition-transform group-hover:scale-110 ${isActive ? 'text-indigo-600' : (item.color || 'text-indigo-300')} group-hover:text-white`} />
                 <span className="text-xs tracking-tight flex-1">{item.label}</span>
-                
+
                 {item.badge !== null && item.badge !== undefined && item.badge > 0 && (
                   <span className={`
                     px-2 py-0.5 rounded-full text-[9px] font-black 
@@ -122,7 +122,7 @@ function UserSidebar() {
                     className="absolute left-0 w-1 h-6 bg-indigo-500 rounded-r-full"
                   />
                 )}
-                
+
                 {!isActive && (
                   <ChevronRight size={14} className="opacity-0 group-hover:opacity-40 transition-opacity" />
                 )}

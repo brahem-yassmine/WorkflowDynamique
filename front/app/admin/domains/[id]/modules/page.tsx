@@ -211,77 +211,135 @@ export default function DomainModulesSpace() {
             </div>
 
             <div className="flex-1 flex flex-col overflow-hidden">
-                <div className="bg-slate-200 px-10 py-4 rounded-t-[32px] text-xs font-black text-slate-600 uppercase tracking-[0.2em]">
-                    {selectedModuleId ? 'liste des templete' : 'liste de module cree'}
+                <div className="px-10 py-6 rounded-t-[32px] bg-slate-50 border-x border-t border-slate-100 flex items-center justify-between">
+                    <div>
+                        <span className="text-xs font-black text-slate-500 uppercase tracking-[0.3em]">
+                            {selectedModuleId ? 'Standardized Protocols' : 'Operational Units'}
+                        </span>
+                        <div className="flex items-center gap-2 mt-1">
+                            <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Live Repository</span>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <div className="bg-white border border-slate-100 rounded-xl px-3 py-1.5 flex items-center gap-2">
+                            <Search size={14} className="text-slate-400" />
+                            <input 
+                                type="text" 
+                                placeholder="Filter units..." 
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="bg-transparent text-[10px] font-bold text-slate-600 outline-none w-32 uppercase tracking-widest"
+                            />
+                        </div>
+                    </div>
                 </div>
                 
-                <div className="flex-1 bg-white border-x border-b border-slate-100 rounded-b-[32px] overflow-hidden p-8">
+                <div className="flex-1 bg-white border-x border-b border-slate-100 rounded-b-[32px] overflow-hidden p-8 shadow-sm">
                     <AnimatePresence mode="wait">
                         {!selectedModuleId ? (
                             <motion.div 
                                 key="modules"
-                                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                                className="h-full overflow-y-auto space-y-3 custom-scrollbar pr-2"
+                                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                                className="h-full overflow-y-auto space-y-4 custom-scrollbar pr-2"
                             >
                                 {isLoading ? (
-                                    Array(4).fill(0).map((_, i) => <div key={i} className="h-20 bg-slate-50 rounded-2xl animate-pulse" />)
+                                    Array(4).fill(0).map((_, i) => <div key={i} className="h-24 bg-slate-50 rounded-[28px] animate-pulse border border-slate-100" />)
                                 ) : filteredModules.length > 0 ? (
                                     filteredModules.map((mod) => (
-                                        <div key={mod._id} className="bg-slate-600 p-6 rounded-2xl flex items-center justify-between text-white shadow-lg shadow-slate-200/50">
-                                            <span className="font-black tracking-tight uppercase">{mod.name}</span>
-                                            <div className="flex items-center gap-2">
-                                                <button onClick={() => openModuleModal(mod)} className="px-5 py-2.5 bg-slate-800/50 hover:bg-slate-800 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all">
-                                                    <Edit size={14} className="text-amber-400" />
-                                                    Modifier
+                                        <motion.div 
+                                            key={mod._id} 
+                                            whileHover={{ y: -2 }}
+                                            className="bg-white border border-slate-100 p-6 rounded-[32px] flex items-center justify-between hover:border-indigo-100 hover:shadow-xl hover:shadow-indigo-500/5 transition-all group"
+                                        >
+                                            <div className="flex items-center gap-5">
+                                                <div className="w-14 h-14 bg-indigo-50 rounded-[22px] flex items-center justify-center text-indigo-600 group-hover:bg-indigo-100 transition-colors">
+                                                    <LayoutGrid size={24} />
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-black text-slate-800 tracking-tight uppercase text-lg leading-tight">{mod.name}</h3>
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Operational Unit Context</p>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="flex items-center gap-3">
+                                                <button 
+                                                    onClick={() => openModuleModal(mod)} 
+                                                    className="px-6 py-3 bg-white border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-sm"
+                                                >
+                                                    <Edit size={14} />
+                                                    Refine
                                                 </button>
-                                                <button onClick={() => handleModuleDelete(mod._id)} className="px-5 py-2.5 bg-slate-800/50 hover:bg-rose-900 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all">
-                                                    <Trash2 size={14} className="text-rose-400" />
-                                                    Supprimer
+                                                <button 
+                                                    onClick={() => handleModuleDelete(mod._id)} 
+                                                    className="px-4 py-3 bg-white border border-slate-100 hover:border-rose-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-2xl transition-all shadow-sm"
+                                                >
+                                                    <Trash2 size={16} />
                                                 </button>
                                             </div>
-                                        </div>
+                                        </motion.div>
                                     ))
                                 ) : (
-                                    <div className="h-full flex items-center justify-center text-slate-300 font-black uppercase tracking-widest text-[10px]">No modules found</div>
+                                    <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4">
+                                        <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center border border-slate-100 italic font-serif text-2xl tracking-[0.5em] pl-4">?</div>
+                                        <p className="font-black uppercase tracking-[0.3em] text-[10px]">No operational units found</p>
+                                    </div>
                                 )}
                             </motion.div>
                         ) : (
                             <motion.div 
                                 key="templates"
-                                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                                className="h-full overflow-y-auto space-y-3 custom-scrollbar pr-2"
+                                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                                className="h-full overflow-y-auto space-y-4 custom-scrollbar pr-2"
                             >
                                 {templates.length > 0 ? (
                                     templates.map((tpl) => (
-                                        <div key={tpl._id} className="bg-slate-600 p-6 rounded-2xl flex items-center justify-between text-white shadow-lg shadow-slate-200/50">
-                                            <span className="font-black tracking-tight uppercase">{tpl.name}</span>
+                                        <motion.div 
+                                            key={tpl._id} 
+                                            whileHover={{ y: -2 }}
+                                            className="p-6 bg-white border border-slate-100 rounded-[32px] flex items-center justify-between hover:border-indigo-100 hover:shadow-xl hover:shadow-indigo-500/5 transition-all group"
+                                        >
+                                            <div className="flex items-center gap-5">
+                                                <div className="w-14 h-14 bg-indigo-50 rounded-[22px] flex items-center justify-center text-indigo-600 group-hover:bg-indigo-100 transition-colors">
+                                                    <Activity size={24} />
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-black text-slate-800 tracking-tight uppercase text-lg leading-tight">{tpl.name}</h3>
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Standardized Protocol Unit</p>
+                                                </div>
+                                            </div>
+
                                             <div className="flex items-center gap-2">
                                                 <button 
                                                     onClick={() => { setTemplateToAssign(tpl); setIsAssignModalOpen(true); }}
-                                                    className="px-4 py-2 bg-slate-800/50 hover:bg-slate-800 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all"
+                                                    className="px-5 py-3.5 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center gap-2"
                                                 >
-                                                    asseigner
+                                                    <Plus size={14} />
+                                                    Assign
                                                 </button>
                                                 <button 
                                                     onClick={() => router.push(`/admin/workflows/${tpl._id}?tab=visual&viewOnly=true`)}
-                                                    className="px-4 py-2 bg-slate-800/50 hover:bg-slate-800 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all"
+                                                    className="px-5 py-3.5 bg-white border border-slate-100 hover:border-indigo-200 text-slate-600 hover:text-indigo-600 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all"
                                                 >
                                                     view
                                                 </button>
                                                 <button 
                                                     onClick={() => router.push(`/admin/create_workflows?id=${tpl._id}&moduleId=${selectedModuleId}&domainId=${domainId}&isTemplate=true`)}
-                                                    className="px-4 py-2 bg-slate-800/50 hover:bg-slate-800 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all"
+                                                    className="px-5 py-3.5 bg-white border border-slate-100 hover:border-indigo-200 text-slate-600 hover:text-indigo-600 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all"
                                                 >
-                                                    modifier
+                                                    edit
                                                 </button>
-                                                <button className="px-4 py-2 bg-slate-800/50 hover:bg-rose-900 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all">
-                                                    supp
+                                                <button className="px-4 py-3 bg-white border border-slate-100 hover:border-rose-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-2xl transition-all">
+                                                    <Trash2 size={16} />
                                                 </button>
                                             </div>
-                                        </div>
+                                        </motion.div>
                                     ))
                                 ) : (
-                                    <div className="h-full flex items-center justify-center text-slate-300 font-black uppercase tracking-widest text-[10px]">No protocols found</div>
+                                    <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4">
+                                        <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center border border-slate-100 italic font-serif text-2xl tracking-[0.5em] pl-4">?</div>
+                                        <p className="font-black uppercase tracking-[0.3em] text-[10px]">No protocols detected in repository</p>
+                                    </div>
                                 )}
                             </motion.div>
                         )}

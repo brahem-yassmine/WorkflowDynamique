@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { 
-    LayoutGrid, 
-    Box, 
-    Layers, 
-    Settings, 
-    ChevronLeft, 
+import {
+    LayoutGrid,
+    Box,
+    Layers,
+    Settings,
+    ChevronLeft,
     Zap,
     Users,
     FileText,
@@ -34,7 +34,7 @@ export default function DomainSidebar({ domainId }: { domainId: string }) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const currentModuleId = searchParams.get('moduleId');
-    
+
     const [domain, setDomain] = useState<Domain | null>(null);
     const [modules, setModules] = useState<Module[]>([]);
     const [loading, setLoading] = useState(true);
@@ -60,10 +60,10 @@ export default function DomainSidebar({ domainId }: { domainId: string }) {
                 console.error('Failed to fetch domain info', error);
             }
         };
-        
+
         fetchDomain();
         fetchModules();
-        
+
         // Listen for module changes
         window.addEventListener('modulesUpdated', fetchModules);
         return () => window.removeEventListener('modulesUpdated', fetchModules);
@@ -72,22 +72,22 @@ export default function DomainSidebar({ domainId }: { domainId: string }) {
     const isActive = (href: string) => pathname === href;
 
     return (
-        <aside className="w-full bg-slate-900 text-white flex flex-col h-full shadow-2xl relative overflow-hidden">
+        <aside className="w-full bg-indigo-700 text-white flex flex-col h-full shadow-2xl relative overflow-hidden">
             {/* Decorative background elements */}
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl opacity-20"></div>
-            
+
             {/* Top Bar / Back Button */}
             <div className="p-6 border-b border-white/5 relative z-10">
-                <button 
+                <button
                     onClick={() => router.push('/admin/domains')}
-                    className="flex items-center gap-2 text-slate-500 hover:text-indigo-400 transition-colors group mb-6"
+                    className="flex items-center gap-2 text-indigo-300 hover:text-white transition-colors group mb-6"
                 >
                     <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
                     <span className="text-[10px] font-black uppercase tracking-widest">Back to Admin</span>
                 </button>
 
                 <div className="flex items-center gap-4">
-                    <div 
+                    <div
                         className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg transform rotate-3 relative group"
                         style={{ backgroundColor: domain?.color || '#6366f1' }}
                     >
@@ -109,18 +109,27 @@ export default function DomainSidebar({ domainId }: { domainId: string }) {
             {/* Menu Items */}
             <nav className="flex-1 mt-6 overflow-y-auto px-4 space-y-8 relative z-10 scrollbar-hide pb-10">
                 {/* Modules Section */}
-                <div className="space-y-4">
-                    <div className="px-4 py-2 bg-slate-800 rounded-xl">
-                        <Link
-                            href={`/admin/domains/${domainId}/modules`}
-                            className="text-[11px] font-black text-white uppercase tracking-[0.2em] flex items-center justify-between hover:text-indigo-300 transition-colors"
-                        >
-                            create and modify module
-                            <ChevronRight size={14} className="text-slate-500" />
-                        </Link>
-                    </div>
-                    
-                    <div className="space-y-1">
+                <div className="space-y-2">
+                    <Link
+                        href={`/admin/domains/${domainId}/modules`}
+                        className={`
+                            px-4 py-3 rounded-2xl flex items-center justify-between transition-all duration-300 group relative
+                            ${pathname === `/admin/domains/${domainId}/modules` && !currentModuleId
+                                ? 'bg-white text-indigo-700 shadow-xl shadow-indigo-900/20 font-black'
+                                : 'text-indigo-100 hover:bg-white/10 hover:text-white font-bold'}
+                        `}
+                    >
+                        <span className="text-[11px] uppercase tracking-[0.2em]">Configuration & Modules</span>
+                        <ChevronRight size={14} className={pathname === `/admin/domains/${domainId}/modules` && !currentModuleId ? 'text-indigo-400' : 'text-white/40'} />
+                        {pathname === `/admin/domains/${domainId}/modules` && !currentModuleId && (
+                            <motion.div
+                                layoutId="activeIndicatorModulesRoot"
+                                className="absolute left-0 w-1 h-6 bg-indigo-300 rounded-r-full"
+                            />
+                        )}
+                    </Link>
+
+                    <div className="space-y-1 pt-2">
                         {modules.map((mod) => {
                             const active = pathname === `/admin/domains/${domainId}/modules` && currentModuleId === mod._id;
                             return (
@@ -130,16 +139,15 @@ export default function DomainSidebar({ domainId }: { domainId: string }) {
                                     className={`
                                         flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 group relative
                                         ${active
-                                            ? 'bg-slate-700 text-white shadow-lg border border-white/5'
-                                            : 'text-slate-400 hover:bg-white/5 hover:text-white font-bold'}
+                                            ? 'bg-white text-indigo-700 shadow-xl shadow-indigo-900/20 font-black'
+                                            : 'text-indigo-100 hover:bg-white/10 hover:text-white font-bold'}
                                     `}
                                 >
-                                    <div className={`w-1.5 h-1.5 rounded-full ${active ? 'bg-indigo-400' : 'bg-slate-700 group-hover:bg-slate-400'} transition-colors`} />
                                     <span className="text-[10px] tracking-tight flex-1 truncate uppercase font-black">{mod.name}</span>
                                     {active && (
                                         <motion.div
                                             layoutId="activeModuleIndicator"
-                                            className="absolute left-0 w-1 h-5 bg-indigo-500 rounded-r-full"
+                                            className="absolute left-0 w-1 h-5 bg-indigo-300 rounded-r-full"
                                         />
                                     )}
                                 </Link>
@@ -160,8 +168,8 @@ export default function DomainSidebar({ domainId }: { domainId: string }) {
                             className={`
                                 flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 group relative
                                 ${pathname.includes('/settings')
-                                    ? 'bg-white/10 text-white shadow-lg border border-white/5'
-                                    : 'text-slate-400 hover:bg-white/5 hover:text-white font-bold'}
+                                    ? 'bg-white text-indigo-700 shadow-xl shadow-indigo-900/20 font-black'
+                                    : 'text-indigo-100 hover:bg-white/10 hover:text-white font-bold'}
                             `}
                         >
                             <Settings size={18} className={`${pathname.includes('/settings') ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300'}`} />

@@ -134,7 +134,7 @@ export default function AdminDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Performance Chart */}
-        <div className="lg:col-span-2 bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
+        <div className="lg:col-span-2 bg-white rounded-3xl p-8 shadow-sm border border-slate-100 min-h-[450px] flex flex-col">
           <div className="flex justify-between items-center mb-8">
             <div>
               <h3 className="text-lg font-black text-slate-800 tracking-tight">System Throughput</h3>
@@ -142,43 +142,67 @@ export default function AdminDashboard() {
             </div>
             <BarChart3 className="text-indigo-500" />
           </div>
-          <div className="h-[300px]">
+          <div className="flex-grow h-[300px] w-full bg-slate-50/50 rounded-2xl p-4">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={stats.performanceData}>
-                <defs>
-                  <linearGradient id="colorActive" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.1} />
-                    <stop offset="95%" stopColor="#4f46e5" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 600, fill: '#94a3b8' }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 600, fill: '#94a3b8' }} />
-                <Tooltip
-                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                  itemStyle={{ fontWeight: 700, color: '#4f46e5' }}
+              <AreaChart data={[
+                { name: 'Mon', active: 4000 },
+                { name: 'Tue', active: 3000 },
+                { name: 'Wed', active: 5000 },
+                { name: 'Thu', active: 2780 },
+                { name: 'Fri', active: 1890 },
+                { name: 'Sat', active: 2390 },
+                { name: 'Sun', active: 3490 },
+              ]}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={{ stroke: '#1e293b', strokeWidth: 2 }} 
+                  tickLine={false} 
+                  tick={{ fontSize: 12, fontWeight: 900, fill: '#1e293b' }} 
+                  dy={10} 
                 />
-                <Area type="monotone" dataKey="active" stroke="#4f46e5" strokeWidth={4} fillOpacity={1} fill="url(#colorActive)" />
+                <YAxis 
+                  axisLine={{ stroke: '#1e293b', strokeWidth: 2 }} 
+                  tickLine={false} 
+                  tick={{ fontSize: 11, fontWeight: 900, fill: '#1e293b' }} 
+                />
+                <Tooltip
+                  contentStyle={{ borderRadius: '16px', border: '2px solid #1e293b', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', background: '#fff' }}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="active" 
+                  stroke="#1e293b" 
+                  strokeWidth={6} 
+                  fill="#6366f1" 
+                  fillOpacity={0.4}
+                  isAnimationActive={false}
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         {/* Task Distribution */}
-        <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 overflow-hidden">
+        <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 overflow-hidden flex flex-col">
           <div className="mb-8">
             <h3 className="text-lg font-black text-slate-800 tracking-tight">Real-time Feed</h3>
             <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Latest system executions</p>
           </div>
-          <div className="h-[250px] mb-6">
+          <div className="h-[250px] w-full mb-6 bg-slate-50/50 rounded-2xl p-4">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats.performanceData.slice(0, 4)}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 600, fill: '#94a3b8' }} />
+              <BarChart data={[
+                { name: 'A', active: 400 },
+                { name: 'B', active: 300 },
+                { name: 'C', active: 500 },
+                { name: 'D', active: 200 },
+              ]}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" />
+                <XAxis dataKey="name" axisLine={{ stroke: '#1e293b' }} tickLine={false} tick={{ fontSize: 10, fontWeight: 900, fill: '#1e293b' }} />
                 <YAxis hide />
-                <Tooltip cursor={{ fill: '#f8fafc' }} />
-                <Bar dataKey="active" fill="#4f46e5" radius={[6, 6, 0, 0]} barSize={40}>
-                  {stats.performanceData.map((entry: any, index: number) => (
+                <Tooltip cursor={{ fill: '#f1f5f9' }} />
+                <Bar dataKey="active" fill="#4f46e5" radius={[6, 6, 0, 0]} barSize={40} isAnimationActive={false}>
+                  {[1, 2, 3, 4].map((entry: any, index: number) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Bar>

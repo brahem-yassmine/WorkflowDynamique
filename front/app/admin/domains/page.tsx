@@ -263,7 +263,7 @@ export default function DomainsPage() {
                                                 <p className="text-sm font-bold text-slate-700">{selectedDomain.name.toUpperCase()}</p>
                                             </div>
                                         </div>
-                                        <div 
+                                        <div
                                             onClick={() => router.push(`/admin/domains/${selectedDomain._id}/modules`)}
                                             className="p-6 bg-indigo-50 border border-indigo-100 rounded-[28px] space-y-4 cursor-pointer hover:bg-indigo-100 transition-all group/modules"
                                         >

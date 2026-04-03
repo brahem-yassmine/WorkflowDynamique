@@ -58,7 +58,7 @@ const menuGroups = [
     items: [
       { icon: ShieldCheck, label: 'Role & permission', href: '/admin/roles' },
       { icon: UserCircle, label: "Profile", href: "/admin/profile" },
-      { icon: FileText, label: "Logs",  href: "/admin/Log" },
+      { icon: FileText, label: "Logs", href: "/admin/Log" },
       { icon: CreditCard, label: "Billing", href: "/admin/billing" },
       { icon: LifeBuoy, label: "Reports", href: "/admin/reports" },
     ]

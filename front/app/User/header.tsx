@@ -25,7 +25,7 @@ export default function Header({ toggleSidebar }: HeaderProps) {
             <Menu size={20} className="group-hover:rotate-180 transition-transform duration-500" />
           </button>
         )}
-        
+
         {/* Search Bar - Refined */}
         <div className="relative group hidden md:block">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-500 transition-colors" size={16} />
@@ -44,20 +44,20 @@ export default function Header({ toggleSidebar }: HeaderProps) {
         </Link>
 
         <div className="h-8 w-px bg-slate-100 mx-1"></div>
-        
+
         <div className="relative">
           <NotificationBell />
         </div>
 
         <Link href="/User/prof" className="flex items-center gap-4 bg-slate-50/80 p-1.5 pr-4 rounded-[20px] border border-slate-100/50 group hover:border-indigo-100 transition-all cursor-pointer">
           <div className="w-10 h-10 rounded-[15px] bg-white border border-slate-100 flex items-center justify-center text-slate-400 transition-all group-hover:bg-indigo-600 group-hover:text-white group-hover:shadow-lg group-hover:shadow-indigo-500/20 group-hover:-rotate-3 overflow-hidden">
-             {user?.avatar ? (
-                <img src={user.avatar} alt="User" className="w-full h-full object-cover" />
-             ) : (
-                <User size={20} />
-             )}
+            {user?.avatar ? (
+              <img src={user.avatar} alt="User" className="w-full h-full object-cover" />
+            ) : (
+              <User size={20} />
+            )}
           </div>
-          
+
           <div className="text-left hidden sm:block">
             <div className="flex items-center gap-1.5">
               <p className="text-[11px] font-black text-slate-900 leading-none capitalize tracking-tight">

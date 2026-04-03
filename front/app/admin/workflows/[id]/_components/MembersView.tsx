@@ -154,7 +154,16 @@ export default function MembersView({ workflowId }: { workflowId: string }) {
       const updatedWorkflow = { ...workflowDoc, nodes: updatedNodes };
       await apiService.updateWorkflow(workflowId, updatedWorkflow);
       
-      toast.success('Member assigned to task successfully');
+      const selectedUserName = users.find((u: any) => (u._id || u.id) === addForm.userId);
+      const userNameStr = selectedUserName ? `${selectedUserName.firstName} ${selectedUserName.lastName}` : 'the operator';
+      const selectedNodeObj = workflowDoc.nodes.find((n: any) => n.id === addForm.nodeId);
+      const nodeLabelStr = selectedNodeObj?.data?.label || 'Action Sequence';
+
+      toast.success(`Logic Unit '${nodeLabelStr}' successfully assigned to ${userNameStr}`, {
+        description: 'New assignment metadata has been synchronized.',
+        icon: <Users className="w-5 h-5 text-emerald-500" />
+      });
+
       setShowAddModal(false);
       setAddForm({ userId: '', nodeId: '' });
       fetchMembers();

@@ -110,6 +110,7 @@ function BillingPageContent() {
         cvv: ""
     });
     const [usageData, setUsageData] = useState<any[]>([]);
+    const [tenantCreatedAt, setTenantCreatedAt] = useState<Date | null>(null);
 
     const isExpired = isAuthExpired || days >= (plan === 'demo' ? 7 : 30);
 
@@ -205,6 +206,9 @@ function BillingPageContent() {
                             });
                             if (statsRes.data.success) {
                                 setUsageData(statsRes.data.data.performanceData);
+                                if (statsRes.data.data.tenantCreatedAt) {
+                                    setTenantCreatedAt(new Date(statsRes.data.data.tenantCreatedAt));
+                                }
                             }
                         } catch (err) {
                             console.error("Failed to fetch usage stats:", err);
@@ -501,8 +505,8 @@ function BillingPageContent() {
                         />
                     </div>
                     
-                    {/* Dynamic Statistic Chart Based on Plan */}
-                    <UsageChart plan={plan} days={days} usageData={usageData} startDate={start} />
+                    {/* Dynamic Statistic Chart Based on Plan (now using account creation date) */}
+                    <UsageChart plan={plan} usageData={usageData} tenantCreatedAt={tenantCreatedAt} />
                 </div>
 
                 {/* Plan Manifest */}
@@ -757,17 +761,24 @@ function BillingPageContent() {
     );
 }
 
-function UsageChart({ plan, days, usageData, startDate }: { plan: string, days: number, usageData?: any[], startDate: Date | null }) {
-    const totalDays = plan === 'demo' ? 7 : 30;
-    const startObj = startDate ? new Date(startDate) : new Date();
+function UsageChart({ plan, usageData, tenantCreatedAt }: { plan: string, usageData?: any[], tenantCreatedAt: Date | null }) {
+    // If tenantCreatedAt is missing, fallback to 7 or 30 days based on plan as before
+    const startObj = tenantCreatedAt ? new Date(tenantCreatedAt) : new Date(Date.now() - (plan === 'demo' ? 7 : 30) * 86400000);
+    const today = new Date();
+    const diffTime = Math.abs(today.getTime() - startObj.getTime());
+    const totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
+    
+    // Safety cap to avoid browser hang if account is several years old (e.g., 365 days)
+    const displayDays = Math.min(totalDays, 365);
     
     const data = [];
-    for (let i = 0; i < totalDays; i++) {
+    for (let i = 0; i <= displayDays; i++) {
         const d = new Date(startObj);
         d.setDate(d.getDate() + i);
         const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const dateKey = d.toISOString().split('T')[0];
         
-        const found = usageData?.find(u => u.label === label);
+        const found = usageData?.find(u => u.dateKey === dateKey);
         data.push({
             label,
             usage: found ? found.usage : 0

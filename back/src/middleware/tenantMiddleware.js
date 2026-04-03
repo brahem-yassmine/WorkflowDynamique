@@ -147,7 +147,8 @@ const checkPlanLimits = (resourceType) => {
 
           const maxNodes = limits.maxNodes || 20; // Default fallback
 
-          if (totalAfterOperation > maxNodes) {
+          // If maxNodes is 0 or 999999, it means unlimited
+          if (maxNodes !== 0 && maxNodes !== 999999 && totalAfterOperation > maxNodes) {
             return res.status(403).json({ 
               success: false, 
               message: `Maximum system capacity reached (${maxNodes} Flow Nodes). You are trying to use ${totalAfterOperation} nodes total across the organization.`,

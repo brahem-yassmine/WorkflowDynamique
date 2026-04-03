@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Node } from '@xyflow/react';
-import { X, Plus, Trash2, ListChecks, Clock, ShieldAlert, Users, GraduationCap, LayoutGrid, ClipboardType, FilePlus, CheckSquare, ExternalLink, Paperclip, Image as ImageIcon, Check } from 'lucide-react';
+import { X, Plus, Trash2, ListChecks, Clock, ShieldAlert, Users, GraduationCap, LayoutGrid, ClipboardType, FilePlus, CheckSquare, ExternalLink, Paperclip, Image as ImageIcon, Check, Save } from 'lucide-react';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { apiService } from '@/service/api.service';
 import { motion, AnimatePresence } from 'framer-motion';
 import { showAlert, showConfirm } from '@/lib/alerts';
+import { toast } from 'sonner';
 
 interface NodeDetailsPanelProps {
     selectedNode: Node | null;
@@ -254,6 +255,12 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
                 assignedTo,
                 deadline
             });
+
+            toast.success("task updated", {
+                description: `Digital logic for '${label}' has been synchronized.`,
+                icon: <Check size={18} className="text-emerald-500" />
+            });
+
             onClose();
         }
     };
@@ -566,10 +573,14 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
                                                                             className="w-full h-16 px-6 bg-slate-50 rounded-[22px] font-bold text-slate-700 border border-slate-100 outline-none focus:ring-4 focus:ring-indigo-500/10 appearance-none cursor-pointer"
                                                                             value={responsibleDomain}
                                                                             onChange={(e) => {
-                                                                                setResponsibleDomain(e.target.value);
+                                                                                const selectedValue = e.target.value;
+                                                                                setResponsibleDomain(selectedValue);
                                                                                 // Also set assignedTo to the role ID for backend compatibility
-                                                                                const role = roles.find(r => r.name === e.target.value || r._id === e.target.value);
-                                                                                if (role) setAssignedTo(role._id);
+                                                                                const role = roles.find(r => r.name === selectedValue || r._id === selectedValue);
+                                                                                if (role) {
+                                                                                    setAssignedTo(role._id);
+                                                                                    toast.success(`Strategy synchronized: Assigned to Role '${role.name}'`);
+                                                                                }
                                                                             }}
                                                                         >
                                                                             <option value="">-- Select Specific Role --</option>
@@ -583,7 +594,16 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
                                                                         <select
                                                                             className="w-full h-16 px-6 bg-slate-50 rounded-[22px] font-bold text-slate-700 border border-slate-100 outline-none focus:ring-4 focus:ring-indigo-500/10 appearance-none cursor-pointer"
                                                                             value={assignedTo}
-                                                                            onChange={(e) => setAssignedTo(e.target.value)}
+                                                                            onChange={(e) => {
+                                                                                const userId = e.target.value;
+                                                                                setAssignedTo(userId);
+                                                                                const selectedUser = users.find(u => (u._id || u.id) === userId);
+                                                                                if (selectedUser) {
+                                                                                    toast.success(`Identity linked: ${selectedUser.firstName} ${selectedUser.lastName} selected`, {
+                                                                                        description: 'Lattice assignment updated locally.',
+                                                                                    });
+                                                                                }
+                                                                            }}
                                                                         >
                                                                             <option value="">-- Select Specific Member --</option>
                                                                             {users.map((u, idx) => (

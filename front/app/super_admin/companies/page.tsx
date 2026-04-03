@@ -169,7 +169,7 @@ export default function CompanyManagement() {
   const deleteCompany = async (companyId: string) => {
     const confirmed = await showConfirm({
       title: 'Archive Organization',
-      text: "Move this organization to COLD ARCHIVE? It will be automatically SUSPENDED after 60 days if not restored.",
+      text: "Move this organization to ARCHIVE? The workspace will be temporarily inaccessible.",
       confirmButtonText: 'Yes, Archive',
       danger: true
     });
@@ -190,7 +190,7 @@ export default function CompanyManagement() {
         setOpen(false);
         showAlert(
           'Node Archived',
-          'The organization has been moved to cold archive.',
+          'The organization has been moved to archive.',
           'success'
         );
       } else {
@@ -208,7 +208,7 @@ export default function CompanyManagement() {
   const removeIdentity = async (companyId: string) => {
     const confirmed = await showConfirm({
       title: 'Remove Identity',
-      text: "PERMANENTLY SUSPEND this identity? This will bypass the archive grace period.",
+      text: "PERMANENTLY SUSPEND this identity? This will block all access.",
       confirmButtonText: 'Yes, Suspend Node',
       danger: true
     });
@@ -472,9 +472,9 @@ export default function CompanyManagement() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="active">Active Lattice</SelectItem>
-                      <SelectItem value="archived">Cold Archive (60-day grace)</SelectItem>
+                      <SelectItem value="archived">Archived</SelectItem>
                       <SelectItem value="suspended">Suspended Cluster</SelectItem>
-                      <SelectItem value="inactive">Deep Cold Storage</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

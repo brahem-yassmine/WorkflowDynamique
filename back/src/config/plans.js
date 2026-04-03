@@ -12,7 +12,7 @@ module.exports = {
         features: {
           maxUsers: 5,
           maxWorkflows: 10,
-          maxNodes: 10, // Total organizational nodes across all workflows
+          maxNodes: 9999999, // Total organizational nodes across all workflows
           reports: false,
           aiSupport: false
         },
@@ -26,7 +26,7 @@ module.exports = {
         features: {
           maxUsers: 10,
           maxWorkflows: 20,
-          maxNodes: 50, // Increased capacity for standard use
+          maxNodes: 999999, // Increased capacity for standard use
           reports: true,
           aiSupport: false
         },
@@ -40,7 +40,7 @@ module.exports = {
         features: {
           maxUsers: 30,
           maxWorkflows: 50,
-          maxNodes: 300, // Large capacity for complex operations
+          maxNodes: 999999, // Unlimited capacity for complex operations
           reports: true,
           aiSupport: true
         },

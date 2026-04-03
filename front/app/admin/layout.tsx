@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname, useRouter } from 'next/navigation';
 import Header from './components/header';
 import { useAuth } from '@/hooks/useAuth';
+import DomainSidebar from './components/domain-sidebar';
 
 const PAGE_METADATA: Record<string, { title: string, subtitle: string }> = {
     '/admin': {
@@ -74,6 +75,14 @@ const PAGE_METADATA: Record<string, { title: string, subtitle: string }> = {
     '/admin/reports': {
         title: "Strategic Support",
         subtitle: "Communicate directly with system architects and super administrators."
+    },
+    '/admin/modules': {
+        title: "Functional Module Repository",
+        subtitle: "Manage global reusable business units like Achat, Vente, and RH."
+    },
+    '/admin/domains': {
+        title: "Organizational Sectors",
+        subtitle: "Architect and manage specialized business domains across your organization."
     }
 };
 
@@ -172,9 +181,13 @@ export default function AdminLayout({
                                     animate={{ width: 288, opacity: 1 }}
                                     exit={{ width: 0, opacity: 0 }}
                                     transition={{ duration: 0.3, ease: "circOut" }}
-                                    className="fixed inset-y-0 left-0 z-40 lg:relative bg-indigo-700 shadow-2xl overflow-hidden flex-shrink-0"
+                                    className={`fixed inset-y-0 left-0 z-40 lg:relative ${pathname.startsWith('/admin/domains/') && pathname !== '/admin/domains' ? 'bg-slate-900 border-r border-white/5' : 'bg-indigo-700'} shadow-2xl overflow-hidden flex-shrink-0`}
                                 >
-                                    <Sidebar isExpired={isExpired} />
+                                    {pathname.startsWith('/admin/domains/') && pathname !== '/admin/domains' ? (
+                                        <DomainSidebar domainId={pathname.split('/')[3]} />
+                                    ) : (
+                                        <Sidebar isExpired={isExpired} />
+                                    )}
                                     {/* Mobile Close Button */}
                                     <button
                                         onClick={() => setIsSidebarOpen(false)}

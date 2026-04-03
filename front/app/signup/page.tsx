@@ -633,7 +633,7 @@ export default function SignupPage() {
                     </div>
                   )}
 
-                  <div className="col-span-1">
+                  <div className="md:col-span-2">
                     <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
                       Email *
                     </label>
@@ -648,7 +648,7 @@ export default function SignupPage() {
                     />
                   </div>
 
-                  {!isSuperAdmin && (
+                  {/* {!isSuperAdmin && (
                     <div className="col-span-1">
                       <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
                         Lock Start Date?
@@ -663,7 +663,7 @@ export default function SignupPage() {
                         </div>
                       </div>
                     </div>
-                  )}
+                  )} */}
                 </div>
 
                 {showDebug && (

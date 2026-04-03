@@ -135,6 +135,32 @@ class ApiService {
     });
   }
 
+  // Modules Management
+  getModules(domainId?: string) {
+    const query = domainId ? `?domainId=${domainId}` : '';
+    return this.request(`/modules${query}`);
+  }
+
+  createModule(data: any) {
+    return this.request('/modules', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  updateModule(id: string, data: any) {
+    return this.request(`/modules/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  deleteModule(id: string) {
+    return this.request(`/modules/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
   // User Management
   getUsers() {
     return this.request('/users');
@@ -205,9 +231,10 @@ class ApiService {
     });
   }
 
-  duplicateWorkflow(id: string) {
+  duplicateWorkflow(id: string, data?: any) {
     return this.request(`/workflows/${id}/duplicate`, {
       method: 'POST',
+      body: data ? JSON.stringify(data) : undefined
     });
   }
 

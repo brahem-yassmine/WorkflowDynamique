@@ -68,13 +68,33 @@ function WorkflowEditorContent() {
     const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
     const [selectedNode, setSelectedNode] = useState<Node | null>(null);
     const [workflowName, setWorkflowName] = useState('New Workflow');
-    const [workflowDomain, setWorkflowDomain] = useState('HR');
+    const [workflowDomainId, setWorkflowDomainId] = useState<string>('');
     const [workflowProjectId, setWorkflowProjectId] = useState<string>('');
+    const [workflowModuleId, setWorkflowModuleId] = useState<string>('');
+    const [workflowIsTemplate, setWorkflowIsTemplate] = useState<boolean>(false);
     const [currentWorkflowId, setCurrentWorkflowId] = useState<string | null>(workflowId);
+    
+    // NEW: Capture module/domain context from URL
+    const moduleIdParam = searchParams.get('moduleId');
+    const domainIdParam = searchParams.get('domainId');
+    const isTemplateParam = searchParams.get('isTemplate') === 'true';
+
+    useEffect(() => {
+        if (moduleIdParam) setWorkflowModuleId(moduleIdParam);
+        if (domainIdParam) setWorkflowDomainId(domainIdParam);
+        if (isTemplateParam) setWorkflowIsTemplate(true);
+    }, [moduleIdParam, domainIdParam, isTemplateParam]);
     const [isSaving, setIsSaving] = useState(false);
     const [isDirty, setIsDirty] = useState(false); // tracks unsaved changes
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-    const lastSavedMetaRef = useRef<{ name: string; domain: string; projectId?: string } | null>(null);
+    const lastSavedMetaRef = useRef<{ 
+        name: string; 
+        domainId: string; 
+        projectId?: string; 
+        moduleId?: string; 
+        isTemplate: boolean;
+        status: 'draft' | 'active';
+    } | null>(null);
 
     // Responsive Sidebar Logic
     useEffect(() => {
@@ -96,7 +116,7 @@ function WorkflowEditorContent() {
         const storedUser = localStorage.getItem('user');
         if (storedUser) {
             const parsedUser = JSON.parse(storedUser);
-            if (parsedUser.domain) setWorkflowDomain(parsedUser.domain);
+            if (parsedUser.domainId) setWorkflowDomainId(parsedUser.domainId);
         }
     }, []);
 
@@ -125,22 +145,35 @@ function WorkflowEditorContent() {
                 try {
                     const response = await apiService.request(`/workflows/${workflowId}`);
                     if (response.success && response.data) {
-                        const { name, nodes: loadedNodes, edges: loadedEdges, domain, projectId, updatedAt } = response.data;
+                        const { 
+                            name, 
+                            nodes: loadedNodes, 
+                            edges: loadedEdges, 
+                            domainId, 
+                            projectId, 
+                            moduleId,
+                            isTemplate,
+                            updatedAt 
+                        } = response.data;
                         
                         // If draft is newer than what's on server, use draft
                         if (draft && draft.savedAt > (new Date(updatedAt || 0).getTime())) {
                             console.log('[Draft] Loading newer local draft');
                             setWorkflowName(draft.name || name);
-                            setWorkflowDomain(draft.domain || domain || 'HR');
+                            setWorkflowDomainId(draft.domainId || domainId || '');
                             setWorkflowProjectId(draft.projectId || projectId || '');
+                            setWorkflowModuleId(draft.moduleId || moduleId || '');
+                            setWorkflowIsTemplate(draft.isTemplate ?? isTemplate ?? false);
                             setNodes(draft.nodes || []);
                             setEdges(draft.edges || []);
                             setIsDirty(true);
                             toast.info('Newer local draft resumed');
                         } else {
                             setWorkflowName(name);
-                            setWorkflowDomain(domain || 'HR');
+                            setWorkflowDomainId(domainId || '');
                             setWorkflowProjectId(projectId || '');
+                            setWorkflowModuleId(moduleId || '');
+                            setWorkflowIsTemplate(isTemplate || false);
                             setNodes(loadedNodes || []);
                             setEdges(loadedEdges || []);
                         }
@@ -153,8 +186,10 @@ function WorkflowEditorContent() {
                 // Loading "new" workflow but have a meaningful draft
                 console.log('[Draft] Loading unsaved "new" workflow draft');
                 setWorkflowName(draft.name || 'New Workflow');
-                setWorkflowDomain(draft.domain || 'HR');
+                setWorkflowDomainId(draft.domainId || '');
                 setWorkflowProjectId(draft.projectId || '');
+                setWorkflowModuleId(draft.moduleId || '');
+                setWorkflowIsTemplate(draft.isTemplate || false);
                 setNodes(draft.nodes || initialNodes);
                 setEdges(draft.edges || []);
                 setIsDirty(true);
@@ -216,7 +251,10 @@ function WorkflowEditorContent() {
                 nodes: draftNodes,
                 edges,
                 name: workflowName,
-                domain: workflowDomain,
+                domainId: workflowDomainId,
+                moduleId: workflowModuleId,
+                projectId: workflowProjectId,
+                isTemplate: workflowIsTemplate,
                 savedAt: Date.now()
             }));
         } catch (e: any) {
@@ -234,7 +272,10 @@ function WorkflowEditorContent() {
                         nodes,
                         edges,
                         name: workflowName,
-                        domain: workflowDomain,
+                        domainId: workflowDomainId,
+                        moduleId: workflowModuleId,
+                        projectId: workflowProjectId,
+                        isTemplate: workflowIsTemplate,
                         savedAt: Date.now()
                     }));
                 } catch (retryErr) {
@@ -244,7 +285,7 @@ function WorkflowEditorContent() {
                 console.error('❌ [Draft] Unexpected localStorage error:', e);
             }
         }
-    }, [nodes, edges, workflowName, workflowDomain, currentWorkflowId]);
+    }, [nodes, edges, workflowName, workflowDomainId, workflowModuleId, workflowProjectId, workflowIsTemplate, currentWorkflowId]);
 
     // Auto-save every 30 seconds if dirty and workflow already exists
     useEffect(() => {
@@ -355,19 +396,28 @@ function WorkflowEditorContent() {
         setSelectedNode(null);
     }, [setNodes, setEdges]);
 
-    const handleSave = useCallback(async (meta: { name: string; domain: string; projectId?: string; status?: string }) => {
+    const handleSave = useCallback(async (meta: { 
+        name: string; 
+        domainId: string; 
+        projectId?: string; 
+        moduleId?: string; 
+        isTemplate: boolean;
+        status: 'draft' | 'active';
+    }) => {
         try {
             setIsSaving(true);
             lastSavedMetaRef.current = meta;
 
             const payload = {
                 name: meta.name,
-                domain: meta.domain || 'HR',
+                domainId: meta.domainId,
                 projectId: meta.projectId,
+                moduleId: meta.moduleId,
+                isTemplate: meta.isTemplate,
                 description: "Workflow created via visual editor",
                 nodes: nodes,
                 edges: edges,
-                status: meta.status || 'draft'
+                status: meta.status
             };
 
             let response;
@@ -388,17 +438,27 @@ function WorkflowEditorContent() {
                 
                 toast.success(currentWorkflowId ? 'Workflow updated!' : 'Workflow created!');
                 setWorkflowName(meta.name);
+                setWorkflowDomainId(meta.domainId);
+                setWorkflowModuleId(meta.moduleId || '');
+                setWorkflowProjectId(meta.projectId || '');
+                setWorkflowIsTemplate(meta.isTemplate);
+                
                 // SUCCESS: Remove current draft
                 localStorage.removeItem(draftKey);
                 // Also remove generic draft if it was a new creation that just got an ID
                 if (!workflowId) localStorage.removeItem('workflow_draft_new');
 
-                // Redirect automatically to the workflow detail/consultation page
-                const finalId = currentWorkflowId || response.data?._id;
-                if (finalId) {
+                // Redirect back to the functional matrix listing
+                if (meta.domainId) {
                     setTimeout(() => {
-                        router.push(`/admin/workflows/${finalId}`);
-                    }, 1500); // Small delay to let the toast be seen
+                        const moduleQuery = meta.moduleId ? `?moduleId=${meta.moduleId}` : '';
+                        router.push(`/admin/domains/${meta.domainId}/modules${moduleQuery}`);
+                    }, 1500); 
+                } else {
+                    // Fallback to generic workflows if no domain context
+                    setTimeout(() => {
+                        router.push('/admin/workflows');
+                    }, 1500);
                 }
             } else {
                 toast.error('Save error: ' + (response.message || 'Unknown error'));
@@ -452,8 +512,10 @@ function WorkflowEditorContent() {
                 onSave={handleSave}
                 isSaving={isSaving}
                 initialName={workflowName}
-                initialDomain={workflowDomain}
+                initialDomainId={workflowDomainId}
                 initialProjectId={workflowProjectId}
+                initialModuleId={workflowModuleId}
+                initialIsTemplate={workflowIsTemplate}
             />
             <div
                 className="flex-grow h-full bg-slate-50"
@@ -490,6 +552,7 @@ function WorkflowEditorContent() {
             {selectedNode && (
                 <NodeDetailsPanel
                     selectedNode={selectedNode}
+                    allNodes={nodes}
                     workflowId={currentWorkflowId}
                     initialTab={designerTab || 'general'}
                     onClose={() => setSelectedNode(null)}

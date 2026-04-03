@@ -27,6 +27,7 @@ const notificationRoutes = require('./src/routes/notificationRoutes');
 const tenantRoleRoutes = require('./src/routes/tenant/role.routes');
 const tenantDomainRoutes = require('./src/routes/tenant/domain.routes');
 const reportRoutes = require('./src/routes/reportRoutes');
+const moduleRoutes = require('./src/routes/tenant/module.routes');
 
 const app = express();
 
@@ -190,6 +191,7 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/tenant/roles', tenantRoleRoutes);
 
 app.use('/api/tenant/domains', tenantDomainRoutes);
+app.use('/api/modules', moduleRoutes);
 app.use('/api/form-responses', formRoutes);
 app.use('/api/task-reports', require('./src/routes/taskReportRoutes'));
 app.use('/api/message-templates', require('./src/routes/messageTemplateRoutes'));

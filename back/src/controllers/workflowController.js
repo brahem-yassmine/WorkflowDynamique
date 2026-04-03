@@ -10,37 +10,39 @@ const { recordActivity } = require('../services/auditLogger');
 // ============================================
 exports.getWorkflows = async (req, res) => {
   try {
-    const { domain, status, projectId } = req.query;
+    const { domainId, status, projectId, moduleId, isTemplate } = req.query;
 
     const Workflow = req.tenantConn.model('Workflow');
     const user = req.user;
 
     let query = {};
 
-    // 1. Visibility for non-admin users
+    // 1. Visibility for non-admin users (usually they only see ACTIVE project workflows or generic templates)
     if (user.role !== 'admin' && user.role !== 'super_admin') {
-      const domainsToMatch = [user.domain];
-      if (user.domain === 'HR' || user.domain === 'RH') {
-        domainsToMatch.push(user.domain === 'HR' ? 'RH' : 'HR');
-      }
-
-      const globalKeywords = ['GLOBAL', 'ALL', 'PUBLIC', 'TOUS', 'EVERYONE'];
-
+      // Non-admin can see workflows in their domain or assigned projects
       query.$or = [
-        { domain: { $in: domainsToMatch } },
-        { domain: { $in: globalKeywords } },
-        { domain: { $in: globalKeywords.map(k => k.toLowerCase()) } }
+        { domainId: user.domainId },
+        { projectId: { $exists: true, $ne: null } } // Later add specific project assignment if needed
       ];
-
-      query.createdBy = user.id || user.userId || user._id;
+      
+      if (status) query.status = status;
+      else query.status = 'active'; 
     } else {
+      // Admins can filter by everything
       if (projectId) query.projectId = projectId;
-      if (domain) query.domain = domain;
+      if (moduleId) query.moduleId = moduleId;
+      if (domainId) query.domainId = domainId;
+      if (isTemplate !== undefined) query.isTemplate = isTemplate === 'true';
+      if (status) query.status = status;
     }
 
-    if (status) query.status = status;
+    console.log('🔍 [WorkflowCtrl] Querying workflows with:', query);
 
-    const workflows = await Workflow.find(query).sort({ createdAt: -1 });
+    const workflows = await Workflow.find(query)
+      .populate('projectId', 'name')
+      .populate('moduleId', 'name')
+      .populate('domainId', 'name color')
+      .sort({ createdAt: -1 });
 
     res.json({
       success: true,
@@ -75,7 +77,9 @@ exports.getWorkflowById = async (req, res) => {
     console.log(`🔍 [WorkflowCtrl] Fetching workflow: ${workflowId} | TenantDB: ${req.tenantConn.name}`);
 
     const Workflow = req.tenantConn.model('Workflow');
-    const workflow = await Workflow.findById(workflowId);
+    const workflow = await Workflow.findById(workflowId)
+      .populate('projectId', 'name')
+      .populate('moduleId', 'name');
 
     if (!workflow) {
       console.warn(`⚠️ [WorkflowCtrl] Workflow not found: ${workflowId} in DB: ${req.tenantConn.name}`);
@@ -104,7 +108,7 @@ exports.getWorkflowById = async (req, res) => {
 // ============================================
 exports.createWorkflow = async (req, res) => {
   try {
-    const { name, description, domain, nodes, edges, projectId, status } = req.body;
+    const { name, description, domain, domainId, nodes, edges, projectId, moduleId, status, isTemplate } = req.body;
     const Workflow = req.tenantConn.model('Workflow');
 
     if (!name) {
@@ -157,11 +161,13 @@ exports.createWorkflow = async (req, res) => {
     const workflow = new Workflow({
       name,
       description: description || '',
-      domain: workflowDomain,
+      domainId: domainId || req.user.domainId,
       nodes: workflowNodes,
       edges: workflowEdges,
       status: status || 'draft',
+      isTemplate: isTemplate || false,
       projectId: projectId || null,
+      moduleId: moduleId || null,
       createdBy: req.user.id || req.user.userId || req.user._id
     });
 
@@ -728,31 +734,72 @@ exports.getWorkflowMembers = async (req, res) => {
 };
 
 // ============================================
-// 8. DUPLICATE WORKFLOW
+// 8. DUPLICATE WORKFLOW (Safe Cloning)
 // ============================================
 exports.duplicateWorkflow = async (req, res) => {
   try {
     const { workflowId } = req.params;
+    const { projectId, name } = req.body; // If projectId provided, it's a "Clone to Project"
+    
     const Workflow = req.tenantConn.model('Workflow');
     const original = await Workflow.findById(workflowId);
     if (!original) return res.status(404).json({ success: false, message: 'Workflow not found' });
 
+    // SAFE CLONING LOGIC: Regenerate all IDs for nodes and edges
+    const nodeMap = {}; // oldId -> newId
+    const newNodes = original.nodes.map(node => {
+      const newId = `node_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`;
+      nodeMap[node.id] = newId;
+      return {
+        ...node,
+        id: newId,
+        // If it's a clone for a project, we keep the internal data as is (Isolated)
+      };
+    });
+
+    const newEdges = original.edges.map(edge => {
+      return {
+        ...edge,
+        id: `edge_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`,
+        source: nodeMap[edge.source],
+        target: nodeMap[edge.target]
+      };
+    });
+
     const duplicate = new Workflow({
-      name: `${original.name} (copy)`,
+      name: name || `${original.name} (copy)`,
       description: original.description,
-      domain: original.domain,
-      nodes: original.nodes,
-      edges: original.edges,
+      domainId: original.domainId,
+      nodes: newNodes,
+      edges: newEdges,
       status: 'draft',
-      createdBy: req.user.id
+      isTemplate: !projectId, // If no projectId, it's a template copy
+      templateId: original.isTemplate ? original._id : original.templateId,
+      projectId: projectId || null,
+      moduleId: original.moduleId,
+      createdBy: req.user.id || req.user.userId || req.user._id
     });
 
     await duplicate.save();
+    
+    // Automatically generates/syncs checklist for the new copy
     await _triggerAutomaticChecklist(req, duplicate);
 
-    res.status(201).json({ success: true, data: duplicate });
+    await recordActivity(req, projectId ? 'CLONE_TEMPLATE_TO_PROJECT' : 'DUPLICATE_WORKFLOW', {
+      type: 'Workflow',
+      id: duplicate._id,
+      originalId: original._id,
+      projectId: projectId || null
+    });
+
+    res.status(201).json({ 
+      success: true, 
+      message: projectId ? 'Template cloned to project successfully' : 'Workflow duplicated successfully',
+      data: duplicate 
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error('❌ duplicateWorkflow Error:', error);
+    res.status(500).json({ success: false, message: 'Server error: ' + error.message });
   }
 };
 

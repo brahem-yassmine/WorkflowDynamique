@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const notificationController = require('./notificationController');
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');
 
 
 // back/src/controllers/workflowInstanceController.js
@@ -1101,7 +1102,19 @@ async function processNodeTransition(req, instance, workflow, sourceNodeId) {
     if (visited.has(srcId)) return;
     visited.add(srcId);
 
-    const edges = workflow.edges.filter(e => e.source === srcId);
+    const sourceNode = workflow.nodes.find(n => n.id === srcId);
+    let edges = workflow.edges.filter(e => e.source === srcId);
+
+    // ⚡ LOGIC FORK: If previous node was a condition, filter edges based on result
+    if (sourceNode?.type === 'condition') {
+      const conditionStr = sourceNode.data?.condition;
+      const result = evaluateCondition(conditionStr, instance.variables);
+      const targetHandle = result ? 'yes' : 'no';
+      
+      console.log(`[LogicFork] Node ${srcId} evaluated "${conditionStr}" -> ${result}. Following handle: ${targetHandle}`);
+      edges = edges.filter(e => e.sourceHandle === targetHandle);
+    }
+
     for (const edge of edges) {
       const targetNode = workflow.nodes.find(n => n.id === edge.target);
       if (!targetNode) continue;
@@ -1220,6 +1233,29 @@ async function processNodeTransition(req, instance, workflow, sourceNodeId) {
       assignees: nodeAssignees,
       deadline: node.data?.deadline ? new Date(node.data.deadline) : null
     });
+  }
+}
+
+/**
+ * Safely evaluates a logic condition against workflow variables.
+ * @param {string} condition - Logic expression (e.g. "amount > 5000")
+ * @param {Map|Object} variables - Current workflow variables
+ */
+function evaluateCondition(condition, variables) {
+  if (!condition || condition.trim() === '') return true;
+
+  try {
+    // Convert Mongoose Map to plain object for vm
+    const context = variables instanceof Map ? Object.fromEntries(variables) : (variables || {});
+    
+    // We use a sandbox for safe evaluation
+    const script = new vm.Script(`(${condition})`);
+    const result = script.runInNewContext(context);
+    
+    return !!result;
+  } catch (error) {
+    console.error('❌ [LogicEval] Error evaluating condition:', condition, error.message);
+    return false;
   }
 }
 

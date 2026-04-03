@@ -177,6 +177,7 @@ exports.deleteProject = async (req, res) => {
         const { projectId } = req.params;
         const Project = req.tenantConn.model('Project');
         const Workflow = req.tenantConn.model('Workflow');
+        const Module = req.tenantConn.model('Module');
 
         // Check if there are linked workflows
         const workflowsCount = await Workflow.countDocuments({ projectId });
@@ -185,6 +186,16 @@ exports.deleteProject = async (req, res) => {
             return res.status(400).json({
                 success: false,
                 message: `Deletion impossible: ${workflowsCount} workflow(s) are linked to this project.`
+            });
+        }
+
+        // Check if there are linked modules
+        const modulesCount = await Module.countDocuments({ projectId });
+
+        if (modulesCount > 0) {
+            return res.status(400).json({
+                success: false,
+                message: `Deletion impossible: ${modulesCount} module(s) are linked to this project.`
             });
         }
 

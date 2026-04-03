@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
     LayoutGrid,
     Plus,
@@ -41,6 +42,7 @@ const COLORS = [
 ];
 
 export default function DomainsPage() {
+    const router = useRouter();
     const [domains, setDomains] = useState<Domain[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(true);
@@ -181,8 +183,8 @@ export default function DomainsPage() {
                                 <motion.div
                                     layoutId={domain._id}
                                     key={domain._id}
-                                    onClick={() => setSelectedDomain(domain)}
-                                    className={`p-6 rounded-3xl border transition-all cursor-pointer group relative overflow-hidden ${selectedDomain?._id === domain._id ? 'bg-indigo-600 border-indigo-600 shadow-xl shadow-indigo-100' : 'bg-white border-slate-100 hover:border-indigo-200 shadow-sm'}`}
+                                    onClick={() => router.push(`/admin/domains/${domain._id}`)}
+                                    className={`p-6 rounded-3xl border transition-all cursor-pointer group relative overflow-hidden bg-white border-slate-100 hover:border-indigo-200 shadow-sm hover:shadow-xl hover:shadow-indigo-500/5`}
                                 >
                                     <div className="flex justify-between items-start relative z-10">
                                         <div className={`p-3 rounded-2xl ${selectedDomain?._id === domain._id ? 'bg-white/10 text-white' : 'bg-slate-50 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600'}`}>
@@ -261,14 +263,18 @@ export default function DomainsPage() {
                                                 <p className="text-sm font-bold text-slate-700">{selectedDomain.name.toUpperCase()}</p>
                                             </div>
                                         </div>
-                                        <div className="p-6 bg-slate-50 rounded-[28px] space-y-4">
+                                        <div 
+                                            onClick={() => router.push(`/admin/domains/${selectedDomain._id}/modules`)}
+                                            className="p-6 bg-indigo-50 border border-indigo-100 rounded-[28px] space-y-4 cursor-pointer hover:bg-indigo-100 transition-all group/modules"
+                                        >
                                             <div className="flex justify-between items-center">
-                                                <div className="flex items-center gap-3 text-slate-400">
-                                                    <Activity size={16} />
-                                                    <span className="text-[10px] font-black uppercase tracking-widest">Operation Status</span>
+                                                <div className="flex items-center gap-3 text-indigo-600">
+                                                    <LayoutGrid size={16} />
+                                                    <span className="text-[10px] font-black uppercase tracking-widest">Functional Modules</span>
                                                 </div>
-                                                <span className="text-[10px] font-black text-emerald-500 bg-white border border-emerald-100 px-3 py-1 rounded-lg shadow-sm">NOMINAL</span>
+                                                <ChevronRight size={16} className="text-indigo-400 group-hover/modules:translate-x-1 transition-transform" />
                                             </div>
+                                            <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Manage Domain Logic</p>
                                         </div>
                                     </div>
                                 </div>

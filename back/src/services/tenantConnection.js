@@ -77,6 +77,7 @@ async function getTenantConnection(domain, dbName) {
       require('../models/tenant/Board')(conn);
       require('../models/tenant/TaskReport')(conn);
       require('../models/tenant/MessageTemplate')(conn);
+      require('../models/tenant/module.model')(conn);
 
       console.log(`📦 [TenantConn] Models loaded for: ${dbName}`);
 

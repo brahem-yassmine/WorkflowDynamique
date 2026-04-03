@@ -48,6 +48,7 @@ interface Task {
   description?: string;
   status: 'todo' | 'doing' | 'done';
   position: number;
+  assignedTo?: string; // Added field
 }
 
 const COLUMNS: { id: 'todo' | 'doing' | 'done'; title: string; accent: string; bar: string }[] = [
@@ -62,11 +63,13 @@ function SortableTask({
   onDelete,
   onRename,
   onOpenSettings,
+  users,
 }: {
   task: Task;
   onDelete: (id: string) => void;
   onRename: (id: string, newTitle: string) => void;
   onOpenSettings: (task: Task) => void;
+  users: any[];
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task._id,
@@ -161,6 +164,17 @@ function SortableTask({
             {task.title}
           </h4>
         )}
+        
+        {task.assignedTo && (
+          <div className="mt-3 flex items-center gap-2 pt-3 border-t border-slate-50">
+            <div className="w-5 h-5 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center text-[8px] font-black uppercase shadow-sm">
+              {users.find(u => (u._id || u.id) === task.assignedTo)?.firstName?.substring(0, 1) || 'U'}
+            </div>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
+              {users.find(u => (u._id || u.id) === task.assignedTo)?.firstName} {users.find(u => (u._id || u.id) === task.assignedTo)?.lastName}
+            </span>
+          </div>
+        )}
       </div>
 
       {!editing && (
@@ -192,6 +206,7 @@ function KanbanColumn({
   onDelete,
   onRename,
   onOpenSettings,
+  users,
   accent,
   bar,
 }: {
@@ -202,6 +217,7 @@ function KanbanColumn({
   onDelete: (id: string) => void;
   onRename: (id: string, newTitle: string) => void;
   onOpenSettings: (task: Task) => void;
+  users: any[];
   accent: string;
   bar: string;
 }) {
@@ -233,7 +249,7 @@ function KanbanColumn({
       <div className="flex-1 overflow-y-auto min-h-[300px] pr-2 custom-scrollbar space-y-1">
         <SortableContext items={tasks.map((t) => t._id)} strategy={verticalListSortingStrategy}>
           {tasks.map((task) => (
-            <SortableTask key={task._id} task={task} onDelete={onDelete} onRename={onRename} onOpenSettings={onOpenSettings} />
+            <SortableTask key={task._id} task={task} onDelete={onDelete} onRename={onRename} onOpenSettings={onOpenSettings} users={users} />
           ))}
         </SortableContext>
 
@@ -268,6 +284,7 @@ export default function TasksPage() {
   const [selectedWorkflowId, setSelectedWorkflowId] = useState('');
   const [boardId, setBoardId] = useState<string | null>(null);
   const [fromWorkflow, setFromWorkflow] = useState<boolean>(false);
+  const [users, setUsers] = useState<any[]>([]); // Added users state
 
   // Task Modal States
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -275,6 +292,7 @@ export default function TasksPage() {
   const [taskForm, setTaskForm] = useState({
     title: '',
     description: '',
+    assignedTo: '', // Added assignedTo field
   });
 
   const searchParams = useSearchParams();
@@ -324,6 +342,15 @@ export default function TasksPage() {
     }
   };
 
+  const fetchUsers = async () => {
+    try {
+      const res = await apiService.getUsers();
+      if (res.success) setUsers(res.data);
+    } catch (e) {
+      console.error('Fetch users error:', e);
+    }
+  };
+
   useEffect(() => {
     const id = searchParams.get('boardId');
     const dwId = searchParams.get('designerWorkflowId');
@@ -343,6 +370,7 @@ export default function TasksPage() {
     if (role) setUserRole(role);
     if (fWorkflow) setFromWorkflow(true);
     fetchWorkflows();
+    fetchUsers();
   }, [searchParams]);
 
   const sensors = useSensors(
@@ -473,12 +501,14 @@ export default function TasksPage() {
       setTaskForm({
         title: task.title,
         description: task.description || '',
+        assignedTo: task.assignedTo || '',
       });
     } else {
       setEditingTask({ status } as any);
       setTaskForm({
         title: 'New Task',
         description: '',
+        assignedTo: '',
       });
     }
     setIsTaskModalOpen(true);
@@ -498,7 +528,15 @@ export default function TasksPage() {
         });
         if (res.success) {
           setTasks(prev => prev.map(t => t._id === editingTask._id ? res.data : t));
-          toast.success("Task updated");
+          
+          const selectedUser = users.find(u => (u._id || u.id) === taskForm.assignedTo);
+          const feedbackMsg = selectedUser 
+            ? `Task synchronized and assigned to ${selectedUser.firstName} ${selectedUser.lastName}`
+            : "Task logic unit synchronized";
+
+          toast.success(feedbackMsg, {
+            icon: <SaveIcon size={18} className="text-emerald-500" />
+          });
         }
       } else {
         const res = await apiService.request('/tasks', {
@@ -512,7 +550,15 @@ export default function TasksPage() {
         });
         if (res.success) {
           setTasks(prev => [...prev, res.data]);
-          toast.success("Task created");
+          
+          const selectedUser = users.find(u => (u._id || u.id) === taskForm.assignedTo);
+          const feedbackMsg = selectedUser 
+            ? `Task provisioned and assigned to ${selectedUser.firstName} ${selectedUser.lastName}`
+            : "New task provisioned successfully";
+
+          toast.success(feedbackMsg, {
+            icon: <Plus size={18} className="text-emerald-500" />
+          });
         }
       }
       setIsTaskModalOpen(false);
@@ -592,6 +638,22 @@ export default function TasksPage() {
                       placeholder="Detail the steps for this task..."
                       className="w-full p-6 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-700 font-medium focus:border-indigo-500 focus:bg-white outline-none transition-all min-h-[120px] shadow-sm resize-none"
                     />
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-1">Logic Operator Assignment</label>
+                    <select
+                      value={taskForm.assignedTo}
+                      onChange={(e) => setTaskForm({ ...taskForm, assignedTo: e.target.value })}
+                      className="w-full h-14 px-6 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-700 font-bold focus:border-indigo-500 focus:bg-white outline-none transition-all shadow-sm appearance-none"
+                    >
+                      <option value="">Unassigned (Open for Pool)</option>
+                      {users.map((u: any) => (
+                        <option key={u._id || u.id} value={u._id || u.id}>
+                          {u.firstName} {u.lastName} ({u.role})
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   {/* Simplified - removed other types and attachments as requested */}
                 </div>
@@ -777,6 +839,7 @@ export default function TasksPage() {
                     onDelete={deleteTask}
                     onRename={renameTask}
                     onOpenSettings={(task) => openTaskModal(task.status, task)}
+                    users={users}
                     accent={col.accent}
                     bar={col.bar}
                   />

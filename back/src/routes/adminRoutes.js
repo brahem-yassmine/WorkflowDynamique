@@ -96,9 +96,9 @@ router.get('/tenants', async (req, res) => {
             currentPeriodEnd = endDate;
             if (endDate && now > endDate) {
               subscriptionExpired = true;
-              // If subscription is expired, we display as suspended in the matrix unless it's already inactive
+              // If subscription is expired, we display as archived in the matrix unless it's already inactive
               if (actualStatus === 'active') {
-                actualStatus = 'suspended';
+                actualStatus = 'archived';
               }
             }
           }
@@ -193,7 +193,7 @@ router.get('/tenants/:id', async (req, res) => {
           if (endDate && now > endDate) {
             subscriptionExpired = true;
             if (actualStatus === 'active') {
-              actualStatus = 'suspended';
+              actualStatus = 'archived';
             }
           }
         }
@@ -273,11 +273,11 @@ router.put('/tenants/:id', async (req, res) => {
         if (req.body.status === 'active') {
           // Renew for 15 days from now
           newEndDate = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000);
-          console.log(`✅ Automatically renewing subscription for ${tenant.name} -> ${newEndDate.toISOString()}`);
+          console.log(`âœ… Automatically renewing subscription for ${tenant.name} -> ${newEndDate.toISOString()}`);
         } else if (req.body.status === 'suspended') {
           // Suspend: set end date to now (expired)
           newEndDate = now;
-          console.log(`🛑 Automatically suspending subscription for ${tenant.name}`);
+          console.log(`ðŸ›‘ Automatically suspending subscription for ${tenant.name}`);
         }
 
         if (newEndDate) {
@@ -288,7 +288,7 @@ router.put('/tenants/:id', async (req, res) => {
           });
 
           // Sync master tenant record
-          const Tenant = req.masterDb.model('Tenant');
+          const Tenant = masterDb.model('Tenant');
           await Tenant.findByIdAndUpdate(tenant._id, {
             'subscription.status': newStatus,
             'subscription.currentPeriodEnd': newEndDate
@@ -297,7 +297,7 @@ router.put('/tenants/:id', async (req, res) => {
       }
       await tenantConn.close();
     } catch (err) {
-      console.error(`❌ Subscription sync failed for ${tenant.name}:`, err.message);
+      console.error(`âŒ Subscription sync failed for ${tenant.name}:`, err.message);
     }
 
     res.json({
@@ -322,16 +322,23 @@ router.patch('/tenants/:id/status', async (req, res) => {
 
     const { status } = req.body;
 
-    if (!['active', 'suspended', 'inactive'].includes(status)) {
+    if (!['active', 'suspended', 'inactive', 'archived'].includes(status)) {
       return res.status(400).json({
         success: false,
         message: 'Invalid status'
       });
     }
 
+    const updateData = { status };
+    if (status === 'archived') {
+      updateData.archivedAt = new Date();
+    } else {
+      updateData.archivedAt = null; // Clear if un-archiving
+    }
+
     const tenant = await Tenant.findByIdAndUpdate(
       req.params.id,
-      { status },
+      updateData,
       { new: true }
     );
 
@@ -373,7 +380,7 @@ router.patch('/tenants/:id/status', async (req, res) => {
           });
 
           // Sync master tenant record
-          const Tenant = req.masterDb.model('Tenant');
+          const Tenant = masterDb.model('Tenant');
           await Tenant.findByIdAndUpdate(tenant._id, {
             'subscription.status': newStatus,
             'subscription.currentPeriodEnd': newEndDate
@@ -382,7 +389,7 @@ router.patch('/tenants/:id/status', async (req, res) => {
       }
       await tenantConn.close();
     } catch (err) {
-      console.error(`❌ Subscription sync failed for ${tenant.name}:`, err.message);
+      console.error(`âŒ Subscription sync failed for ${tenant.name}:`, err.message);
     }
 
     res.json({
@@ -399,28 +406,110 @@ router.patch('/tenants/:id/status', async (req, res) => {
   }
 });
 
-// DELETE /api/admin/tenants/:id - Delete (soft delete)
+// DELETE /api/admin/tenants/:id - Delete (soft delete & status progression)
 router.delete('/tenants/:id', async (req, res) => {
   try {
     const masterDb = req.app.locals.masterDb;
     const Tenant = masterDb.model('Tenant');
 
-    const tenant = await Tenant.findByIdAndUpdate(
-      req.params.id,
-      { status: 'inactive' },
-      { new: true }
-    );
+    const currentTenant = await Tenant.findById(req.params.id);
 
-    if (!tenant) {
+    if (!currentTenant) {
       return res.status(404).json({
         success: false,
         message: 'Tenant not found'
       });
     }
 
+    // Progression: Active -> Archived -> Suspended
+    let nextStatus = 'archived';
+    let archivedAt = new Date();
+
+    console.log(`[Lifecycle] Processing ${currentTenant.name} (DB Status: ${currentTenant.status})`);
+
+    // Check if it's virtually archived due to expiration
+    let isVirtuallyArchived = false;
+    if (currentTenant.status === 'active' && currentTenant.databaseUri) {
+      try {
+        const tenantConn = mongoose.createConnection(currentTenant.databaseUri);
+        await new Promise((resolve) => {
+           const timeout = setTimeout(resolve, 3000);
+           tenantConn.once('connected', () => { clearTimeout(timeout); resolve(); });
+        });
+        if (tenantConn.readyState === 1) {
+          const Subscription = require('../models/tenant/Subscription')(tenantConn);
+          const sub = await Subscription.findOne().sort({ createdAt: -1 });
+          if (sub) {
+            const now = new Date();
+            const endDate = sub.currentPeriodEnd || sub.trialEndDate;
+            if (endDate && now > endDate) {
+              isVirtuallyArchived = true;
+              console.log(`[Lifecycle] ${currentTenant.name} is virtually ARCHIVED (expired)`);
+            }
+          }
+          await tenantConn.close();
+        }
+      } catch (err) {
+        console.warn(`[Lifecycle] Could not check expiration for ${currentTenant.name}:`, err.message);
+      }
+    }
+
+    if (currentTenant.status === 'archived' || isVirtuallyArchived) {
+      nextStatus = 'suspended';
+      archivedAt = null; // No longer archived, now suspended
+    }
+
+    const updateData = { 
+      status: nextStatus,
+      archivedAt: archivedAt
+    };
+
+    // If suspending, also mark subscription as expired in master record
+    if (nextStatus === 'suspended') {
+      console.log(`[Lifecycle] Transitioning ${currentTenant.name} to SUSPENDED`);
+      updateData['subscription.status'] = 'expired';
+      updateData['subscription.currentPeriodEnd'] = new Date();
+    } else {
+      console.log(`[Lifecycle] Transitioning ${currentTenant.name} to ARCHIVED`);
+    }
+
+    const tenant = await Tenant.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true }
+    );
+
+    // Sync with tenant database if possible
+    if (nextStatus === 'suspended' && tenant.databaseUri) {
+      try {
+        console.log(`[Lifecycle] Syncing with tenant DB for ${tenant.name}...`);
+        const tenantConn = mongoose.createConnection(tenant.databaseUri);
+        await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => reject(new Error('Connection timeout')), 5000);
+          tenantConn.once('connected', () => { clearTimeout(timeout); resolve(); });
+          tenantConn.once('error', (err) => { clearTimeout(timeout); reject(err); });
+        });
+
+        const Subscription = require('../models/tenant/Subscription')(tenantConn);
+        const subUpdate = await Subscription.updateMany(
+          { status: { $in: ['trial', 'active'] } },
+          { 
+            status: 'expired',
+            currentPeriodEnd: new Date()
+          }
+        );
+        console.log(`✅ [Lifecycle] Tenant DB sync: ${subUpdate.modifiedCount} subscriptions expired for ${tenant.name}`);
+        await tenantConn.close();
+      } catch (err) {
+        console.error(`❌ [Lifecycle] Tenant DB sync failed for ${tenant.name}:`, err.message);
+      }
+    }
+
     res.json({
       success: true,
-      message: 'Tenant deactivated successfully'
+      message: `Tenant ${nextStatus === 'suspended' ? 'permanently suspended' : 'archived'} successfully`,
+      data: tenant,
+      nextStatus
     });
 
   } catch (error) {
@@ -664,6 +753,7 @@ router.get('/stats', async (req, res) => {
       activeCompanies: tenants.filter(function (t) { return t.virtualStatus === 'active'; }).length,
       suspendedCompanies: tenants.filter(function (t) { return t.virtualStatus === 'suspended'; }).length,
       inactiveCompanies: tenants.filter(function (t) { return t.virtualStatus === 'inactive'; }).length,
+      archivedCompanies: tenants.filter(function (t) { return t.status === 'archived'; }).length,
 
       totalUsers: totalUsers,
       totalWorkflows: totalWorkflows,
@@ -918,7 +1008,7 @@ router.put('/plans/:id', async (req, res) => {
     const isNowDisabled = (req.body.isActive === false || req.body.active === false);
 
     if (previouslyActive && isNowDisabled) {
-      console.log(`🛑 Plan ${plan.name} was disabled. Cascading suspension to all assigned tenants...`);
+      console.log(`🚫 Plan ${plan.name} was disabled. Cascading suspension to all assigned tenants...`);
       const Tenant = masterDb.model('Tenant');
       const affectedTenants = await Tenant.find({ selectedPlan: plan._id, status: 'active' });
 

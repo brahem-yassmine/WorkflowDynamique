@@ -90,9 +90,16 @@ router.get('/stats', requirePlan, async (req, res) => {
     const dailyUsageMap = {};
     allInstances.forEach(inst => {
       if (inst.createdAt) {
-          const label = new Date(inst.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-          if (!dailyUsageMap[label]) dailyUsageMap[label] = { label, usage: 0 };
-          dailyUsageMap[label].usage += 1;
+          const date = new Date(inst.createdAt);
+          // Use a format that is unique per day/month/year for data mapping
+          const dateKey = date.toISOString().split('T')[0];
+          // Use month/day for display label
+          const label = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          
+          if (!dailyUsageMap[dateKey]) {
+              dailyUsageMap[dateKey] = { label, dateKey, usage: 0 };
+          }
+          dailyUsageMap[dateKey].usage += 1;
       }
     });
 
@@ -106,6 +113,7 @@ router.get('/stats', requirePlan, async (req, res) => {
       totalProjects,
       totalPendingTasks,
       performanceData,
+      tenantCreatedAt: req.tenant?.createdAt,
       completionRate: totalWorkflows > 0 ? Math.round((completedInstances / (completedInstances + activeInstances || 1)) * 100) : 0,
       storageUsed: '2.3 GB'
     };

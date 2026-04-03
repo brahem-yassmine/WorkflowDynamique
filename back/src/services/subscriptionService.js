@@ -67,3 +67,74 @@ exports.checkExpiringSubscriptions = async (masterDb) => {
         console.error('❌ Global checkExpiringSubscriptions Error:', error);
     }
 };
+
+/**
+ * Checks for tenants that have been archived for more than 30 days.
+ * If found, automatically updates their status to 'suspended'.
+ */
+exports.checkArchivedTenants = async (masterDb) => {
+    try {
+        console.log('⏰ Checking for tenants archived > 60 days (Auto-Suspension)...');
+        const Tenant = masterDb.model('Tenant');
+
+        const sixtyDaysAgo = new Date();
+        sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+
+        // Find tenants who are archived and were archived more than 60 days ago
+        const tenantsToSuspend = await Tenant.find({
+            status: 'archived',
+            archivedAt: { $lte: sixtyDaysAgo }
+        });
+
+        if (tenantsToSuspend.length > 0) {
+            console.log(`⚠️  Auto-suspending ${tenantsToSuspend.length} archived tenants...`);
+            
+            for (const tenant of tenantsToSuspend) {
+                await Tenant.findByIdAndUpdate(tenant._id, {
+                    status: 'suspended',
+                    archivedAt: null // Clear archivedAt once suspended
+                });
+                console.log(`🔒 Tenant ${tenant.name} has been auto-suspended after 60 days in archive.`);
+            }
+        } else {
+            console.log('✅ No tenants found for auto-suspension.');
+        }
+
+    } catch (error) {
+        console.error('❌ Global checkArchivedTenants Error:', error);
+    }
+};
+/**
+ * Checks all active tenants for expired subscriptions.
+ * If found, automatically updates their status to 'archived' and records the archival date.
+ */
+exports.handleExpiredSubscriptions = async (masterDb) => {
+    try {
+        console.log('⏰ Checking for expired subscriptions (Auto-Archive)...');
+        const Tenant = masterDb.model('Tenant');
+
+        const now = new Date();
+
+        // Find tenants who are active but have an expired subscription
+        const expiredTenants = await Tenant.find({
+            status: 'active',
+            'subscription.currentPeriodEnd': { $lt: now }
+        });
+
+        if (expiredTenants.length > 0) {
+            console.log(`⚠️  Archiving ${expiredTenants.length} tenants with expired subscriptions...`);
+            for (const tenant of expiredTenants) {
+                await Tenant.findByIdAndUpdate(tenant._id, {
+                    status: 'archived',
+                    archivedAt: now
+                });
+                console.log(`📂 Tenant ${tenant.name} has been auto-archived due to subscription expiration.`);
+            }
+        } else {
+            console.log('✅ No expired active subscriptions found.');
+        }
+
+    } catch (error) {
+        console.error('❌ Global handleExpiredSubscriptions Error:', error);
+    }
+};

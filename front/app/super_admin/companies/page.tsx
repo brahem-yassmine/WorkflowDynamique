@@ -21,7 +21,9 @@ import {
   Users,
   ShieldCheck,
   ShieldAlert,
-  Building2
+  Building2,
+  Archive,
+  Clock
 } from "lucide-react";
 import {
   Dialog,
@@ -60,7 +62,7 @@ export default function CompanyManagement() {
   const [open, setOpen] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'suspended'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'suspended' | 'archived'>('all');
 
   const fetchCompanies = async () => {
     try {
@@ -69,7 +71,7 @@ export default function CompanyManagement() {
       const token = localStorage.getItem('auth_token');
       if (!token) return;
 
-      const response = await fetch('http://localhost:5000/api/admin/tenants', {
+      const response = await fetch(`${API_URL}/admin/tenants`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -102,7 +104,7 @@ export default function CompanyManagement() {
     try {
       setUpdating(true);
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`http://localhost:5000/api/admin/tenants/${selectedCompany.id}`, {
+      const response = await fetch(`${API_URL}/admin/tenants/${selectedCompany.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -113,19 +115,24 @@ export default function CompanyManagement() {
       if (response.ok) {
         fetchCompanies();
         setOpen(false);
+        showAlert('Updated', 'Node specifications refined successfully.', 'success');
+      } else {
+        const err = await response.json();
+        showAlert('Error', err.message || 'Update failed', 'error');
       }
     } catch (err) {
       console.error(err);
+      showAlert('Error', 'Network connectivity failure.', 'error');
     } finally {
       setUpdating(false);
     }
   };
 
-  const toggleCompanyStatus = async (companyId: string, currentStatus: string) => {
+  const setCompanyStatus = async (companyId: string, newStatus: string) => {
     try {
+      setUpdating(true);
       const token = localStorage.getItem('auth_token');
-      const newStatus = currentStatus === 'active' ? 'suspended' : 'active';
-      const response = await fetch(`http://localhost:5000/api/admin/tenants/${companyId}/status`, {
+      const response = await fetch(`${API_URL}/admin/tenants/${companyId}/status`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -136,16 +143,33 @@ export default function CompanyManagement() {
 
       if (response.ok) {
         fetchCompanies();
+        setOpen(false);
+        showAlert(
+          'Status Synchronized',
+          `The node has been transitioned to ${newStatus.toUpperCase()}.`,
+          'success'
+        );
+      } else {
+        const err = await response.json();
+        showAlert('Protocol Error', err.message || 'Status transition failed', 'error');
       }
     } catch (err) {
       console.error(err);
+      showAlert('Network Error', 'Could not reach the master node.', 'error');
+    } finally {
+      setUpdating(false);
     }
+  };
+
+  const toggleCompanyStatus = async (companyId: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'active' ? 'suspended' : 'active';
+    await setCompanyStatus(companyId, newStatus);
   };
 
   const deleteCompany = async (companyId: string) => {
     const confirmed = await showConfirm({
       title: 'Archive Organization',
-      text: "Are you sure you want to permanently ARCHIVE this organization? This action is irreversible.",
+      text: "Move this organization to ARCHIVE? The workspace will be temporarily inaccessible.",
       confirmButtonText: 'Yes, Archive',
       danger: true
     });
@@ -154,7 +178,7 @@ export default function CompanyManagement() {
     try {
       setUpdating(true);
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`http://localhost:5000/api/admin/tenants/${companyId}`, {
+      const response = await fetch(`${API_URL}/admin/tenants/${companyId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -164,9 +188,72 @@ export default function CompanyManagement() {
       if (response.ok) {
         fetchCompanies();
         setOpen(false);
+        showAlert(
+          'Node Archived',
+          'The organization has been moved to archive.',
+          'success'
+        );
+      } else {
+        const err = await response.json();
+        showAlert('Protocol Error', err.message || 'Archival failed', 'error');
       }
     } catch (err) {
       console.error(err);
+      showAlert('Network Error', 'Connection failed.', 'error');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const removeIdentity = async (companyId: string) => {
+    const confirmed = await showConfirm({
+      title: 'Remove Identity',
+      text: "PERMANENTLY SUSPEND this identity? This will block all access.",
+      confirmButtonText: 'Yes, Suspend Node',
+      danger: true
+    });
+    if (!confirmed) return;
+
+    try {
+      setUpdating(true);
+      const token = localStorage.getItem('auth_token');
+      console.log('--- [DEBUG] REMOVE IDENTITY ---');
+      console.log('Company ID:', companyId);
+      console.log('Token Exists:', !!token);
+
+      const response = await fetch(`${API_URL}/admin/tenants/${companyId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      console.log('Response Status:', response.status);
+
+      if (response.ok) {
+        fetchCompanies();
+        setOpen(false);
+        showAlert(
+          'Node Suspended',
+          'The organization has been permanently suspended.',
+          'success'
+        );
+      } else {
+        const errorData = await response.json();
+        console.error('Response Error:', errorData);
+        showAlert(
+          'Synchronization Error',
+          errorData.message || 'The backend node rejected the suspension command.',
+          'error'
+        );
+      }
+    } catch (err) {
+      console.error('Fetch Error:', err);
+      showAlert(
+        'Protocol Failure',
+        'Could not establish a connection with the admin node.',
+        'error'
+      );
     } finally {
       setUpdating(false);
     }
@@ -202,7 +289,7 @@ export default function CompanyManagement() {
       </div>
 
       {/* Quick Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <QuickStatCard
           label="Total Organizations"
           value={companies.length}
@@ -218,6 +305,14 @@ export default function CompanyManagement() {
           color="bg-emerald-50 text-emerald-600"
           isActive={filterStatus === 'active'}
           onClick={() => setFilterStatus('active')}
+        />
+        <QuickStatCard
+          label="Archived Entities"
+          value={companies.filter(c => c.status === 'archived').length}
+          icon={<Archive size={20} />}
+          color="bg-amber-50 text-amber-600"
+          isActive={filterStatus === 'archived'}
+          onClick={() => setFilterStatus('archived')}
         />
         <QuickStatCard
           label="Suspended Clusters"
@@ -288,11 +383,20 @@ export default function CompanyManagement() {
                   </td>
                   <td className="px-6 py-5">
                     <div className="flex flex-col gap-1">
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase border ${company.status === 'active'
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase border ${
+                        company.status === 'active'
                           ? 'bg-emerald-50 text-emerald-600 border-emerald-100/50'
+                          : company.status === 'archived'
+                          ? 'bg-amber-50 text-amber-600 border-amber-100/50'
                           : 'bg-rose-50 text-rose-600 border-rose-100/50'
                         }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${company.status === 'active' ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></span>
+                        {company.status === 'active' ? (
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        ) : company.status === 'archived' ? (
+                          <Clock size={12} className="animate-spin-slow" />
+                        ) : (
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                        )}
                         {company.status}
                       </span>
                       {company.isExpired && (
@@ -343,7 +447,8 @@ export default function CompanyManagement() {
           </DialogHeader>
 
           {selectedCompany && (
-            <div className="p-8 space-y-6">
+            <>
+              <div className="p-8 space-y-6">
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Entity Name</label>
@@ -367,8 +472,9 @@ export default function CompanyManagement() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="active">Active Lattice</SelectItem>
+                      <SelectItem value="archived">Archived</SelectItem>
                       <SelectItem value="suspended">Suspended Cluster</SelectItem>
-                      <SelectItem value="inactive">Deep Cold Storage</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -425,33 +531,44 @@ export default function CompanyManagement() {
                 </div>
               </div>
             </div>
-          )}
-
-          <DialogFooter className="p-8 pt-0 flex flex-col sm:flex-row gap-4">
-            <button
-              onClick={() => selectedCompany && deleteCompany(selectedCompany.id)}
-              disabled={updating}
-              className="px-6 py-3 bg-rose-50 text-rose-600 font-bold rounded-xl border border-rose-100 hover:bg-rose-100 transition-all flex items-center justify-center gap-2"
-            >
-              <ShieldAlert size={18} />
-              Remove Identity
-            </button>
-            <div className="flex-grow"></div>
-            <button
-              onClick={() => setOpen(false)}
-              className="py-3 px-6 bg-emerald-50 text-emerald-600 font-bold border border-emerald-100 rounded-xl hover:bg-emerald-100 transition-all"
-            >
-              Discard
-            </button>
-            <button
-              onClick={updateCompany}
-              disabled={updating}
-              className="py-3 px-10 bg-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 disabled:opacity-50"
-            >
-              {updating ? <Loader2 size={18} className="animate-spin inline mr-2" /> : "Synchronize Node"}
-            </button>
-          </DialogFooter>
-        </DialogContent>
+            <DialogFooter className="p-8 pt-0 flex flex-col sm:flex-row gap-4">
+              <button
+                onClick={() => {
+                  if (!selectedCompany) return;
+                  if (selectedCompany.status === 'archived') {
+                    removeIdentity(selectedCompany.id);
+                  } else {
+                    deleteCompany(selectedCompany.id);
+                  }
+                }}
+                disabled={updating}
+                className={`px-6 py-3 font-bold rounded-xl border transition-all flex items-center justify-center gap-2 ${
+                  selectedCompany.status === 'archived'
+                  ? 'bg-rose-50 text-rose-600 border-rose-100 hover:bg-rose-100'
+                  : 'bg-amber-50 text-amber-600 border-amber-100 hover:bg-amber-100'
+                }`}
+              >
+                <Archive size={18} />
+                {selectedCompany.status === 'archived' ? 'Remove Identity' : 'Archive Identity'}
+              </button>
+              <div className="flex-grow"></div>
+              <button
+                onClick={() => setOpen(false)}
+                className="py-3 px-6 bg-emerald-50 text-emerald-600 font-bold border border-emerald-100 rounded-xl hover:bg-emerald-100 transition-all"
+              >
+                Discard
+              </button>
+              <button
+                onClick={updateCompany}
+                disabled={updating}
+                className="py-3 px-10 bg-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 disabled:opacity-50"
+              >
+                {updating ? <Loader2 size={18} className="animate-spin inline mr-2" /> : "Synchronize Node"}
+              </button>
+            </DialogFooter>
+          </>
+        )}
+      </DialogContent>
       </Dialog>
     </div>
   );

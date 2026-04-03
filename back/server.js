@@ -117,11 +117,16 @@ masterConnection.once('connected', () => {
   ✅ Status: Connected
       `);
 
-      // Start subscription check
+      // Start subscription and archive checks
       subscriptionService.checkExpiringSubscriptions(masterConnection);
+      subscriptionService.checkArchivedTenants(masterConnection);
+      subscriptionService.handleExpiredSubscriptions(masterConnection);
+
       // Run every 24 hours
       setInterval(() => {
         subscriptionService.checkExpiringSubscriptions(masterConnection);
+        subscriptionService.checkArchivedTenants(masterConnection);
+        subscriptionService.handleExpiredSubscriptions(masterConnection);
       }, 24 * 60 * 60 * 1000);
     });
   } catch (error) {

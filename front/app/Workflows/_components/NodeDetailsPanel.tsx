@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 
 interface NodeDetailsPanelProps {
     selectedNode: Node | null;
+    allNodes?: Node[];
     workflowId?: string | null;
     onClose: () => void;
     onUpdate: (id: string, data: any) => void;
@@ -46,7 +47,7 @@ const TabButton = ({ active, onClick, icon, title, subtitle }: any) => (
     </motion.button>
 );
 
-const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpdate, onDelete }: NodeDetailsPanelProps) => {
+const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onClose, onUpdate, onDelete }: NodeDetailsPanelProps) => {
     const router = useRouter();
     const [label, setLabel] = useState('');
     const [description, setDescription] = useState('');
@@ -65,6 +66,7 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
     const [attachments, setAttachments] = useState<any[]>([]);
     const [isUploading, setIsUploading] = useState(false);
     const [availableChecklists, setAvailableChecklists] = useState<any[]>([]);
+    const [availableVariables, setAvailableVariables] = useState<any[]>([]);
 
     const [activeTab, setActiveTab] = useState(initialTab || 'general');
 
@@ -103,19 +105,44 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
                 ]);
                 setDomains(domainsRes.success ? domainsRes.data : (Array.isArray(domainsRes) ? domainsRes : []));
                 const fetchedUsers = usersRes.success ? usersRes.data : (Array.isArray(usersRes) ? usersRes : []);
-                console.log('[DEBUG] Fetched users:', fetchedUsers);
                 setUsers(fetchedUsers);
                 setRoles(rolesRes.success ? rolesRes.data : (Array.isArray(rolesRes) ? rolesRes : []));
-                setAvailableForms(formsRes.success ? formsRes.data : (Array.isArray(formsRes) ? formsRes : []));
+                
+                const loadedForms = formsRes.success ? formsRes.data : (Array.isArray(formsRes) ? formsRes : []);
+                setAvailableForms(loadedForms);
                 setAvailableProjects(projectsRes.success ? projectsRes.data : (Array.isArray(projectsRes) ? projectsRes : []));
                 setKanbanBoards(boardsRes.success ? boardsRes.data : (Array.isArray(boardsRes) ? boardsRes : []));
                 setAvailableChecklists(checklistsRes.success ? checklistsRes.data : (Array.isArray(checklistsRes) ? checklistsRes : []));
+
+                // Process available variables from forms in allNodes
+                if (allNodes) {
+                    const vars: any[] = [];
+                    for (const node of allNodes) {
+                        if (node.type === 'action' && node.data?.linkedObjectId) {
+                            const formId = node.data.linkedObjectId;
+                            const form = loadedForms.find(f => f._id === formId || f.id === formId);
+                            if (form && Array.isArray(form.fields)) {
+                                form.fields.forEach((field: any) => {
+                                    if (field.name) {
+                                        vars.push({
+                                            name: field.name,
+                                            label: field.label,
+                                            nodeLabel: node.data.label,
+                                            formTitle: form.title
+                                        });
+                                    }
+                                });
+                            }
+                        }
+                    }
+                    setAvailableVariables(vars);
+                }
             } catch (err) {
                 console.error('Error fetching data:', err);
             }
         };
         fetchData();
-    }, []);
+    }, [allNodes]);
 
     useEffect(() => {
         console.log('[DEBUG] Users in state:', users);
@@ -1162,14 +1189,55 @@ const NodeDetailsPanel = ({ selectedNode, workflowId, initialTab, onClose, onUpd
                                             </div>
 
                                             <div className="space-y-4">
-                                                <Label className="text-[11px] font-black text-slate-500 uppercase tracking-widest block">Structural Rule</Label>
+                                                <Label className="text-[11px] font-black text-slate-500 uppercase tracking-widest block text-indigo-100">Structural Rule</Label>
                                                 <Input
                                                     value={condition}
                                                     onChange={(e) => setCondition(e.target.value)}
                                                     placeholder="amount > 5000"
-                                                    className="h-16 bg-slate-800 border-none rounded-2xl font-mono text-2xl text-emerald-400 focus:ring-2 focus:ring-emerald-500 shadow-inner px-8"
+                                                    className="h-16 bg-slate-800 border-none rounded-2xl font-mono text-2xl text-emerald-400 focus:ring-2 focus:ring-emerald-500 shadow-inner px-8 placeholder:text-slate-700"
                                                 />
-                                                <p className="text-slate-500 text-sm font-medium italic">Example: department == 'Finance' && total &gt; 1000</p>
+                                                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest px-1">Example: <span className="text-amber-500/80">department == 'Finance' && total &gt; 1000</span></p>
+                                            </div>
+
+                                            {availableVariables.length > 0 && (
+                                                <div className="pt-6 border-t border-slate-800/50 space-y-4">
+                                                    <div className="flex items-center justify-between">
+                                                        <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Available Form Fields</Label>
+                                                        <span className="text-[9px] font-black text-indigo-400 uppercase bg-indigo-500/10 px-2 py-0.5 rounded">Current Process Scope</span>
+                                                    </div>
+                                                    <div className="grid grid-cols-1 gap-2 max-h-[200px] overflow-y-auto custom-scrollbar pr-2">
+                                                        {availableVariables.map((v, idx) => (
+                                                            <button
+                                                                key={idx}
+                                                                onClick={() => setCondition(prev => (prev ? `${prev} && ` : '') + v.name)}
+                                                                className="flex items-center justify-between p-3.5 bg-slate-800/40 hover:bg-slate-800 border border-slate-800/50 rounded-xl transition-all group text-left"
+                                                            >
+                                                                <div className="flex flex-col min-w-0">
+                                                                    <span className="text-xs font-black text-slate-300 tracking-tight group-hover:text-indigo-400 transition-colors uppercase">
+                                                                        {v.name}
+                                                                    </span>
+                                                                    <span className="text-[9px] font-black text-slate-600 uppercase tracking-[0.05em] truncate">
+                                                                        Label: {v.label || 'None'} • {v.nodeLabel}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="text-[10px] font-black text-indigo-500 px-2.5 py-1 bg-indigo-500/5 rounded-lg border border-indigo-500/10 group-hover:bg-indigo-500 group-hover:text-white transition-all shadow-sm">
+                                                                    Insert
+                                                                </div>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            <div className="p-6 bg-slate-800/30 rounded-3xl space-y-4 border border-slate-800/50">
+                                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                                                    <ShieldAlert size={14} className="text-amber-500" /> Help & Syntax
+                                                </p>
+                                                <ul className="space-y-2">
+                                                    <li className="text-[10px] font-medium text-slate-400 leading-relaxed list-disc ml-4">Use standard operators: <span className="text-emerald-400 font-mono">==, !=, &gt;, &lt;, &amp;&amp;, ||</span></li>
+                                                    <li className="text-[10px] font-medium text-slate-400 leading-relaxed list-disc ml-4">Case sensitive variable names.</li>
+                                                    <li className="text-[10px] font-medium text-slate-400 leading-relaxed list-disc ml-4">The path follow <span className="text-emerald-500 font-black">YES</span> if result is truthy, <span className="text-rose-500 font-black">NO</span> otherwise.</li>
+                                                </ul>
                                             </div>
                                         </div>
                                     </section>

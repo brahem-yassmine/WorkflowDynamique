@@ -1,10 +1,10 @@
 'use client';
 
-import { motion } from 'framer-motion';
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { apiService } from '@/service/api.service';
 import { toast } from 'sonner';
 import {
   LayoutDashboard,
@@ -27,8 +27,10 @@ import {
   LifeBuoy,
   Stethoscope,
   ClipboardList,
-  ShieldAlert
+  ShieldAlert,
+  Plus
 } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 const menuGroups = [
   {
@@ -73,6 +75,7 @@ const menuGroups = [
 
 function Sidebar({ isExpired = false }: { isExpired?: boolean }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { subscriptionExpired } = useAuth();
 
   // Combine local and auth state

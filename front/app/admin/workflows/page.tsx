@@ -66,11 +66,13 @@ function WorkflowsContent() {
 
   const searchParams = useSearchParams();
   const projectIdFilter = searchParams.get('projectId');
+  const moduleIdFilter = searchParams.get('moduleId');
+  const isTemplateFilter = searchParams.get('isTemplate');
   const router = useRouter();
 
   useEffect(() => {
     fetchData();
-  }, [projectIdFilter]);
+  }, [projectIdFilter, moduleIdFilter, isTemplateFilter]);
 
   const handleInitialize = async (id: string | undefined) => {
     if (!id) return;
@@ -92,9 +94,13 @@ function WorkflowsContent() {
 
   const fetchData = async () => {
     try {
-      setLoading(true);
+      const queryParams = new URLSearchParams();
+      if (projectIdFilter) queryParams.append('projectId', projectIdFilter);
+      if (moduleIdFilter) queryParams.append('moduleId', moduleIdFilter);
+      if (isTemplateFilter) queryParams.append('isTemplate', isTemplateFilter);
+
       const [wfRes, projRes] = await Promise.all([
-        apiService.request(`/workflows${projectIdFilter ? `?projectId=${projectIdFilter}` : ''}`),
+        apiService.request(`/workflows?${queryParams.toString()}`),
         apiService.getProjects()
       ]);
 
@@ -241,24 +247,27 @@ function WorkflowsContent() {
           />
         </div>
         <div className="flex items-center gap-3">
-          {projectIdFilter && (
+          {(projectIdFilter || moduleIdFilter) && (
             <div className="flex items-center gap-2 bg-indigo-50 px-4 py-2 rounded-xl text-indigo-600 border border-indigo-100">
               <span className="text-xs font-black uppercase tracking-widest flex items-center gap-2">
                 <Briefcase size={14} />
-                Project: {getWorkflowProjectName(projectIdFilter)}
+                {projectIdFilter ? `Project: ${getWorkflowProjectName(projectIdFilter)}` : 'Module Templates'}
               </span>
-              <Link href="/admin/workflows">
-                <button className="text-indigo-400 hover:text-indigo-600 font-black">×</button>
-              </Link>
+              <button 
+                onClick={() => router.push('/admin/workflows')}
+                className="text-indigo-400 hover:text-indigo-600 font-black"
+              >
+                ×
+              </button>
             </div>
           )}
           <button onClick={fetchData} className="p-3 bg-white border border-slate-100 rounded-xl text-slate-400 hover:text-indigo-600 transition-colors shadow-sm">
             <Clock size={20} />
           </button>
-          <Link href="/create-workflow">
+          <Link href={`/create-workflow?${moduleIdFilter ? `moduleId=${moduleIdFilter}&isTemplate=true` : projectIdFilter ? `projectId=${projectIdFilter}` : ''}`}>
             <button className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95">
               <Plus size={18} />
-              Create Flow
+              {isTemplateFilter ? 'Add Template' : 'Create Flow'}
             </button>
           </Link>
         </div>

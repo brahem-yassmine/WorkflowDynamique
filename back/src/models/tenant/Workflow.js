@@ -8,8 +8,9 @@ const workflowSchema = new mongoose.Schema({
     trim: true
   },
   description: String,
-  domain: {
-    type: String,
+  domainId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Domain',
     required: true
   },
   nodes: {
@@ -25,9 +26,23 @@ const workflowSchema = new mongoose.Schema({
     enum: ['draft', 'active', 'archived'],
     default: 'draft'
   },
+  isTemplate: {
+    type: Boolean,
+    default: false
+  },
+  templateId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Workflow',
+    required: false
+  },
   projectId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Project',
+    required: false
+  },
+  moduleId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Module',
     required: false
   },
   createdBy: {

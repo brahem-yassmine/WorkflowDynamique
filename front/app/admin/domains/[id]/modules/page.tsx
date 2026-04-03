@@ -183,65 +183,82 @@ export default function DomainModulesSpace() {
     const filteredModules = modules.filter(m => m.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
     return (
-        <div className="h-[calc(100vh-140px)] flex flex-col space-y-6 animate-in fade-in duration-700">
+        <div className="flex flex-col space-y-8 animate-in fade-in duration-700">
             {/* Header Overlay */}
-            <div className="flex justify-between items-center bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-indigo-500/10 transition-colors"></div>
+            <div className="flex justify-between items-center bg-white p-10 rounded-[40px] border border-indigo-50/50 shadow-sm relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/5 rounded-full blur-3xl -mr-24 -mt-24 group-hover:bg-indigo-500/10 transition-all duration-700"></div>
                 <div className="relative z-10">
-                    <h1 className="text-3xl font-black text-slate-800 tracking-tight">Functional Matrix</h1>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em] mt-1 italic">Strategic Unit Orchestration</p>
+                    <div className="flex items-center gap-4 mb-2">
+                        <div className="w-1.5 h-10 bg-indigo-600 rounded-full" />
+                        <div>
+                            <h1 className="text-4xl font-black text-slate-800 tracking-tight leading-none italic">Functional Matrix</h1>
+                            <p className="text-[10px] font-black text-indigo-400/60 uppercase tracking-[0.4em] mt-2 ml-1">Strategic Unit Orchestration</p>
+                        </div>
+                    </div>
                 </div>
                 <div className="flex gap-4 relative z-10">
                     {!selectedModuleId ? (
                         <button 
                             onClick={() => openModuleModal()}
-                            className="px-8 py-3.5 bg-slate-800 text-white rounded-xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-slate-700 transition-all flex items-center gap-3"
+                            className="px-10 py-4 bg-slate-900 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-2xl hover:bg-slate-800 transition-all active:scale-95 flex items-center gap-3 border border-slate-700/50"
                         >
+                            <Plus size={16} />
                             create new module
                         </button>
                     ) : (
                         <button 
-                            onClick={() => router.push(`/admin/create_workflows?moduleId=${selectedModuleId}&domainId=${domainId}&isTemplate=true`)}
-                            className="px-8 py-3.5 bg-slate-800 text-white rounded-xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-slate-700 transition-all flex items-center gap-3"
+                            onClick={() => router.push(`/create-workflow?moduleId=${selectedModuleId}&domainId=${domainId}&isTemplate=true`)}
+                            className="px-10 py-4 bg-indigo-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-2xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 flex items-center gap-3"
                         >
+                            <Plus size={16} />
                             create new template
                         </button>
                     )}
                 </div>
             </div>
 
-            <div className="flex-1 flex flex-col overflow-hidden">
-                <div className="px-10 py-6 rounded-t-[32px] bg-slate-50 border-x border-t border-slate-100 flex items-center justify-between">
-                    <div>
-                        <span className="text-xs font-black text-slate-500 uppercase tracking-[0.3em]">
-                            {selectedModuleId ? 'Standardized Protocols' : 'Operational Units'}
-                        </span>
-                        <div className="flex items-center gap-2 mt-1">
-                            <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></div>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Live Repository</span>
+            <div className="flex flex-col">
+                <div className="px-5 py-8 flex items-center justify-between border-b border-slate-100 mb-8">
+                    <div className="flex items-center gap-6">
+                        {selectedModuleId && (
+                           <button 
+                             onClick={() => router.push(`/admin/domains/${domainId}/modules`)}
+                             className="w-12 h-12 bg-white border border-slate-100 rounded-2xl flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:border-indigo-100 transition-all shadow-sm active:scale-90"
+                           >
+                             <ArrowLeft size={18} />
+                           </button>
+                        )}
+                        <div>
+                            <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em]">
+                                {selectedModuleId ? 'Standardized Protocols' : 'Operational Units'}
+                            </span>
+                            <div className="flex items-center gap-3 mt-1.5">
+                                <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.5)] animate-pulse"></div>
+                                <span className="text-[12px] font-black text-slate-800 uppercase tracking-widest">Live Repository System</span>
+                            </div>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
-                        <div className="bg-white border border-slate-100 rounded-xl px-3 py-1.5 flex items-center gap-2">
-                            <Search size={14} className="text-slate-400" />
+                        <div className="bg-white border border-slate-200 rounded-2xl px-6 py-3 flex items-center gap-4 shadow-sm focus-within:ring-4 focus-within:ring-indigo-50 transition-all">
+                            <Search size={16} className="text-slate-400" />
                             <input 
                                 type="text" 
                                 placeholder="Filter units..." 
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="bg-transparent text-[10px] font-bold text-slate-600 outline-none w-32 uppercase tracking-widest"
+                                className="bg-transparent text-[11px] font-black text-slate-700 outline-none w-48 uppercase tracking-widest placeholder:text-slate-300"
                             />
                         </div>
                     </div>
                 </div>
                 
-                <div className="flex-1 bg-white border-x border-b border-slate-100 rounded-b-[32px] overflow-hidden p-8 shadow-sm">
+                <div className="pb-20">
                     <AnimatePresence mode="wait">
                         {!selectedModuleId ? (
                             <motion.div 
                                 key="modules"
                                 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                                className="h-full overflow-y-auto space-y-4 custom-scrollbar pr-2"
+                                className="space-y-4"
                             >
                                 {isLoading ? (
                                     Array(4).fill(0).map((_, i) => <div key={i} className="h-24 bg-slate-50 rounded-[28px] animate-pulse border border-slate-100" />)
@@ -290,7 +307,7 @@ export default function DomainModulesSpace() {
                             <motion.div 
                                 key="templates"
                                 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                                className="h-full overflow-y-auto space-y-4 custom-scrollbar pr-2"
+                                className="space-y-4"
                             >
                                 {templates.length > 0 ? (
                                     templates.map((tpl) => (
@@ -324,7 +341,7 @@ export default function DomainModulesSpace() {
                                                     view
                                                 </button>
                                                 <button 
-                                                    onClick={() => router.push(`/admin/create_workflows?id=${tpl._id}&moduleId=${selectedModuleId}&domainId=${domainId}&isTemplate=true`)}
+                                                    onClick={() => router.push(`/create-workflow?id=${tpl._id}&moduleId=${selectedModuleId}&domainId=${domainId}&isTemplate=true`)}
                                                     className="px-5 py-3.5 bg-white border border-slate-100 hover:border-indigo-200 text-slate-600 hover:text-indigo-600 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all"
                                                 >
                                                     edit

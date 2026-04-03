@@ -178,8 +178,8 @@ export default function VisualFlowView({ workflowId, workflow }: { workflowId: s
   }, [workflow?.edges, setEdges]);
 
   return (
-    <div className="h-full flex flex-col space-y-6">
-      <div className="flex items-center justify-between shrink-0">
+    <div className="h-full flex flex-col">
+      <div className="flex items-center justify-between shrink-0 p-10">
          <div className="space-y-1">
             <h3 className="text-xl font-black text-slate-800 tracking-tight uppercase">Architectural Logic Graph</h3>
             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-loose">Real-time node execution status heatmap across all lattice units</p>
@@ -209,7 +209,7 @@ export default function VisualFlowView({ workflowId, workflow }: { workflowId: s
          </div>
       </div>
 
-      <div className="flex-1 bg-white rounded-[50px] border border-slate-100 overflow-hidden relative shadow-2xl">
+      <div className="flex-1 bg-white border-t border-slate-100 overflow-hidden relative">
          <ReactFlow
             nodes={nodes}
             edges={edges}

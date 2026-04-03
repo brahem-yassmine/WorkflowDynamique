@@ -134,7 +134,7 @@ const SaveButton = ({
         className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-100 transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100"
       >
         <Save size={18} />
-        {isSaving ? 'Saving...' : 'Save Workflow'}
+        {isSaving ? 'Saving...' : (isTemplate ? 'Save Template' : 'Save Workflow')}
       </button>
 
       <AnimatePresence>

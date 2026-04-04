@@ -13,9 +13,9 @@ const WorkflowArchitectContent = () => {
     const flowId = searchParams.get('id');
 
     const isTemplate = searchParams.get('isTemplate') === 'true';
-    const accentColor = isTemplate ? 'bg-indigo-600 shadow-indigo-500/40 border-indigo-400/30' : 'bg-orange-500 shadow-orange-500/40 border-orange-400/30';
-    const textColor = isTemplate ? 'text-indigo-400' : 'text-orange-400';
-    const badgeColor = isTemplate ? 'bg-indigo-500' : 'bg-orange-500';
+    const accentColor = isTemplate ? 'bg-indigo-600 shadow-indigo-500/40 border-indigo-400/30' : 'bg-emerald-500 shadow-emerald-500/40 border-emerald-400/30';
+    const textColor = isTemplate ? 'text-indigo-400' : 'text-emerald-400';
+    const badgeColor = isTemplate ? 'bg-indigo-500' : 'bg-emerald-500';
 
     const handleBack = () => {
         const domainId = searchParams.get('domainId');
@@ -35,9 +35,9 @@ const WorkflowArchitectContent = () => {
     return (
         <div className="flex flex-col h-screen w-full bg-[#fdfdfd] overflow-hidden isolate">
             {/* Top Navigation Bar - Contextual Theme */}
-            <div className={`bg-[#1e1b4b] px-10 py-5 flex items-center justify-between shadow-[0_10px_50px_rgba(0,0,0,0.3)] z-[99999] relative border-b ${isTemplate ? 'border-indigo-500/20' : 'border-orange-500/20'}`}>
+            <div className={`bg-[#1e1b4b] px-10 py-5 flex items-center justify-between shadow-[0_10px_50px_rgba(0,0,0,0.3)] z-[99999] relative border-b ${isTemplate ? 'border-indigo-500/20' : 'border-emerald-500/20'}`}>
                 {/* Visual Glow Ornament */}
-                <div className={`absolute top-0 left-1/4 w-96 h-1 bg-gradient-to-r from-transparent ${isTemplate ? 'via-indigo-500' : 'via-orange-500'} to-transparent opacity-50 pointer-events-none`}></div>
+                <div className={`absolute top-0 left-1/4 w-96 h-1 bg-gradient-to-r from-transparent ${isTemplate ? 'via-indigo-500' : 'via-emerald-500'} to-transparent opacity-50 pointer-events-none`}></div>
                 
                 <div className="flex items-center gap-10">
                     <button
@@ -65,11 +65,11 @@ const WorkflowArchitectContent = () => {
                 </div>
 
                 <div className="flex items-center gap-6">
-                    <div className={`flex items-center gap-3 px-5 py-3 ${isTemplate ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-orange-500/10 border-orange-500/20 text-orange-400'} rounded-2xl text-[9px] font-black uppercase tracking-[0.15em] shadow-inner`}>
-                        <div className={`w-2 h-2 ${isTemplate ? 'bg-emerald-500' : 'bg-orange-500'} rounded-full animate-ping`}></div>
+                    <div className={`flex items-center gap-3 px-5 py-3 ${isTemplate ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'} rounded-2xl text-[9px] font-black uppercase tracking-[0.15em] shadow-inner`}>
+                        <div className={`w-2 h-2 ${isTemplate ? 'bg-emerald-500' : 'bg-emerald-500'} rounded-full animate-ping`}></div>
                         Lattice Protocol Online
                     </div>
-                    <div className={`flex items-center gap-3 px-5 py-3 ${isTemplate ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300' : 'bg-orange-500/10 border-orange-500/20 text-orange-300'} rounded-2xl text-[9px] font-black uppercase tracking-[0.15em]`}>
+                    <div className={`flex items-center gap-3 px-5 py-3 ${isTemplate ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'} rounded-2xl text-[9px] font-black uppercase tracking-[0.15em]`}>
                         <Activity size={16} />
                         Engine v2.4
                     </div>

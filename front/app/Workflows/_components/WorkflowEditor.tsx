@@ -82,7 +82,8 @@ function WorkflowEditorContent() {
     useEffect(() => {
         if (moduleIdParam) setWorkflowModuleId(moduleIdParam);
         if (domainIdParam) setWorkflowDomainId(domainIdParam);
-        if (isTemplateParam) setWorkflowIsTemplate(true);
+        // Strict sync: if URL says it's a template, it's a template.
+        setWorkflowIsTemplate(isTemplateParam);
     }, [moduleIdParam, domainIdParam, isTemplateParam]);
     const [isSaving, setIsSaving] = useState(false);
     const [isDirty, setIsDirty] = useState(false); // tracks unsaved changes

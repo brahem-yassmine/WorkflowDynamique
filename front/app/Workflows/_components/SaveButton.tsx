@@ -131,7 +131,7 @@ const SaveButton = ({
       <button
         onClick={() => setShowModal(true)}
         disabled={isSaving}
-        className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-100 transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100"
+        className={`flex items-center gap-2 px-6 py-2.5 ${isTemplate ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100' : 'bg-orange-600 hover:bg-orange-700 shadow-orange-100'} text-white rounded-xl font-bold shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100`}
       >
         <Save size={18} />
         {isSaving ? 'Saving...' : (isTemplate ? 'Save Template' : 'Save Workflow')}
@@ -153,16 +153,18 @@ const SaveButton = ({
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="bg-white rounded-[32px] shadow-2xl w-full max-w-lg relative z-10 overflow-hidden border border-slate-100"
             >
-              <div className="bg-indigo-600 p-8 text-white relative overflow-hidden">
+              <div className={`${isTemplate ? 'bg-indigo-600' : 'bg-orange-600'} p-8 text-white relative overflow-hidden transition-colors duration-500`}>
                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
-                <h3 className="text-2xl font-black tracking-tight relative z-10">Create Template</h3>
-                <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-widest mt-1 relative z-10">Design and save your protocol</p>
+                <h3 className="text-2xl font-black tracking-tight relative z-10">{isTemplate ? 'Create Template' : 'Create Workflow'}</h3>
+                <p className="text-white/80 text-[10px] font-bold uppercase tracking-widest mt-1 relative z-10">
+                  {isTemplate ? 'Design and save your reusable protocol' : 'Instantiate new operational process'}
+                </p>
               </div>
 
               <div className="p-8 space-y-6">
                 {/* 1. Name Only */}
                 <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Template Name</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">{isTemplate ? 'Template Name' : 'Workflow Name'}</label>
                     <input
                         type="text"
                         value={name}
@@ -173,9 +175,8 @@ const SaveButton = ({
                     />
                 </div>
 
-                {/* 2. Domain & Module (For All) */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
+                {/* 2. Domain (Always Visible) */}
+                <div className="space-y-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Business Domain</label>
                     <div className="relative">
                         <LayoutGrid className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
@@ -184,31 +185,64 @@ const SaveButton = ({
                             onChange={(e) => setDomainId(e.target.value)}
                             className="w-full h-12 pl-10 pr-4 bg-slate-50 border-none rounded-2xl font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 transition-all appearance-none cursor-pointer text-sm"
                         >
-                            <option value="">Select Domain...</option>
+                            <option value="">-- Choose Domain Scope --</option>
+                            <option value="standard">Standard / Universal Domain</option>
                             {domains.map(d => (
                                 <option key={d._id} value={d._id}>{d.name}</option>
                             ))}
                         </select>
                     </div>
+                </div>
+
+                {!isTemplate ? (
+                  /* WORKFLOW SPECIFIC: Project & Status */
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Project Affiliation</label>
+                        <select
+                            value={projectId}
+                            onChange={(e) => setProjectId(e.target.value)}
+                            className="w-full h-12 px-4 bg-slate-50 border-none rounded-2xl font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 transition-all appearance-none cursor-pointer text-sm"
+                        >
+                            <option value="">Standard / Common Project</option>
+                            {projects.map(p => (
+                                <option key={p._id} value={p._id}>{p.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Execution Status</label>
+                        <select
+                            value={status}
+                            onChange={(e) => setStatus(e.target.value as any)}
+                            className="w-full h-12 px-4 bg-slate-50 border-none rounded-2xl font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 transition-all appearance-none cursor-pointer text-sm"
+                        >
+                            <option value="active">Active (Standard Start)</option>
+                            <option value="planning">Planning (Draft)</option>
+                            <option value="archived">Archived (Registry Only)</option>
+                        </select>
+                    </div>
                   </div>
-                  <div className="space-y-1.5">
+                ) : (
+                  /* TEMPLATE SPECIFIC: Module */
+                  <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Functional Module</label>
                     <div className="relative">
                         <Layers className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                         <select
                             value={moduleId}
-                            disabled={!domainId}
+                            disabled={!domainId || domainId === 'standard'}
                             onChange={(e) => setModuleId(e.target.value)}
                             className="w-full h-12 pl-10 pr-4 bg-slate-50 border-none rounded-2xl font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 transition-all appearance-none cursor-pointer text-sm disabled:opacity-50"
                         >
-                            <option value="">{domainId ? 'Select Module...' : 'Select Domain First'}</option>
+                            <option value="">{domainId ? (domainId === 'standard' ? 'N/A for Standard' : 'Select Module...') : 'Select Domain First'}</option>
                             {modules.map(m => (
                                 <option key={m._id} value={m._id}>{m.name}</option>
                             ))}
                         </select>
                     </div>
                   </div>
-                </div>
+                )}
 
                 <div className="flex gap-4 pt-4">
                   <button
@@ -220,12 +254,12 @@ const SaveButton = ({
                   <button
                     onClick={handleSave}
                     disabled={isSaving}
-                    className="flex-[2] py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 disabled:opacity-50 uppercase text-[10px] tracking-[0.2em] flex items-center justify-center gap-2"
+                    className={`flex-[2] py-4 ${isTemplate ? 'bg-indigo-600 shadow-indigo-100 hover:bg-indigo-700' : 'bg-orange-600 shadow-orange-100 hover:bg-orange-700'} text-white rounded-2xl font-black shadow-xl transition-all active:scale-95 disabled:opacity-50 uppercase text-[10px] tracking-[0.2em] flex items-center justify-center gap-2`}
                   >
                     {isSaving ? 'Processing...' : (
                         <>
                             <CheckCircle size={16} />
-                            Commit Save
+                            {isTemplate ? 'Save Template' : 'Save Workflow'}
                         </>
                     )}
                   </button>

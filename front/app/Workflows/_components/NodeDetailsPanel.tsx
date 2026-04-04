@@ -707,7 +707,18 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                                                     {(['automatic', 'simple', 'multi'] as const).map((type) => (
                                                         <button
                                                             key={type}
-                                                            onClick={() => setValidationType(type)}
+                                                            onClick={() => {
+                                                                setValidationType(type);
+                                                                const labels: Record<string, string> = {
+                                                                    'automatic': 'Autonomous (No human gate)',
+                                                                    'simple': 'Solo Approval Path',
+                                                                    'multi': 'Consensus (Multi-party)'
+                                                                };
+                                                                toast.success(`Strategy synchronized: ${labels[type]}`, {
+                                                                    description: `Workflow gate configured for ${type} verification.`,
+                                                                    icon: <Check size={18} className="text-emerald-500" />
+                                                                });
+                                                            }}
                                                             className={`py-4 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${validationType === type ? 'bg-white text-indigo-600 shadow-md ring-1 ring-slate-100/50' : 'text-slate-400 hover:text-slate-600'}`}
                                                         >
                                                             {type}
@@ -753,10 +764,26 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                                                                                 onClick={() => {
                                                                                     const id = r._id || r.id;
                                                                                     if (validationType === 'multi') {
-                                                                                        if (isSelected) setValidatorIds(validatorIds.filter(vId => vId !== id));
-                                                                                        else setValidatorIds([...validatorIds, id]);
+                                                                                        if (isSelected) {
+                                                                                            setValidatorIds(validatorIds.filter(vId => vId !== id));
+                                                                                            toast.error(`Identity unlinked: Role '${r.name}' removed from consensus.`, {
+                                                                                                description: 'Consensus requirements updated.',
+                                                                                            });
+                                                                                        } else {
+                                                                                            setValidatorIds([...validatorIds, id]);
+                                                                                            toast.success(`Identity linked: Role '${r.name}' added to consensus.`, {
+                                                                                                description: 'Multi-party validation updated.',
+                                                                                                icon: <Check size={18} className="text-emerald-500" />
+                                                                                            });
+                                                                                        }
                                                                                     } else {
-                                                                                        if (!isSelected) setValidatorIds([id]);
+                                                                                        if (!isSelected) {
+                                                                                            setValidatorIds([id]);
+                                                                                            toast.success(`Identity linked: Role '${r.name}' set as Solo Validator.`, {
+                                                                                                description: 'Validation authority updated.',
+                                                                                                icon: <Check size={18} className="text-emerald-500" />
+                                                                                            });
+                                                                                        }
                                                                                     }
                                                                                 }}
                                                                                 className={`p-3.5 px-5 rounded-[16px] cursor-pointer font-bold transition-all text-sm flex items-center justify-between ${isSelected ? 'bg-indigo-600 text-white shadow-md scale-[0.98]' : 'text-slate-600 hover:bg-white hover:shadow-sm'}`}
@@ -774,10 +801,24 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                                                                                 onClick={() => {
                                                                                     const id = u._id || u.id;
                                                                                     if (validationType === 'multi') {
-                                                                                        if (isSelected) setValidatorIds(validatorIds.filter(vId => vId !== id));
-                                                                                        else setValidatorIds([...validatorIds, id]);
+                                                                                        if (isSelected) {
+                                                                                            setValidatorIds(validatorIds.filter(vId => vId !== id));
+                                                                                            toast.error(`Identity unlinked: ${u.firstName} removed from consensus.`);
+                                                                                        } else {
+                                                                                            setValidatorIds([...validatorIds, id]);
+                                                                                            toast.success(`Identity linked: ${u.firstName} ${u.lastName} added.`, {
+                                                                                                description: 'Consensus lattice expanded.',
+                                                                                                icon: <Check size={18} className="text-emerald-500" />
+                                                                                            });
+                                                                                        }
                                                                                     } else {
-                                                                                        if (!isSelected) setValidatorIds([id]);
+                                                                                        if (!isSelected) {
+                                                                                            setValidatorIds([id]);
+                                                                                            toast.success(`Identity linked: ${u.firstName} ${u.lastName} assigned.`, {
+                                                                                                description: 'Targeted authority synchronized.',
+                                                                                                icon: <Check size={18} className="text-emerald-500" />
+                                                                                            });
+                                                                                        }
                                                                                     }
                                                                                 }}
                                                                                 className={`p-3.5 px-5 rounded-[16px] cursor-pointer font-bold transition-all text-sm flex items-center justify-between ${isSelected ? 'bg-indigo-600 text-white shadow-md scale-[0.98]' : 'text-slate-600 hover:bg-white hover:shadow-sm'}`}

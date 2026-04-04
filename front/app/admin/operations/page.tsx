@@ -181,16 +181,10 @@ export default function AdminOperationsPage() {
                 <div className="flex items-center gap-2 bg-white p-1.5 rounded-[22px] border border-slate-100 shadow-sm w-full lg:w-auto">
                     <button
                         onClick={() => setActiveView('processes')}
-                        className={`flex-1 lg:flex-none px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeView === 'processes' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'text-slate-400 hover:text-slate-600'}`}
+                        className={`px-8 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeView === 'processes' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'text-slate-400 hover:text-slate-600'}`}
                     >
                         Process View
                     </button>
-                    <Link
-                        href="/admin/tasks"
-                        className={`flex-1 lg:flex-none px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all text-slate-400 hover:text-slate-600 flex items-center gap-2`}
-                    >
-                        Task Queue <ChevronRight size={14} />
-                    </Link>
                 </div>
 
                 <div className="flex flex-col md:flex-row gap-4 items-center w-full lg:w-auto">
@@ -233,42 +227,42 @@ export default function AdminOperationsPage() {
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {filteredInstances.map((instance: any) => (
-                            <Link href={instance.isVirtual ? `/admin/create_workflows?id=${instance.workflowId?._id}` : `/Workflows/instances/${instance._id}`} key={instance._id}>
-                                <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 hover:-translate-y-1 transition-all group cursor-pointer relative overflow-hidden">
-                                    <div className={`absolute top-0 left-0 w-1.5 h-full ${instance.status === 'in_progress' ? 'bg-blue-500' : instance.status === 'completed' ? 'bg-emerald-500' : instance.status === 'not_started' ? 'bg-slate-300' : 'bg-rose-500'}`}></div>
+                        {filteredInstances.map((instance: any) => {
+                            const projectName = instance.workflowId?.projectId?.name || instance.projectName || "STANDARD";
+                            const cleanTitle = projectName.toUpperCase();
+                            
+                            return (
+                                <Link href={instance.isVirtual ? `/admin/create_workflows?id=${instance.workflowId?._id}` : `/Workflows/instances/${instance._id}`} key={instance._id}>
+                                    <div className="bg-white p-7 rounded-[40px] border border-slate-100 shadow-sm hover:shadow-2xl hover:shadow-indigo-500/5 hover:-translate-y-1 transition-all group cursor-pointer relative overflow-hidden">
+                                        <div className={`absolute top-0 left-0 w-2 h-full ${instance.status === 'in_progress' ? 'bg-indigo-600' : instance.status === 'completed' ? 'bg-emerald-500' : instance.status === 'not_started' ? 'bg-slate-300' : 'bg-rose-500'}`}></div>
 
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="p-3 bg-slate-50 text-slate-400 rounded-2xl group-hover:bg-indigo-600 group-hover:text-white transition-all">
-                                                <GitBranch size={20} />
-                                            </div>
-                                            <div>
-                                                <h3 className="font-black text-slate-800 text-lg leading-tight group-hover:text-indigo-600 transition-colors uppercase tracking-tight">
-                                                    {instance.title}
-                                                </h3>
-                                                <div className="mt-2 space-y-2">
-                                                    <div className="flex flex-wrap items-center gap-2">
-                                                        <span className="text-[11px] font-black text-indigo-600 uppercase tracking-wider bg-indigo-50/50 px-2 py-1 rounded-lg">
-                                                            {instance.workflowId?.name || 'Standard Procedure'}
+                                        <div className="flex justify-between items-start mb-4">
+                                            <div className="flex items-center gap-4">
+                                                <div className="p-3.5 bg-slate-50 text-slate-400 rounded-2xl group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-inner">
+                                                    <GitBranch size={22} />
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-black text-slate-800 text-xl leading-none group-hover:text-indigo-600 transition-colors uppercase tracking-tight">
+                                                        {cleanTitle}
+                                                    </h3>
+                                                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                                                        <span className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100/50">
+                                                            {instance.workflowId?.name || "STANDARD PROTOCOL"}
                                                         </span>
-                                                        {instance.workflowId?.domain && (
-                                                            <span className="px-2 py-1 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-bold uppercase">{instance.workflowId.domain}</span>
-                                                        )}
-                                                        {instance.workflowId?.projectId?.name && (
-                                                            <span className="px-2 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-bold uppercase">{instance.workflowId.projectId.name}</span>
-                                                        )}
+                                                        <div className="h-4 w-px bg-slate-100 mx-1" />
+                                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
+                                                            {instance.workflowId?.domain || "STANDARD"}
+                                                        </span>
                                                     </div>
-                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center">
-                                                        Initiated By <span className="text-slate-600 ml-1.5">{instance.createdBy?.firstName || 'User'}</span>
+                                                    <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.3em] mt-3 flex items-center group-hover:text-slate-400 transition-colors">
+                                                        INITIATED BY <span className="text-indigo-500 ml-2 font-black">{instance.createdBy?.firstName?.toUpperCase() || 'SYSTEM'}</span>
                                                     </p>
                                                 </div>
                                             </div>
+                                            <div className={`px-4 py-1.5 rounded-xl border text-[9px] font-black uppercase tracking-[0.2em] shadow-sm ${getStatusColor(instance.status)}`}>
+                                                {instance.status.replace('_', ' ')}
+                                            </div>
                                         </div>
-                                        <div className={`px-3 py-1 rounded-xl border text-[9px] font-black uppercase tracking-widest ${getStatusColor(instance.status)}`}>
-                                            {instance.status.replace('_', ' ')}
-                                        </div>
-                                    </div>
 
                                     <div className="flex items-center justify-between mt-8 pt-6 border-t border-slate-50">
                                         <div className="flex items-center gap-4">
@@ -285,10 +279,11 @@ export default function AdminOperationsPage() {
                                         <div className="flex items-center gap-1 text-indigo-600 font-black text-[10px] uppercase tracking-widest group-hover:gap-2 transition-all">
                                             {instance.isVirtual ? 'Open Template' : 'Monitor Execution'} <ChevronRight size={14} />
                                         </div>
+                                        </div>
                                     </div>
-                                </div>
-                            </Link>
-                        ))}
+                                </Link>
+                            );
+                        })}
                     </div>
                 )
             ) : null}

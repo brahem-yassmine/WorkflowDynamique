@@ -24,7 +24,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "concurrently": "^9.2.1",
-    "nodemon": "^3.1.11"
+    "nodemon": "^3.1.14"
   },
   "dependencies": {
     "@dnd-kit/accessibility": "^3.1.1",
@@ -33,6 +33,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "lucide-react": "^0.575.0",
+    "minimatch": "^10.2.5",
     "next": "^16.1.6",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"

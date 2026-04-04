@@ -74,16 +74,16 @@ exports.checkExpiringSubscriptions = async (masterDb) => {
  */
 exports.checkArchivedTenants = async (masterDb) => {
     try {
-        console.log('⏰ Checking for tenants archived > 60 days (Auto-Suspension)...');
+        console.log('⏰ Checking for tenants archived > 30 days (Auto-Suspension)...');
         const Tenant = masterDb.model('Tenant');
 
-        const sixtyDaysAgo = new Date();
-        sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
         // Find tenants who are archived and were archived more than 60 days ago
         const tenantsToSuspend = await Tenant.find({
             status: 'archived',
-            archivedAt: { $lte: sixtyDaysAgo }
+            archivedAt: { $lte: thirtyDaysAgo }
         });
 
         if (tenantsToSuspend.length > 0) {
@@ -94,7 +94,7 @@ exports.checkArchivedTenants = async (masterDb) => {
                     status: 'suspended',
                     archivedAt: null // Clear archivedAt once suspended
                 });
-                console.log(`🔒 Tenant ${tenant.name} has been auto-suspended after 60 days in archive.`);
+                console.log(`🔒 Tenant ${tenant.name} has been auto-suspended after 30 days in archive.`);
             }
         } else {
             console.log('✅ No tenants found for auto-suspension.');

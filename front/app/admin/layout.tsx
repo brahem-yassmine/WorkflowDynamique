@@ -37,7 +37,7 @@ const PAGE_METADATA: Record<string, { title: string, subtitle: string }> = {
         subtitle: "Manage user roles, permissions, and domain access"
     },
     '/admin/tasks': {
-        title: "Kanban",
+        title: "Task Manager",
         subtitle: "Monitor and orchestrate organizational throughput."
     },
     '/admin/AllCheck': {

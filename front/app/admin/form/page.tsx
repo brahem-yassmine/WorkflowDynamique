@@ -17,6 +17,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
+import AIGeneratorModal from '@/components/AIGeneratorModal';
 
 const STEP_STATUSES = [
   { id: 'pending', label: 'Pending', icon: Clock, color: 'text-yellow-500', bg: 'bg-yellow-50', border: 'border-yellow-200' },
@@ -242,6 +243,21 @@ const FormBuilderContent = () => {
     }
   }, [searchParams]);
 
+  const handleAIGeneration = (data: any[]) => {
+    // Transformer le tableau généré par l'IA en 'fields' compatibles
+    const newFields = data.map((f, i) => ({
+      id: `${f.type || 'text'}-${Date.now()}-${i}`,
+      type: f.type || 'text',
+      label: f.label || 'Champ sans nom',
+      required: f.required || false,
+      width: 'full',
+      options: f.options || [],
+      placeholder: ''
+    }));
+
+    setSteps([{ id: 'step-1', title: 'Étape Générée par IA', fields: newFields, status: 'pending' }]);
+  };
+
   const fetchFormData = async (id: string) => {
     try {
       const res = await apiService.request(`/forms/${id}`);
@@ -413,6 +429,8 @@ const FormBuilderContent = () => {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
+            <AIGeneratorModal type="form" onGenerate={handleAIGeneration} />
+
             {designerWorkflowId && (
               <button 
                 onClick={() => router.push(`/admin/Create_workflows?id=${designerWorkflowId}`)}

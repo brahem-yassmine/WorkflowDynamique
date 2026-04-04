@@ -13,6 +13,7 @@ import { Toaster } from "sonner";
 import SubscriptionWarning from "@/components/SubscriptionWarning";
 import { GoogleAuthProvider } from "@/components/providers/GoogleAuthProvider";
 import MaintenanceGuard from "@/components/MaintenanceGuard";
+import AiChatWidget from "@/components/AiChatWidget";
 
 export default function RootLayout({
   children,
@@ -26,6 +27,7 @@ export default function RootLayout({
           <SubscriptionWarning />
           <GoogleAuthProvider>
             {children}
+            <AiChatWidget />
           </GoogleAuthProvider>
         </MaintenanceGuard>
         <Toaster position="top-right" richColors />

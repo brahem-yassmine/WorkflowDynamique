@@ -160,6 +160,8 @@ app.use((req, res, next) => {
 app.use('/api/plans', planRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/platform-settings', require('./src/routes/platformSettingsRoutes'));
+app.use('/api/ai', require('./src/routes/aiRoutes')); // <-- AJOUT DE LA ROUTE IA
+
 
 // ========================
 // ADMIN ROUTES

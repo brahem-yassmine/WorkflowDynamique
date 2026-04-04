@@ -51,7 +51,7 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle, icon, rightContent, on
                     )}
                     <div className="flex flex-col">
                         <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-none">{title}</h1>
-                        <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mt-2">{subtitle || 'Management Console'}</p>
+                        <p className="text-[11px] font-black text-slate-800 uppercase tracking-[0.2em] mt-2">{subtitle || 'Management Console'}</p>
                     </div>
                 </div>
             </div>

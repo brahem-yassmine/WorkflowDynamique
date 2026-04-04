@@ -3,7 +3,8 @@
 const API_URL = 'http://localhost:5000/api';
 
 import { useState, useEffect } from "react";
-import { showAlert, showConfirm } from "@/lib/alerts";
+import { motion, AnimatePresence } from "framer-motion";
+import { showAlert } from "@/lib/alerts";
 import {
   Card,
 } from "@/components/ui/card";
@@ -23,7 +24,11 @@ import {
   ShieldAlert,
   Building2,
   Archive,
-  Clock
+  Clock,
+  Check,
+  X,
+  AlertCircle,
+  Trash2
 } from "lucide-react";
 import {
   Dialog,
@@ -63,12 +68,33 @@ export default function CompanyManagement() {
   const [updating, setUpdating] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'suspended' | 'archived'>('all');
+  const [confirmModal, setConfirmModal] = useState<{
+    open: boolean;
+    title: string;
+    text: string;
+    confirmText: string;
+    onConfirm: () => void;
+    type: 'archive' | 'remove' | 'activate';
+  }>({
+    open: false,
+    title: "",
+    text: "",
+    confirmText: "",
+    onConfirm: () => {},
+    type: 'archive'
+  });
+
+  const getToken = () => {
+    return localStorage.getItem('auth_token') || 
+           localStorage.getItem('token') || 
+           localStorage.getItem('accessToken');
+  };
 
   const fetchCompanies = async () => {
     try {
       setLoading(true);
       setError(null);
-      const token = localStorage.getItem('auth_token');
+      const token = getToken();
       if (!token) return;
 
       const response = await fetch(`${API_URL}/admin/tenants`, {
@@ -103,7 +129,7 @@ export default function CompanyManagement() {
     if (!selectedCompany) return;
     try {
       setUpdating(true);
-      const token = localStorage.getItem('auth_token');
+      const token = getToken();
       const response = await fetch(`${API_URL}/admin/tenants/${selectedCompany.id}`, {
         method: 'PUT',
         headers: {
@@ -131,7 +157,7 @@ export default function CompanyManagement() {
   const setCompanyStatus = async (companyId: string, newStatus: string) => {
     try {
       setUpdating(true);
-      const token = localStorage.getItem('auth_token');
+      const token = getToken();
       const response = await fetch(`${API_URL}/admin/tenants/${companyId}/status`, {
         method: 'PATCH',
         headers: {
@@ -166,97 +192,89 @@ export default function CompanyManagement() {
     await setCompanyStatus(companyId, newStatus);
   };
 
-  const deleteCompany = async (companyId: string) => {
-    const confirmed = await showConfirm({
+  const deleteCompany = (companyId: string) => {
+    setConfirmModal({
+      open: true,
       title: 'Archive Organization',
       text: "Move this organization to ARCHIVE? The workspace will be temporarily inaccessible.",
-      confirmButtonText: 'Yes, Archive',
-      danger: true
-    });
-    if (!confirmed) return;
+      confirmText: 'Yes, Archive',
+      type: 'archive',
+      onConfirm: async () => {
+        try {
+          setUpdating(true);
+          const token = getToken();
+          const response = await fetch(`${API_URL}/admin/tenants/${companyId}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
 
-    try {
-      setUpdating(true);
-      const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${API_URL}/admin/tenants/${companyId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
+          if (response.ok) {
+            fetchCompanies();
+            setOpen(false);
+            showAlert('Node Archived', 'The organization has been moved to archive.', 'success');
+          } else {
+            const err = await response.json();
+            showAlert('Protocol Error', err.message || 'Archival failed', 'error');
+          }
+        } catch (err) {
+          console.error(err);
+          showAlert('Network Error', 'Connection failed.', 'error');
+        } finally {
+          setUpdating(false);
         }
-      });
-
-      if (response.ok) {
-        fetchCompanies();
-        setOpen(false);
-        showAlert(
-          'Node Archived',
-          'The organization has been moved to archive.',
-          'success'
-        );
-      } else {
-        const err = await response.json();
-        showAlert('Protocol Error', err.message || 'Archival failed', 'error');
       }
-    } catch (err) {
-      console.error(err);
-      showAlert('Network Error', 'Connection failed.', 'error');
-    } finally {
-      setUpdating(false);
-    }
+    });
   };
 
-  const removeIdentity = async (companyId: string) => {
-    const confirmed = await showConfirm({
+  const removeIdentity = (companyId: string) => {
+    setConfirmModal({
+      open: true,
       title: 'Remove Identity',
       text: "PERMANENTLY SUSPEND this identity? This will block all access.",
-      confirmButtonText: 'Yes, Suspend Node',
-      danger: true
-    });
-    if (!confirmed) return;
+      confirmText: 'Yes, Suspend',
+      type: 'remove',
+      onConfirm: async () => {
+        try {
+          setUpdating(true);
+          const token = getToken();
+          const response = await fetch(`${API_URL}/admin/tenants/${companyId}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
 
-    try {
-      setUpdating(true);
-      const token = localStorage.getItem('auth_token');
-      console.log('--- [DEBUG] REMOVE IDENTITY ---');
-      console.log('Company ID:', companyId);
-      console.log('Token Exists:', !!token);
-
-      const response = await fetch(`${API_URL}/admin/tenants/${companyId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
+          if (response.ok) {
+            fetchCompanies();
+            setOpen(false);
+            showAlert('Node Suspended', 'The organization has been permanently suspended.', 'success');
+          } else {
+            const err = await response.json();
+            showAlert('Protocol Error', err.message || 'Suspension failed', 'error');
+          }
+        } catch (err) {
+          console.error(err);
+          showAlert('Network Error', 'Connection failed.', 'error');
+        } finally {
+          setUpdating(false);
         }
-      });
-
-      console.log('Response Status:', response.status);
-
-      if (response.ok) {
-        fetchCompanies();
-        setOpen(false);
-        showAlert(
-          'Node Suspended',
-          'The organization has been permanently suspended.',
-          'success'
-        );
-      } else {
-        const errorData = await response.json();
-        console.error('Response Error:', errorData);
-        showAlert(
-          'Synchronization Error',
-          errorData.message || 'The backend node rejected the suspension command.',
-          'error'
-        );
       }
-    } catch (err) {
-      console.error('Fetch Error:', err);
-      showAlert(
-        'Protocol Failure',
-        'Could not establish a connection with the admin node.',
-        'error'
-      );
-    } finally {
-      setUpdating(false);
-    }
+    });
+  };
+
+  const activateCompany = (companyId: string) => {
+    setConfirmModal({
+      open: true,
+      title: 'Authorize Entity',
+      text: "Restore this organization's active status? All workspace features will be re-enabled.",
+      confirmText: 'Yes, Activate',
+      type: 'activate',
+      onConfirm: async () => {
+        await setCompanyStatus(companyId, 'active');
+      }
+    });
   };
 
   useEffect(() => { fetchCompanies(); }, []);
@@ -531,44 +549,117 @@ export default function CompanyManagement() {
                 </div>
               </div>
             </div>
-            <DialogFooter className="p-8 pt-0 flex flex-col sm:flex-row gap-4">
-              <button
-                onClick={() => {
-                  if (!selectedCompany) return;
-                  if (selectedCompany.status === 'archived') {
-                    removeIdentity(selectedCompany.id);
-                  } else {
-                    deleteCompany(selectedCompany.id);
-                  }
-                }}
-                disabled={updating}
-                className={`px-6 py-3 font-bold rounded-xl border transition-all flex items-center justify-center gap-2 ${
-                  selectedCompany.status === 'archived'
-                  ? 'bg-rose-50 text-rose-600 border-rose-100 hover:bg-rose-100'
-                  : 'bg-amber-50 text-amber-600 border-amber-100 hover:bg-amber-100'
-                }`}
-              >
-                <Archive size={18} />
-                {selectedCompany.status === 'archived' ? 'Remove Identity' : 'Archive Identity'}
-              </button>
-              <div className="flex-grow"></div>
-              <button
-                onClick={() => setOpen(false)}
-                className="py-3 px-6 bg-emerald-50 text-emerald-600 font-bold border border-emerald-100 rounded-xl hover:bg-emerald-100 transition-all"
-              >
-                Discard
-              </button>
-              <button
-                onClick={updateCompany}
-                disabled={updating}
-                className="py-3 px-10 bg-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 disabled:opacity-50"
-              >
-                {updating ? <Loader2 size={18} className="animate-spin inline mr-2" /> : "Synchronize Node"}
-              </button>
+            <DialogFooter className="p-8 pt-0 flex flex-wrap gap-4 items-center">
+              <div className="flex gap-2 mr-auto">
+                {/* Condition ARCHIVE button */}
+                {(selectedCompany.status === 'active' || selectedCompany.status === 'suspended' || selectedCompany.status === 'inactive') && (
+                  <button
+                    onClick={() => {
+                      if (selectedCompany.status === 'active') deleteCompany(selectedCompany.id);
+                      else setCompanyStatus(selectedCompany.id, 'archived');
+                    }}
+                    disabled={updating}
+                    className="px-5 py-3 font-bold rounded-xl border bg-amber-50 text-amber-600 border-amber-100 hover:bg-amber-100 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Archive size={18} />
+                    Archive Identity
+                  </button>
+                )}
+
+                {/* Condition REMOVE/SUSPEND button */}
+                {(selectedCompany.status === 'active' || selectedCompany.status === 'archived') && (
+                  <button
+                    onClick={() => removeIdentity(selectedCompany.id)}
+                    disabled={updating}
+                    className="px-5 py-3 font-bold rounded-xl border bg-rose-50 text-rose-600 border-rose-100 hover:bg-rose-100 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Trash2 size={18} />
+                    Remove Identity
+                  </button>
+                )}
+
+                {/* Condition ACTIVATE button */}
+                {(selectedCompany.status === 'archived' || selectedCompany.status === 'suspended' || selectedCompany.status === 'inactive') && (
+                  <button
+                    onClick={() => activateCompany(selectedCompany.id)}
+                    disabled={updating}
+                    className="px-5 py-3 font-bold rounded-xl border bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100 transition-all flex items-center justify-center gap-2"
+                  >
+                    <ShieldCheck size={18} />
+                    Activate Entity
+                  </button>
+                )}
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setOpen(false)}
+                  className="py-3 px-6 bg-slate-100 text-slate-500 font-bold border border-slate-200 rounded-xl hover:bg-slate-200 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={updateCompany}
+                  disabled={updating}
+                  className="py-3 px-10 bg-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 disabled:opacity-50"
+                >
+                  {updating ? <Loader2 size={18} className="animate-spin inline mr-2" /> : "Save Changes"}
+                </button>
+              </div>
             </DialogFooter>
           </>
         )}
       </DialogContent>
+      </Dialog>
+
+      <Dialog 
+        open={confirmModal.open} 
+        onOpenChange={(isOpen) => setConfirmModal({ ...confirmModal, open: isOpen })}
+      >
+        <DialogContent className="sm:max-w-lg bg-white rounded-[32px] overflow-hidden shadow-2xl border-none p-0 outline-none">
+          <div className="p-8 pb-4 flex justify-center mt-4">
+            <div className={`w-20 h-20 rounded-3xl flex items-center justify-center shadow-lg ${
+              confirmModal.type === 'archive' ? 'bg-amber-50 text-amber-500' : 
+              confirmModal.type === 'activate' ? 'bg-emerald-50 text-emerald-500' :
+              'bg-rose-50 text-rose-500'
+            }`}>
+              {confirmModal.type === 'archive' ? <Archive size={40} /> : 
+               confirmModal.type === 'activate' ? <ShieldCheck size={40} strokeWidth={2.5} /> :
+               <Trash2 size={40} strokeWidth={2.5} />}
+            </div>
+          </div>
+          
+          <div className="px-10 pb-8 text-center space-y-3">
+            <h3 className="text-3xl font-black text-slate-900 tracking-tighter leading-tight">{confirmModal.title}</h3>
+            <p className="text-base font-medium text-slate-500 leading-relaxed italic opacity-80">"{confirmModal.text}"</p>
+          </div>
+
+          <div className="p-4 bg-slate-50 flex gap-4">
+            <button
+              onClick={() => setConfirmModal({ ...confirmModal, open: false })}
+              className="flex-1 py-4 bg-white text-slate-500 font-black uppercase tracking-widest text-xs rounded-2xl border border-slate-200 hover:bg-slate-100 transition-all active:scale-95 shadow-sm"
+            >
+              Cancel Protocol
+            </button>
+            <button
+              onClick={() => {
+                confirmModal.onConfirm();
+                setConfirmModal({ ...confirmModal, open: false });
+              }}
+              className={`flex-1 py-4 font-black uppercase tracking-widest text-xs rounded-2xl transition-all active:scale-95 shadow-lg flex items-center justify-center gap-2 ${
+                confirmModal.type === 'archive' 
+                ? 'bg-amber-500 text-white shadow-amber-100 hover:bg-amber-600' 
+                : confirmModal.type === 'activate'
+                ? 'bg-emerald-600 text-white shadow-emerald-100 hover:bg-emerald-700'
+                : 'bg-rose-600 text-white shadow-rose-100 hover:bg-rose-700'
+              }`}
+            >
+              <Check size={18} strokeWidth={3} />
+              {confirmModal.confirmText}
+            </button>
+          </div>
+          <p className="py-3 text-center text-[8px] font-black text-slate-400 uppercase tracking-widest opacity-40 bg-slate-50">Authorized Personnel Only • Dynamic Lifecycle Governance</p>
+        </DialogContent>
       </Dialog>
     </div>
   );

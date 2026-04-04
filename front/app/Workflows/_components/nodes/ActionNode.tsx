@@ -1,6 +1,6 @@
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { ClipboardList, User, Users, Building, Laptop, DollarSign, ListChecks, AlertCircle, LayoutGrid, ClipboardType, CheckSquare, FilePlus } from 'lucide-react';
+import { ClipboardList, User, Users, Building, Laptop, DollarSign, ListChecks, AlertCircle, LayoutGrid, ClipboardType, CheckSquare, FilePlus, Shield } from 'lucide-react';
 
 const domainIcons = {
     'HR': <Users size={8} />,
@@ -17,10 +17,17 @@ const domainIcons = {
 
 const ActionNode = ({ data }: any) => {
     const Icon = domainIcons[data.responsibleDomain as keyof typeof domainIcons] || <ClipboardList size={8} />;
+    const hasAuthority = data.requiredDomain && data.requiredModule;
 
     return (
-        <div className="px-2 py-1.5 shadow-lg rounded-xl bg-white border-2 border-indigo-50 min-w-[120px] hover:border-indigo-200 transition-all group">
+        <div className="px-2 py-1.5 shadow-lg rounded-xl bg-white border-2 border-indigo-50 min-w-[120px] hover:border-indigo-200 transition-all group relative">
             <Handle type="target" position={Position.Left} className="!w-1.5 !h-1.5 !bg-indigo-300 !border-none" />
+
+            {hasAuthority && (
+                <div className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-indigo-600 rounded-full flex items-center justify-center text-white shadow-lg border border-white z-10 animate-in zoom-in-50 duration-300" title={`Authority Required: ${data.requiredDomain} > ${data.requiredModule}`}>
+                    <Shield size={8} strokeWidth={3} />
+                </div>
+            )}
 
             <div className="flex items-center gap-2">
                 <div className="rounded-lg w-6 h-6 flex-none flex items-center justify-center bg-indigo-50 text-indigo-500 border border-indigo-100 group-hover:scale-110 transition-transform">

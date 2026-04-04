@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Node } from '@xyflow/react';
-import { X, Plus, Trash2, ListChecks, Clock, ShieldAlert, Users, GraduationCap, LayoutGrid, ClipboardType, FilePlus, CheckSquare, ExternalLink, Paperclip, Image as ImageIcon, Check, Save } from 'lucide-react';
+import { X, Plus, Trash2, ListChecks, Clock, ShieldAlert, Shield, Users, GraduationCap, LayoutGrid, ClipboardType, FilePlus, CheckSquare, ExternalLink, Paperclip, Image as ImageIcon, Check, Save } from 'lucide-react';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -91,17 +91,24 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
     const [assignedTo, setAssignedTo] = useState<string>(''); // For Department or User ID
     const [deadline, setDeadline] = useState('');
 
+    // Authority Enforcement State
+    const [requiredDomain, setRequiredDomain] = useState('');
+    const [requiredModule, setRequiredModule] = useState('');
+    const [requiredAction, setRequiredAction] = useState('approve');
+    const [allWorkModules, setAllWorkModules] = useState<any[]>([]);
+
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [domainsRes, usersRes, rolesRes, formsRes, projectsRes, boardsRes, checklistsRes] = await Promise.all([
+                const [domainsRes, usersRes, rolesRes, formsRes, projectsRes, boardsRes, checklistsRes, modulesRes] = await Promise.all([
                     apiService.getDomains(),
                     apiService.getUsers(),
                     apiService.getRoles(),
                     apiService.getForms(),
                     apiService.getProjects(),
                     apiService.getBoards(),
-                    apiService.request('/checklists')
+                    apiService.request('/checklists'),
+                    apiService.getModules()
                 ]);
                 setDomains(domainsRes.success ? domainsRes.data : (Array.isArray(domainsRes) ? domainsRes : []));
                 const fetchedUsers = usersRes.success ? usersRes.data : (Array.isArray(usersRes) ? usersRes : []);
@@ -113,6 +120,7 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                 setAvailableProjects(projectsRes.success ? projectsRes.data : (Array.isArray(projectsRes) ? projectsRes : []));
                 setKanbanBoards(boardsRes.success ? boardsRes.data : (Array.isArray(boardsRes) ? boardsRes : []));
                 setAvailableChecklists(checklistsRes.success ? checklistsRes.data : (Array.isArray(checklistsRes) ? checklistsRes : []));
+                setAllWorkModules(modulesRes.success ? modulesRes.data : (Array.isArray(modulesRes) ? modulesRes : []));
 
                 // Process available variables from forms in allNodes
                 if (allNodes) {
@@ -199,6 +207,11 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
             }
             setAssignedTo(selectedNode.data.assignedTo as string || '');
             setDeadline(selectedNode.data.deadline as string || '');
+
+            // Initialize Authority
+            setRequiredDomain(selectedNode.data.requiredDomain as string || '');
+            setRequiredModule(selectedNode.data.requiredModule as string || '');
+            setRequiredAction(selectedNode.data.requiredAction as string || 'approve');
         }
     }, [selectedNode]);
 
@@ -280,7 +293,10 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                 taskContent,
                 userAction,
                 assignedTo,
-                deadline
+                deadline,
+                requiredDomain,
+                requiredModule,
+                requiredAction
             });
 
             toast.success("task updated", {
@@ -643,6 +659,64 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                                                         )}
                                                     </>
                                                 )}
+
+                                                <div className="space-y-6 pt-8 border-t border-slate-100 animate-in fade-in slide-in-from-top-4">
+                                                    <div className="flex items-center gap-2">
+                                                        <Shield size={16} className="text-indigo-600" />
+                                                        <Label className="text-[11px] font-black text-slate-500 uppercase tracking-widest text-indigo-600">4. Authority Enforcement</Label>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                        <div className="space-y-2">
+                                                            <Label className="text-[10px] font-black text-slate-400 uppercase">Required Domain</Label>
+                                                            <select
+                                                                value={requiredDomain}
+                                                                onChange={(e) => {
+                                                                    setRequiredDomain(e.target.value);
+                                                                    setRequiredModule('');
+                                                                }}
+                                                                className="w-full h-12 px-4 bg-slate-50 rounded-xl font-bold text-slate-700 border-none ring-1 ring-slate-100 outline-none focus:ring-2 focus:ring-indigo-100 transition-all appearance-none cursor-pointer"
+                                                                style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236366f1' stroke-width='3' %3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7' /%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1rem' }}
+                                                            >
+                                                                <option value="">-- No Domain Required --</option>
+                                                                {domains.map(d => <option key={d._id || d.id} value={d.name}>{d.name}</option>)}
+                                                            </select>
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            <Label className="text-[10px] font-black text-slate-400 uppercase">Required Module</Label>
+                                                            <select
+                                                                value={requiredModule}
+                                                                disabled={!requiredDomain}
+                                                                onChange={(e) => setRequiredModule(e.target.value)}
+                                                                className="w-full h-12 px-4 bg-slate-50 rounded-xl font-bold text-slate-700 border-none ring-1 ring-slate-100 outline-none focus:ring-2 focus:ring-indigo-100 transition-all appearance-none cursor-pointer disabled:opacity-50"
+                                                                style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236366f1' stroke-width='3' %3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7' /%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1rem' }}
+                                                            >
+                                                                <option value="">-- No Module Required --</option>
+                                                                {allWorkModules.filter(m => {
+                                                                    const d = domains.find(dom => dom.name === requiredDomain);
+                                                                    return m.domainId === d?._id || m.domainId?._id === d?._id;
+                                                                }).map(m => <option key={m._id} value={m.name}>{m.name}</option>)}
+                                                            </select>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="space-y-2">
+                                                        <Label className="text-[10px] font-black text-slate-400 uppercase">Required Permission Action</Label>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {['approve', 'reject', 'create', 'update', 'delete', 'all'].map(action => (
+                                                                <button
+                                                                    key={action}
+                                                                    type="button"
+                                                                    onClick={() => setRequiredAction(action)}
+                                                                    className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border ${requiredAction === action ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200'}`}
+                                                                >
+                                                                    {action}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                        <p className="text-[9px] font-bold text-slate-400 italic px-1 mt-1">Users must possess this exact action right on the specified module to execute this step.</p>
+                                                    </div>
+                                                </div>
 
                                                 <div className="grid grid-cols-3 gap-6 pt-8 border-t border-slate-100">
                                                     <div className="space-y-4">

@@ -152,6 +152,22 @@ export default function DomainModulesSpace() {
         }
     };
 
+    const handleTemplateDelete = async (tid: string) => {
+        const confirmed = await showConfirm({
+            title: 'Terminate Protocol',
+            text: 'Are you sure you want to fragment this standardized protocol?',
+            confirmButtonText: 'Fragment Protocol'
+        });
+        if (!confirmed) return;
+        try {
+            await apiService.deleteWorkflow(tid);
+            toast.success('Protocol fragmented');
+            if (selectedModuleId) fetchTemplates(selectedModuleId);
+        } catch (error: any) {
+            toast.error(error.message || 'Error occurred');
+        }
+    };
+
     const handleAssignTemplate = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!templateToAssign || !selectedProjectId) return;
@@ -192,7 +208,7 @@ export default function DomainModulesSpace() {
                         <div className="w-1.5 h-10 bg-indigo-600 rounded-full" />
                         <div>
                             <h1 className="text-4xl font-black text-slate-800 tracking-tight leading-none italic">Functional Matrix</h1>
-                            <p className="text-[10px] font-black text-indigo-400/60 uppercase tracking-[0.4em] mt-2 ml-1">Strategic Unit Orchestration</p>
+                            <p className="text-[10px] font-black text-indigo-700 uppercase tracking-[0.4em] mt-2 ml-1">Strategic Unit Orchestration</p>
                         </div>
                     </div>
                 </div>
@@ -229,7 +245,7 @@ export default function DomainModulesSpace() {
                            </button>
                         )}
                         <div>
-                            <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em]">
+                            <span className="text-[11px] font-black text-slate-800 uppercase tracking-[0.3em]">
                                 {selectedModuleId ? 'Standardized Protocols' : 'Operational Units'}
                             </span>
                             <div className="flex items-center gap-3 mt-1.5">
@@ -267,7 +283,8 @@ export default function DomainModulesSpace() {
                                         <motion.div 
                                             key={mod._id} 
                                             whileHover={{ y: -2 }}
-                                            className="bg-white border border-slate-100 p-6 rounded-[32px] flex items-center justify-between hover:border-indigo-100 hover:shadow-xl hover:shadow-indigo-500/5 transition-all group"
+                                            onClick={() => router.push(`/admin/domains/${domainId}/modules?moduleId=${mod._id}`)}
+                                            className="bg-white border border-slate-100 p-6 rounded-[32px] flex items-center justify-between hover:border-indigo-100 hover:shadow-xl hover:shadow-indigo-500/5 transition-all group cursor-pointer"
                                         >
                                             <div className="flex items-center gap-5">
                                                 <div className="w-14 h-14 bg-indigo-50 rounded-[22px] flex items-center justify-center text-indigo-600 group-hover:bg-indigo-100 transition-colors">
@@ -275,20 +292,20 @@ export default function DomainModulesSpace() {
                                                 </div>
                                                 <div>
                                                     <h3 className="font-black text-slate-800 tracking-tight uppercase text-lg leading-tight">{mod.name}</h3>
-                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Operational Unit Context</p>
+                                                    <p className="text-[10px] font-bold text-slate-800 uppercase tracking-widest mt-1">Operational Unit Context</p>
                                                 </div>
                                             </div>
                                             
                                             <div className="flex items-center gap-3">
                                                 <button 
-                                                    onClick={() => openModuleModal(mod)} 
+                                                    onClick={(e) => { e.stopPropagation(); openModuleModal(mod); }} 
                                                     className="px-6 py-3 bg-white border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-sm"
                                                 >
                                                     <Edit size={14} />
                                                     Refine
                                                 </button>
                                                 <button 
-                                                    onClick={() => handleModuleDelete(mod._id)} 
+                                                    onClick={(e) => { e.stopPropagation(); handleModuleDelete(mod._id); }} 
                                                     className="px-4 py-3 bg-white border border-slate-100 hover:border-rose-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-2xl transition-all shadow-sm"
                                                 >
                                                     <Trash2 size={16} />
@@ -322,7 +339,7 @@ export default function DomainModulesSpace() {
                                                 </div>
                                                 <div>
                                                     <h3 className="font-black text-slate-800 tracking-tight uppercase text-lg leading-tight">{tpl.name}</h3>
-                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Standardized Protocol Unit</p>
+                                                    <p className="text-[10px] font-bold text-slate-800 uppercase tracking-widest mt-1">Standardized Protocol Unit</p>
                                                 </div>
                                             </div>
 
@@ -346,7 +363,10 @@ export default function DomainModulesSpace() {
                                                 >
                                                     edit
                                                 </button>
-                                                <button className="px-4 py-3 bg-white border border-slate-100 hover:border-rose-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-2xl transition-all">
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); handleTemplateDelete(tpl._id); }}
+                                                    className="px-4 py-3 bg-white border border-slate-100 hover:border-rose-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-2xl transition-all shadow-sm"
+                                                >
                                                     <Trash2 size={16} />
                                                 </button>
                                             </div>

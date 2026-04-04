@@ -95,7 +95,7 @@ export default function RolesPage() {
   };
 
   const handleCreateOrUpdateRole = async () => {
-    if (!newRoleName || selectedPermissions.length === 0) return;
+    if (!newRoleName) return;
     
     try {
       setIsCreating(true);
@@ -117,7 +117,7 @@ export default function RolesPage() {
       }
 
       if (finalPermissions.length === 0) {
-        setError('At least one permission link is required');
+        setError('At least one authority link is required');
         setIsCreating(false);
         return;
       }

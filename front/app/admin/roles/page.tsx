@@ -17,6 +17,7 @@ import {
   Briefcase
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { showConfirm } from '@/lib/alerts';
 
 interface Role {
   _id: string;
@@ -55,7 +56,7 @@ export default function RolesPage() {
   const [currentActions, setCurrentActions] = useState<string[]>([]);
   const [currentStep, setCurrentStep] = useState(0); // 0: Info, 1: Selection
 
-  const STANDARD_ACTIONS = ['create', 'read', 'update', 'delete', 'approve', 'reject', '*'];
+  const STANDARD_ACTIONS = ['create', 'read', 'update', 'delete', 'approve', 'reject', 'all'];
 
   useEffect(() => {
     loadInitialData();
@@ -100,10 +101,31 @@ export default function RolesPage() {
       setIsCreating(true);
       setError('');
 
+      // Auto-add current selection if valid
+      let finalPermissions = [...selectedPermissions];
+      if (currentDomain && currentModule && currentActions.length > 0) {
+        const existingIdx = finalPermissions.findIndex(p => p.domain === currentDomain && p.module === currentModule);
+        if (existingIdx >= 0) {
+          finalPermissions[existingIdx].actions = Array.from(new Set([...finalPermissions[existingIdx].actions, ...currentActions]));
+        } else {
+          finalPermissions.push({
+            domain: currentDomain,
+            module: currentModule,
+            actions: currentActions
+          });
+        }
+      }
+
+      if (finalPermissions.length === 0) {
+        setError('At least one permission link is required');
+        setIsCreating(false);
+        return;
+      }
+
       const payload = {
         name: newRoleName,
         description: newRoleDescription,
-        permissions: selectedPermissions
+        permissions: finalPermissions
       };
 
       const response = editingRoleId
@@ -122,6 +144,29 @@ export default function RolesPage() {
       setError(err.response?.data?.message || err.message);
     } finally {
       setIsCreating(false);
+    }
+  };
+
+  const handleDeleteRole = async (roleId: string) => {
+    const confirmed = await showConfirm({
+      title: 'Terminate Authority Node',
+      text: 'Are you sure you want to purge this authority node from the lattice? This operation is irreversible and may impact personnel access.',
+      confirmButtonText: 'Fragment Authority',
+      danger: true
+    });
+    if (!confirmed) return;
+
+    try {
+      setLoading(true);
+      const response = await api.delete(`/api/tenant/roles/${roleId}`);
+      if (response.data.success) {
+        setSelectedRole(null);
+        loadRoles();
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -210,10 +255,11 @@ export default function RolesPage() {
             resetForm();
             setIsModalOpen(true);
           }}
-          className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 text-sm"
+          className="group relative flex items-center gap-3 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition-all active:scale-[0.98] overflow-hidden whitespace-nowrap"
         >
-          <Plus size={18} />
-          Create New Role
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
+          <Plus size={16} className="group-hover:rotate-90 transition-transform duration-300" strokeWidth={3} />
+          <span className="uppercase text-[11px] tracking-widest relative z-10 font-bold">New Role</span>
         </button>
       </div>
 
@@ -278,13 +324,31 @@ export default function RolesPage() {
                   </td>
                   <td className="px-6 py-5 text-center">
                     {role.isSystemRole || role.isDefault ? (
-                      <Lock size={14} className="text-slate-300 mx-auto" />
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="w-8 h-8 bg-slate-50 rounded-full flex items-center justify-center border border-slate-100 text-slate-300">
+                          <Lock size={12} />
+                        </div>
+                        <span className="text-[8px] font-black text-slate-300 uppercase tracking-tighter">System</span>
+                      </div>
                     ) : (
-                      <span className="text-[10px] font-black text-slate-300 uppercase italic">Custom</span>
+                      <button className="px-4 py-1.5 bg-amber-50 text-amber-600 border border-amber-100 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-amber-100 hover:shadow-md transition-all">
+                        Custom
+                      </button>
                     )}
                   </td>
                   <td className="px-8 py-5 text-right">
-                    <ChevronRight size={18} className={`inline text-slate-300 transition-transform ${selectedRole?._id === role._id ? 'translate-x-1 text-indigo-600' : ''}`} />
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        startEditing(role);
+                      }}
+                      className="px-5 py-2.5 bg-indigo-600 text-white rounded-[14px] text-[10px] font-black uppercase tracking-widest shadow-[0_10px_25px_rgba(79,70,229,0.2)] hover:bg-indigo-700 hover:scale-105 active:scale-95 transition-all flex items-center gap-2.5 ml-auto"
+                    >
+                      <div className="w-6 h-6 bg-white/20 rounded-lg flex items-center justify-center">
+                        <Edit3 size={11} className="text-white" />
+                      </div>
+                      Modify
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -329,7 +393,14 @@ export default function RolesPage() {
               </div>
               <div className="p-8 bg-slate-50 border-t border-slate-100 flex gap-4 text-slate-100 text-center">
                 <button onClick={() => startEditing(selectedRole)} className="flex-[2] py-5 bg-indigo-600 text-white rounded-[24px] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-indigo-700 transition-all active:scale-95 shadow-xl shadow-indigo-100"><Edit3 size={18} /> Modify Permissions</button>
-                {!(selectedRole.isSystemRole || selectedRole.isDefault) && (<button className="flex-1 py-5 bg-rose-50 text-rose-600 rounded-[24px] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-rose-500 hover:text-white transition-all border border-rose-100"><Trash2 size={18} /> Purge</button>)}
+                {!(selectedRole.isSystemRole || selectedRole.isDefault) && (
+                  <button 
+                    onClick={() => handleDeleteRole(selectedRole._id)}
+                    className="flex-1 py-5 bg-rose-50 text-rose-600 rounded-[24px] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-rose-500 hover:text-white transition-all border border-rose-100 shadow-sm"
+                  >
+                    <Trash2 size={18} /> Purge
+                  </button>
+                )}
               </div>
             </motion.div>
           </div>
@@ -396,23 +467,10 @@ export default function RolesPage() {
                           ))}
                         </div>
                       </div>
-                      <button onClick={addPermissionEntry} disabled={!currentDomain || !currentModule || currentActions.length === 0} className="w-full h-14 bg-indigo-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-indigo-700 transition-all disabled:opacity-30">Add Permission Link</button>
+                      {/* Removed manual link button as it is now merged into Save */}
                     </div>
 
-                    <div className="space-y-4">
-                      <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest border-b border-slate-50 pb-2">Active Link Configuration</h3>
-                      <div className="space-y-3">
-                        {selectedPermissions.map((p, idx) => (
-                           <div key={idx} className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
-                             <div className="flex items-center gap-4">
-                               <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600"><Plus size={16} /></div>
-                               <div><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{p.domain}</p><p className="text-sm font-bold text-slate-800">{p.module}</p></div>
-                             </div>
-                             <button onClick={() => removePermissionEntry(idx)} className="p-2 text-rose-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"><Trash2 size={18} /></button>
-                           </div>
-                        ))}
-                      </div>
-                    </div>
+                    {/* Removed Link Configuration List at user request */}
                   </div>
                 )}
               </div>
@@ -423,7 +481,11 @@ export default function RolesPage() {
                 {currentStep < 1 ? (
                   <button onClick={() => setCurrentStep(prev => prev + 1)} disabled={!newRoleName} className="px-10 py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all uppercase text-[10px] tracking-widest disabled:opacity-50">Continue</button>
                 ) : (
-                  <button onClick={handleCreateOrUpdateRole} disabled={isCreating || selectedPermissions.length === 0} className="px-10 py-4 bg-emerald-600 text-white rounded-2xl font-black shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all uppercase text-[10px] tracking-widest disabled:opacity-50 flex items-center gap-2">
+                  <button 
+                    onClick={handleCreateOrUpdateRole} 
+                    disabled={isCreating || (selectedPermissions.length === 0 && (!currentDomain || !currentModule || currentActions.length === 0))} 
+                    className="px-10 py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all uppercase text-[10px] tracking-widest disabled:opacity-50 flex items-center gap-2"
+                  >
                     {isCreating ? 'Committing...' : 'Save Authority Node'}
                     <Shield size={16} />
                   </button>

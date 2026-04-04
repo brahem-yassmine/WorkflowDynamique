@@ -80,9 +80,9 @@ export default function DomainSidebar({ domainId }: { domainId: string }) {
             <div className="p-6 border-b border-white/5 relative z-10">
                 <button
                     onClick={() => router.push('/admin/domains')}
-                    className="flex items-center gap-2 text-indigo-300 hover:text-white transition-colors group mb-6"
+                    className="flex items-center gap-2.5 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-all group mb-8 border border-white/5 shadow-sm active:scale-95"
                 >
-                    <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
+                    <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform text-indigo-200" />
                     <span className="text-[10px] font-black uppercase tracking-widest">Back to Admin</span>
                 </button>
 
@@ -98,7 +98,7 @@ export default function DomainSidebar({ domainId }: { domainId: string }) {
                         <h1 className="text-lg font-black text-white tracking-tight leading-none truncate max-w-[160px]">
                             {domain?.name || 'Loading...'}
                         </h1>
-                        <p className="text-[9px] text-slate-500 font-extrabold uppercase tracking-widest mt-1.5 flex items-center gap-1.5">
+                        <p className="text-[9px] text-white font-extrabold uppercase tracking-widest mt-1.5 flex items-center gap-1.5">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                             Sector Matrix
                         </p>
@@ -156,9 +156,8 @@ export default function DomainSidebar({ domainId }: { domainId: string }) {
                     </div>
                 </div>
 
-                {/* Management Section */}
                 <div className="space-y-4">
-                    <h2 className="px-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.2em] flex items-center gap-2">
+                    <h2 className="px-4 text-[9px] font-black text-white uppercase tracking-[0.2em] flex items-center gap-2">
                         <Settings size={12} />
                         Lattice Management
                     </h2>
@@ -172,8 +171,8 @@ export default function DomainSidebar({ domainId }: { domainId: string }) {
                                     : 'text-indigo-100 hover:bg-white/10 hover:text-white font-bold'}
                             `}
                         >
-                            <Settings size={18} className={`${pathname.includes('/settings') ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300'}`} />
-                            <span className="text-xs tracking-tight uppercase font-black">Sector Config</span>
+                            <Settings size={18} className={`${pathname.includes('/settings') ? 'text-indigo-400' : 'text-white/40 group-hover:text-white'}`} />
+                            <span className="text-xs tracking-tight uppercase font-black text-white/90">Sector Config</span>
                             {pathname.includes('/settings') && (
                                 <motion.div
                                     layoutId="activeIndicatorDomain"
@@ -190,9 +189,9 @@ export default function DomainSidebar({ domainId }: { domainId: string }) {
                 <div className="bg-white/5 backdrop-blur-md rounded-[24px] p-5 border border-white/5">
                     <div className="flex items-center gap-3 mb-2">
                         <div className="w-2 h-2 bg-emerald-400 rounded-full shadow-[0_0_8px_rgba(52,211,153,0.4)] animate-pulse"></div>
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Matrix Node</span>
+                        <span className="text-[9px] font-black text-white uppercase tracking-[0.2em]">Matrix Node</span>
                     </div>
-                    <p className="text-[11px] font-bold text-slate-300 leading-relaxed italic">
+                    <p className="text-[11px] font-bold text-white leading-relaxed italic">
                         Connected to {domain?.name || 'Sector'}
                     </p>
                 </div>

@@ -142,8 +142,10 @@ function WorkflowAdminDetailsContent() {
           <div className="flex items-center gap-6">
             <button 
               onClick={() => {
-                if (workflow?.domainId) {
-                  router.push(`/admin/domains/${workflow.domainId}/modules${workflow.moduleId ? `?moduleId=${workflow.moduleId}` : ''}`);
+                const domId = workflow?.domainId?._id || workflow?.domainId;
+                const modId = workflow?.moduleId?._id || workflow?.moduleId;
+                if (domId) {
+                  router.push(`/admin/domains/${domId}/modules${modId ? `?moduleId=${modId}` : ''}`);
                 } else {
                   router.push('/admin/workflows');
                 }

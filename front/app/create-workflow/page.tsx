@@ -13,10 +13,15 @@ const WorkflowArchitectContent = () => {
     const flowId = searchParams.get('id');
 
     const handleBack = () => {
+        const domainId = searchParams.get('domainId');
+        const moduleId = searchParams.get('moduleId');
+
         if (flowId) {
             window.location.href = `/admin/workflows/${flowId}?tab=visual`;
         } else if (projectId) {
             window.location.href = `/admin/projects/${projectId}`;
+        } else if (domainId && moduleId) {
+            window.location.href = `/admin/domains/${domainId}/modules?moduleId=${moduleId}`;
         } else {
             window.location.href = '/admin/workflows';
         }

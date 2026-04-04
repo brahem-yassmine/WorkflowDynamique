@@ -703,7 +703,7 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                                                     <div className="space-y-2">
                                                         <Label className="text-[10px] font-black text-slate-400 uppercase">Required Permission Action</Label>
                                                         <div className="flex flex-wrap gap-2">
-                                                            {['approve', 'reject', 'create', 'update', 'delete', '*'].map(action => (
+                                                            {['approve', 'reject', 'create', 'update', 'delete', 'all'].map(action => (
                                                                 <button
                                                                     key={action}
                                                                     type="button"

@@ -14,6 +14,9 @@ class RoleController {
   // Create a role
   static async create(req, res) {
     try {
+      console.log(`📝 [RoleController] Creating role for tenant: ${req.tenantId || 'Unknown'}`);
+      console.log('📦 Payload:', JSON.stringify(req.body, null, 2));
+
       const Role = RoleController.getModel(req);
       const { name, description, permissions, isDefault } = req.body;
 
@@ -91,6 +94,9 @@ class RoleController {
   // Update a role
   static async update(req, res) {
     try {
+      console.log(`🔄 [RoleController] Updating role ID: ${req.params.id} for tenant: ${req.tenantId || 'Unknown'}`);
+      console.log('📦 Payload:', JSON.stringify(req.body, null, 2));
+
       const Role = RoleController.getModel(req);
       const { id } = req.params;
       const { name, description, permissions, isDefault, isActive } = req.body;

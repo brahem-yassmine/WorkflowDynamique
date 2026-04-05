@@ -15,9 +15,8 @@ const roleSchema = new mongoose.Schema(
     },
     permissions: [
       {
-        module: { type: String, required: true },
-        domain: { type: String, required: true },
-        actions: [{ type: String, enum: ['create', 'read', 'update', 'delete', 'approve', 'reject', '*'] }]
+        type: String,
+        required: true
       }
     ],
     isDefault: {

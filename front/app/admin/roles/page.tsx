@@ -6,6 +6,7 @@ import {
   Shield,
   Plus,
   Search,
+  MoreVertical,
   Edit3,
   Trash2,
   ChevronRight,
@@ -17,65 +18,66 @@ import {
   Briefcase
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { showConfirm } from '@/lib/alerts';
 
 interface Role {
   _id: string;
   name: string;
   description?: string;
-  permissions: {
-    module: string;
-    domain: string;
-    actions: string[];
-  }[];
+  permissions: string[];
   isDefault: boolean;
   isActive: boolean;
   isSystemRole?: boolean;
 }
 
+interface Permission {
+  _id: string;
+  name: string;
+  description: string;
+  category: string;
+}
+
+const PERMISSION_ORDER = ['WORKFLOW', 'PROJECT', 'USER', 'ROLE', 'DEPARTMENT', 'TASK', 'SYSTEM'];
+
 export default function RolesPage() {
   const [roles, setRoles] = useState<Role[]>([]);
-  const [availableDomains, setAvailableDomains] = useState<any[]>([]);
-  const [availableModules, setAvailableModules] = useState<any[]>([]);
+  const [availablePermissions, setAvailablePermissions] = useState<Permission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
 
   // New Role Form State
   const [newRoleName, setNewRoleName] = useState('');
   const [newRoleDescription, setNewRoleDescription] = useState('');
-  const [selectedPermissions, setSelectedPermissions] = useState<any[]>([]);
-  
-  // Selection State for the modal
-  const [currentDomain, setCurrentDomain] = useState('');
-  const [currentModule, setCurrentModule] = useState('');
-  const [currentActions, setCurrentActions] = useState<string[]>([]);
-  const [currentStep, setCurrentStep] = useState(0); // 0: Info, 1: Selection
+  const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
+  const [currentStep, setCurrentStep] = useState(0); // 0: Info, 1+: Categories
 
-  const STANDARD_ACTIONS = ['create', 'read', 'update', 'delete', 'approve', 'reject', 'all'];
+  const activeCategories = PERMISSION_ORDER.filter(cat =>
+    availablePermissions.some(p => p.category === cat)
+  );
 
   useEffect(() => {
     loadInitialData();
   }, []);
+
+  const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
 
   const loadInitialData = async () => {
     try {
       setLoading(true);
       setError('');
 
-      const [rolesRes, domainsRes, modulesRes] = await Promise.all([
+      const [rolesRes, permsRes] = await Promise.all([
         api.get('/api/tenant/roles'),
-        api.get('/api/tenant/domains/active'),
-        api.get('/api/modules')
+        api.get('/api/tenant/roles/permissions')
       ]);
 
       if (rolesRes.data.success) setRoles(rolesRes.data.data);
-      if (domainsRes.data.success) setAvailableDomains(domainsRes.data.data);
-      if (modulesRes.data.success) setAvailableModules(modulesRes.data.data);
+      if (permsRes.data.success) {
+        setAvailablePermissions(permsRes.data.data);
+      }
 
     } catch (err: any) {
       console.error('❌ Initialization error:', err);
@@ -95,37 +97,14 @@ export default function RolesPage() {
   };
 
   const handleCreateOrUpdateRole = async () => {
-    if (!newRoleName) return;
-    
     try {
       setIsCreating(true);
       setError('');
 
-      // Auto-add current selection if valid
-      let finalPermissions = [...selectedPermissions];
-      if (currentDomain && currentModule && currentActions.length > 0) {
-        const existingIdx = finalPermissions.findIndex(p => p.domain === currentDomain && p.module === currentModule);
-        if (existingIdx >= 0) {
-          finalPermissions[existingIdx].actions = Array.from(new Set([...finalPermissions[existingIdx].actions, ...currentActions]));
-        } else {
-          finalPermissions.push({
-            domain: currentDomain,
-            module: currentModule,
-            actions: currentActions
-          });
-        }
-      }
-
-      if (finalPermissions.length === 0) {
-        setError('At least one authority link is required');
-        setIsCreating(false);
-        return;
-      }
-
       const payload = {
         name: newRoleName,
         description: newRoleDescription,
-        permissions: finalPermissions
+        permissions: selectedPermissions
       };
 
       const response = editingRoleId
@@ -147,34 +126,11 @@ export default function RolesPage() {
     }
   };
 
-  const handleDeleteRole = async (roleId: string) => {
-    const confirmed = await showConfirm({
-      title: 'Terminate Authority Node',
-      text: 'Are you sure you want to purge this authority node from the lattice? This operation is irreversible and may impact personnel access.',
-      confirmButtonText: 'Fragment Authority',
-      danger: true
-    });
-    if (!confirmed) return;
-
-    try {
-      setLoading(true);
-      const response = await api.delete(`/api/tenant/roles/${roleId}`);
-      if (response.data.success) {
-        setSelectedRole(null);
-        loadRoles();
-      }
-    } catch (err: any) {
-      setError(err.response?.data?.message || err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const startEditing = (role: Role) => {
     setEditingRoleId(role._id);
     setNewRoleName(role.name);
     setNewRoleDescription(role.description || '');
-    setSelectedPermissions(role.permissions || []);
+    setSelectedPermissions(role.permissions);
     setCurrentStep(0);
     setIsModalOpen(true);
     setSelectedRole(null);
@@ -186,44 +142,27 @@ export default function RolesPage() {
     setSelectedPermissions([]);
     setCurrentStep(0);
     setEditingRoleId(null);
-    setCurrentDomain('');
-    setCurrentModule('');
-    setCurrentActions([]);
   };
 
-  const toggleAction = (action: string) => {
-    setCurrentActions(prev =>
-      prev.includes(action)
-        ? prev.filter(p => p !== action)
-        : [...prev, action]
+  const togglePermission = (permName: string) => {
+    setSelectedPermissions(prev =>
+      prev.includes(permName)
+        ? prev.filter(p => p !== permName)
+        : [...prev, permName]
     );
   };
 
-  const addPermissionEntry = () => {
-    if (!currentDomain || !currentModule || currentActions.length === 0) return;
-    
-    // Check if we already have an entry for this Domain/Module pair
-    const existingIdx = selectedPermissions.findIndex(p => p.domain === currentDomain && p.module === currentModule);
-    
-    if (existingIdx >= 0) {
-      const updated = [...selectedPermissions];
-      // Merge unique actions
-      updated[existingIdx].actions = Array.from(new Set([...updated[existingIdx].actions, ...currentActions]));
-      setSelectedPermissions(updated);
-    } else {
-      setSelectedPermissions([...selectedPermissions, {
-        domain: currentDomain,
-        module: currentModule,
-        actions: currentActions
-      }]);
-    }
-    
-    // Reset selection part
-    setCurrentActions([]);
+  const selectAllInCategory = (category: string) => {
+    const permsInCat = availablePermissions.filter(p => p.category === category).map(p => p.name);
+    setSelectedPermissions(prev => {
+      const newPerms = new Set([...prev, ...permsInCat]);
+      return Array.from(newPerms);
+    });
   };
 
-  const removePermissionEntry = (idx: number) => {
-    setSelectedPermissions(prev => prev.filter((_, i) => i !== idx));
+  const deselectAllInCategory = (category: string) => {
+    const permsInCat = availablePermissions.filter(p => p.category === category).map(p => p.name);
+    setSelectedPermissions(prev => prev.filter(p => !permsInCat.includes(p)));
   };
 
   const filteredRoles = roles.filter(role =>
@@ -231,35 +170,47 @@ export default function RolesPage() {
     role.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'WORKFLOW': return <Layers size={20} />;
+      case 'PROJECT': return <Briefcase size={20} />;
+      case 'USER': return <Shield size={20} />;
+      case 'ROLE': return <Lock size={20} />;
+      case 'SYSTEM': return <Info size={20} />;
+      default: return <CheckCircle2 size={20} />;
+    }
+  };
+
+  const currentCategory = currentStep > 0 ? activeCategories[currentStep - 1] : null;
+
   if (loading && roles.length === 0) {
     return (
-      <div className="flex items-center justify-center p-24 text-center text-slate-500">
+      <div className="flex items-center justify-center p-24 text-center">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="font-bold animate-pulse uppercase tracking-widest text-xs">Synchronizing Authority Matrix...</p>
+          <p className="text-slate-500 font-bold animate-pulse uppercase tracking-widest text-xs">Synchronizing Authority Matrix...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 p-4 md:p-8 animate-in fade-in duration-500">
+    <div className="space-y-8 animate-in fade-in duration-500 p-4 md:p-8">
       {/* Header section */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 text-slate-800">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-black tracking-tight">Organization Authority & Roles</h1>
-          <p className="text-slate-500 text-sm font-medium">Define and manage custom security perimeters for your organization.</p>
+          <h1 className="text-3xl font-black text-slate-800 tracking-tight">Organization Authority & Roles</h1>
+          <p className="text-slate-500 text-sm font-medium">Define and manage custom security perimeters for your current organization. These roles are isolated and specific to this tenant.</p>
         </div>
         <button
           onClick={() => {
             resetForm();
             setIsModalOpen(true);
           }}
-          className="group relative flex items-center gap-3 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition-all active:scale-[0.98] overflow-hidden whitespace-nowrap"
+          className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95"
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
-          <Plus size={16} className="group-hover:rotate-90 transition-transform duration-300" strokeWidth={3} />
-          <span className="uppercase text-[11px] tracking-widest relative z-10 font-bold">New Role</span>
+          <Plus size={18} />
+          Create New Role
         </button>
       </div>
 
@@ -269,225 +220,364 @@ export default function RolesPage() {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
           <input
             type="text"
-            placeholder="Search roles..."
+            placeholder="Search roles by name or description..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-12 pr-4 py-3 bg-white border border-slate-100 rounded-2xl shadow-sm focus:outline-none focus:ring-4 focus:ring-indigo-50 transition-all font-medium text-slate-700"
           />
         </div>
-        <div className="text-slate-400 text-xs font-black uppercase tracking-widest">
+        <div className="flex items-center gap-3 text-slate-400 text-xs font-black uppercase tracking-widest">
           {filteredRoles.length} Roles Identified
         </div>
       </div>
 
       {error && (
-        <div className="bg-rose-50 border border-rose-100 text-rose-600 p-4 rounded-2xl flex items-center gap-3 shadow-sm text-sm font-bold">
+        <div className="bg-rose-50 border border-rose-100 text-rose-600 p-4 rounded-2xl flex items-center gap-3 shadow-sm">
           <Info size={18} />
-          <span>{error}</span>
+          <span className="text-sm font-bold">{error}</span>
         </div>
       )}
 
-      {/* Roles List */}
-      <div className="bg-white rounded-[40px] shadow-xl border border-slate-100 overflow-hidden">
-        <div className="overflow-x-auto text-slate-700">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50/50">
-                <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Authority Type</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">System</th>
-                <th className="px-8 py-4"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {filteredRoles.map((role) => (
-                <tr
-                  key={role._id}
-                  onClick={() => setSelectedRole(role)}
-                  className={`hover:bg-indigo-50/20 transition-all cursor-pointer group ${selectedRole?._id === role._id ? 'bg-indigo-50/40' : ''}`}
-                >
-                  <td className="px-8 py-5 text-slate-800">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-sm shadow-sm ${selectedRole?._id === role._id ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-indigo-100 group-hover:text-indigo-600'}`}>
-                        <Shield size={18} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold">{role.name}</p>
-                        <p className="text-xs font-medium text-slate-400 line-clamp-1 max-w-[200px]">{role.description || 'No description'}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-5">
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${role.isActive ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
-                      {role.isActive ? 'Active' : 'Disabled'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-5 text-center">
-                    {role.isSystemRole || role.isDefault ? (
-                      <div className="flex flex-col items-center gap-1">
-                        <div className="w-8 h-8 bg-slate-50 rounded-full flex items-center justify-center border border-slate-100 text-slate-300">
-                          <Lock size={12} />
-                        </div>
-                        <span className="text-[8px] font-black text-slate-300 uppercase tracking-tighter">System</span>
-                      </div>
-                    ) : (
-                      <button className="px-4 py-1.5 bg-amber-50 text-amber-600 border border-amber-100 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-amber-100 hover:shadow-md transition-all">
-                        Custom
-                      </button>
-                    )}
-                  </td>
-                  <td className="px-8 py-5 text-right">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        startEditing(role);
-                      }}
-                      className="px-5 py-2.5 bg-indigo-600 text-white rounded-[14px] text-[10px] font-black uppercase tracking-widest shadow-[0_10px_25px_rgba(79,70,229,0.2)] hover:bg-indigo-700 hover:scale-105 active:scale-95 transition-all flex items-center gap-2.5 ml-auto"
-                    >
-                      <div className="w-6 h-6 bg-white/20 rounded-lg flex items-center justify-center">
-                        <Edit3 size={11} className="text-white" />
-                      </div>
-                      Modify
-                    </button>
-                  </td>
+      <div className="grid grid-cols-1 gap-8">
+        {/* Roles List - Now full width */}
+        <div className="bg-white rounded-[40px] shadow-xl border border-slate-100 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50/50">
+                  <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Authority Type</th>
+                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">System</th>
+                  <th className="px-8 py-4 text-right"></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Role Inspector Modal */}
-      <AnimatePresence>
-        {selectedRole && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedRole(null)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-lg" />
-            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="bg-white rounded-[40px] shadow-2xl w-full max-w-2xl relative z-10 overflow-hidden border border-white/20 flex flex-col max-h-[90vh]">
-              <div className="absolute top-6 right-6 z-20">
-                <button onClick={() => setSelectedRole(null)} className="p-3 bg-white/80 backdrop-blur-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-2xl transition-all shadow-sm border border-slate-100"><X size={20} /></button>
-              </div>
-              <div className="p-10 overflow-y-auto">
-                <div className="mb-10"><div className="bg-indigo-600 w-24 h-24 rounded-[32px] flex items-center justify-center text-white shadow-xl shadow-indigo-100 shrink-0"><Shield size={40} /></div></div>
-                <div className="space-y-4 mb-10">
-                  <div className="flex items-center gap-2"><h2 className="text-3xl font-black text-slate-800 tracking-tight leading-none uppercase">{selectedRole.name}</h2></div>
-                  <p className="text-xs font-bold text-indigo-500 uppercase tracking-[0.2em]">Authority Configuration Node</p>
-                  <p className="text-sm font-medium text-slate-500 leading-relaxed mt-4">{selectedRole.description || 'No description provided.'}</p>
-                </div>
-                <div className="space-y-8">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] border-b border-slate-50 pb-2">Active Permissions Matrix ({selectedRole.permissions?.length || 0})</p>
-                  <div className="grid grid-cols-1 gap-6">
-                    {selectedRole.permissions?.length > 0 ? selectedRole.permissions.map((p, idx) => (
-                      <div key={idx} className="p-6 bg-slate-50 rounded-[28px] space-y-4 border border-slate-100/50">
-                        <div className="flex items-center gap-3 text-indigo-600">
-                          <div className="p-2 bg-white rounded-xl shadow-sm"><Layers size={18} /></div>
-                          <div className="flex flex-col">
-                            <span className="text-[10px] font-black uppercase tracking-widest">{p.domain}</span>
-                            <span className="text-[12px] font-black text-slate-700 tracking-tight">{p.module}</span>
-                          </div>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {filteredRoles.map((role) => (
+                  <tr
+                    key={role._id}
+                    onClick={() => setSelectedRole(role)}
+                    className={`hover:bg-indigo-50/20 transition-all cursor-pointer group ${selectedRole?._id === role._id ? 'bg-indigo-50/40' : ''}`}
+                  >
+                    <td className="px-8 py-5">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-sm transition-all shadow-sm ${selectedRole?._id === role._id ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-indigo-100 group-hover:text-indigo-600'}`}>
+                          <Shield size={18} />
                         </div>
-                        <div className="flex flex-wrap gap-2">{p.actions.map(action => (<span key={action} className="bg-white text-slate-700 text-[9px] font-black px-3 py-1.5 rounded-lg border border-slate-100 shadow-sm uppercase tracking-tight">{action}</span>))}</div>
+                        <div>
+                          <p className="text-sm font-bold text-slate-800">{role.name}</p>
+                          <p className="text-xs font-medium text-slate-400 line-clamp-1 max-w-[200px]">{role.description || 'No description provided'}</p>
+                        </div>
                       </div>
-                    )) : (<div className="py-12 text-center bg-slate-50 rounded-[32px] border border-dashed border-slate-200"><p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">Zero-Privilege Profile</p></div>)}
+                    </td>
+                    <td className="px-6 py-5">
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${role.isActive ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
+                        {role.isActive ? 'Active' : 'Disabled'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-5">
+                      {role.isSystemRole || role.isDefault ? (
+                        <div className="flex items-center gap-2 text-slate-300 font-bold text-[10px] uppercase tracking-widest">
+                          <Lock size={12} />
+                          <span>System</span>
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            startEditing(role);
+                          }}
+                          className="px-4 py-2 bg-indigo-50/50 text-indigo-600 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white hover:shadow-lg hover:shadow-indigo-100 transition-all active:scale-95 border border-indigo-100/50"
+                        >
+                          Configure Custom
+                        </button>
+                      )}
+                    </td>
+                    <td className="px-8 py-5 text-right">
+                      <ChevronRight size={18} className={`inline text-slate-300 transition-transform ${selectedRole?._id === role._id ? 'translate-x-1 text-indigo-600' : ''}`} />
+                    </td>
+                  </tr>
+                ))}
+                {filteredRoles.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-8 py-12 text-center">
+                      <p className="text-slate-400 font-bold">No matching authority nodes found in the matrix.</p>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Role Inspector Modal */}
+        <AnimatePresence>
+          {selectedRole && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setSelectedRole(null)}
+                className="absolute inset-0 bg-slate-900/60 backdrop-blur-lg"
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="bg-white rounded-[40px] shadow-2xl w-full max-w-2xl relative z-10 overflow-hidden border border-white/20 flex flex-col max-h-[90vh]"
+              >
+                {/* Header with Close Button */}
+                <div className="absolute top-6 right-6 z-20">
+                  <button
+                    onClick={() => setSelectedRole(null)}
+                    className="p-3 bg-white/80 backdrop-blur-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-2xl transition-all shadow-sm border border-slate-100"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                <div className="p-10 flex-grow overflow-y-auto custom-scrollbar">
+                  <div className="mb-10">
+                    <div className="bg-indigo-600 w-24 h-24 rounded-[32px] flex items-center justify-center text-white shadow-xl shadow-indigo-100 shrink-0">
+                      <Shield size={40} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 mb-10">
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-3xl font-black text-slate-800 tracking-tight leading-none uppercase">{selectedRole.name}</h2>
+                      {selectedRole.isDefault && <span className="bg-amber-100 text-amber-600 text-[10px] font-black px-2 py-0.5 rounded-lg tracking-widest uppercase">Default</span>}
+                    </div>
+                    <p className="text-xs font-bold text-indigo-500 uppercase tracking-[0.2em]">Authority Configuration Node</p>
+                    <p className="text-sm font-medium text-slate-500 leading-relaxed mt-4">
+                      {selectedRole.description || 'This authority node defines a specific perimeter of rights and responsibilities within the organizational lattice.'}
+                    </p>
+                  </div>
+
+                  <div className="space-y-8">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] border-b border-slate-50 pb-2">Active Permissions Matrix ({selectedRole.permissions?.length || 0})</p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {activeCategories.map(cat => {
+                        const groupPerms = (selectedRole.permissions || []).filter(pName =>
+                          availablePermissions.find(ap => ap.name === pName)?.category === cat
+                        );
+
+                        if (groupPerms.length === 0) return null;
+
+                        return (
+                          <div key={cat} className="p-6 bg-slate-50 rounded-[28px] space-y-4 border border-slate-100/50">
+                            <div className="flex items-center gap-3 text-indigo-600">
+                              <div className="p-2 bg-white rounded-xl shadow-sm">
+                                {getCategoryIcon(cat)}
+                              </div>
+                              <span className="text-[10px] font-black uppercase tracking-widest">{cat}</span>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {groupPerms.map(p => (
+                                <span key={p} className="bg-white text-slate-700 text-[9px] font-black px-3 py-1.5 rounded-lg border border-slate-100 shadow-sm uppercase tracking-tight">
+                                  {p.split('_').slice(1).join(' ')}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {selectedRole.permissions.length === 0 && (
+                      <div className="py-12 text-center bg-slate-50 rounded-[32px] border border-dashed border-slate-200">
+                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">Zero-Privilege Profile</p>
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-              <div className="p-8 bg-slate-50 border-t border-slate-100 flex gap-4 text-slate-100 text-center">
-                <button onClick={() => startEditing(selectedRole)} className="flex-[2] py-5 bg-indigo-600 text-white rounded-[24px] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-indigo-700 transition-all active:scale-95 shadow-xl shadow-indigo-100"><Edit3 size={18} /> Modify Permissions</button>
-                {!(selectedRole.isSystemRole || selectedRole.isDefault) && (
-                  <button 
-                    onClick={() => handleDeleteRole(selectedRole._id)}
-                    className="flex-1 py-5 bg-rose-50 text-rose-600 rounded-[24px] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-rose-500 hover:text-white transition-all border border-rose-100 shadow-sm"
-                  >
-                    <Trash2 size={18} /> Purge
-                  </button>
-                )}
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
-      {/* Create/Edit Modal */}
+                <div className="p-8 bg-slate-50 border-t border-slate-100 flex gap-4">
+                  <button
+                    onClick={() => startEditing(selectedRole)}
+                    className="flex-[2] py-5 bg-indigo-600 text-white rounded-[24px] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-indigo-700 transition-all active:scale-95 shadow-xl shadow-indigo-200"
+                  >
+                    <Edit3 size={18} />
+                    Modify Permissions
+                  </button>
+                  {!(selectedRole.isSystemRole || selectedRole.isDefault) && (
+                    <button className="flex-1 py-5 bg-rose-50 text-rose-600 rounded-[24px] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-rose-500 hover:text-white transition-all border border-rose-100">
+                      <Trash2 size={18} />
+                      Purge
+                    </button>
+                  )}
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Create Role Modal */}
       <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsModalOpen(false)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-lg" />
-            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[85vh] relative z-10 overflow-hidden border border-slate-100 flex flex-col">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsModalOpen(false)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-lg"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[85vh] relative z-10 overflow-hidden border border-slate-100 flex flex-col"
+            >
               <div className="bg-indigo-600 p-8 text-white relative">
                 <div className="flex justify-between items-center">
                   <div>
-                    <h2 className="text-2xl font-black tracking-tight">{editingRoleId ? 'Modify Authority' : 'New Authority Node'}</h2>
-                    <p className="text-indigo-200 text-xs font-bold uppercase tracking-widest mt-1">Step {currentStep + 1}: {currentStep === 0 ? 'Identity Profile' : 'Authority Mapping'}</p>
+                    <h2 className="text-2xl font-black tracking-tight">{editingRoleId ? 'Modify Existing Authority' : 'Construct New Authority Node'}</h2>
+                    {currentStep === 0 ? (
+                      <p className="text-indigo-200 text-xs font-bold uppercase tracking-widest mt-1">Step 1: Identity Profile</p>
+                    ) : (
+                      <p className="text-indigo-200 text-xs font-bold uppercase tracking-widest mt-1">Step {currentStep + 1}: {currentCategory} Matrix</p>
+                    )}
                   </div>
-                  <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-indigo-500 rounded-xl transition-all"><X size={24} /></button>
+                  <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-indigo-500 rounded-xl transition-all">
+                    <X size={24} />
+                  </button>
                 </div>
-                <div className="absolute bottom-0 left-0 h-1.5 bg-indigo-500 w-full"><motion.div className="h-full bg-white shadow-[0_0_10px_white]" initial={{ width: 0 }} animate={{ width: `${((currentStep + 1) / 2) * 100}%` }} /></div>
+
+                {/* Progress Bar */}
+                <div className="absolute bottom-0 left-0 h-1.5 bg-indigo-500 w-full">
+                  <motion.div
+                    className="h-full bg-white shadow-[0_0_10px_white]"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${((currentStep + 1) / (activeCategories.length + 1)) * 100}%` }}
+                  />
+                </div>
               </div>
 
-              <div className="flex-grow overflow-y-auto p-10 text-slate-700">
+              <div className="flex-grow overflow-y-auto p-10">
                 {currentStep === 0 ? (
                   <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
                     <div className="space-y-4">
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Authority Node Name</label>
-                        <input value={newRoleName} onChange={(e) => setNewRoleName(e.target.value)} placeholder="e.g., Regional Supervisor" className="w-full h-14 bg-slate-50 rounded-2xl px-6 font-black text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none text-base transition-all" />
+                        <input
+                          value={newRoleName}
+                          onChange={(e) => setNewRoleName(e.target.value)}
+                          placeholder="e.g., Regional Supervisor"
+                          className="w-full h-14 bg-slate-50 rounded-2xl px-6 font-black text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none text-base transition-all"
+                        />
                       </div>
                       <div className="space-y-1.5 pt-4">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Description</label>
-                        <textarea value={newRoleDescription} onChange={(e) => setNewRoleDescription(e.target.value)} placeholder="Describe the scope..." className="w-full h-32 bg-slate-50 rounded-2xl p-6 font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none text-sm resize-none" />
+                        <textarea
+                          value={newRoleDescription}
+                          onChange={(e) => setNewRoleDescription(e.target.value)}
+                          placeholder="Describe the scope and responsibilities of this role..."
+                          className="w-full h-32 bg-slate-50 rounded-2xl p-6 font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none text-sm resize-none"
+                        />
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-10 animate-in slide-in-from-right-4 duration-500">
-                    <div className="bg-slate-50 p-6 rounded-[28px] border border-slate-100 space-y-6 shadow-sm">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Select Domain</label>
-                          <select value={currentDomain} onChange={(e) => { setCurrentDomain(e.target.value); setCurrentModule(''); }} className="w-full h-14 bg-white rounded-2xl px-4 font-bold text-slate-700 outline-none ring-1 ring-slate-100">
-                            <option value="">-- Choose Domain --</option>
-                            {availableDomains.map(d => <option key={d._id} value={d.name}>{d.name}</option>)}
-                          </select>
+                  <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
+                    <div className="flex items-center justify-between border-b border-slate-50 pb-6 mb-6">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
+                          {currentCategory && getCategoryIcon(currentCategory)}
                         </div>
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Select Module</label>
-                          <select value={currentModule} disabled={!currentDomain} onChange={(e) => setCurrentModule(e.target.value)} className="w-full h-14 bg-white rounded-2xl px-4 font-bold text-slate-700 outline-none ring-1 ring-slate-100 disabled:opacity-50">
-                            <option value="">-- Choose Module --</option>
-                            {availableModules.filter(m => { const d = availableDomains.find(dom => dom.name === currentDomain); return m.domainId?._id === d?._id || m.domainId === d?._id; }).map(m => <option key={m._id} value={m.name}>{m.name}</option>)}
-                          </select>
+                        <div>
+                          <h3 className="text-xl font-black text-slate-800 tracking-tight">{currentCategory} Permissions</h3>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Select relevant rights for this sector</p>
                         </div>
                       </div>
-                      <div className="space-y-4">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Available Actions</label>
-                        <div className="flex flex-wrap gap-2 text-slate-100 text-center">
-                          {STANDARD_ACTIONS.map(action => (
-                            <button key={action} onClick={() => toggleAction(action)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${currentActions.includes(action) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-500 border-slate-100'}`}>
-                              {action}
+                      <div className="flex items-center gap-2">
+                        {currentCategory && (
+                          selectedPermissions.filter(p => availablePermissions.find(ap => ap.name === p)?.category === currentCategory).length === availablePermissions.filter(p => p.category === currentCategory).length ? (
+                            <button
+                              type="button"
+                              onClick={() => deselectAllInCategory(currentCategory)}
+                              className="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-100 transition-all border border-indigo-100"
+                            >
+                              Deselect All
                             </button>
-                          ))}
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => selectAllInCategory(currentCategory)}
+                              className="bg-slate-50 text-slate-500 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 hover:text-slate-700 transition-all border border-slate-100"
+                            >
+                              Select All
+                            </button>
+                          )
+                        )}
+                        <div className="bg-slate-50 px-4 py-1.5 rounded-xl text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0 border border-slate-100">
+                          {selectedPermissions.filter(p => availablePermissions.find(ap => ap.name === p)?.category === currentCategory).length} Selected
                         </div>
                       </div>
-                      {/* Removed manual link button as it is now merged into Save */}
                     </div>
 
-                    {/* Removed Link Configuration List at user request */}
+                    <div className="grid grid-cols-1 gap-3">
+                      {availablePermissions
+                        .filter(p => p.category === currentCategory)
+                        .map(permission => (
+                          <label
+                            key={permission._id}
+                            className={`flex items-center gap-4 p-5 rounded-2xl cursor-pointer transition-all border-2 ${selectedPermissions.includes(permission.name) ? 'bg-indigo-50/50 border-indigo-200' : 'bg-white border-slate-50 hover:border-slate-100 hover:bg-slate-50/30'}`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedPermissions.includes(permission.name)}
+                              onChange={() => togglePermission(permission.name)}
+                              className="hidden"
+                            />
+                            <div className={`w-6 h-6 rounded-lg flex items-center justify-center border-2 transition-all ${selectedPermissions.includes(permission.name) ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-200'}`}>
+                              {selectedPermissions.includes(permission.name) && <CheckCircle2 size={14} className="stroke-[4]" />}
+                            </div>
+                            <div>
+                              <p className="text-sm font-black text-slate-700">{permission.name.replace(`${currentCategory}_`, '')}</p>
+                              <p className="text-xs text-slate-400 font-medium leading-tight mt-0.5">{permission.description}</p>
+                            </div>
+                          </label>
+                        ))
+                      }
+                    </div>
                   </div>
                 )}
               </div>
 
-              <div className="p-8 border-t border-slate-100 bg-slate-50/30 flex gap-4">
-                {currentStep > 0 && (<button onClick={() => setCurrentStep(prev => prev - 1)} className="px-8 py-4 text-slate-400 font-black hover:text-slate-600 uppercase text-[10px] tracking-widest">Back</button>)}
-                <div className="flex-grow"></div>
-                {currentStep < 1 ? (
-                  <button onClick={() => setCurrentStep(prev => prev + 1)} disabled={!newRoleName} className="px-10 py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all uppercase text-[10px] tracking-widest disabled:opacity-50">Continue</button>
-                ) : (
-                  <button 
-                    onClick={handleCreateOrUpdateRole} 
-                    disabled={isCreating || (selectedPermissions.length === 0 && (!currentDomain || !currentModule || currentActions.length === 0))} 
-                    className="px-10 py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all uppercase text-[10px] tracking-widest disabled:opacity-50 flex items-center gap-2"
+              <div className="p-8 border-t border-slate-50 bg-slate-50/30 flex gap-4">
+                {currentStep > 0 && (
+                  <button
+                    onClick={() => setCurrentStep(prev => prev - 1)}
+                    className="px-8 py-4 text-slate-400 font-black hover:text-slate-600 transition-all uppercase text-[10px] tracking-widest flex items-center gap-2"
                   >
-                    {isCreating ? 'Committing...' : 'Save Authority Node'}
-                    <Shield size={16} />
+                    Previous Sector
+                  </button>
+                )}
+
+                <div className="flex-grow"></div>
+
+                {currentStep < activeCategories.length ? (
+                  <button
+                    onClick={() => setCurrentStep(prev => prev + 1)}
+                    disabled={currentStep === 0 && !newRoleName}
+                    className="px-10 py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 uppercase text-[10px] tracking-widest disabled:opacity-50 flex items-center gap-2"
+                  >
+                    Continue to {currentStep === 0 ? activeCategories[0] : activeCategories[currentStep]}
+                    <ChevronRight size={16} />
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleCreateOrUpdateRole}
+                    disabled={isCreating || !newRoleName}
+                    className="px-10 py-4 bg-emerald-600 text-white rounded-2xl font-black shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all active:scale-95 uppercase text-[10px] tracking-widest disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {isCreating ? 'Injecting Node...' : (editingRoleId ? 'Commit Updates' : 'Commit Node to Matrix')}
+                    <motion.div animate={{ x: [0, 5, 0] }} transition={{ repeat: Infinity, duration: 2 }}>
+                      <Shield size={16} />
+                    </motion.div>
                   </button>
                 )}
               </div>
@@ -498,3 +588,4 @@ export default function RolesPage() {
     </div>
   );
 }
+

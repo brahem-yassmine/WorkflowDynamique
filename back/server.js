@@ -36,7 +36,7 @@ const app = express();
 // MIDDLEWARES
 // ========================
 app.use(cors({
-  origin: '*',
+  origin: true, // Allow the origin of the request (safe for dev when credentials are true)
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-tenant-id'],
   credentials: true
@@ -185,6 +185,7 @@ app.use('/api', tenantResolver);
 // ========================
 // TENANT PROTECTED ROUTES
 // ========================
+app.use('/api/tenant/roles', tenantRoleRoutes);
 app.use('/api/tenant', tenantRoutes);
 app.use('/api/tenants', tenantRoutes);
 app.use('/api/users', userRoutes);
@@ -198,7 +199,6 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/boards', boardRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/reports', reportRoutes);
-app.use('/api/tenant/roles', tenantRoleRoutes);
 
 app.use('/api/tenant/domains', tenantDomainRoutes);
 app.use('/api/modules', moduleRoutes);

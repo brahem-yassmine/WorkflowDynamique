@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { apiService } from '@/service/api.service';
+import Link from 'next/link';
 import { 
   Search, 
   CheckCircle2, 
@@ -36,14 +37,24 @@ export default function GlobalTasksPage() {
   const [filter, setFilter] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [users, setUsers] = useState<any[]>([]);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportForm, setReportForm] = useState({ message: '', recipientId: '' });
   const [reportingTask, setReportingTask] = useState<any>(null);
 
   useEffect(() => {
-    fetchData();
+    if (typeof window !== 'undefined') {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        setCurrentUser(JSON.parse(userStr));
+      }
+    }
   }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [currentUser]);
 
   const fetchData = async () => {
     try {
@@ -70,7 +81,6 @@ export default function GlobalTasksPage() {
           const workflow = workflows.find((w: any) => w._id === inst.workflowId?._id || w._id === inst.workflowId);
           if (!workflow) return;
 
-          // Process history to find ALL submissions (even partial ones for consensus)
           const nodeSubmissions: Record<string, any[]> = {};
           inst.history?.forEach((h: any) => {
              if (h.nodeId && (h.action === 'step_approved' || h.action === 'partial_approval')) {
@@ -107,7 +117,8 @@ export default function GlobalTasksPage() {
               submissions: nodeSubmissions[path.nodeId] || [],
               nodeData: nodeDef?.data,
               outputData: path.outputData,
-              comments: path.comments
+              comments: path.comments,
+              adminRole: 'OBSERVER'
             });
           });
 
@@ -115,6 +126,21 @@ export default function GlobalTasksPage() {
           inst.currentNodes?.forEach((curr: any) => {
             const nodeDef = workflow.nodes?.find((n: any) => n.id === curr.nodeId);
             if (!nodeDef || isLogicBlock(nodeDef.type)) return;
+
+            // Multi-role identification logic
+            let roleType = 'OBSERVER';
+            if (currentUser) {
+              const isAssignee = nodeDef.data?.assigneeIds?.includes(currentUser._id) || 
+                                nodeDef.data?.assigneeIds?.includes(currentUser.id) ||
+                                (nodeDef.data?.assigneeSelectionType === 'role' && (nodeDef.data?.responsibleDomain === currentUser.role || nodeDef.data?.assigneeIds?.includes(currentUser.role)));
+              
+              const isValidator = nodeDef.data?.validatorIds?.includes(currentUser._id) || 
+                                 nodeDef.data?.validatorIds?.includes(currentUser.id) ||
+                                 (nodeDef.data?.validatorType === 'role' && nodeDef.data?.validatorIds?.includes(currentUser.role));
+
+              if (isAssignee) roleType = 'WORKER';
+              else if (isValidator) roleType = 'VALIDATOR';
+            }
 
             aggregatedTasks.push({
               id: `${inst._id}-${curr.nodeId}`,
@@ -130,12 +156,12 @@ export default function GlobalTasksPage() {
               assignmentType: nodeDef?.data?.assignmentType || 'SINGLE',
               responsibleDomain: nodeDef?.data?.responsibleDomain,
               submissions: nodeSubmissions[curr.nodeId] || [],
-              nodeData: nodeDef?.data
+              nodeData: nodeDef?.data,
+              adminRole: roleType
             });
           });
         });
 
-        // Filter and Sort (descending by timestamp)
         const uniqueTasks = Array.from(new Map(aggregatedTasks.map(item => [item.id, item])).values());
         setTasks(uniqueTasks.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
       }
@@ -150,8 +176,15 @@ export default function GlobalTasksPage() {
   const filteredTasks = tasks.filter(t => {
     const matchesSearch = t.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           t.instanceTitle.toLowerCase().includes(searchTerm.toLowerCase());
-    if (filter === 'ALL') return matchesSearch;
-    return t.status === filter && matchesSearch;
+    
+    if (!matchesSearch) return false;
+    
+    if (filter === 'ALL') return true;
+    if (filter === 'VALIDATE') return t.adminRole === 'VALIDATOR' && t.status === 'IN_PROGRESS';
+    if (filter === 'DO A TASK') return t.adminRole === 'WORKER' && t.status === 'IN_PROGRESS';
+    if (filter === 'CONSULT WORK') return t.adminRole === 'OBSERVER' || t.status !== 'IN_PROGRESS';
+    
+    return t.status === filter;
   });
 
   const getStatusBadge = (status: string) => {
@@ -232,7 +265,7 @@ export default function GlobalTasksPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {['ALL', 'COMPLETED', 'IN_PROGRESS', 'REJECTED'].map(opt => (
+          {['ALL', 'VALIDATE', 'DO A TASK', 'CONSULT WORK'].map(opt => (
             <button
               key={opt}
               onClick={() => setFilter(opt)}
@@ -242,7 +275,7 @@ export default function GlobalTasksPage() {
                 : 'bg-slate-50 text-slate-400 hover:bg-white hover:shadow-lg border border-transparent hover:border-slate-100'
               }`}
             >
-              {opt.replace('_', ' ')}
+              {opt}
             </button>
           ))}
         </div>
@@ -312,7 +345,6 @@ export default function GlobalTasksPage() {
                            </div>
                         </div>
                      </div>
-
                      <div className="hidden lg:block text-right">
                          <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1">Timeline</p>
                          <p className="text-xs font-black text-slate-700 leading-none">{new Date(task.timestamp).toLocaleDateString()}</p>
@@ -320,14 +352,47 @@ export default function GlobalTasksPage() {
                      </div>
 
                       <div className="flex items-center gap-3 ml-auto">
-                        {(task.status === 'COMPLETED' || task.status === 'REJECTED') && (
+                        {/* Secondary View Action */}
+                        <button 
+                          onClick={() => setSelectedTask(task)}
+                          className="p-3.5 bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white rounded-2xl transition-all border border-slate-100 shadow-sm group/btn"
+                          title="Inspect Data & History"
+                        >
+                          <Eye size={20} className="group-hover/btn:scale-110 transition-transform" />
+                        </button>
+
+                        {/* Primary Functional Action */}
+                        {task.status === 'IN_PROGRESS' ? (
+                          task.adminRole === 'WORKER' ? (
+                            <Link href={`/Workflows/instances/${task.instanceId}`}>
+                              <button className="px-6 py-3.5 bg-indigo-600 text-white rounded-[20px] hover:bg-indigo-700 transition-all text-[11px] font-black uppercase tracking-widest flex items-center gap-3 shadow-xl shadow-indigo-100 group/execute">
+                                <Play size={16} fill="currentColor" /> Execute Task
+                                <ChevronRight size={14} className="group-hover/execute:translate-x-1 transition-transform" />
+                              </button>
+                            </Link>
+                          ) : task.adminRole === 'VALIDATOR' ? (
+                            <Link href={`/Workflows/instances/${task.instanceId}`}>
+                              <button className="px-6 py-3.5 bg-emerald-500 text-white rounded-[20px] hover:bg-emerald-600 transition-all text-[11px] font-black uppercase tracking-widest flex items-center gap-3 shadow-xl shadow-emerald-100 group/validate">
+                                <CheckCircle2 size={16} /> Validate Step
+                                <ChevronRight size={14} className="group-hover/validate:translate-x-1 transition-transform" />
+                              </button>
+                            </Link>
+                          ) : (
+                            <Link href={`/Workflows/instances/${task.instanceId}`}>
+                              <button className="px-6 py-3.5 bg-slate-900 text-white rounded-[20px] hover:bg-indigo-600 transition-all text-[11px] font-black uppercase tracking-widest flex items-center gap-3 shadow-xl group/monitor">
+                                <Activity size={16} /> Monitor Flow
+                              </button>
+                            </Link>
+                          )
+                        ) : (
                           <button 
                             onClick={() => setSelectedTask(task)}
-                            className="px-6 py-3.5 bg-slate-900 text-white rounded-2xl hover:bg-indigo-600 transition-all text-[11px] font-black uppercase tracking-widest flex items-center gap-3 shadow-xl"
+                            className="px-6 py-3.5 bg-slate-100 text-slate-500 rounded-[20px] hover:bg-slate-900 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest flex items-center gap-3 border border-slate-200/50"
                           >
-                            <Eye size={16} /> Consult Work
+                            <FileText size={16} /> Review Result
                           </button>
                         )}
+
                         <button 
                           onClick={() => { setReportingTask(task); setReportForm({ ...reportForm, recipientId: task.performedBy || task.submissions[0]?.userId }); setShowReportModal(true); }}
                           className="p-3.5 bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white rounded-2xl transition-all border border-rose-100 shadow-sm"

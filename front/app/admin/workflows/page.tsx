@@ -265,7 +265,7 @@ function WorkflowsContent() {
             <Clock size={20} />
           </button>
           <Link href={`/create-workflow?${moduleIdFilter ? `moduleId=${moduleIdFilter}&isTemplate=true` : projectIdFilter ? `projectId=${projectIdFilter}` : ''}`}>
-            <button className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95">
+            <button className={`flex items-center gap-2 px-6 py-3 ${isTemplateFilter ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100'} text-white rounded-xl font-bold shadow-lg transition-all active:scale-95`}>
               <Plus size={18} />
               {isTemplateFilter ? 'Add Template' : 'Create Flow'}
             </button>

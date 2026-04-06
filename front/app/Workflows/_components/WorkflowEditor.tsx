@@ -31,6 +31,7 @@ import ParallelSplitNode from './nodes/ParallelSplitNode';
 import SaveButton from './SaveButton';
 import NodeDetailsPanel from './NodeDetailsPanel';
 import { apiService } from '@/service/api.service';
+import AIGeneratorModal from '@/components/AIGeneratorModal';
 
 import { useSearchParams, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -82,7 +83,8 @@ function WorkflowEditorContent() {
     useEffect(() => {
         if (moduleIdParam) setWorkflowModuleId(moduleIdParam);
         if (domainIdParam) setWorkflowDomainId(domainIdParam);
-        if (isTemplateParam) setWorkflowIsTemplate(true);
+        // Strict sync: if URL says it's a template, it's a template.
+        setWorkflowIsTemplate(isTemplateParam);
     }, [moduleIdParam, domainIdParam, isTemplateParam]);
     const [isSaving, setIsSaving] = useState(false);
     const [isDirty, setIsDirty] = useState(false); // tracks unsaved changes
@@ -472,6 +474,12 @@ function WorkflowEditorContent() {
 
     const [isLocked, setIsLocked] = useState(false);
 
+    const handleAIGeneration = (data: { nodes: any[], edges: any[] }) => {
+        setNodes(data.nodes);
+        setEdges(data.edges);
+        setIsDirty(true);
+    };
+
     return (
         <div className="flex flex-row h-full w-full relative overflow-hidden">
             <AnimatePresence mode="wait">
@@ -506,6 +514,11 @@ function WorkflowEditorContent() {
                     <ChevronRight size={20} className="relative z-10" />
                 )}
             </motion.button>
+            
+            <div className="absolute top-4 right-[250px] z-[999]">
+                <AIGeneratorModal type="workflow" onGenerate={handleAIGeneration} />
+            </div>
+
             <SaveButton
                 onSave={handleSave}
                 isSaving={isSaving}

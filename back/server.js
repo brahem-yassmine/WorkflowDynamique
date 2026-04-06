@@ -36,7 +36,7 @@ const app = express();
 // MIDDLEWARES
 // ========================
 app.use(cors({
-  origin: '*',
+  origin: true, // Allow the origin of the request (safe for dev when credentials are true)
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-tenant-id'],
   credentials: true
@@ -160,6 +160,8 @@ app.use((req, res, next) => {
 app.use('/api/plans', planRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/platform-settings', require('./src/routes/platformSettingsRoutes'));
+app.use('/api/ai', require('./src/routes/aiRoutes')); // <-- AJOUT DE LA ROUTE IA
+
 
 // ========================
 // ADMIN ROUTES
@@ -200,6 +202,8 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/boards', boardRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/reports', reportRoutes);
+
+app.use('/api/tenant/domains', tenantDomainRoutes);
 app.use('/api/modules', moduleRoutes);
 app.use('/api/form-responses', formRoutes);
 app.use('/api/task-reports', require('./src/routes/taskReportRoutes'));

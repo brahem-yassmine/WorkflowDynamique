@@ -3,7 +3,6 @@ const notificationController = require('./notificationController');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
-const { checkUserAuthority } = require('../middleware/auth');
 
 
 // back/src/controllers/workflowInstanceController.js
@@ -393,28 +392,7 @@ exports.approveNode = async (req, res) => {
     const workflow = await Workflow.findById(instance.workflowId);
     if (!workflow) throw new Error('Workflow definition not found');
 
-    const nodeDef = workflow.nodes.find(n => n.id === nodeId);
-    if (!nodeDef) return res.status(404).json({ success: false, message: 'Node definition not found' });
-
-    const nodeData = nodeDef.data || {};
-
-    // 🛡️ AUTHORITY ENFORCEMENT
-    const requiredAuth = {
-      domain: nodeData.requiredDomain,
-      module: nodeData.requiredModule,
-      action: nodeData.requiredAction
-    };
-
-    if (requiredAuth.domain && requiredAuth.module && requiredAuth.action) {
-      const isAuthorized = checkUserAuthority(req.user, requiredAuth);
-      if (!isAuthorized) {
-        return res.status(403).json({
-          success: false,
-          message: `Authority Required: You lack the required permission (${requiredAuth.domain} / ${requiredAuth.module} / ${requiredAuth.action}) for this operation.`
-        });
-      }
-    }
-
+    const nodeData = workflow.nodes.find(n => n.id === nodeId)?.data || {};
     const assignmentType = nodeData.assignmentType || 'SINGLE';
 
     // ⛔ Handle LOCK Logic for "ANY"
@@ -705,30 +683,9 @@ exports.rejectNode = async (req, res) => {
     }
 
     const currentNodeIndex = instance.currentNodes.findIndex(n => n.nodeId === nodeId && n.status === 'in_progress');
+
     if (currentNodeIndex === -1) {
       return res.status(400).json({ success: false, message: 'This node is not active' });
-    }
-
-    const Workflow = req.tenantConn.model('Workflow');
-    const workflow = await Workflow.findById(instance.workflowId);
-    const nodeDef = workflow?.nodes.find(n => n.id === nodeId);
-    const nodeData = nodeDef?.data || {};
-
-    // 🛡️ AUTHORITY ENFORCEMENT (Rejecting also requires authority)
-    const requiredAuth = {
-      domain: nodeData.requiredDomain,
-      module: nodeData.requiredModule,
-      action: nodeData.requiredAction
-    };
-
-    if (requiredAuth.domain && requiredAuth.module && requiredAuth.action) {
-      const isAuthorized = checkUserAuthority(req.user, requiredAuth);
-      if (!isAuthorized) {
-        return res.status(403).json({
-          success: false,
-          message: `Authority Required: You lack the required permission to reject this step.`
-        });
-      }
     }
 
     // Mark node as rejected

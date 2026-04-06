@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Node } from '@xyflow/react';
-import { X, Plus, Trash2, ListChecks, Clock, ShieldAlert, Shield, Users, GraduationCap, LayoutGrid, ClipboardType, FilePlus, CheckSquare, ExternalLink, Paperclip, Image as ImageIcon, Check, Save } from 'lucide-react';
+import { X, Plus, Trash2, ListChecks, Clock, ShieldAlert, Users, GraduationCap, LayoutGrid, ClipboardType, FilePlus, CheckSquare, ExternalLink, Paperclip, Image as ImageIcon, Check, Save } from 'lucide-react';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -91,24 +91,17 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
     const [assignedTo, setAssignedTo] = useState<string>(''); // For Department or User ID
     const [deadline, setDeadline] = useState('');
 
-    // Authority Enforcement State
-    const [requiredDomain, setRequiredDomain] = useState('');
-    const [requiredModule, setRequiredModule] = useState('');
-    const [requiredAction, setRequiredAction] = useState('approve');
-    const [allWorkModules, setAllWorkModules] = useState<any[]>([]);
-
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [domainsRes, usersRes, rolesRes, formsRes, projectsRes, boardsRes, checklistsRes, modulesRes] = await Promise.all([
+                const [domainsRes, usersRes, rolesRes, formsRes, projectsRes, boardsRes, checklistsRes] = await Promise.all([
                     apiService.getDomains(),
                     apiService.getUsers(),
                     apiService.getRoles(),
                     apiService.getForms(),
                     apiService.getProjects(),
                     apiService.getBoards(),
-                    apiService.request('/checklists'),
-                    apiService.getModules()
+                    apiService.request('/checklists')
                 ]);
                 setDomains(domainsRes.success ? domainsRes.data : (Array.isArray(domainsRes) ? domainsRes : []));
                 const fetchedUsers = usersRes.success ? usersRes.data : (Array.isArray(usersRes) ? usersRes : []);
@@ -120,7 +113,6 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                 setAvailableProjects(projectsRes.success ? projectsRes.data : (Array.isArray(projectsRes) ? projectsRes : []));
                 setKanbanBoards(boardsRes.success ? boardsRes.data : (Array.isArray(boardsRes) ? boardsRes : []));
                 setAvailableChecklists(checklistsRes.success ? checklistsRes.data : (Array.isArray(checklistsRes) ? checklistsRes : []));
-                setAllWorkModules(modulesRes.success ? modulesRes.data : (Array.isArray(modulesRes) ? modulesRes : []));
 
                 // Process available variables from forms in allNodes
                 if (allNodes) {
@@ -207,11 +199,6 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
             }
             setAssignedTo(selectedNode.data.assignedTo as string || '');
             setDeadline(selectedNode.data.deadline as string || '');
-
-            // Initialize Authority
-            setRequiredDomain(selectedNode.data.requiredDomain as string || '');
-            setRequiredModule(selectedNode.data.requiredModule as string || '');
-            setRequiredAction(selectedNode.data.requiredAction as string || 'approve');
         }
     }, [selectedNode]);
 
@@ -286,6 +273,8 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                 taskContent,
                 userAction,
                 assignedTo
+                assignedTo,
+                deadline
             });
 
             toast.success("task updated", {
@@ -648,6 +637,50 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                                                         )}
                                                     </>
                                                 )}
+
+                                                <div className="grid grid-cols-3 gap-6 pt-8 border-t border-slate-100">
+                                                    <div className="space-y-4">
+                                                        <Label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                                                            <ShieldAlert size={12} className="text-rose-500" />
+                                                            Priority
+                                                        </Label>
+                                                        <select
+                                                            className="w-full h-14 px-4 bg-slate-50/80 rounded-2xl font-bold text-slate-700 border-none outline-none ring-1 ring-slate-100 focus:ring-4 focus:ring-indigo-100/30 transition-all"
+                                                            value={priority}
+                                                            onChange={(e) => setPriority(e.target.value)}
+                                                        >
+                                                            <option value="">-- Choose Priority --</option>
+                                                            <option value="low">Low</option>
+                                                            <option value="medium">Standard</option>
+                                                            <option value="high">High</option>
+                                                            <option value="critical">Critical</option>
+                                                        </select>
+                                                    </div>
+                                                    <div className="space-y-4">
+                                                        <Label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                                                            <Clock size={12} className="text-indigo-500" />
+                                                            Estimation
+                                                        </Label>
+                                                        <Input
+                                                            value={estimatedDuration}
+                                                            onChange={(e) => setEstimatedDuration(e.target.value)}
+                                                            placeholder="e.g. 2h"
+                                                            className="h-14 px-6 bg-slate-50/80 border-none rounded-2xl font-bold ring-1 ring-slate-100 focus:ring-4 focus:ring-indigo-100/30 transition-all"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-4">
+                                                        <Label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                                                            <Clock size={12} className="text-amber-500" />
+                                                            Deadline
+                                                        </Label>
+                                                        <input
+                                                            type="date"
+                                                            value={deadline}
+                                                            onChange={(e) => setDeadline(e.target.value)}
+                                                            className="w-full h-14 px-6 bg-slate-50/80 border-none rounded-2xl font-bold text-slate-700 outline-none ring-1 ring-slate-100 focus:ring-4 focus:ring-indigo-100/30 transition-all"
+                                                        />
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </section>
@@ -669,7 +702,18 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                                                     {(['automatic', 'simple', 'multi'] as const).map((type) => (
                                                         <button
                                                             key={type}
-                                                            onClick={() => setValidationType(type)}
+                                                            onClick={() => {
+                                                                setValidationType(type);
+                                                                const labels: Record<string, string> = {
+                                                                    'automatic': 'Autonomous (No human gate)',
+                                                                    'simple': 'Solo Approval Path',
+                                                                    'multi': 'Consensus (Multi-party)'
+                                                                };
+                                                                toast.success(`Strategy synchronized: ${labels[type]}`, {
+                                                                    description: `Workflow gate configured for ${type} verification.`,
+                                                                    icon: <Check size={18} className="text-emerald-500" />
+                                                                });
+                                                            }}
                                                             className={`py-4 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${validationType === type ? 'bg-white text-indigo-600 shadow-md ring-1 ring-slate-100/50' : 'text-slate-400 hover:text-slate-600'}`}
                                                         >
                                                             {type}
@@ -715,10 +759,26 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                                                                                 onClick={() => {
                                                                                     const id = r._id || r.id;
                                                                                     if (validationType === 'multi') {
-                                                                                        if (isSelected) setValidatorIds(validatorIds.filter(vId => vId !== id));
-                                                                                        else setValidatorIds([...validatorIds, id]);
+                                                                                        if (isSelected) {
+                                                                                            setValidatorIds(validatorIds.filter(vId => vId !== id));
+                                                                                            toast.error(`Identity unlinked: Role '${r.name}' removed from consensus.`, {
+                                                                                                description: 'Consensus requirements updated.',
+                                                                                            });
+                                                                                        } else {
+                                                                                            setValidatorIds([...validatorIds, id]);
+                                                                                            toast.success(`Identity linked: Role '${r.name}' added to consensus.`, {
+                                                                                                description: 'Multi-party validation updated.',
+                                                                                                icon: <Check size={18} className="text-emerald-500" />
+                                                                                            });
+                                                                                        }
                                                                                     } else {
-                                                                                        if (!isSelected) setValidatorIds([id]);
+                                                                                        if (!isSelected) {
+                                                                                            setValidatorIds([id]);
+                                                                                            toast.success(`Identity linked: Role '${r.name}' set as Solo Validator.`, {
+                                                                                                description: 'Validation authority updated.',
+                                                                                                icon: <Check size={18} className="text-emerald-500" />
+                                                                                            });
+                                                                                        }
                                                                                     }
                                                                                 }}
                                                                                 className={`p-3.5 px-5 rounded-[16px] cursor-pointer font-bold transition-all text-sm flex items-center justify-between ${isSelected ? 'bg-indigo-600 text-white shadow-md scale-[0.98]' : 'text-slate-600 hover:bg-white hover:shadow-sm'}`}
@@ -736,10 +796,24 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                                                                                 onClick={() => {
                                                                                     const id = u._id || u.id;
                                                                                     if (validationType === 'multi') {
-                                                                                        if (isSelected) setValidatorIds(validatorIds.filter(vId => vId !== id));
-                                                                                        else setValidatorIds([...validatorIds, id]);
+                                                                                        if (isSelected) {
+                                                                                            setValidatorIds(validatorIds.filter(vId => vId !== id));
+                                                                                            toast.error(`Identity unlinked: ${u.firstName} removed from consensus.`);
+                                                                                        } else {
+                                                                                            setValidatorIds([...validatorIds, id]);
+                                                                                            toast.success(`Identity linked: ${u.firstName} ${u.lastName} added.`, {
+                                                                                                description: 'Consensus lattice expanded.',
+                                                                                                icon: <Check size={18} className="text-emerald-500" />
+                                                                                            });
+                                                                                        }
                                                                                     } else {
-                                                                                        if (!isSelected) setValidatorIds([id]);
+                                                                                        if (!isSelected) {
+                                                                                            setValidatorIds([id]);
+                                                                                            toast.success(`Identity linked: ${u.firstName} ${u.lastName} assigned.`, {
+                                                                                                description: 'Targeted authority synchronized.',
+                                                                                                icon: <Check size={18} className="text-emerald-500" />
+                                                                                            });
+                                                                                        }
                                                                                     }
                                                                                 }}
                                                                                 className={`p-3.5 px-5 rounded-[16px] cursor-pointer font-bold transition-all text-sm flex items-center justify-between ${isSelected ? 'bg-indigo-600 text-white shadow-md scale-[0.98]' : 'text-slate-600 hover:bg-white hover:shadow-sm'}`}

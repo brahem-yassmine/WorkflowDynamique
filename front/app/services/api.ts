@@ -23,7 +23,7 @@ api.interceptors.request.use((config) => {
 
     console.log('🔍 Interceptor - values:', {
       token: token ? 'yes' : 'no',
-      tenantId: tenantId ? tenantId : 'no'
+      tenantId: tenantId ? tenantId : 'no',
     });
 
     if (token) {
@@ -54,7 +54,7 @@ api.interceptors.response.use(
       data: error.response?.data || null,
       url: error.config?.url,
       method: error.config?.method?.toUpperCase(),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     console.group('❌ API Error Detail');
@@ -67,6 +67,41 @@ api.interceptors.response.use(
     }
     console.groupEnd();
 
+    if (error.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      console.error('❌ API Error Detail:', {
+        status: error.response.status,
+        message: error.response.data?.message || error.message,
+        data: error.response.data,
+        url: error.config?.url,
+        method: error.config?.method?.toUpperCase(),
+      });
+
+      // Handle 401 Unauthorized globally
+      if (error.response.status === 401 && typeof window !== 'undefined') {
+        console.warn('⚡ [SessionShield] Session expired or unauthorized. Redirecting to signin...');
+        localStorage.removeItem('token');
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('tenantId');
+        
+        // Use window.location for hard redirect to ensure state is cleared
+        if (!window.location.pathname.includes('/signin')) {
+          window.location.href = '/signin?error=session_expired';
+        }
+      }
+    } else if (error.request) {
+      // The request was made but no response was received
+      console.error('❌ API Network Error (No Response):', {
+        message: error.message,
+        url: error.config?.url,
+        method: error.config?.method?.toUpperCase(),
+      });
+    } else {
+      // Something happened in setting up the request that triggered an Error
+      console.error('❌ API Request setup error:', error.message);
+    }
     return Promise.reject(error);
   }
 );

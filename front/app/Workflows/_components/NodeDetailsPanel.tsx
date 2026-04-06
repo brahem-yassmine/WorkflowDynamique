@@ -120,7 +120,7 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                     for (const node of allNodes) {
                         if (node.type === 'action' && node.data?.linkedObjectId) {
                             const formId = node.data.linkedObjectId;
-                            const form = loadedForms.find(f => f._id === formId || f.id === formId);
+                            const form = loadedForms.find((f: any) => f._id === formId || f.id === formId);
                             if (form && Array.isArray(form.fields)) {
                                 form.fields.forEach((field: any) => {
                                     if (field.name) {
@@ -230,27 +230,22 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
         }
     }, [attachKanban, label, kanbanBoards]);
 
-    const handleCreateBoard = async () => {
-        if (!label) {
-            await showAlert('Task Name Required', 'Please enter a task name first', 'warning');
+    const handleCreateBoard = () => {
+        if (!label || !selectedNode) {
+            showAlert('Stage Name Required', 'Please enter a stage name first to use as board title', 'warning');
             return;
         }
-        try {
-            const res = await apiService.request('/boards', {
-                method: 'POST',
-                body: JSON.stringify({
-                    name: label,
-                    description: `Automatically created for workflow step: ${label}`
-                })
-            });
-            if (res.success) {
-                const newBoard = res.data;
-                setKanbanBoards([...kanbanBoards, newBoard]);
-                setKanbanBoardId(newBoard._id);
-            }
-        } catch (err) {
-            console.error('Error creating board:', err);
-        }
+
+        // Include the node ID and tab so we return to it automatically
+        const baseUrl = window.location.href.split('?')[0];
+        const search = new URLSearchParams(window.location.search);
+        search.set('designerNodeId', selectedNode.id);
+        search.set('designerTab', activeTab);
+        
+        const returnUrl = encodeURIComponent(`${baseUrl}?${search.toString()}`);
+        const targetUrl = `/kanban?fromWorkflow=true&designerWorkflowId=${workflowId || ''}&boardName=${encodeURIComponent(label)}&returnUrl=${returnUrl}`;
+        
+        router.push(targetUrl);
     };
 
     const handleSave = () => {
@@ -262,8 +257,6 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                 responsibleDomain,
                 restrictedDomain,
                 taskType,
-                priority,
-                estimatedDuration,
                 condition,
                 domainScope,
                 validationType,
@@ -691,6 +684,7 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                                         </div>
                                     </section>
                                 )}
+
 
                                 {/* TAB: VALIDATION */}
                                 {activeTab === 'validation' && selectedNode.type === 'action' && (

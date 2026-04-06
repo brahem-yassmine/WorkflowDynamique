@@ -4,7 +4,8 @@ import React from "react";
 import WorkflowEditor from "../Workflows/_components/WorkflowEditor";
 import { ArrowLeft, Zap, Info, Activity } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
+import { toast } from "sonner";
 
 const WorkflowArchitectContent = () => {
     const router = useRouter();
@@ -16,6 +17,18 @@ const WorkflowArchitectContent = () => {
     const accentColor = isTemplate ? 'bg-indigo-600 shadow-indigo-500/40 border-indigo-400/30' : 'bg-emerald-500 shadow-emerald-500/40 border-emerald-400/30';
     const textColor = isTemplate ? 'text-indigo-400' : 'text-emerald-400';
     const badgeColor = isTemplate ? 'bg-indigo-500' : 'bg-emerald-500';
+    useEffect(() => {
+        const notif = searchParams.get('notif');
+        if (notif) {
+            toast.success(notif);
+            
+            // Clean up the URL
+            const url = new URL(window.location.href);
+            url.searchParams.delete('notif');
+            url.searchParams.delete('newBoardId');
+            router.replace(url.pathname + url.search);
+        }
+    }, [searchParams, router]);
 
     const handleBack = () => {
         const domainId = searchParams.get('domainId');

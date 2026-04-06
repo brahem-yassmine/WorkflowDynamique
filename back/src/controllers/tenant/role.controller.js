@@ -14,11 +14,9 @@ class RoleController {
   // Create a role
   static async create(req, res) {
     try {
-      console.log(`📝 [RoleController] Creating role for tenant: ${req.tenantId || 'Unknown'}`);
-      console.log('📦 Payload:', JSON.stringify(req.body, null, 2));
-
       const Role = RoleController.getModel(req);
       const { name, description, permissions, isDefault } = req.body;
+      console.log('📦 Create Payload:', { name, permissionsCount: permissions?.length });
 
       const existingRole = await Role.findOne({ name });
       if (existingRole) {
@@ -37,6 +35,7 @@ class RoleController {
       });
 
       await role.save();
+      console.log('✅ Role created successfully:', role._id);
       res.status(201).json({ success: true, data: role });
 
     } catch (error) {
@@ -94,12 +93,10 @@ class RoleController {
   // Update a role
   static async update(req, res) {
     try {
-      console.log(`🔄 [RoleController] Updating role ID: ${req.params.id} for tenant: ${req.tenantId || 'Unknown'}`);
-      console.log('📦 Payload:', JSON.stringify(req.body, null, 2));
-
       const Role = RoleController.getModel(req);
       const { id } = req.params;
       const { name, description, permissions, isDefault, isActive } = req.body;
+      console.log('📦 Update Payload:', { name, permissionsCount: permissions?.length });
 
       const role = await Role.findById(id);
       if (!role) {
@@ -123,11 +120,16 @@ class RoleController {
       if (isActive !== undefined) role.isActive = isActive;
 
       await role.save();
+      console.log('✅ Role updated successfully:', role._id);
       res.json({ success: true, data: role });
 
     } catch (error) {
-      console.error('updateRole Error:', error);
-      res.status(500).json({ success: false, message: error.message });
+      console.error('❌ [RoleController] Update Error:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Internal Server Error during Role Update',
+        details: error.message 
+      });
     }
   }
 

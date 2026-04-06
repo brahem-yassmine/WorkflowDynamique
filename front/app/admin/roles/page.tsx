@@ -17,6 +17,7 @@ import {
   Layers,
   Briefcase
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface Role {
@@ -47,6 +48,7 @@ export default function RolesPage() {
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const router = useRouter();
 
   // New Role Form State
   const [newRoleName, setNewRoleName] = useState('');
@@ -59,8 +61,17 @@ export default function RolesPage() {
   );
 
   useEffect(() => {
+    // 🛠️ SESSION CHECK
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
+      if (!token) {
+        console.warn('⚠️ [AuthShield] No authority token found. Diverting to signin...');
+        router.push('/signin?error=unauthorized');
+        return;
+      }
+    }
     loadInitialData();
-  }, []);
+  }, [router]);
 
   const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
 
@@ -107,6 +118,12 @@ export default function RolesPage() {
         permissions: selectedPermissions
       };
 
+      console.log('📦 Dispatching Role Action:', {
+        action: editingRoleId ? 'UPDATE' : 'CREATE',
+        id: editingRoleId,
+        payload
+      });
+
       const response = editingRoleId
         ? await api.put(`/api/tenant/roles/${editingRoleId}`, payload)
         : await api.post('/api/tenant/roles', payload);
@@ -120,6 +137,7 @@ export default function RolesPage() {
         }
       }
     } catch (err: any) {
+      console.error('❌ Role management component-level error:', err);
       setError(err.response?.data?.message || err.message);
     } finally {
       setIsCreating(false);
@@ -276,19 +294,10 @@ export default function RolesPage() {
                     </td>
                     <td className="px-6 py-5">
                       {role.isSystemRole || role.isDefault ? (
-                        <div className="flex items-center gap-2 text-slate-300 font-bold text-[10px] uppercase tracking-widest">
-                          <Lock size={12} />
-                          <span>System</span>
-                        </div>
+                        <Lock size={14} className="text-slate-300" />
                       ) : (
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            startEditing(role);
-                          }}
-                          className="px-4 py-2 bg-indigo-50/50 text-indigo-600 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white hover:shadow-lg hover:shadow-indigo-100 transition-all active:scale-95 border border-indigo-100/50"
-                        >
-                          Configure Custom
+                        <button className="px-4 py-1.5 bg-slate-50/80 text-slate-400 text-[10px] font-black uppercase italic rounded-full border border-slate-100 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm active:scale-95">
+                          CUSTOM
                         </button>
                       )}
                     </td>
@@ -355,11 +364,11 @@ export default function RolesPage() {
                   </div>
 
                   <div className="space-y-8">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] border-b border-slate-50 pb-2">Active Permissions Matrix ({selectedRole.permissions?.length || 0})</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] border-b border-slate-50 pb-2">Active Permissions Matrix ({selectedRole.permissions.length})</p>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {activeCategories.map(cat => {
-                        const groupPerms = (selectedRole.permissions || []).filter(pName =>
+                        const groupPerms = selectedRole.permissions.filter(pName =>
                           availablePermissions.find(ap => ap.name === pName)?.category === cat
                         );
 

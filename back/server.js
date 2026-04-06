@@ -185,6 +185,8 @@ app.use('/api', tenantResolver);
 // ========================
 // TENANT PROTECTED ROUTES
 // ========================
+app.use('/api/tenant/roles', tenantRoleRoutes);
+app.use('/api/tenant/domains', tenantDomainRoutes);
 app.use('/api/tenant', tenantRoutes);
 app.use('/api/tenants', tenantRoutes);
 app.use('/api/users', userRoutes);
@@ -198,9 +200,6 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/boards', boardRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/reports', reportRoutes);
-app.use('/api/tenant/roles', tenantRoleRoutes);
-
-app.use('/api/tenant/domains', tenantDomainRoutes);
 app.use('/api/modules', moduleRoutes);
 app.use('/api/form-responses', formRoutes);
 app.use('/api/task-reports', require('./src/routes/taskReportRoutes'));

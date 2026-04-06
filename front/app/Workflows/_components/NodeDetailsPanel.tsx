@@ -128,7 +128,7 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                     for (const node of allNodes) {
                         if (node.type === 'action' && node.data?.linkedObjectId) {
                             const formId = node.data.linkedObjectId;
-                            const form = loadedForms.find(f => f._id === formId || f.id === formId);
+                            const form = loadedForms.find((f: any) => f._id === formId || f.id === formId);
                             if (form && Array.isArray(form.fields)) {
                                 form.fields.forEach((field: any) => {
                                     if (field.name) {
@@ -243,27 +243,22 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
         }
     }, [attachKanban, label, kanbanBoards]);
 
-    const handleCreateBoard = async () => {
-        if (!label) {
-            await showAlert('Task Name Required', 'Please enter a task name first', 'warning');
+    const handleCreateBoard = () => {
+        if (!label || !selectedNode) {
+            showAlert('Stage Name Required', 'Please enter a stage name first to use as board title', 'warning');
             return;
         }
-        try {
-            const res = await apiService.request('/boards', {
-                method: 'POST',
-                body: JSON.stringify({
-                    name: label,
-                    description: `Automatically created for workflow step: ${label}`
-                })
-            });
-            if (res.success) {
-                const newBoard = res.data;
-                setKanbanBoards([...kanbanBoards, newBoard]);
-                setKanbanBoardId(newBoard._id);
-            }
-        } catch (err) {
-            console.error('Error creating board:', err);
-        }
+
+        // Include the node ID and tab so we return to it automatically
+        const baseUrl = window.location.href.split('?')[0];
+        const search = new URLSearchParams(window.location.search);
+        search.set('designerNodeId', selectedNode.id);
+        search.set('designerTab', activeTab);
+        
+        const returnUrl = encodeURIComponent(`${baseUrl}?${search.toString()}`);
+        const targetUrl = `/kanban?fromWorkflow=true&designerWorkflowId=${workflowId || ''}&boardName=${encodeURIComponent(label)}&returnUrl=${returnUrl}`;
+        
+        router.push(targetUrl);
     };
 
     const handleSave = () => {
@@ -275,8 +270,6 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                 responsibleDomain,
                 restrictedDomain,
                 taskType,
-                priority,
-                estimatedDuration,
                 condition,
                 domainScope,
                 validationType,
@@ -292,11 +285,7 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                 assignmentType,
                 taskContent,
                 userAction,
-                assignedTo,
-                deadline,
-                requiredDomain,
-                requiredModule,
-                requiredAction
+                assignedTo
             });
 
             toast.success("task updated", {
@@ -659,112 +648,11 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                                                         )}
                                                     </>
                                                 )}
-
-                                                <div className="space-y-6 pt-8 border-t border-slate-100 animate-in fade-in slide-in-from-top-4">
-                                                    <div className="flex items-center gap-2">
-                                                        <Shield size={16} className="text-indigo-600" />
-                                                        <Label className="text-[11px] font-black text-slate-500 uppercase tracking-widest text-indigo-600">4. Authority Enforcement</Label>
-                                                    </div>
-
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                        <div className="space-y-2">
-                                                            <Label className="text-[10px] font-black text-slate-400 uppercase">Required Domain</Label>
-                                                            <select
-                                                                value={requiredDomain}
-                                                                onChange={(e) => {
-                                                                    setRequiredDomain(e.target.value);
-                                                                    setRequiredModule('');
-                                                                }}
-                                                                className="w-full h-12 px-4 bg-slate-50 rounded-xl font-bold text-slate-700 border-none ring-1 ring-slate-100 outline-none focus:ring-2 focus:ring-indigo-100 transition-all appearance-none cursor-pointer"
-                                                                style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236366f1' stroke-width='3' %3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7' /%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1rem' }}
-                                                            >
-                                                                <option value="">-- No Domain Required --</option>
-                                                                {domains.map(d => <option key={d._id || d.id} value={d.name}>{d.name}</option>)}
-                                                            </select>
-                                                        </div>
-                                                        <div className="space-y-2">
-                                                            <Label className="text-[10px] font-black text-slate-400 uppercase">Required Module</Label>
-                                                            <select
-                                                                value={requiredModule}
-                                                                disabled={!requiredDomain}
-                                                                onChange={(e) => setRequiredModule(e.target.value)}
-                                                                className="w-full h-12 px-4 bg-slate-50 rounded-xl font-bold text-slate-700 border-none ring-1 ring-slate-100 outline-none focus:ring-2 focus:ring-indigo-100 transition-all appearance-none cursor-pointer disabled:opacity-50"
-                                                                style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236366f1' stroke-width='3' %3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7' /%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1rem' }}
-                                                            >
-                                                                <option value="">-- No Module Required --</option>
-                                                                {allWorkModules.filter(m => {
-                                                                    const d = domains.find(dom => dom.name === requiredDomain);
-                                                                    return m.domainId === d?._id || m.domainId?._id === d?._id;
-                                                                }).map(m => <option key={m._id} value={m.name}>{m.name}</option>)}
-                                                            </select>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="space-y-2">
-                                                        <Label className="text-[10px] font-black text-slate-400 uppercase">Required Permission Action</Label>
-                                                        <div className="flex flex-wrap gap-2">
-                                                            {['approve', 'reject', 'create', 'update', 'delete', 'all'].map(action => (
-                                                                <button
-                                                                    key={action}
-                                                                    type="button"
-                                                                    onClick={() => setRequiredAction(action)}
-                                                                    className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border ${requiredAction === action ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200'}`}
-                                                                >
-                                                                    {action}
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                        <p className="text-[9px] font-bold text-slate-400 italic px-1 mt-1">Users must possess this exact action right on the specified module to execute this step.</p>
-                                                    </div>
-                                                </div>
-
-                                                <div className="grid grid-cols-3 gap-6 pt-8 border-t border-slate-100">
-                                                    <div className="space-y-4">
-                                                        <Label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                                                            <ShieldAlert size={12} className="text-rose-500" />
-                                                            Priority
-                                                        </Label>
-                                                        <select
-                                                            className="w-full h-14 px-4 bg-slate-50/80 rounded-2xl font-bold text-slate-700 border-none outline-none ring-1 ring-slate-100 focus:ring-4 focus:ring-indigo-100/30 transition-all"
-                                                            value={priority}
-                                                            onChange={(e) => setPriority(e.target.value)}
-                                                        >
-                                                            <option value="">-- Choose Priority --</option>
-                                                            <option value="low">Low</option>
-                                                            <option value="medium">Standard</option>
-                                                            <option value="high">High</option>
-                                                            <option value="critical">Critical</option>
-                                                        </select>
-                                                    </div>
-                                                    <div className="space-y-4">
-                                                        <Label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                                                            <Clock size={12} className="text-indigo-500" />
-                                                            Estimation
-                                                        </Label>
-                                                        <Input
-                                                            value={estimatedDuration}
-                                                            onChange={(e) => setEstimatedDuration(e.target.value)}
-                                                            placeholder="e.g. 2h"
-                                                            className="h-14 px-6 bg-slate-50/80 border-none rounded-2xl font-bold ring-1 ring-slate-100 focus:ring-4 focus:ring-indigo-100/30 transition-all"
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-4">
-                                                        <Label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                                                            <Clock size={12} className="text-amber-500" />
-                                                            Deadline
-                                                        </Label>
-                                                        <input
-                                                            type="date"
-                                                            value={deadline}
-                                                            onChange={(e) => setDeadline(e.target.value)}
-                                                            className="w-full h-14 px-6 bg-slate-50/80 border-none rounded-2xl font-bold text-slate-700 outline-none ring-1 ring-slate-100 focus:ring-4 focus:ring-indigo-100/30 transition-all"
-                                                        />
-                                                    </div>
-                                                </div>
                                             </div>
                                         </div>
                                     </section>
                                 )}
+
 
                                 {/* TAB: VALIDATION */}
                                 {activeTab === 'validation' && selectedNode.type === 'action' && (

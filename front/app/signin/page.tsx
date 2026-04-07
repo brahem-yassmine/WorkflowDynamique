@@ -204,22 +204,31 @@ export default function SigninPage() {
         setError(response.data.message || 'Login failed');
       }
     } catch (err) {
-      const error = err as AxiosError<ApiErrorResponse>;
+      const axiosError = err as AxiosError<ApiErrorResponse>;
 
-      console.error('❌ Login Error Detail:', {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        message: error.message,
-        code: error.code,
-        url: error.config?.url
-      });
+      if (axiosError.response) {
+        console.error('❌ Login Error Detail (Server Response):', {
+          status: axiosError.response.status,
+          statusText: axiosError.response.statusText,
+          data: axiosError.response.data,
+          message: axiosError.message,
+          url: axiosError.config?.url
+        });
+      } else if (axiosError.request) {
+        console.error('❌ Login Network Error (No Response):', {
+          message: axiosError.message,
+          code: axiosError.code,
+          url: axiosError.config?.url
+        });
+      } else {
+        console.error('❌ Login Request Setup Error:', axiosError.message);
+      }
 
       // Log the full error object separately for deep inspection
-      console.dir(error);
+      console.dir(axiosError);
 
-      if (error.response) {
-        switch (error.response.status) {
+      if (axiosError.response) {
+        switch (axiosError.response.status) {
           case 400:
             setError('Invalid data');
             break;
@@ -236,14 +245,14 @@ export default function SigninPage() {
             setError('Server error. Please try again later');
             break;
           default:
-            setError(error.response.data?.message || 'Login error');
+            setError(axiosError.response.data?.message || 'Login error');
         }
-      } else if (error.code === 'ECONNREFUSED' || error.message === 'Network Error') {
+      } else if (axiosError.code === 'ECONNREFUSED' || axiosError.message === 'Network Error') {
         setError('Cannot connect to server. Please check if backend is running on port 5000');
-      } else if (error.request) {
+      } else if (axiosError.request) {
         setError('Unable to reach server. Check your connection');
       } else {
-        setError(error.message || 'An error occurred');
+        setError(axiosError.message || 'An error occurred');
       }
     } finally {
       setLoading(false);

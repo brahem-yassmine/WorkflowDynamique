@@ -79,27 +79,5 @@ const hasPermission = (permission) => {
   };
 };
 
-// Check granular authority (Domain, Module, Action)
-const checkUserAuthority = (user, requiredAuth) => {
-  if (!user) return false;
-  
-  // Super Admins bypass all checks
-  if (user.role === 'super_admin') return true;
-  
-  const { domain, module, action } = requiredAuth;
-  
-  // If no specific authority is required, allow access
-  if (!domain || !module || !action) return true;
-  
-  if (!user.permissions || !Array.isArray(user.permissions)) return false;
-  
-  // Find a matching permission entry
-  return user.permissions.some(p => 
-    p.domain === domain && 
-    p.module === module && 
-    (p.actions.includes(action) || p.actions.includes('all') || p.actions.includes('*'))
-  );
-};
-
 // EXPORT ALL
-module.exports = { auth, requireRole, hasPermission, checkUserAuthority };
+module.exports = { auth, requireRole, hasPermission };

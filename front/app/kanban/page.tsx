@@ -284,6 +284,7 @@ export default function TasksPage() {
   const [selectedWorkflowId, setSelectedWorkflowId] = useState('');
   const [boardId, setBoardId] = useState<string | null>(null);
   const [fromWorkflow, setFromWorkflow] = useState<boolean>(false);
+  const [returnUrl, setReturnUrl] = useState<string | null>(null);
   const [users, setUsers] = useState<any[]>([]); // Added users state
 
   // Task Modal States
@@ -356,19 +357,27 @@ export default function TasksPage() {
     const dwId = searchParams.get('designerWorkflowId');
     const role = searchParams.get('role');
     const fWorkflow = searchParams.get('fromWorkflow') === 'true';
+    const bName = searchParams.get('boardName');
+    const rUrl = searchParams.get('returnUrl');
+
     if (id) {
       setBoardId(id);
       fetchBoardData(id);
     } else {
       setBoardId(null);
       fetchBoardData(null);
+      if (bName) setBoardName(bName);
     }
+
     if (dwId) {
       setDesignerWorkflowId(dwId);
       setSelectedWorkflowId(dwId); // Default select the workflow we came from
     }
+
     if (role) setUserRole(role);
     if (fWorkflow) setFromWorkflow(true);
+    if (rUrl) setReturnUrl(rUrl);
+
     fetchWorkflows();
     fetchUsers();
   }, [searchParams]);
@@ -478,12 +487,19 @@ export default function TasksPage() {
         }),
       });
 
-      toast.success(boardId ? 'Architecture Board updated' : 'Architecture Board created successfully');
+      const successMsg = fromWorkflow ? 'Kanban attached' : (boardId ? 'Architecture Board updated' : 'Architecture Board created successfully');
+      toast.success(successMsg);
       setIsSaveModalOpen(false);
-      if (fromWorkflow && designerWorkflowId) {
-        router.push(`/admin/workflows/${designerWorkflowId}?tab=kanban`);
+
+      if (returnUrl) {
+        const url = new URL(returnUrl, window.location.origin);
+        url.searchParams.set('notif', successMsg);
+        if (currentBoardId) url.searchParams.set('newBoardId', currentBoardId);
+        window.location.href = url.toString();
+      } else if (fromWorkflow && designerWorkflowId) {
+        router.push(`/admin/workflows/${designerWorkflowId}?tab=kanban&notif=${encodeURIComponent(successMsg)}`);
       } else if (designerWorkflowId) {
-        router.push(`/${userRole}/create_workflows?id=${designerWorkflowId}`);
+        router.push(`/${userRole}/create_workflows?id=${designerWorkflowId}&notif=${encodeURIComponent(successMsg)}`);
       } else {
         router.push('/admin/AllKanban');
       }
@@ -755,7 +771,9 @@ export default function TasksPage() {
           <div className="flex items-center gap-4 w-full sm:w-auto">
             <button 
               onClick={() => {
-                if (fromWorkflow && designerWorkflowId) {
+                if (returnUrl) {
+                  window.location.href = returnUrl;
+                } else if (fromWorkflow && designerWorkflowId) {
                   router.push(`/admin/workflows/${designerWorkflowId}?tab=kanban`);
                 } else if (designerWorkflowId) {
                   router.push(`/${userRole}/create_workflows?id=${designerWorkflowId}`);
@@ -765,7 +783,6 @@ export default function TasksPage() {
               }}
               className="p-2.5 bg-slate-50 text-slate-400 hover:text-indigo-600 rounded-xl hover:bg-indigo-50 transition-all border border-transparent hover:border-indigo-100 shrink-0"
               title={designerWorkflowId ? "Back to Workflow" : "Return to Management"}
-
             >
               <ChevronLeft size={24} />
             </button>

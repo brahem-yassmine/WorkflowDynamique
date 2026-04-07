@@ -303,8 +303,8 @@ function BillingPageContent() {
     };
 
     const changePlan = async (next: PlanType) => {
-        // Block renewal if it's the demo plan (only one time allowed)
-        if (next === plan && (next === 'demo' || !isExpired)) return;
+        if (next === plan) return;
+        
         if (next === 'demo' && plan !== 'demo') {
             setConfirm(true);
             return;
@@ -611,19 +611,16 @@ function BillingPageContent() {
                                 </ul>
                                 <button
                                     onClick={() => changePlan(p.id)}
-                                    disabled={(isCurrent && (!isExpired || isDemo)) || loading || isRestricted}
+                                    disabled={isCurrent || loading || isRestricted}
                                     className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 ${
-                                        (isCurrent && !isExpired) || (isCurrent && isExpired && isDemo) || isRestricted
+                                        isCurrent 
                                         ? 'bg-slate-100 text-slate-400 cursor-default' 
                                         : isRestricted
                                         ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
                                         : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-100'
                                     }`}
                                 >
-                                    {isCurrent && !isExpired ? 'Active Protocol' : 
-                                     (isCurrent && isExpired && isDemo) ? 'Trial Expired' :
-                                     (isCurrent && isExpired) ? 'Renew Access' : 
-                                     isRestricted ? 'Restricted' : 'Sync Request'}
+                                    {isCurrent ? 'Active Protocol' : isRestricted ? 'Restricted' : 'Sync Request'}
                                 </button>
                             </div>
                         );

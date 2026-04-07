@@ -208,8 +208,6 @@ function WorkflowEditorContent() {
             if (nodeToSelect) {
                 console.log('[Designer] Auto-selecting node from redirect:', designerNodeId);
                 setSelectedNode(nodeToSelect);
-                // Optionally remove the query param so refresh doesn't keep selecting it
-                window.history.replaceState({}, '', `/create-workflow?id=${workflowId || ''}`);
             }
         }
     }, [designerNodeId, nodes.length]);

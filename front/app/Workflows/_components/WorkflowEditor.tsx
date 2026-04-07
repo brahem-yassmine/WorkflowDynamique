@@ -450,18 +450,16 @@ function WorkflowEditorContent() {
                 // Also remove generic draft if it was a new creation that just got an ID
                 if (!workflowId) localStorage.removeItem('workflow_draft_new');
 
-                // Redirect back to the functional matrix listing
-                if (meta.domainId) {
-                    setTimeout(() => {
-                        const moduleQuery = meta.moduleId ? `?moduleId=${meta.moduleId}` : '';
-                        router.push(`/admin/domains/${meta.domainId}/modules${moduleQuery}`);
-                    }, 1500); 
-                } else {
-                    // Fallback to generic workflows if no domain context
-                    setTimeout(() => {
+                const savedId = currentWorkflowId || response?.data?._id;
+
+                // Redirect to the workflow dashboard space to see the dashboard and other information
+                setTimeout(() => {
+                    if (savedId) {
+                        router.push(`/admin/workflows/${savedId}`);
+                    } else {
                         router.push('/admin/workflows');
-                    }, 1500);
-                }
+                    }
+                }, 1500);
             } else {
                 toast.error('Save error: ' + (response.message || 'Unknown error'));
             }

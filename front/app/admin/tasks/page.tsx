@@ -138,8 +138,9 @@ export default function GlobalTasksPage() {
                                  nodeDef.data?.validatorIds?.includes(currentUser.id) ||
                                  (nodeDef.data?.validatorType === 'role' && nodeDef.data?.validatorIds?.includes(currentUser.role));
 
-              if (isAssignee) roleType = 'WORKER';
+              if (isAssignee && !curr.workerCompleted) roleType = 'WORKER';
               else if (isValidator) roleType = 'VALIDATOR';
+              else if (isAssignee && curr.workerCompleted) roleType = 'WORKER_DONE';
             }
 
             aggregatedTasks.push({

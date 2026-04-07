@@ -11,7 +11,9 @@ const workflowSchema = new mongoose.Schema({
   domainId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Domain',
-    required: true
+    required: function() {
+      return this.isTemplate === true;
+    }
   },
   nodes: {
     type: [mongoose.Schema.Types.Mixed],
@@ -38,12 +40,16 @@ const workflowSchema = new mongoose.Schema({
   projectId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Project',
-    required: false
+    required: function() {
+      return this.isTemplate === false;
+    }
   },
   moduleId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Module',
-    required: false
+    required: function() {
+      return this.isTemplate === true;
+    }
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,

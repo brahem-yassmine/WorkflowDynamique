@@ -416,51 +416,116 @@ exports.approveNode = async (req, res) => {
     }
 
     const assignmentType = nodeData.assignmentType || 'SINGLE';
+    const validationType = nodeData.validationType || 'AUTOMATIC';
+    
+    // Check if current user is a validator
+    let isValidator = false;
+    if (validationType === 'SIMPLE' || validationType === 'MULTI') {
+      const vIds = nodeData.validatorIds || [];
+      isValidator = vIds.includes(req.user.id.toString()) || 
+                    (nodeData.validatorType === 'role' && (vIds.includes(req.user.role) || vIds.includes(req.user.specificRole)));
+      
+      if (req.user.role === 'admin' || req.user.role === 'super_admin') {
+         isValidator = true;
+      }
+    }
 
     // ⛔ Handle LOCK Logic for "ANY"
     if (assignmentType === 'ANY' && nodeEntry.responsibleUser && nodeEntry.responsibleUser.toString() !== req.user.id) {
-      return res.status(403).json({ success: false, message: 'Only the user who locked this task can complete it' });
-    }
-
-    // ✅ Handle Consensus Logic for "ALL"
-    if (assignmentType === 'ALL') {
-      if (!nodeEntry.approvedBy) nodeEntry.approvedBy = [];
-      if (!nodeEntry.approvedBy.includes(req.user.id)) {
-        nodeEntry.approvedBy.push(req.user.id);
-      }
-
-      // We need to check if everyone in assignees approved.
-      // NOTE: assignees should be populated with direct IDs when node entry is created for departments
-      const allApproved = nodeEntry.assignees.every(id => nodeEntry.approvedBy.includes(id.toString()));
-
-      if (!allApproved) {
-        // NOT everyone has finished yet, just save and return
-        instance.history.push({
-          nodeId: nodeId, // Useful to filter
-          action: 'partial_approval',
-          title: `Approbation partielle`,
-          performedBy: req.user.id,
-          comments: comments || '',
-          data: data
-        });
-        await instance.save();
-        return res.json({
-          success: true,
-          message: 'Approval recorded. Waiting for other team members.',
-          data: instance,
-          waitingForConsensus: true
-        });
+      if (!isValidator) {
+         return res.status(403).json({ success: false, message: 'Only the user who locked this task can complete it' });
       }
     }
 
-    // If we reach here, either it's SINGLE/ANY or it's ALL and everyone approved
-    instance.currentNodes.splice(currentNodeIndex, 1);
-
+    // ✅ Process variables directly first
     if (data) {
       for (const [key, value] of Object.entries(data)) {
         instance.variables.set(key, value);
       }
     }
+
+    // ✅ Handle Worker submission if validation is required
+    if ((validationType === 'SIMPLE' || validationType === 'MULTI') && !isValidator) {
+       // It's a worker submitting the task. Handle consensus if ALL
+       if (assignmentType === 'ALL') {
+         if (!nodeEntry.approvedBy) nodeEntry.approvedBy = [];
+         if (!nodeEntry.approvedBy.includes(req.user.id)) nodeEntry.approvedBy.push(req.user.id);
+         const allApproved = nodeEntry.assignees.every(id => nodeEntry.approvedBy.includes(id.toString()));
+         
+         if (!allApproved) {
+            instance.history.push({
+              nodeId: nodeId, action: 'partial_approval', title: `Approbation partielle`,
+              performedBy: req.user.id, comments: comments || '', data: data
+            });
+            await instance.save();
+            return res.json({ success: true, message: 'Approval recorded. Waiting for other team members.', data: instance, waitingForConsensus: true });
+         }
+       }
+
+       // Record the final worker submission
+       instance.history.push({
+          nodeId: nodeId, action: 'step_submitted_for_validation', title: `Soumis pour validation`,
+          performedBy: req.user.id, comments: comments || 'En attente de validation par un administrateur', data: data
+       });
+       
+       let existingExec = instance.executionPath.find(p => p.nodeId === nodeId && p.action === 'worker_submitted');
+       if (existingExec) {
+           existingExec.outputData = data;
+           existingExec.comments = comments || existingExec.comments;
+           existingExec.timestamp = new Date();
+       } else {
+           instance.executionPath.push({
+              nodeId: nodeId, nodeType: 'action', action: 'worker_submitted',
+              performedBy: req.user.id, comments: comments || '', timestamp: new Date(), outputData: data
+           });
+       }
+       
+       nodeEntry.workerCompleted = true;
+       instance.markModified('currentNodes');
+       instance.markModified('executionPath');
+       await instance.save();
+       return res.json({ success: true, message: 'Task submitted for validation.', data: instance, waitingForValidation: true });
+    }
+
+    // ✅ Handle Validator Logic for MULTI
+    if (validationType === 'MULTI' && isValidator) {
+       if (!nodeEntry.validatorApprovals) nodeEntry.validatorApprovals = [];
+       if (!nodeEntry.validatorApprovals.includes(req.user.id)) nodeEntry.validatorApprovals.push(req.user.id);
+       
+       if (nodeData.validatorType === 'users') {
+           const vIds = nodeData.validatorIds || [];
+           const allApproved = vIds.every(vid => nodeEntry.validatorApprovals.includes(vid));
+           if (!allApproved) {
+               instance.history.push({
+                 nodeId: nodeId, action: 'partial_validation', title: `Validation partielle`,
+                 performedBy: req.user.id, comments: comments || '', data: data
+               });
+               instance.markModified('currentNodes');
+               await instance.save();
+               return res.json({ success: true, message: 'Validation recorded. Waiting for other validators.', data: instance, waitingForConsensus: true });
+           }
+       }
+    }
+
+    // ✅ Handle consensus logic for ALL if automatic validation
+    if (assignmentType === 'ALL' && validationType === 'AUTOMATIC') {
+      if (!nodeEntry.approvedBy) nodeEntry.approvedBy = [];
+      if (!nodeEntry.approvedBy.includes(req.user.id)) nodeEntry.approvedBy.push(req.user.id);
+      
+      const allApproved = nodeEntry.assignees.every(id => nodeEntry.approvedBy.includes(id.toString()));
+      if (!allApproved) {
+        instance.history.push({
+          nodeId: nodeId, action: 'partial_approval', title: `Approbation partielle`,
+          performedBy: req.user.id, comments: comments || '', data: data
+        });
+        await instance.save();
+        return res.json({ success: true, message: 'Approval recorded. Waiting for other team members.', data: instance, waitingForConsensus: true });
+      }
+    }
+
+    // If we reach here, it is either AUTOMATIC, or it was successfully VALIDATED by a validator.
+    instance.currentNodes.splice(currentNodeIndex, 1);
+
 
     instance.executionPath.push({
       nodeId: nodeId,

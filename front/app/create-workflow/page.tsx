@@ -20,8 +20,11 @@ const WorkflowArchitectContent = () => {
     const handleBack = () => {
         const domainId = searchParams.get('domainId');
         const moduleId = searchParams.get('moduleId');
+        const returnUrl = searchParams.get('returnUrl');
 
-        if (flowId) {
+        if (returnUrl) {
+            window.location.href = returnUrl;
+        } else if (flowId) {
             window.location.href = `/admin/workflows/${flowId}?tab=visual`;
         } else if (projectId) {
             window.location.href = `/admin/projects/${projectId}`;

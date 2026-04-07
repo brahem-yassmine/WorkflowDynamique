@@ -71,6 +71,14 @@ const workflowInstanceSchema = new mongoose.Schema({
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
     }],
+    workerCompleted: {
+      type: Boolean,
+      default: false
+    },
+    validatorApprovals: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    }],
     deadline: { type: Date }
   }],
 

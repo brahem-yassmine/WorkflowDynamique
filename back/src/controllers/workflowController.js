@@ -118,6 +118,20 @@ exports.createWorkflow = async (req, res) => {
       });
     }
 
+    if (!isTemplate && !projectId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Un workflow doit TOUJOURS être lié à un projet. (projectId manquant)'
+      });
+    }
+
+    if (isTemplate && (!moduleId || !domainId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Un template de workflow doit être lié à un module et un domaine.'
+      });
+    }
+
     const workflowDomain = domain || req.user.domain;
     let workflowNodes = nodes || [];
     let workflowEdges = edges || [];
@@ -161,7 +175,7 @@ exports.createWorkflow = async (req, res) => {
     const workflow = new Workflow({
       name,
       description: description || '',
-      domainId: domainId || req.user.domainId,
+      domainId: isTemplate ? (domainId || req.user.domainId) : undefined,
       nodes: workflowNodes,
       edges: workflowEdges,
       status: status || 'draft',
@@ -766,17 +780,19 @@ exports.duplicateWorkflow = async (req, res) => {
       };
     });
 
+    const isCreatingTemplate = !projectId; // If no projectId, it's a template copy
+
     const duplicate = new Workflow({
       name: name || `${original.name} (copy)`,
       description: original.description,
-      domainId: original.domainId,
+      domainId: isCreatingTemplate ? original.domainId : undefined,
       nodes: newNodes,
       edges: newEdges,
       status: 'draft',
-      isTemplate: !projectId, // If no projectId, it's a template copy
+      isTemplate: isCreatingTemplate,
       templateId: original.isTemplate ? original._id : original.templateId,
       projectId: projectId || null,
-      moduleId: original.moduleId,
+      moduleId: isCreatingTemplate ? original.moduleId : original.moduleId, // Can keep moduleId for tracking origin
       createdBy: req.user.id || req.user.userId || req.user._id
     });
 

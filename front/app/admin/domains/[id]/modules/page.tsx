@@ -181,7 +181,7 @@ export default function DomainModulesSpace() {
                 toast.success('Unit protocol assigned to project');
                 setIsAssignModalOpen(false);
                 if (personalizeAfter && res.data?._id) {
-                    router.push(`/admin/create_workflows?id=${res.data._id}`);
+                    router.push(`/create-workflow?id=${res.data._id}&returnUrl=${encodeURIComponent(window.location.pathname + window.location.search)}`);
                 }
             }
         } catch (error: any) {

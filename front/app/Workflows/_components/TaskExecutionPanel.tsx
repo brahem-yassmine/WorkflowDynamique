@@ -43,6 +43,7 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                             vars[node.id + '_executed'] || 
                             vars[node.id + '_data'] ||
                             node.status === 'executed' || 
+                            node.workerCompleted ||
                             (isExecutedParam && nodeIdParam === node.id) ||
                             ((userAction === 'Upload File' || userAction === 'Upload Image') && instance?.attachments?.length > 0);
 
@@ -107,8 +108,9 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
     const needsLock = isAnyAssignment && !isLocked;
     const isHistoryNode = instance?.currentNodes ? !instance.currentNodes.some((cn: any) => cn.nodeId === node.id) : false;
 
-    const isActive = instance?.status === 'active' || instance?.status === 'in_progress' || instance?.status === 'pending';
-    const isInstanceActive = !instance || ['active', 'in_progress', 'pending'].includes(instance.status);
+    const safeStatus = String(instance?.status || 'pending').toLowerCase();
+    const isActive = safeStatus === 'active' || safeStatus === 'in_progress' || safeStatus === 'pending';
+    const isInstanceActive = !instance || ['active', 'in_progress', 'pending'].includes(safeStatus);
     const canPerform = isActive || node.type === 'start';
     const canValidate = canPerform && isInstanceActive;
     const showButtons = canPerform || canValidate;
@@ -196,9 +198,13 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
     const handleApprove = async () => {
         if (loading || !instance?._id) return;
         
-        // Safety check if execution is required
-        if (data.linkedObjectId && !isExecuted) {
-            toast.warning('You must execute the required task before finalising this stage.');
+        const isUploadTask = Boolean(String(userAction).match(/file|image/i));
+        const hasUploadedItems = localAttachments.length > 0;
+        const validLinkedObjectId = data.linkedObjectId && String(data.linkedObjectId).trim() !== '';
+        
+        // Safety check if execution is required (bypass if it's purely an upload task and files are provided)
+        if (validLinkedObjectId && !isExecuted && !(isUploadTask && hasUploadedItems)) {
+            toast.warning('⚠️ Action requise : Vous devez d\'abord compléter le formulaire affilié ou l\'action obligatoire de cette étape avant de finaliser.');
             return;
         }
 
@@ -414,18 +420,22 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                 <div className={`p-8 border rounded-[32px] transition-all duration-500 ${isExecuted ? 'bg-emerald-50/30 border-emerald-200' : 'bg-slate-50 border-slate-100 hover:border-indigo-200'}`}>
                                     <div className="flex items-center justify-between mb-8">
                                         <div className="flex items-center gap-5">
-                                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm transition-transform duration-500 ${isExecuted ? 'bg-emerald-500 text-white' : 'bg-white text-slate-400 group-hover:scale-110'}`}>
+                                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm transition-transform duration-500 ${isExecuted || (Boolean(String(userAction).match(/file|image/i)) && localAttachments.length > 0) ? 'bg-emerald-500 text-white' : 'bg-white text-slate-400 group-hover:scale-110'}`}>
                                                 {data.taskType === 'form' ? <ClipboardList size={26} /> : <ListChecks size={26} />}
                                             </div>
                                             <div>
-                                                <h4 className={`text-lg font-black ${isExecuted ? 'text-emerald-900' : 'text-slate-800'}`}>
-                                                    {String(data.taskType || 'Task').toUpperCase()} Required
+                                                <h4 className={`text-lg font-black ${isExecuted || (Boolean(String(userAction).match(/file|image/i)) && localAttachments.length > 0) ? 'text-emerald-900' : 'text-slate-800'}`}>
+                                                    {data.taskType === 'form' ? 'Formulaire requis' : 
+                                                     data.taskType === 'checklist' ? 'Checklist requise' : 
+                                                     'Action complémentaire'}
                                                 </h4>
-                                                <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">Submit details to continue</p>
+                                                <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">
+                                                    {isExecuted || (Boolean(String(userAction).match(/file|image/i)) && localAttachments.length > 0) ? 'Condition remplie' : 'Action obligatoire pour continuer'}
+                                                </p>
                                             </div>
                                         </div>
-                                        <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${isExecuted ? 'bg-emerald-500 text-white' : 'bg-rose-50 text-rose-600'}`}>
-                                            {isExecuted ? 'Completed' : 'Mandatory'}
+                                        <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${(isExecuted || (Boolean(String(userAction).match(/file|image/i)) && localAttachments.length > 0)) ? 'bg-emerald-500 text-white' : 'bg-rose-50 text-rose-600'}`}>
+                                            {(isExecuted || (Boolean(String(userAction).match(/file|image/i)) && localAttachments.length > 0)) ? 'Validé' : 'Obligatoire'}
                                         </div>
                                     </div>
 
@@ -641,16 +651,16 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                             disabled={
                                 loading || 
                                 !canPerform || 
-                                (data.linkedObjectId && !isExecuted) || 
-                                ((String(userAction).includes('File') || String(userAction).includes('Image')) && localAttachments.length === 0) ||
-                                ((String(userAction).toLowerCase().includes('report') || String(userAction).toLowerCase().includes('text')) && comment.trim().length < 10)
+                                !!(data.linkedObjectId && !isExecuted && !String(userAction).match(/file|image/i)) || 
+                                (Boolean(String(userAction).match(/file|image/i)) && localAttachments.length === 0) ||
+                                (Boolean(String(userAction).match(/report|text|writing/i)) && comment.trim().length < 10)
                             }
                             className={`h-16 ${(userAction === 'Approve / Reject' || canValidate) ? 'flex-[1.8]' : 'w-full'} ${(
                                 loading || 
                                 !canPerform || 
-                                (data.linkedObjectId && !isExecuted) || 
-                                ((String(userAction).includes('File') || String(userAction).includes('Image')) && localAttachments.length === 0) ||
-                                ((String(userAction).toLowerCase().includes('report') || String(userAction).toLowerCase().includes('text')) && comment.trim().length < 10)
+                                !!(data.linkedObjectId && !isExecuted && !String(userAction).match(/file|image/i)) || 
+                                (Boolean(String(userAction).match(/file|image/i)) && localAttachments.length === 0) ||
+                                (Boolean(String(userAction).match(/report|text|writing/i)) && comment.trim().length < 10)
                             ) 
                                 ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-70' 
                                 : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xl shadow-indigo-100 transition-transform active:scale-95'

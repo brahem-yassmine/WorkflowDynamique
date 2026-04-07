@@ -34,7 +34,7 @@ import { Separator } from "@/components/ui/separator";
 
 const initialPlans = [
   { id: 1, name: "Starter Lattice", price: 19, maxUsers: 10, maxWorkflows: 20, storage: "10GB", active: true },
-  { id: 2, name: "Pro Cluster", price: 49, maxUsers: 50, maxWorkflows: 100, storage: "100GB", active: true },
+  { id: 2, name: "Pro Cluster", price: 49, maxUsers: 999999, maxWorkflows: 999999, storage: "100GB", active: true },
   { id: 3, name: "Enterprise Node", price: 199, maxUsers: 1000, maxWorkflows: 5000, storage: "10TB", active: false },
 ];
 

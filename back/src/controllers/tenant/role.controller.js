@@ -19,8 +19,8 @@ class RoleController {
       console.log('📦 Payload:', JSON.stringify(req.body, null, 2));
 
       const Role = RoleController.getModel(req);
-      const { name, description, permissions, isDefault } = req.body;
-      console.log('📦 Create Payload:', { name, permissionsCount: permissions?.length });
+      const { name, description, permissions, isDefault, domainId, moduleId, modulePermissions } = req.body;
+      console.log('📦 Create Payload:', { name, permissionsCount: permissions?.length, domainId, moduleId });
 
       const existingRole = await Role.findOne({ name });
       if (existingRole) {
@@ -35,7 +35,10 @@ class RoleController {
         description,
         permissions: permissions || [],
         isDefault: isDefault || false,
-        isActive: true
+        isActive: true,
+        domainId,
+        moduleId,
+        modulePermissions: modulePermissions || []
       });
 
       await role.save();
@@ -103,8 +106,8 @@ class RoleController {
 
       const Role = RoleController.getModel(req);
       const { id } = req.params;
-      const { name, description, permissions, isDefault, isActive } = req.body;
-      console.log('📦 Update Payload:', { name, permissionsCount: permissions?.length });
+      const { name, description, permissions, isDefault, isActive, domainId, moduleId, modulePermissions } = req.body;
+      console.log('📦 Update Payload:', { name, permissionsCount: permissions?.length, domainId, moduleId });
 
       const role = await Role.findById(id);
       if (!role) {
@@ -126,6 +129,10 @@ class RoleController {
       role.permissions = permissions || role.permissions;
       if (isDefault !== undefined) role.isDefault = isDefault;
       if (isActive !== undefined) role.isActive = isActive;
+      
+      role.domainId = domainId !== undefined ? domainId : role.domainId;
+      role.moduleId = moduleId !== undefined ? moduleId : role.moduleId;
+      role.modulePermissions = modulePermissions || role.modulePermissions;
 
       await role.save();
       console.log('✅ Role updated successfully:', role._id);

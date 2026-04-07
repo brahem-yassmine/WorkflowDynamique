@@ -52,7 +52,7 @@ exports.checkUserLimit = async (req, res, next) => {
 
     const userCount = await User.countDocuments({ tenantId, isActive: true });
 
-    if (userCount >= limits.maxUsers) {
+    if (limits.maxUsers !== 0 && limits.maxUsers !== 999999 && userCount >= limits.maxUsers) {
       return res.status(403).json({
         success: false,
         message: `User limit reached (${limits.maxUsers})`,
@@ -79,7 +79,7 @@ exports.checkWorkflowLimit = async (req, res, next) => {
 
     const workflowCount = await Workflow.countDocuments({ tenantId });
 
-    if (workflowCount >= limits.maxWorkflows) {
+    if (limits.maxWorkflows !== 0 && limits.maxWorkflows !== 999999 && workflowCount >= limits.maxWorkflows) {
       return res.status(403).json({
         success: false,
         message: `Workflow limit reached (${limits.maxWorkflows})`,

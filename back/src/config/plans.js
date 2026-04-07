@@ -38,8 +38,8 @@ module.exports = {
         code: 'PRO',
         price: 299,
         features: {
-          maxUsers: 30,
-          maxWorkflows: 50,
+          maxUsers: 999999,
+          maxWorkflows: 999999,
           maxNodes: 999999, // Unlimited capacity for complex operations
           reports: true,
           aiSupport: true

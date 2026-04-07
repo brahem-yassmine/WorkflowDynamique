@@ -112,7 +112,8 @@ function BillingPageContent() {
     const [usageData, setUsageData] = useState<any[]>([]);
     const [tenantCreatedAt, setTenantCreatedAt] = useState<Date | null>(null);
 
-    const isExpired = isAuthExpired || days >= (plan === 'demo' ? 7 : 30);
+    const currentLimit = plan === 'demo' ? 7 : (plan === 'starter' ? 30 : 999999);
+    const isExpired = isAuthExpired || days >= currentLimit;
 
     const handleDownloadManifest = () => {
         if (history.length === 0) {
@@ -248,7 +249,8 @@ function BillingPageContent() {
 
     useEffect(() => {
         if (!loading && plan) {
-            const isNowExpired = days >= (plan === 'demo' ? 7 : 30);
+            const currentLimit = plan === 'demo' ? 7 : (plan === 'starter' ? 30 : 999999);
+            const isNowExpired = days >= currentLimit;
             
             if (isNowExpired) {
                 setTimeout(() => {
@@ -498,10 +500,10 @@ function BillingPageContent() {
                         />
                         <StatsLedger 
                             label="Renewal Window" 
-                            value={isExpired ? "0 Days" : `${Math.max(0, (plan === 'demo' ? 7 : 30) - days)} Days`} 
-                            trend={isExpired ? "TERMINAL" : "Approaching"} 
+                            value={plan === 'pro' ? "Indefinite" : (isExpired ? "0 Days" : `${Math.max(0, (plan === 'demo' ? 7 : 30) - days)} Days`)} 
+                            trend={isExpired ? "TERMINAL" : (plan === 'pro' ? "Optimal" : "Approaching")} 
                             icon={<Clock size={24} />} 
-                            color={isExpired ? "text-rose-600" : (Math.max(0, (plan === 'demo' ? 7 : 30) - days) <= 3 ? "text-rose-500" : "text-amber-500")} 
+                            color={isExpired ? "text-rose-600" : (plan === 'pro' ? "text-emerald-500" : (Math.max(0, (plan === 'demo' ? 7 : 30) - days) <= 3 ? "text-rose-500" : "text-amber-500"))} 
                         />
                     </div>
                     
@@ -557,11 +559,11 @@ function BillingPageContent() {
                         <div className="flex justify-between items-center mb-2">
                             <span className="text-indigo-200 text-[10px] font-black uppercase tracking-widest">Cycle Progress</span>
                             <span className="text-white text-[10px] font-black tracking-widest">
-                                {Math.min(100, Math.round((days / (plan === 'demo' ? 7 : 30)) * 100))}%
+                                {plan === 'pro' ? '0%' : `${Math.min(100, Math.round((days / (plan === 'demo' ? 7 : 30)) * 100))}%`}
                             </span>
                         </div>
                         <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
-                            <div className="h-full bg-white rounded-full transition-all duration-1000" style={{ width: `${Math.min(100, (days / (plan === 'demo' ? 7 : 30)) * 100)}%` }}></div>
+                            <div className="h-full bg-white rounded-full transition-all duration-1000" style={{ width: `${plan === 'pro' ? 0 : Math.min(100, (days / (plan === 'demo' ? 7 : 30)) * 100)}%` }}></div>
                         </div>
                         <button 
                             disabled={true}

@@ -70,8 +70,8 @@ const defaultPlans = [
     yearlyPrice: 2990, // 2 free months
     currency: 'TND',
     features: {
-      maxUsers: 50,
-      maxWorkflows: 100,
+      maxUsers: 999999,
+      maxWorkflows: 999999,
       maxStorageGB: 50,
       aiAssistance: true,
       customDomains: true,

@@ -10,7 +10,7 @@ import {
   Users,
   LayoutGrid,
   ShieldCheck,
-  GitBranch,
+  Workflow,
   FolderKanban,
   CreditCard,
   FileText,
@@ -45,9 +45,9 @@ const menuGroups = [
   },
   {
     title: "Process & Automation",
-    icon: GitBranch,
+    icon: Workflow,
     items: [
-      { icon: Stethoscope, label: "Workflow Studio", href: "/admin/workflows" },
+      { icon: Workflow, label: "Workflow Studio", href: "/admin/workflows" },
       { icon: Zap, label: "Standard Flows", href: "/admin/workflows/standard" },
       { icon: Briefcase, label: "Project Workspace", href: "/admin/projects" },
     ]

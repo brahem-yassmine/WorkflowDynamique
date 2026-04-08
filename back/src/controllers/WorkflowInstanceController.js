@@ -46,7 +46,6 @@ exports.createInstance = async (req, res) => {
       }
     }
 
-      const node1Data = startNode.data || {};
       let respUser = null;
       let respDomain = node1Data.responsibleDomain || node1Data.domain;
       const assignedId1 = node1Data.assignedTo;
@@ -61,6 +60,15 @@ exports.createInstance = async (req, res) => {
         } else {
           respDomain = assignedId1;
         }
+      } else if (assignedId1) {
+          // If assignedTo is set but not specifically handled above (e.g. ANY/ALL with a user/role ID)
+          if (mongoose.Types.ObjectId.isValid(assignedId1)) {
+              const domObj = await req.tenantConn.model('Domain').findById(assignedId1) || await req.tenantConn.model('Role').findById(assignedId1);
+              if (domObj) respDomain = domObj.name;
+              else respUser = assignedId1; // It's a user ID
+          } else {
+              respDomain = assignedId1;
+          }
       }
 
       // Final fallback for domain ID resolution
@@ -335,7 +343,7 @@ exports.getInstances = async (req, res) => {
     });
   } catch (error) {
     console.error('❌ getInstances Error:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(500).json({ success: false, message: 'Server error: ' + error.message, stack: error.stack });
   }
 };
 
@@ -398,14 +406,16 @@ exports.approveNode = async (req, res) => {
     
     // Check if current user is a validator
     let isValidator = false;
-    if (validationType === 'SIMPLE' || validationType === 'MULTI') {
+    const vType = String(validationType).toUpperCase();
+    if (vType === 'SIMPLE' || vType === 'MULTI') {
       const vIds = nodeData.validatorIds || [];
-      isValidator = vIds.includes(req.user.id.toString()) || 
-                    (nodeData.validatorType === 'role' && (vIds.includes(req.user.role) || vIds.includes(req.user.specificRole)));
-      
-      if (req.user.role === 'admin' || req.user.role === 'super_admin') {
-         isValidator = true;
-      }
+      const isAdmin = req.user.role?.toLowerCase() === 'admin' || req.user.role?.toLowerCase() === 'super_admin';
+      const userRoleMatches = nodeData.validatorType === 'role' && 
+                             (vIds.includes(req.user.role) || 
+                              vIds.includes(req.user.specificRole) || 
+                              (req.user.specificRoleId && vIds.includes(req.user.specificRoleId.toString())));
+                              
+      isValidator = vIds.includes(req.user.id.toString()) || userRoleMatches || isAdmin;
     }
 
     // ⛔ Handle LOCK Logic for "ANY"
@@ -423,57 +433,77 @@ exports.approveNode = async (req, res) => {
     }
 
     // ✅ Handle Worker submission if validation is required
-    if ((validationType === 'SIMPLE' || validationType === 'MULTI') && !isValidator) {
-       // It's a worker submitting the task. Handle consensus if ALL
-       if (assignmentType === 'ALL') {
-         if (!nodeEntry.approvedBy) nodeEntry.approvedBy = [];
-         if (!nodeEntry.approvedBy.includes(req.user.id)) nodeEntry.approvedBy.push(req.user.id);
-         const allApproved = nodeEntry.assignees.every(id => nodeEntry.approvedBy.includes(id.toString()));
-         
-         if (!allApproved) {
-            instance.history.push({
-              nodeId: nodeId, action: 'partial_approval', title: `Approbation partielle`,
-              performedBy: req.user.id, comments: comments || '', data: data
-            });
-            await instance.save();
-            return res.json({ success: true, message: 'Approval recorded. Waiting for other team members.', data: instance, waitingForConsensus: true });
-         }
-       }
+    const currentVType = String(validationType).toUpperCase();
+    if ((currentVType === 'SIMPLE' || currentVType === 'MULTI') && !nodeEntry.workerCompleted) {
+       // Check if current user is an EXPLICIT validator (assigned in the node)
+       const isExplicitValidator = isValidator;
+       
+       // If the user is the worker (locking the task) OR is just acting as a worker
+       const isActingAsWorker = (nodeEntry.responsibleUser && nodeEntry.responsibleUser.toString() === req.user.id.toString()) || !isExplicitValidator;
 
-       // Record the final worker submission
-       instance.history.push({
-          nodeId: nodeId, action: 'step_submitted_for_validation', title: `Soumis pour validation`,
-          performedBy: req.user.id, comments: comments || 'En attente de validation par un administrateur', data: data
-       });
-       
-       let existingExec = instance.executionPath.find(p => p.nodeId === nodeId && p.action === 'worker_submitted');
-       if (existingExec) {
-           existingExec.outputData = data;
-           existingExec.comments = comments || existingExec.comments;
-           existingExec.timestamp = new Date();
-       } else {
-           instance.executionPath.push({
-              nodeId: nodeId, nodeType: 'action', action: 'worker_submitted',
-              performedBy: req.user.id, comments: comments || '', timestamp: new Date(), outputData: data
-           });
+       if (isActingAsWorker) {
+          // It's a worker submitting the task. Handle consensus if ALL
+          if (assignmentType === 'ALL') {
+             if (!nodeEntry.approvedBy) nodeEntry.approvedBy = [];
+             if (!nodeEntry.approvedBy.map(id => id.toString()).includes(req.user.id.toString())) { nodeEntry.approvedBy.push(req.user.id); }
+             const allApproved = nodeEntry.assignees.every(id => nodeEntry.approvedBy.map(abb => abb.toString()).includes(id.toString()));
+             
+             if (!allApproved) {
+                instance.history.push({
+                  nodeId: nodeId, action: 'partial_approval', title: `Approbation partielle`,
+                  performedBy: req.user.id, comments: comments || '', data: data
+                });
+                await instance.save();
+                return res.json({ success: true, message: 'Approval recorded. Waiting for other team members.', data: instance, waitingForConsensus: true });
+             }
+          }
+
+          // Record the final worker submission
+          instance.history.push({
+             nodeId: nodeId, action: 'step_submitted_for_validation', title: `Soumis pour validation`,
+             performedBy: req.user.id, comments: comments || 'En attente de validation par un administrateur', data: data
+          });
+          
+          let existingExec = instance.executionPath.find(p => p.nodeId === nodeId && p.action === 'worker_submitted');
+          if (existingExec) {
+              existingExec.outputData = data;
+              existingExec.comments = comments || existingExec.comments;
+              existingExec.timestamp = new Date();
+          } else {
+              instance.executionPath.push({
+                 nodeId: nodeId, nodeType: 'action', action: 'worker_submitted',
+                 performedBy: req.user.id, comments: comments || '', timestamp: new Date(), outputData: data
+              });
+          }
+          
+          nodeEntry.workerCompleted = true;
+          // nodeEntry.status = 'awaiting_validation'; // Optional flag for UI
+          instance.markModified('currentNodes');
+          instance.markModified('executionPath');
+          await instance.save();
+          return res.json({ success: true, message: 'Task submitted for validation.', data: instance, waitingForValidation: true });
        }
-       
-       nodeEntry.workerCompleted = true;
-       instance.markModified('currentNodes');
-       instance.markModified('executionPath');
-       await instance.save();
-       return res.json({ success: true, message: 'Task submitted for validation.', data: instance, waitingForValidation: true });
     }
 
     // ✅ Handle Validator Logic for MULTI
-    if (validationType === 'MULTI' && isValidator) {
+    if (currentVType === 'MULTI' && isValidator) {
        if (!nodeEntry.validatorApprovals) nodeEntry.validatorApprovals = [];
-       if (!nodeEntry.validatorApprovals.includes(req.user.id)) nodeEntry.validatorApprovals.push(req.user.id);
+       const userIdStr = req.user.id.toString();
        
-       if (nodeData.validatorType === 'users') {
+       if (!nodeEntry.validatorApprovals.map(id => id.toString()).includes(userIdStr)) {
+          nodeEntry.validatorApprovals.push(req.user.id);
+       }
+       
+       // Admins no longer bypass MULTI validation requirements
+       const isGlobalAdmin = false;
+       
+       if (nodeData.validatorType === 'users' || !nodeData.validatorType) {
            const vIds = nodeData.validatorIds || [];
-           const allApproved = vIds.every(vid => nodeEntry.validatorApprovals.includes(vid));
-           if (!allApproved) {
+           const allApproved = vIds.every(vid => 
+              nodeEntry.validatorApprovals.map(id => id.toString()).includes(vid.toString())
+           );
+           
+           if (!allApproved && !isGlobalAdmin) {
                instance.history.push({
                  nodeId: nodeId, action: 'partial_validation', title: `Validation partielle`,
                  performedBy: req.user.id, comments: comments || '', data: data
@@ -482,15 +512,45 @@ exports.approveNode = async (req, res) => {
                await instance.save();
                return res.json({ success: true, message: 'Validation recorded. Waiting for other validators.', data: instance, waitingForConsensus: true });
            }
+       } else if (nodeData.validatorType === 'role') {
+           const vRoleIds = nodeData.validatorIds || []; // these could be role names or IDs
+           
+           // Fetch all users who have approved so far to check their roles
+           const UserModel = req.tenantConn.model('User');
+           const approvers = await UserModel.find({ _id: { $in: nodeEntry.validatorApprovals } });
+           
+           const approvedRoles = new Set();
+           approvers.forEach(u => {
+              if (u.role) approvedRoles.add(u.role);
+              if (u.specificRole) approvedRoles.add(u.specificRole);
+              if (u.specificRoleId) approvedRoles.add(u.specificRoleId.toString());
+           });
+
+           const allRolesApproved = vRoleIds.every(roleId => approvedRoles.has(roleId.toString()));
+           
+           if (!allRolesApproved && !isGlobalAdmin) {
+               instance.history.push({
+                 nodeId: nodeId, action: 'partial_validation', title: `Validation partielle par rôle`,
+                 performedBy: req.user.id, comments: comments || '', data: data
+               });
+               instance.markModified('currentNodes');
+               await instance.save();
+               return res.json({ success: true, message: 'Validation recorded. Waiting for other roles.', data: instance, waitingForConsensus: true });
+           }
        }
     }
 
     // ✅ Handle consensus logic for ALL if automatic validation
     if (assignmentType === 'ALL' && validationType === 'AUTOMATIC') {
       if (!nodeEntry.approvedBy) nodeEntry.approvedBy = [];
-      if (!nodeEntry.approvedBy.includes(req.user.id)) nodeEntry.approvedBy.push(req.user.id);
+      const userIdStr = req.user.id.toString();
+      if (!nodeEntry.approvedBy.map(id => id.toString()).includes(userIdStr)) {
+         nodeEntry.approvedBy.push(req.user.id);
+      }
       
-      const allApproved = nodeEntry.assignees.every(id => nodeEntry.approvedBy.includes(id.toString()));
+      const allApproved = nodeEntry.assignees.every(id => 
+        nodeEntry.approvedBy.map(abb => abb.toString()).includes(id.toString())
+      );
       if (!allApproved) {
         instance.history.push({
           nodeId: nodeId, action: 'partial_approval', title: `Approbation partielle`,
@@ -499,6 +559,11 @@ exports.approveNode = async (req, res) => {
         await instance.save();
         return res.json({ success: true, message: 'Approval recorded. Waiting for other team members.', data: instance, waitingForConsensus: true });
       }
+    }
+
+    // ✅ Ensure that ONLY authorized validators can perform the final validation splice
+    if ((currentVType === 'SIMPLE' || currentVType === 'MULTI') && !isValidator) {
+       return res.status(403).json({ success: false, message: 'You are not authorized to perform the final validation for this step.' });
     }
 
     // If we reach here, it is either AUTOMATIC, or it was successfully VALIDATED by a validator.
@@ -688,9 +753,7 @@ exports.updateNodeData = async (req, res) => {
     }
 
     if (instance.executionPath[lastActionIdx].performedBy.toString() !== userId.toString()) {
-       if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
-          return res.status(403).json({ success: false, message: 'You can only update your own responses' });
-       }
+       return res.status(403).json({ success: false, message: 'You can only update your own responses' });
     }
 
     const workflow = await Workflow.findById(instance.workflowId);
@@ -737,26 +800,80 @@ exports.updateNodeData = async (req, res) => {
 exports.rejectNode = async (req, res) => {
   try {
     const { instanceId } = req.params;
-    const { nodeId, comments } = req.body;
+    const { nodeId, comments, data } = req.body;
 
     const WorkflowInstance = req.tenantConn.model('WorkflowInstance');
-
+    const Workflow = req.tenantConn.model('Workflow');
     const instance = await WorkflowInstance.findById(instanceId);
 
     if (!instance) {
       return res.status(404).json({ success: false, message: 'Instance not found' });
     }
 
-    const currentNodeIndex = instance.currentNodes.findIndex(n => n.nodeId === nodeId && n.status === 'in_progress');
+    if (instance.status !== 'in_progress') {
+      return res.status(400).json({ success: false, message: 'This workflow is no longer active' });
+    }
 
+    const currentNodeIndex = instance.currentNodes.findIndex(n => n.nodeId === nodeId && n.status === 'in_progress');
     if (currentNodeIndex === -1) {
       return res.status(400).json({ success: false, message: 'This node is not active' });
     }
 
-    // Mark node as rejected
-    instance.currentNodes[currentNodeIndex].status = 'rejected';
+    const nodeEntry = instance.currentNodes[currentNodeIndex];
+    const workflow = await Workflow.findById(instance.workflowId);
+    if (!workflow) throw new Error('Workflow definition not found');
 
-    // Standard logic: reject = end of workflow (rejected status)
+    const nodeData = workflow.nodes.find(n => n.id === nodeId)?.data || {};
+    const vType = String(validationType).toUpperCase();
+    // 1. Identify if current user is a VALIDATOR
+    let isValidator = false;
+    if (vType === 'SIMPLE' || vType === 'MULTI') {
+      const vIds = nodeData.validatorIds || [];
+      const isAdmin = req.user.role?.toLowerCase() === 'admin' || req.user.role?.toLowerCase() === 'super_admin';
+      const userRoleMatches = nodeData.validatorType === 'role' && 
+                             (vIds.includes(req.user.role) || 
+                              vIds.includes(req.user.specificRole) || 
+                              (req.user.specificRoleId && vIds.includes(req.user.specificRoleId.toString())));
+                              
+      isValidator = vIds.includes(req.user.id.toString()) || userRoleMatches || isAdmin;
+    }
+
+    // 2. Handle WORKER submission for rejection (Wait for admin validation)
+    if ((vType === 'SIMPLE' || vType === 'MULTI') && !isValidator) {
+       instance.history.push({
+          nodeId: nodeId, 
+          action: 'step_rejected_for_validation', 
+          title: `Échec signalé / Rejeté par l'opérateur`,
+          performedBy: req.user.id, 
+          comments: comments || 'L\'opérateur a signalé un échec ou a rejeté cette étape. En attente de validation par un administrateur.', 
+          data: data
+       });
+
+       instance.executionPath.push({
+          nodeId: nodeId, 
+          nodeType: 'action', 
+          action: 'worker_rejected',
+          performedBy: req.user.id, 
+          comments: comments || '', 
+          timestamp: new Date(), 
+          outputData: data
+       });
+
+       nodeEntry.workerCompleted = true; // Still mark as completed so it shows up for validation
+       instance.markModified('currentNodes');
+       instance.markModified('executionPath');
+       await instance.save();
+
+       return res.json({ 
+         success: true, 
+         message: 'Rejection submitted for validation.', 
+         data: instance, 
+         waitingForValidation: true 
+       });
+    }
+
+    // 3. VALIDATOR or AUTOMATIC: Full rejection (Ends the flow or path)
+    nodeEntry.status = 'rejected';
     instance.status = 'rejected';
     instance.timeCompleted = new Date();
 
@@ -765,15 +882,18 @@ exports.rejectNode = async (req, res) => {
       nodeType: 'action',
       action: 'rejected',
       performedBy: req.user.id,
-      comments: comments || 'Rejeté',
-      timestamp: new Date()
+      comments: comments || 'Rejeté par l\'administrateur/système',
+      timestamp: new Date(),
+      outputData: data
     });
 
     instance.history.push({
+      nodeId: nodeId,
       action: 'step_rejected',
-      title: 'Action rejetée',
+      title: 'Action rejetée (Final)',
       performedBy: req.user.id,
-      comments: comments || 'Étape rejetée'
+      comments: comments || 'Étape rejetée définitivement',
+      data: data
     });
 
     await instance.save();
@@ -830,8 +950,6 @@ exports.lockNode = async (req, res) => {
     const specificRole = req.user.specificRole;
     
     const isAllowed = (
-      userRoleStr === 'admin' || 
-      userRoleStr === 'super_admin' ||
       nodeEntry.assignees.some(id => 
         id.toString() === req.user.id || 
         (req.user.specificRoleId && id.toString() === req.user.specificRoleId.toString())
@@ -1278,6 +1396,25 @@ async function processNodeTransition(req, instance, workflow, sourceNodeId) {
       } else {
         responsibleDomain = assignedId;
       }
+    } else if (assignedId && mongoose.Types.ObjectId.isValid(assignedId)) {
+        // Fallback for ANY/ALL where assignedId is set but not resolved yet
+        const domMaybe = await DomainModel.findById(assignedId) || await RoleModel.findById(assignedId);
+        if (domMaybe) {
+            responsibleDomain = domMaybe.name;
+            if (assignmentType === 'ALL') {
+                const domainUsers = await UserModel.find({ $or: [{ domain: domMaybe.name }, { specificRole: domMaybe.name }] });
+                nodeAssignees = Array.from(new Set([...nodeAssignees.map(id => id.toString()), ...domainUsers.map(u => u._id.toString())])).map(id => new mongoose.Types.ObjectId(id));
+            }
+        } else {
+            // It's a user ID
+            if (assignmentType === 'ALL' || assignmentType === 'ANY') {
+                if (!nodeAssignees.map(id => id.toString()).includes(assignedId.toString())) {
+                    nodeAssignees.push(new mongoose.Types.ObjectId(assignedId));
+                }
+            } else {
+                responsibleUser = assignedId;
+            }
+        }
     } else {
       responsibleUser = node.data?.assignedUser || (node.data?.assigneeSelectionType === 'user' ? node.data.assigneeIds?.[0] : null);
       responsibleDomain = domainName || (assignmentType !== 'SINGLE' ? assignedId : null);

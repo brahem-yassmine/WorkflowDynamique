@@ -11,9 +11,7 @@ const workflowSchema = new mongoose.Schema({
   domainId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Domain',
-    required: function() {
-      return this.isTemplate === true;
-    }
+    required: true
   },
   nodes: {
     type: [mongoose.Schema.Types.Mixed],

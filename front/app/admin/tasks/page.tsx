@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import TaskExecutionPanel from '../../Workflows/_components/TaskExecutionPanel';
 
 export default function GlobalTasksPage() {
   const [tasks, setTasks] = useState<any[]>([]);
@@ -42,6 +43,8 @@ export default function GlobalTasksPage() {
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportForm, setReportForm] = useState({ message: '', recipientId: '' });
   const [reportingTask, setReportingTask] = useState<any>(null);
+  const [executionTask, setExecutionTask] = useState<any>(null);
+  const [isSyncingTask, setIsSyncingTask] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -55,6 +58,17 @@ export default function GlobalTasksPage() {
   useEffect(() => {
     fetchData();
   }, [currentUser]);
+
+  const getUserName = (userId: string) => {
+    if (!userId) return 'Unassigned';
+    const user = users.find(u => u._id === userId || u.id === userId);
+    return user ? `${user.firstName} ${user.lastName}` : 'Unknown Operator';
+  };
+
+  const getUserRole = (userId: string) => {
+    const user = users.find(u => u._id === userId || u.id === userId);
+    return user?.role || 'User';
+  };
 
   const fetchData = async () => {
     try {
@@ -83,7 +97,15 @@ export default function GlobalTasksPage() {
 
           const nodeSubmissions: Record<string, any[]> = {};
           inst.history?.forEach((h: any) => {
-             if (h.nodeId && (h.action === 'step_approved' || h.action === 'partial_approval')) {
+             const submissionActions = [
+               'step_approved', 
+               'partial_approval', 
+               'step_submitted_for_validation', 
+               'step_rejected_for_validation',
+               'worker_submitted',
+               'worker_rejected'
+             ];
+             if (h.nodeId && submissionActions.includes(h.action)) {
                 if (!nodeSubmissions[h.nodeId]) nodeSubmissions[h.nodeId] = [];
                 nodeSubmissions[h.nodeId].push({
                    userId: h.performedBy,
@@ -100,6 +122,7 @@ export default function GlobalTasksPage() {
           inst.executionPath?.forEach((path: any) => {
             const nodeDef = workflow.nodes?.find((n: any) => n.id === path.nodeId);
             if (!nodeDef || isLogicBlock(nodeDef.type)) return;
+            if (path.action === 'worker_submitted' || path.action === 'worker_rejected' || path.action === 'start') return;
             
             aggregatedTasks.push({
               id: `${inst._id}-${path.nodeId}-${path.timestamp}`,
@@ -130,17 +153,38 @@ export default function GlobalTasksPage() {
             // Multi-role identification logic
             let roleType = 'OBSERVER';
             if (currentUser) {
+              const isAdmin = currentUser.role?.toLowerCase() === 'admin' || currentUser.role?.toLowerCase() === 'super_admin';
+              
               const isAssignee = nodeDef.data?.assigneeIds?.includes(currentUser._id) || 
                                 nodeDef.data?.assigneeIds?.includes(currentUser.id) ||
                                 (nodeDef.data?.assigneeSelectionType === 'role' && (nodeDef.data?.responsibleDomain === currentUser.role || nodeDef.data?.assigneeIds?.includes(currentUser.role)));
               
-              const isValidator = nodeDef.data?.validatorIds?.includes(currentUser._id) || 
+              const valType = String(nodeDef.data?.validationType || 'automatic').toLowerCase();
+              const requiresValidation = valType === 'simple' || valType === 'multi';
+              
+              const isExplicitValidator = nodeDef.data?.validatorIds?.includes(currentUser._id) || 
                                  nodeDef.data?.validatorIds?.includes(currentUser.id) ||
-                                 (nodeDef.data?.validatorType === 'role' && nodeDef.data?.validatorIds?.includes(currentUser.role));
+                                 (nodeDef.data?.validatorType === 'role' && (
+                                     nodeDef.data?.validatorIds?.includes(currentUser.role) ||
+                                     nodeDef.data?.validatorIds?.includes(currentUser.specificRole) ||
+                                     (currentUser.specificRoleId && nodeDef.data?.validatorIds?.includes(currentUser.specificRoleId))
+                                 ));
+              
+              const isValidator = requiresValidation && (isAdmin || isExplicitValidator);
 
-              if (isAssignee && !curr.workerCompleted) roleType = 'WORKER';
-              else if (isValidator) roleType = 'VALIDATOR';
-              else if (isAssignee && curr.workerCompleted) roleType = 'WORKER_DONE';
+              if (curr.workerCompleted) {
+                  if (requiresValidation && isValidator) {
+                      roleType = 'VALIDATOR';
+                  } else {
+                      roleType = 'WORKER_DONE';
+                  }
+              } else {
+                  if (isAssignee) {
+                      roleType = 'WORKER';
+                  } else {
+                      roleType = 'OBSERVER';
+                  }
+              }
             }
 
             aggregatedTasks.push({
@@ -174,6 +218,71 @@ export default function GlobalTasksPage() {
     }
   };
 
+  const handleOpenExecution = async (task: any) => {
+    try {
+      setIsSyncingTask(true);
+      const res = await apiService.getInstance(task.instanceId);
+      if (res.success) {
+        const inst = res.data;
+        const workflowRes = await apiService.getWorkflowById(inst.workflowId._id || inst.workflowId);
+        if (workflowRes.success) {
+          const workflow = workflowRes.data;
+          const nodeDef = workflow.nodes.find((n: any) => n.id === task.nodeId);
+          if (nodeDef) {
+             setExecutionTask({
+               instance: inst,
+               node: {
+                 ...nodeDef,
+                 ...(inst.currentNodes?.find((cn: any) => cn.nodeId === nodeDef.id) || {})
+               }
+             });
+          } else {
+             toast.error("Process node not found in definition");
+          }
+        }
+      } else {
+        toast.error("Failed to load process data");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Connection error");
+    } finally {
+      setIsSyncingTask(false);
+    }
+  };
+
+  const handleReportSubmit = async () => {
+    if (!reportForm.message || !reportForm.recipientId) {
+       toast.error('Please select a recipient and enter a message.');
+       return;
+    }
+
+    try {
+       const res = await apiService.request('/task-reports', {
+          method: 'POST',
+          body: JSON.stringify({
+             instanceId: reportingTask.instanceId,
+             nodeId: reportingTask.nodeId,
+             workflowId: reportingTask.workflowId,
+             recipientId: reportForm.recipientId,
+             title: `\u26A0\uFE0F INCIDENT REPORT: ${reportingTask.name}`,
+             message: reportForm.message,
+             type: 'incident_report',
+             link: `/Workflows/instances/${reportingTask.instanceId}`,
+             submissionData: reportingTask.submissions.find((s: any) => s.userId === reportForm.recipientId)?.data
+          })
+       });
+
+       if (res.success) {
+          toast.success('Incident reported to user successfully.');
+          setShowReportModal(false);
+          setReportForm({ message: '', recipientId: '' });
+       }
+    } catch (err) {
+       toast.error('Failed to send report.');
+    }
+  };
+
   const filteredTasks = tasks.filter(t => {
     const matchesSearch = t.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           t.instanceTitle.toLowerCase().includes(searchTerm.toLowerCase());
@@ -194,49 +303,6 @@ export default function GlobalTasksPage() {
       case 'COMPLETED': return <span className="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-100 flex items-center gap-1.5"><CheckCircle2 size={10} /> Completed</span>;
       case 'IN_PROGRESS': return <span className="px-3 py-1 bg-amber-50 text-amber-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-amber-100 flex items-center gap-1.5"><PlayCircle size={10} /> In Progress</span>;
       default: return null;
-    }
-  };
-
-  const getUserName = (userId: string) => {
-    if (!userId) return 'Unassigned';
-    const user = users.find(u => u._id === userId || u.id === userId);
-    return user ? `${user.firstName} ${user.lastName}` : 'Unknown Operator';
-  };
-
-  const getUserRole = (userId: string) => {
-    const user = users.find(u => u._id === userId || u.id === userId);
-    return user?.role || 'User';
-  };
-
-  const handleReportSubmit = async () => {
-    if (!reportForm.message || !reportForm.recipientId) {
-       toast.error('Please select a recipient and enter a message.');
-       return;
-    }
-
-    try {
-       const res = await apiService.request('/task-reports', {
-          method: 'POST',
-          body: JSON.stringify({
-             instanceId: reportingTask.instanceId,
-             nodeId: reportingTask.nodeId,
-             workflowId: reportingTask.workflowId,
-             recipientId: reportForm.recipientId,
-             title: `⚠️ INCIDENT REPORT: ${reportingTask.name}`,
-             message: reportForm.message,
-             type: 'incident_report',
-             link: `/Workflows/instances/${reportingTask.instanceId}`,
-             submissionData: reportingTask.submissions.find((s: any) => s.userId === reportForm.recipientId)?.data
-          })
-       });
-
-       if (res.success) {
-          toast.success('Incident reported to user successfully.');
-          setShowReportModal(false);
-          setReportForm({ message: '', recipientId: '' });
-       }
-    } catch (err) {
-       toast.error('Failed to send report.');
     }
   };
 
@@ -313,7 +379,7 @@ export default function GlobalTasksPage() {
               >
                 <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-8">
                   <div className="flex items-center gap-6">
-                    <div className={`w-16 h-16 rounded-2x; flex items-center justify-center shrink-0 shadow-inner ${
+                    <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 shadow-inner ${
                       task.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-600' : 
                       task.status === 'REJECTED' ? 'bg-rose-50 text-rose-600' : 'bg-amber-50 text-amber-600'
                     }`}>
@@ -337,12 +403,33 @@ export default function GlobalTasksPage() {
                      <div className="hidden sm:block">
                         <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1.5 underline decoration-indigo-100 underline-offset-4">Lead Assignment</p>
                         <div className="flex items-center gap-3">
-                           <div className="w-8 h-8 bg-slate-100 rounded-xl flex items-center justify-center text-[10px] font-black text-slate-500">
-                             {getUserName(task.performedBy || (task.submissions[0]?.userId)).substring(0, 2)}
+                           <div className="relative">
+                              <div className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-[10px] font-black shadow-sm border border-indigo-100">
+                                {getUserName(task.performedBy || (task.submissions[0]?.userId)).substring(0, 2).toUpperCase()}
+                              </div>
+                              {task.submissions.length > 1 && (
+                                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 text-white rounded-md flex items-center justify-center text-[8px] font-black border-2 border-white shadow-sm" title={`${task.submissions.length} participants`}>
+                                  {task.submissions.length}
+                                </div>
+                              )}
                            </div>
                            <div>
                               <p className="text-xs font-black text-slate-700">{getUserName(task.performedBy || (task.submissions[0]?.userId))}</p>
-                              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{getUserRole(task.performedBy || (task.submissions[0]?.userId))}</p>
+                              <div className="flex items-center gap-2">
+                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{getUserRole(task.performedBy || (task.submissions[0]?.userId))}</p>
+                                {task.submissions.length > 1 && (
+                                  <span className="w-1 h-1 bg-slate-300 rounded-full" />
+                                )}
+                                {task.submissions.length > 1 && (
+                                  <div className="flex -space-x-1.5">
+                                    {task.submissions.slice(0, 3).map((sub: any, sIdx: number) => (
+                                      <div key={sIdx} className="w-4 h-4 rounded-full border border-white bg-slate-100 text-slate-500 flex items-center justify-center text-[6px] font-black" title={sub.userName}>
+                                        {sub.userName.substring(0, 1)}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
                            </div>
                         </div>
                      </div>
@@ -354,13 +441,7 @@ export default function GlobalTasksPage() {
 
                       <div className="flex items-center gap-3 ml-auto">
                         {/* Secondary View Action */}
-                        <button 
-                          onClick={() => setSelectedTask(task)}
-                          className="p-3.5 bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white rounded-2xl transition-all border border-slate-100 shadow-sm group/btn"
-                          title="Inspect Data & History"
-                        >
-                          <Eye size={20} className="group-hover/btn:scale-110 transition-transform" />
-                        </button>
+
 
                         {/* Primary Functional Action */}
                         {task.status === 'IN_PROGRESS' ? (
@@ -372,18 +453,22 @@ export default function GlobalTasksPage() {
                               </button>
                             </Link>
                           ) : task.adminRole === 'VALIDATOR' ? (
-                            <Link href={`/Workflows/instances/${task.instanceId}`}>
-                              <button className="px-6 py-3.5 bg-emerald-500 text-white rounded-[20px] hover:bg-emerald-600 transition-all text-[11px] font-black uppercase tracking-widest flex items-center gap-3 shadow-xl shadow-emerald-100 group/validate">
-                                <CheckCircle2 size={16} /> Validate Step
-                                <ChevronRight size={14} className="group-hover/validate:translate-x-1 transition-transform" />
-                              </button>
-                            </Link>
+                            <button 
+                              onClick={() => handleOpenExecution(task)}
+                              className="px-6 py-3.5 bg-emerald-500 text-white rounded-[20px] hover:bg-emerald-600 transition-all text-[11px] font-black uppercase tracking-widest flex items-center gap-3 shadow-xl shadow-emerald-100 group/validate"
+                            >
+                              <CheckCircle2 size={16} /> Validate Step
+                              <ChevronRight size={14} className="group-hover/validate:translate-x-1 transition-transform" />
+                            </button>
+                          ) : task.adminRole === 'WORKER_DONE' ? (
+                            <div className="flex items-center justify-center gap-2 bg-amber-50 text-amber-600 px-6 py-3.5 rounded-[20px] text-[11px] font-black tracking-widest uppercase border border-amber-100 shadow-sm">
+                              <Clock size={16} /> En attente de validation
+                            </div>
                           ) : (
-                            <Link href={`/Workflows/instances/${task.instanceId}`}>
-                              <button className="px-6 py-3.5 bg-slate-900 text-white rounded-[20px] hover:bg-indigo-600 transition-all text-[11px] font-black uppercase tracking-widest flex items-center gap-3 shadow-xl group/monitor">
-                                <Activity size={16} /> Monitor Flow
-                              </button>
-                            </Link>
+                            // Only show status, no action button for tasks in progress not for the current user
+                            <div className="flex items-center justify-center gap-2 bg-slate-50 text-slate-400 px-6 py-3.5 rounded-[20px] text-[11px] font-black tracking-widest uppercase border border-slate-100 shadow-sm">
+                              <Activity size={16} /> {task.submissions?.length > 0 ? "Awaiting Validation" : "Work In Progress"}
+                            </div>
                           )
                         ) : (
                           <button 
@@ -401,28 +486,11 @@ export default function GlobalTasksPage() {
                         >
                           <ShieldAlert size={18} />
                         </button>
-                     </div>
+                      </div>
                   </div>
                 </div>
 
-                {/* Consensus / Multiple Submissions Strip */}
-                {task.submissions.length > 1 && (
-                   <div className="mt-8 pt-6 border-t border-slate-50 overflow-x-auto no-scrollbar">
-                      <div className="flex items-center gap-4">
-                         <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest whitespace-nowrap">Collaborative Submissions ({task.submissions.length}):</span>
-                         {task.submissions.map((sub: any, sIdx: number) => (
-                            <div key={sIdx} className="flex items-center gap-2 group/sub relative">
-                               <div className="w-8 h-8 rounded-full border-2 border-white bg-indigo-50 text-indigo-500 flex items-center justify-center text-[9px] font-black hover:scale-110 transition-transform cursor-help shadow-sm">
-                                  {sub.userName.substring(0, 2)}
-                               </div>
-                               <div className="absolute top-10 left-0 bg-slate-900 text-white p-2 rounded-lg text-[8px] font-bold uppercase opacity-0 group-hover/sub:opacity-100 transition-opacity z-10 whitespace-nowrap shadow-xl">
-                                  {sub.userName} - {sub.action.replace('_', ' ')}
-                               </div>
-                            </div>
-                         ))}
-                      </div>
-                   </div>
-                )}
+
               </motion.div>
             ))
           )}
@@ -699,6 +767,31 @@ export default function GlobalTasksPage() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Execution / Validation Panel */}
+      <AnimatePresence>
+          {executionTask && (
+            <TaskExecutionPanel
+              instance={executionTask.instance}
+              node={executionTask.node}
+              onClose={() => setExecutionTask(null)}
+              onRefresh={() => {
+                fetchData();
+                setExecutionTask(null);
+              }}
+            />
+          )}
+       </AnimatePresence>
+
+       {/* Loading Overlay */}
+       {isSyncingTask && (
+         <div className="fixed inset-0 bg-white/20 backdrop-blur-sm z-[2000] flex items-center justify-center">
+            <div className="bg-white p-6 rounded-3xl shadow-2xl border border-slate-100 flex items-center gap-4 animate-in fade-in zoom-in duration-300">
+               <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+               <span className="text-[10px] font-black uppercase tracking-widest text-slate-800">Syncing Instance State...</span>
+            </div>
+         </div>
+       )}
     </div>
   );
 }

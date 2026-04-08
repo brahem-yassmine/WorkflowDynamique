@@ -3,7 +3,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import {
   FileText, Type, Hash, Calendar, CheckSquare, PenTool, AlignLeft, List,
-  ArrowLeft, Send, CheckCircle2, Clock, Mail, Phone, Trash2
+  ArrowLeft, Send, CheckCircle2, Clock, Mail, Phone, Trash2, ShieldCheck, XCircle
 } from 'lucide-react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { toast, Toaster } from 'sonner';
@@ -31,6 +31,7 @@ function Form2PageContent() {
   const designerTab = searchParams.get('designerTab');
   const fromWorkflow = searchParams.get('fromWorkflow');
   const from = searchParams.get('from');
+  const isConsult = searchParams.get('consult') === 'true';
 
   const [form, setForm] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -233,9 +234,15 @@ function Form2PageContent() {
       <Toaster position="top-right" richColors />
 
       {/* Already Submitted Status Bar */}
-      {isExecuted && (
+      {isExecuted && !isConsult && (
         <div className="bg-emerald-600 text-white px-4 py-2 text-center text-[10px] font-black uppercase tracking-[0.2em] shadow-lg sticky top-0 z-[60]">
           Existing Submission Detected — You are in Modification Mode
+        </div>
+      )}
+
+      {isConsult && (
+        <div className="bg-amber-500 text-white px-4 py-2 text-center text-[10px] font-black uppercase tracking-[0.2em] shadow-lg sticky top-0 z-[60]">
+          Validator Consultation View — Values are Read-Only
         </div>
       )}
 
@@ -333,14 +340,24 @@ function Form2PageContent() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
-            <button
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-              className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-xs sm:text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 disabled:opacity-70 whitespace-nowrap"
-            >
-              {isSubmitting ? <Clock className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              {isSubmitting ? 'Submitting...' : (isExecuted ? 'Update Data' : 'Submit Form')}
-            </button>
+            {isConsult ? (
+              <button
+                onClick={() => router.back()}
+                className="flex items-center gap-2 px-6 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-xs sm:text-sm hover:bg-slate-700 transition-all shadow-lg shadow-slate-200 whitespace-nowrap"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Return to Workflow
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-xs sm:text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 disabled:opacity-70 whitespace-nowrap"
+              >
+                {isSubmitting ? <Clock className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                {isSubmitting ? 'Submitting...' : (isExecuted ? 'Update Data' : 'Submit Form')}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -371,16 +388,18 @@ function Form2PageContent() {
                     {field.type === 'textarea' ? (
                       <textarea
                         key={`textarea-${field.id}`}
-                        className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all text-sm min-h-[120px]"
+                        className={`w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all text-sm min-h-[120px] ${isConsult ? 'bg-gray-50 cursor-not-allowed opacity-80' : ''}`}
                         placeholder={field.placeholder}
                         value={formData[field.id] || ''}
+                        disabled={isConsult}
                         onChange={(e) => handleChange(field.id, e.target.value)}
                       />
                     ) : field.type === 'select' ? (
                       <div key={`select-container-${field.id}`} className="relative group">
                         <select
-                          className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all text-sm appearance-none bg-white cursor-pointer"
+                          className={`w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all text-sm appearance-none bg-white cursor-pointer ${isConsult ? 'bg-gray-50 cursor-not-allowed opacity-80' : ''}`}
                           value={formData[field.id] || ''}
+                          disabled={isConsult}
                           onChange={(e) => handleChange(field.id, e.target.value)}
                         >
                           <option value="">{field.placeholder || "Please select..."}</option>
@@ -391,13 +410,14 @@ function Form2PageContent() {
                         <List className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300 group-focus-within:text-indigo-500 pointer-events-none transition-colors" />
                       </div>
                     ) : field.type === 'checkbox' ? (
-                      <div key={`checkbox-container-${field.id}`} className="p-4 bg-white border-2 border-gray-100 rounded-2xl space-y-3">
+                      <div key={`checkbox-container-${field.id}`} className={`p-4 bg-white border-2 border-gray-100 rounded-2xl space-y-3 ${isConsult ? 'bg-gray-50 opacity-80' : ''}`}>
                         {field.options?.map((opt: string, i: number) => (
-                          <label key={`${field.id}-check-${i}`} className="flex items-center gap-3 cursor-pointer group">
+                          <label key={`${field.id}-check-${i}`} className={`flex items-center gap-3 cursor-pointer group ${isConsult ? 'cursor-not-allowed' : ''}`}>
                             <input
                               type="checkbox"
-                              className="w-5 h-5 rounded border-2 border-gray-200 text-indigo-600 focus:ring-indigo-500 transition-all cursor-pointer"
+                              className="w-5 h-5 rounded border-2 border-gray-200 text-indigo-600 focus:ring-indigo-500 transition-all cursor-pointer disabled:opacity-50"
                               checked={(formData[field.id] || []).includes(opt)}
+                              disabled={isConsult}
                               onChange={(e) => {
                                 const current = formData[field.id] || [];
                                 const next = e.target.checked ? [...current, opt] : current.filter((v: string) => v !== opt);
@@ -411,8 +431,8 @@ function Form2PageContent() {
                     ) : field.type === 'signature' ? (
                       <div key={`signature-container-${field.id}`} className="space-y-3">
                         <label
-                          htmlFor={`file-${field.id}`}
-                          className="w-full aspect-video md:aspect-auto md:h-40 border-2 border-gray-100 border-dashed rounded-2xl bg-white flex flex-col items-center justify-center group hover:border-indigo-200 hover:bg-indigo-50/30 transition-all cursor-pointer relative overflow-hidden block"
+                          htmlFor={isConsult ? undefined : `file-${field.id}`}
+                          className={`w-full aspect-video md:aspect-auto md:h-40 border-2 border-gray-100 border-dashed rounded-2xl bg-white flex flex-col items-center justify-center group transition-all relative overflow-hidden block ${isConsult ? 'bg-gray-50 opacity-80 cursor-default' : 'hover:border-indigo-200 hover:bg-indigo-50/30 cursor-pointer'}`}
                         >
                           {formData[field.id]?.data ? (
                             <div key="signature-preview" className="absolute inset-0 flex flex-col items-center justify-center bg-white p-4">
@@ -424,29 +444,33 @@ function Form2PageContent() {
                               ) : (
                                 <img src={formData[field.id].data} alt="Signature Preview" className="max-h-full object-contain pointer-events-none" />
                               )}
-                              <button
-                                type="button"
-                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleChange(field.id, null); }}
-                                className="absolute top-2 right-2 p-1.5 bg-red-50 text-red-500 rounded-full hover:bg-red-100 transition-colors z-20"
-                                title="Remove file"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                              {!isConsult && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleChange(field.id, null); }}
+                                  className="absolute top-2 right-2 p-1.5 bg-red-50 text-red-500 rounded-full hover:bg-red-100 transition-colors z-20"
+                                  title="Remove file"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
                             </div>
                           ) : (
                             <React.Fragment key="signature-upload-ui">
                               <div className="flex flex-col items-center animate-in fade-in zoom-in duration-300">
                                 <PenTool className="w-8 h-8 text-indigo-400 mb-2 group-hover:scale-110 transition-transform" />
                                 <p className="text-xs text-gray-400 font-medium text-center px-4 leading-relaxed group-hover:text-indigo-500 transition-colors">
-                                  Click to upload your signature<br />
-                                  <span className="text-[10px] text-gray-300 font-normal mt-1 block">(PNG, JPG or PDF)</span>
+                                  {isConsult ? 'No Signature Supplied' : 'Click to upload your signature'} <br />
+                                  {!isConsult && <span className="text-[10px] text-gray-300 font-normal mt-1 block">(PNG, JPG or PDF)</span>}
                                 </p>
                               </div>
-                              <div className="absolute inset-x-0 bottom-4 px-4 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0 flex justify-center gap-2">
-                                <div className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider shadow-lg shadow-indigo-100">
-                                  Choose Local File
+                              {!isConsult && (
+                                <div className="absolute inset-x-0 bottom-4 px-4 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0 flex justify-center gap-2">
+                                  <div className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider shadow-lg shadow-indigo-100">
+                                    Choose Local File
+                                  </div>
                                 </div>
-                              </div>
+                              )}
                             </React.Fragment>
                           )}
                         </label>
@@ -462,9 +486,10 @@ function Form2PageContent() {
                       <input
                         key={`input-generic-${field.id}`}
                         type={field.type}
-                        className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all text-sm"
+                        className={`w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all text-sm ${isConsult ? 'bg-gray-50 cursor-not-allowed opacity-80' : ''}`}
                         placeholder={field.placeholder}
                         value={formData[field.id] || ''}
+                        disabled={isConsult}
                         onChange={(e) => handleChange(field.id, e.target.value)}
                       />
                     )}
@@ -476,25 +501,47 @@ function Form2PageContent() {
         ))}
 
         {/* Success Footer */}
-        <div className="bg-indigo-50 border border-indigo-100 rounded-3xl p-8 text-center mt-12 flex flex-col items-center gap-4">
-          <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-100">
-            <CheckCircle2 className="w-6 h-6" />
+        {!isConsult && (
+          <div className="bg-indigo-50 border border-indigo-100 rounded-3xl p-8 text-center mt-12 flex flex-col items-center gap-4">
+            <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-100">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-indigo-900">
+                {isExecuted ? 'Update and Resubmit?' : 'Ready to submit?'}
+              </h3>
+              <p className="text-sm text-indigo-600 mt-1">
+                {isExecuted ? 'Updates will be tracked in the workflow sequence.' : 'Make sure all required fields are filled correctly before sending.'}
+              </p>
+            </div>
+            <button
+              onClick={handleSubmit}
+              className="mt-2 w-full max-w-xs py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 flex items-center justify-center gap-3"
+            >
+              <Send className="w-4 h-4" /> {isExecuted ? 'Update Submission' : 'Final Submission'}
+            </button>
           </div>
-          <div>
-            <h3 className="text-lg font-bold text-indigo-900">
-              {isExecuted ? 'Update and Resubmit?' : 'Ready to submit?'}
-            </h3>
-            <p className="text-sm text-indigo-600 mt-1">
-              {isExecuted ? 'Updates will be tracked in the workflow sequence.' : 'Make sure all required fields are filled correctly before sending.'}
-            </p>
+        )}
+
+        {isConsult && (
+          <div className="bg-slate-50 border border-slate-100 rounded-3xl p-8 text-center mt-12 flex flex-col items-center gap-4">
+            <div className="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-slate-100">
+              <ShieldCheck className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-slate-800">Review Complete?</h3>
+              <p className="text-sm text-slate-500 mt-1">
+                You have finished consulting the operator's data. You can now return to the workflow to authorize or reject this stage.
+              </p>
+            </div>
+            <button
+              onClick={() => router.back()}
+              className="mt-2 w-full max-w-xs py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-indigo-600 transition-all shadow-xl shadow-slate-100 flex items-center justify-center gap-3"
+            >
+              <ArrowLeft className="w-4 h-4" /> Return to Validation Panel
+            </button>
           </div>
-          <button
-            onClick={handleSubmit}
-            className="mt-2 w-full max-w-xs py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 flex items-center justify-center gap-3"
-          >
-            <Send className="w-4 h-4" /> {isExecuted ? 'Update Submission' : 'Final Submission'}
-          </button>
-        </div>
+        )}
       </div>
     </div>
   );

@@ -6,7 +6,7 @@ import {
   Search,
   Filter,
   MoreHorizontal,
-  GitBranch,
+  Workflow,
   Calendar,
   Layers,
   Trash2,
@@ -279,7 +279,7 @@ function WorkflowsContent() {
           {filteredWorkflows.length === 0 ? (
             <div className="bg-white rounded-3xl border border-dashed border-slate-200 p-12 text-center h-full flex flex-col items-center justify-center">
               <div className="w-20 h-20 bg-slate-50 rounded-2xl flex items-center justify-center mb-6 text-slate-300">
-                <GitBranch size={40} />
+                <Workflow size={40} />
               </div>
               <h3 className="text-xl font-black text-slate-800 tracking-tight">No Schema Found</h3>
               <p className="text-slate-500 mt-2 max-w-xs text-sm">Browse our inspiration library or start architecting your first organizational logic schema.</p>
@@ -290,77 +290,16 @@ function WorkflowsContent() {
               </Link>
             </div>
           ) : (
-            <div className="space-y-12 pb-8">
-              {/* Group by Project */}
-              {projects.map(project => {
-                const projectWorkflows = filteredWorkflows.filter(w => w.projectId === project._id);
-                if (projectWorkflows.length === 0) return null;
-
-                return (
-                  <div key={project._id} className="space-y-6">
-                    <div className="flex items-center justify-between px-2">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100">
-                          <Briefcase size={20} />
-                        </div>
-                        <div>
-                          <h3 className="text-xl font-black text-slate-800 tracking-tight">{project.name}</h3>
-                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-0.5">Project Collection</p>
-                        </div>
-                      </div>
-                      <span className="px-3 py-1 bg-indigo-600 text-white rounded-full text-[10px] font-black uppercase tracking-wider shadow-lg shadow-indigo-100">
-                        {projectWorkflows.length} Flows
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {projectWorkflows.map(workflow => (
-                        <WorkflowCard
-                          key={workflow._id}
-                          workflow={workflow}
-                          projectName={project.name}
-                          onClick={() => router.push(`/admin/workflows/${workflow._id}`)}
-                          onDelete={handleDelete}
-                        />
-
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-
-              {/* Unassigned Workflows */}
-              {filteredWorkflows.filter(w => !w.projectId).length > 0 && (
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between px-2">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 shadow-sm border border-slate-100">
-                        <GitBranch size={20} />
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-black text-slate-800 tracking-tight">Standalone Flows</h3>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-0.5">No Project assigned</p>
-                      </div>
-                    </div>
-                    <span className="px-3 py-1 bg-slate-200 text-slate-600 rounded-full text-[10px] font-black uppercase tracking-wider">
-                      {filteredWorkflows.filter(w => !w.projectId).length} Flows
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {filteredWorkflows.filter(w => !w.projectId).map(workflow => (
-                      <WorkflowCard
-                        key={workflow._id}
-                        workflow={workflow}
-                        projectName="No Project"
-                        onClick={() => router.push(`/admin/workflows/${workflow._id}`)}
-                        onDelete={handleDelete}
-                      />
-
-                    ))}
-                  </div>
-                </div>
-              )}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {filteredWorkflows.map(workflow => (
+                <WorkflowCard
+                  key={workflow._id}
+                  workflow={workflow}
+                  projectName={getWorkflowProjectName(workflow.projectId)}
+                  onClick={() => router.push(`/admin/workflows/${workflow._id}`)}
+                  onDelete={handleDelete}
+                />
+              ))}
             </div>
           )}
         </div>
@@ -414,7 +353,7 @@ function WorkflowsContent() {
                     onChange={(e) => setEditForm({ ...editForm, projectId: e.target.value })}
                     className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-indigo-50 font-bold text-slate-700 outline-none transition-all"
                   >
-                    <option value="">No Project</option>
+                    <option value="" disabled>-- Select Project --</option>
                     {projects.map(p => (
                       <option key={p._id} value={p._id}>{p.name}</option>
                     ))}
@@ -558,7 +497,7 @@ function WorkflowCard({ workflow, projectName, onClick, onDelete }: { workflow: 
       <div className="flex justify-between items-start mb-6">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-slate-50 rounded-xl group-hover:bg-indigo-50 transition-colors">
-            <GitBranch size={20} className="text-slate-400 group-hover:text-indigo-600" />
+            <Workflow size={20} className="text-slate-400 group-hover:text-indigo-600" />
           </div>
           <div>
             <h4 className="font-black text-slate-800 tracking-tight group-hover:text-indigo-600 transition-colors">{workflow.name}</h4>

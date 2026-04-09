@@ -68,11 +68,11 @@ function WorkflowEditorContent() {
     const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
     const [selectedNode, setSelectedNode] = useState<Node | null>(null);
-    const [workflowName, setWorkflowName] = useState('New Workflow');
+    const [workflowName, setWorkflowName] = useState(searchParams.get('isTemplate') === 'true' ? 'New Template' : 'New Workflow');
     const [workflowDomainId, setWorkflowDomainId] = useState<string>('');
     const [workflowProjectId, setWorkflowProjectId] = useState<string>('');
     const [workflowModuleId, setWorkflowModuleId] = useState<string>('');
-    const [workflowIsTemplate, setWorkflowIsTemplate] = useState<boolean>(false);
+    const [workflowIsTemplate, setWorkflowIsTemplate] = useState<boolean>(searchParams.get('isTemplate') === 'true');
     const [currentWorkflowId, setCurrentWorkflowId] = useState<string | null>(workflowId);
     
     // NEW: Capture module/domain context from URL
@@ -436,7 +436,10 @@ function WorkflowEditorContent() {
                 const draftKey = `workflow_draft_${currentWorkflowId || 'new'}`;
                 localStorage.removeItem(draftKey);
                 
-                toast.success(currentWorkflowId ? 'Workflow updated!' : 'Workflow created!');
+                toast.success(currentWorkflowId 
+                    ? (meta.isTemplate ? 'Template updated!' : 'Workflow updated!') 
+                    : (meta.isTemplate ? 'Template created!' : 'Workflow created!')
+                );
                 setWorkflowName(meta.name);
                 setWorkflowDomainId(meta.domainId);
                 setWorkflowModuleId(meta.moduleId || '');
@@ -514,7 +517,7 @@ function WorkflowEditorContent() {
             </motion.button>
             
             <div className="absolute top-4 right-[250px] z-[999]">
-                <AIGeneratorModal type="workflow" onGenerate={handleAIGeneration} />
+                <AIGeneratorModal type="workflow" isTemplate={workflowIsTemplate} onGenerate={handleAIGeneration} />
             </div>
 
             <SaveButton

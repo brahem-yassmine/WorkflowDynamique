@@ -73,11 +73,18 @@ const menuGroups = [
     ]
   },
   {
-    title: "System & Preferences",
+    title: "Help & Discovery",
+    icon: LifeBuoy,
+    items: [
+      { icon: BookOpen, label: "Platform Guide", href: "/admin/guide" },
+      { icon: LifeBuoy, label: "Support Reports", href: "/admin/reports" },
+    ]
+  },
+  {
+    title: "System & Identity",
     icon: Settings,
     items: [
       { icon: CreditCard, label: "Billing & Licenses", href: "/admin/billing" },
-      { icon: LifeBuoy, label: "Support Reports", href: "/admin/reports" },
       { icon: UserCircle, label: "My Profile", href: "/admin/profile" },
     ]
   }
@@ -179,6 +186,7 @@ function Sidebar({ isExpired = false }: { isExpired?: boolean }) {
                         return (
                           <Link
                             key={index}
+                            id={`sidebar-link-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
                             href={isRestricted ? '#' : item.href}
                             onClick={(e) => {
                               if (isRestricted) {

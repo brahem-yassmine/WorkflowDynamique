@@ -16,6 +16,7 @@ import {
   Layers,
   Zap
 } from 'lucide-react';
+import VisualHint from '@/components/VisualHint';
 import {
   AreaChart,
   Area,
@@ -79,6 +80,7 @@ export default function AdminDashboard() {
         <div className="relative w-full sm:max-w-md group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
           <input
+            id="dashboard-search"
             type="text"
             placeholder="Search processes, users, or audit logs..."
             value={searchTerm}
@@ -102,13 +104,15 @@ export default function AdminDashboard() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard
-          label="Architectures"
-          value={stats.totalWorkflows}
-          trend={`${stats.activeInstances} Running`}
-          icon={<GitBranch size={20} />}
-          color="bg-indigo-50 text-indigo-600"
-        />
+        <div id="stat-workflows">
+          <StatCard
+            label="Architectures"
+            value={stats.totalWorkflows}
+            trend={`${stats.activeInstances} Running`}
+            icon={<GitBranch size={20} />}
+            color="bg-indigo-50 text-indigo-600"
+          />
+        </div>
         <StatCard
           label="User Network"
           value={stats.totalUsers}
@@ -134,7 +138,7 @@ export default function AdminDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Performance Chart */}
-        <div className="lg:col-span-2 bg-white rounded-3xl p-8 shadow-sm border border-slate-100 min-h-[450px] flex flex-col">
+        <div id="performance-chart" className="lg:col-span-2 bg-white rounded-3xl p-8 shadow-sm border border-slate-100 min-h-[450px] flex flex-col">
           <div className="flex justify-between items-center mb-8">
             <div>
               <h3 className="text-lg font-black text-slate-800 tracking-tight">System Throughput</h3>
@@ -226,6 +230,30 @@ export default function AdminDashboard() {
           </div>
         </div>
       </div>
+      <VisualHint 
+        id="hint-search" 
+        targetId="dashboard-search" 
+        title="Global Search" 
+        content="Quickly find any workflow, user, or log entry within your organization's lattice."
+        position="bottom"
+        delay={1}
+      />
+      <VisualHint 
+        id="hint-workflows" 
+        targetId="stat-workflows" 
+        title="Architecture Metrics" 
+        content="Monitor your structural protocols and live execution instances here."
+        position="bottom"
+        delay={2}
+      />
+      <VisualHint 
+        id="hint-performance" 
+        targetId="performance-chart" 
+        title="Throughput Analysis" 
+        content="Analyze real-time system performance and Weekly activity vectors."
+        position="top"
+        delay={3}
+      />
     </div>
   );
 }

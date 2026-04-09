@@ -350,6 +350,7 @@ exports.getInstances = async (req, res) => {
 // 3. GET INSTANCE BY ID
 exports.getInstanceById = async (req, res) => {
   try {
+    const mongoose = require('mongoose');
     const { instanceId } = req.params;
     console.log(`🔍 [InstanceCtrl] Fetching instance: ${instanceId} | TenantDB: ${req.tenantConn.name}`);
     

@@ -67,7 +67,7 @@ function WorkflowsContent() {
   const searchParams = useSearchParams();
   const projectIdFilter = searchParams.get('projectId');
   const moduleIdFilter = searchParams.get('moduleId');
-  const isTemplateFilter = searchParams.get('isTemplate');
+  const isTemplateFilter = searchParams.get('isTemplate') || 'false';
   const router = useRouter();
 
   useEffect(() => {
@@ -97,7 +97,13 @@ function WorkflowsContent() {
       const queryParams = new URLSearchParams();
       if (projectIdFilter) queryParams.append('projectId', projectIdFilter);
       if (moduleIdFilter) queryParams.append('moduleId', moduleIdFilter);
-      if (isTemplateFilter) queryParams.append('isTemplate', isTemplateFilter);
+      
+      // Force templates out if no specific template filter is applied
+      if (!isTemplateFilter) {
+        queryParams.append('isTemplate', 'false');
+      } else {
+        queryParams.append('isTemplate', isTemplateFilter);
+      }
 
       const [wfRes, projRes] = await Promise.all([
         apiService.request(`/workflows?${queryParams.toString()}`),

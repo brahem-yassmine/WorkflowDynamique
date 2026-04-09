@@ -121,15 +121,21 @@ function WorkflowAdminDetailsContent() {
     );
   }
 
-  const tabs = [
-    { id: 'dashboard', label: 'Progress Dashboard', description: 'Monitor task advancement and efficiency stats', icon: <BarChart3 size={24} />, color: 'bg-blue-500' },
-    { id: 'taskLog', label: 'Tasks & Entries', description: 'Review completed, rejected, and pending tasks', icon: <ClipboardList size={24} />, color: 'bg-emerald-500' },
-    { id: 'kanban', label: 'Kanban Boards', description: 'Manage operational tasks in a grid view', icon: <LayoutDashboard size={24} />, color: 'bg-amber-500' },
-    { id: 'visual', label: 'Visual Flow', description: 'Analyze the workflow structural lattice', icon: <GitBranch size={24} />, color: 'bg-indigo-500' },
-    { id: 'members', label: 'Team Members', description: 'Manage personnel assigned to this unit', icon: <Users size={24} />, color: 'bg-fuchsia-500' },
-    { id: 'checklist', label: 'Checklists', description: 'Verify standard operational procedures', icon: <CheckSquare size={24} />, color: 'bg-slate-500' },
-    { id: 'architect', label: 'Architect', description: 'Modify structural lattice', icon: <GitBranch size={24} />, color: 'bg-indigo-600' },
-  ];
+  const tabs = workflow?.isTemplate 
+    ? [
+        { id: 'dashboard', label: 'Blueprint Info', description: 'Core metadata and structural summary', icon: <BarChart3 size={24} />, color: 'bg-indigo-500' },
+        { id: 'visual', label: 'Visual Lattice', description: 'Analyze the workflow structural logic', icon: <GitBranch size={24} />, color: 'bg-indigo-500' },
+        { id: 'architect', label: 'Architect', description: 'Modify structural lattice', icon: <GitBranch size={24} />, color: 'bg-indigo-600' },
+      ]
+    : [
+        { id: 'dashboard', label: 'Progress Dashboard', description: 'Monitor task advancement and efficiency stats', icon: <BarChart3 size={24} />, color: 'bg-blue-500' },
+        { id: 'taskLog', label: 'Tasks & Entries', description: 'Review completed, rejected, and pending tasks', icon: <ClipboardList size={24} />, color: 'bg-emerald-500' },
+        { id: 'kanban', label: 'Kanban Boards', description: 'Manage operational tasks in a grid view', icon: <LayoutDashboard size={24} />, color: 'bg-amber-500' },
+        { id: 'visual', label: 'Visual Flow', description: 'Analyze the workflow structural lattice', icon: <GitBranch size={24} />, color: 'bg-indigo-500' },
+        { id: 'members', label: 'Team Members', description: 'Manage personnel assigned to this unit', icon: <Users size={24} />, color: 'bg-fuchsia-500' },
+        { id: 'checklist', label: 'Checklists', description: 'Verify standard operational procedures', icon: <CheckSquare size={24} />, color: 'bg-slate-500' },
+        { id: 'architect', label: 'Architect', description: 'Modify structural lattice', icon: <GitBranch size={24} />, color: 'bg-indigo-600' },
+      ];
 
   return (
     <div className="flex flex-col h-full bg-[#F8FAFC] overflow-hidden relative">

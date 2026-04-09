@@ -21,6 +21,7 @@ import {
   ListTodo,
   Activity,
   Briefcase,
+  Copy,
   LifeBuoy,
   Stethoscope,
   ClipboardList,
@@ -48,7 +49,7 @@ const menuGroups = [
     icon: Workflow,
     items: [
       { icon: Workflow, label: "Workflow Studio", href: "/admin/workflows" },
-      { icon: Zap, label: "Standard Flows", href: "/admin/workflows/standard" },
+      { icon: Copy, label: "Workflow Templates", href: "/admin/templates" },
       { icon: Briefcase, label: "Project Workspace", href: "/admin/projects" },
     ]
   },

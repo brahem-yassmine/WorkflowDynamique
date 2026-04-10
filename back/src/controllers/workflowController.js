@@ -131,7 +131,6 @@ exports.createWorkflow = async (req, res) => {
       });
     }
 
-    const workflowDomain = domain || req.user.domain;
     const currentUserId = req.user.id || req.user.userId || req.user._id;
     const workflowDomain = domain || req.user.domain || "General";
     let workflowNodes = nodes || [];

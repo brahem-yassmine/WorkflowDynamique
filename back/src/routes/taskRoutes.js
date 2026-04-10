@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const taskController = require('../controllers/taskController');
-const { auth } = require('../middleware/auth');
+const { auth, hasPermission } = require('../middleware/auth');
 const { checkTenantActive } = require('../middleware/tenantMiddleware');
 
 router.use(auth, checkTenantActive);

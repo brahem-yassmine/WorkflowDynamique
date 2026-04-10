@@ -1,7 +1,7 @@
 'use client';
 
 import React from "react";
-import WorkflowEditor from "../Workflows/_components/WorkflowEditor";
+import WorkflowEditor from "../../Workflows/_components/WorkflowEditor";
 import { ArrowLeft, Zap, Info, Activity } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect } from "react";
@@ -35,36 +35,25 @@ const WorkflowArchitectContent = () => {
         const moduleId = searchParams.get('moduleId');
         const referrer = typeof document !== 'undefined' ? document.referrer : null;
 
-        // Priority 1: Specific Workflow Context (Admin)
-        if (flowId) {
-            router.push(`/admin/workflows/${flowId}?tab=visual`);
-            return;
-        }
-
-        // Priority 2: Project Context (Admin)
-        if (projectId) {
-            router.push(`/admin/projects/${projectId}`);
-            return;
-        }
-
-        // Priority 3: Operational Context (Module/Domain)
+        // Priority 1: Operational Context (Module/Domain)
         if (domainId && moduleId) {
-            router.push(`/admin/domains/${domainId}/modules?moduleId=${moduleId}`);
+            router.push(`/User/MODULES?domainId=${domainId}&moduleId=${moduleId}`);
             return;
         }
 
-        // Priority 4: Safe Admin Referrer
+        // Priority 2: Workflow List or search referrer (excluding creator and profile)
         if (referrer && referrer.includes(window.location.host)) {
             const relativePath = referrer.split(window.location.host)[1];
-            // Only go back if we are staying in the admin space and not going back to the creator itself
-            if (relativePath.startsWith('/admin') && !relativePath.includes('/create-workflow')) {
+            
+            // Allow returning to list or previous context, but NOT profile or the editor itself
+            if (!relativePath.includes('/User/create') && !relativePath.includes('/User/prof')) {
                 router.push(relativePath);
                 return;
             }
         }
 
-        // Priority 5: Default Admin Fallback
-        router.push('/admin/workflows' + (isTemplate ? '?isTemplate=true' : ''));
+        // Priority 3: Fallback to global workflow list
+        router.push('/User/ALL' + (isTemplate ? '?isTemplate=true' : ''));
     };
 
     return (

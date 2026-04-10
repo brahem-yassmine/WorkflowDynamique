@@ -83,10 +83,10 @@ export default function AuthLayout({
             <AdminHeader
               title="Execution Monitor"
               subtitle="Real-time flow forensic and node synchronization audit."
-              toggleSidebar={() => setIsSidebarOpen(prev => !prev)}
+              onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
             />
           ) : (
-            <UserHeader toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
+            <UserHeader onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
           )}
         </div>
 

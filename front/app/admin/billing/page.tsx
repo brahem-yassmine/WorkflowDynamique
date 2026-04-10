@@ -69,23 +69,42 @@ interface PaymentDetails {
 
 type PlanType = 'demo' | 'starter' | 'pro';
 
-const PLANS: { id: PlanType; name: string; price: string; features: string[] }[] = [
-    { id: 'demo', name: 'Demo Plan', price: 'Free', features: ['Up to 5 staff', 'Basic Orchestration', 'Standard Support'] },
-    { id: 'starter', name: 'Starter Plan', price: '79D/month', features: ['Up to 10 staff', 'Enhanced Throughput', 'Priority Uplink'] },
-    { id: 'pro', name: 'Pro Plan', price: '299/month', features: ['Unlimited staff', 'Full Enterprise Access', '24/7 Forensic Support'] },
+const PLANS: { id: PlanType; name: string; price: string; features: string[]; limits: { users: string | number; workflows: string | number } }[] = [
+    { 
+        id: 'demo', 
+        name: 'Demo Plan', 
+        price: 'Free', 
+        features: ['Basic Orchestration', 'Standard Support'],
+        limits: { users: 3, workflows: 5 }
+    },
+    { 
+        id: 'starter', 
+        name: 'Starter Plan', 
+        price: '79D/month', 
+        features: ['Enhanced Throughput', 'Priority Uplink'],
+        limits: { users: 10, workflows: 20 }
+    },
+    { 
+        id: 'pro', 
+        name: 'Pro Plan', 
+        price: '299/month', 
+        features: ['Full Enterprise Access', '24/7 Forensic Support'],
+        limits: { users: 'Unlimited', workflows: 'Unlimited' }
+    },
 ];
 
 const fmtDate = (date: Date | null) =>
   date ? date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
 
 const FISCAL_DATA = [
-    { month: 'Oct', amount: 4500 },
-    { month: 'Nov', amount: 5200 },
-    { month: 'Dec', amount: 4800 },
-    { month: 'Jan', amount: 6100 },
-    { month: 'Feb', amount: 5900 },
-    { month: 'Mar', amount: 7200 },
+     { month: 'Oct', amount: 4500 },
+     { month: 'Nov', amount: 5200 },
+     { month: 'Dec', amount: 4800 },
+     { month: 'Jan', amount: 6100 },
+     { month: 'Feb', amount: 5900 },
+     { month: 'Mar', amount: 7200 },
 ];
+
 
 function BillingPageContent() {
     const router = useRouter();
@@ -535,26 +554,37 @@ function BillingPageContent() {
                             >
                                 <p className="text-[10px] font-black uppercase tracking-widest text-indigo-300">Sync Date</p>
                                 <p className="text-sm font-black mt-1">{fmtDate(start)}</p>
-                                {showDebug && (
-                                    <input 
-                                        type="date" 
-                                        className="mt-2 bg-indigo-900 border border-indigo-400 rounded px-2 py-1 text-[10px] text-white w-full"
-                                        onChange={(e) => {
-                                            const d = new Date(e.target.value);
-                                            if (!isNaN(d.getTime())) {
-                                                setStart(d);
-                                                localStorage.setItem('planStartDate', d.toISOString());
-                                                setDays(Math.ceil(Math.abs(Date.now() - d.getTime()) / 86400000));
-                                            }
-                                        }}
-                                    />
-                                )}
                             </div>
                             <div>
                                 <p className="text-[10px] font-black uppercase tracking-widest text-indigo-300">Active Time</p>
                                 <p className="text-sm font-black mt-1">{days} Days</p>
                             </div>
                         </div>
+
+                        {/* Plan Limits - Requested by user */}
+                        <div className="grid grid-cols-2 gap-4 mb-8 pt-4 border-t border-white/10 mt-4">
+                           <div className="flex flex-col">
+                               <div className="flex items-center gap-1.5 mb-1 text-indigo-300">
+                                   <User size={10} />
+                                   <p className="text-[10px] font-black uppercase tracking-widest leading-none">User Capacity</p>
+                               </div>
+                               <p className="text-sm font-black">
+                                   {dbPlans.find(p => p.code.toLowerCase() === plan)?.features?.maxStaff || (PLANS.find(p => p.id === plan)?.limits?.users || 'Unlimited')} 
+                                   <span className="text-[10px] ml-1 opacity-50">Slots</span>
+                               </p>
+                           </div>
+                           <div className="flex flex-col">
+                               <div className="flex items-center gap-1.5 mb-1 text-indigo-300">
+                                   <Zap size={10} />
+                                   <p className="text-[10px] font-black uppercase tracking-widest leading-none">Workflow Threads</p>
+                               </div>
+                               <p className="text-sm font-black">
+                                   {dbPlans.find(p => p.code.toLowerCase() === plan)?.features?.maxWorkflows || (PLANS.find(p => p.id === plan)?.limits?.workflows || 'Unlimited')} 
+                                   <span className="text-[10px] ml-1 opacity-50">Allowed</span>
+                               </p>
+                           </div>
+                        </div>
+
 
                         <div className="flex justify-between items-center mb-2">
                             <span className="text-indigo-200 text-[10px] font-black uppercase tracking-widest">Cycle Progress</span>
@@ -601,6 +631,18 @@ function BillingPageContent() {
                                 )}
                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{p.price}</p>
                                 <h4 className="text-xl font-black text-slate-800 tracking-tight mb-6">{p.name}</h4>
+                                
+                                <div className="space-y-3 mb-8 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">User Capacity</span>
+                                        <span className="text-xs font-black text-slate-700">{p.limits.users}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Workflows</span>
+                                        <span className="text-xs font-black text-slate-700">{p.limits.workflows}</span>
+                                    </div>
+                                </div>
+
                                 <ul className="space-y-4 mb-10">
                                     {p.features.map(f => (
                                         <li key={f} className="text-xs text-slate-500 font-bold flex gap-3 items-center">

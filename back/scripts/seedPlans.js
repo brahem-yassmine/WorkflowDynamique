@@ -16,6 +16,8 @@ const defaultPlans = [
     features: {
       maxUsers: 3,
       maxWorkflows: 5,
+      maxNodes: 999999,
+      maxStaff: 3,
       maxStorageGB: 1,
       aiAssistance: true,
       customDomains: false,
@@ -43,6 +45,8 @@ const defaultPlans = [
     features: {
       maxUsers: 10,
       maxWorkflows: 20,
+      maxNodes: 999999,
+      maxStaff: 10,
       maxStorageGB: 10,
       aiAssistance: true,
       customDomains: true,
@@ -72,6 +76,8 @@ const defaultPlans = [
     features: {
       maxUsers: 999999,
       maxWorkflows: 999999,
+      maxNodes: 999999,
+      maxStaff: 999999,
       maxStorageGB: 50,
       aiAssistance: true,
       customDomains: true,

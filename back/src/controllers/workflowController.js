@@ -19,22 +19,21 @@ exports.getWorkflows = async (req, res) => {
 
     // 1. Visibility for non-admin users (usually they only see ACTIVE project workflows or generic templates)
     if (user.role !== 'admin' && user.role !== 'super_admin') {
-      // Non-admin can see workflows in their domain or assigned projects
+      // Non-admin can only see things in their domain or assigned projects
       query.$or = [
         { domainId: user.domainId },
-        { projectId: { $exists: true, $ne: null } } // Later add specific project assignment if needed
+        { projectId: { $exists: true, $ne: null } },
+        { createdBy: user.id }
       ];
-      
-      if (status) query.status = status;
-      else query.status = 'active'; 
-    } else {
-      // Admins can filter by everything
-      if (projectId) query.projectId = projectId;
-      if (moduleId) query.moduleId = moduleId;
-      if (domainId) query.domainId = domainId;
-      if (isTemplate !== undefined) query.isTemplate = isTemplate === 'true';
-      if (status) query.status = status;
     }
+
+    // Apply specific filters if provided (Admins can filter by any, Users filter within their scope)
+    if (projectId) query.projectId = projectId;
+    if (moduleId) query.moduleId = moduleId;
+    if (domainId) query.domainId = domainId;
+    if (isTemplate !== undefined) query.isTemplate = isTemplate === 'true';
+    if (status) query.status = status;
+    else if (user.role !== 'admin' && user.role !== 'super_admin') query.status = 'active';
 
     console.log('🔍 [WorkflowCtrl] Querying workflows with:', query);
 
@@ -118,7 +117,8 @@ exports.createWorkflow = async (req, res) => {
       });
     }
 
-    const workflowDomain = domain || req.user.domain;
+    const currentUserId = req.user.id || req.user.userId || req.user._id;
+    const workflowDomain = domain || req.user.domain || "General";
     let workflowNodes = nodes || [];
     let workflowEdges = edges || [];
 
@@ -168,7 +168,7 @@ exports.createWorkflow = async (req, res) => {
       isTemplate: isTemplate || false,
       projectId: projectId || null,
       moduleId: moduleId || null,
-      createdBy: req.user.id || req.user.userId || req.user._id
+      createdBy: currentUserId
     });
 
     await workflow.save();
@@ -189,38 +189,48 @@ exports.createWorkflow = async (req, res) => {
     // 🚀 AUTOMATIC CHECKLIST GENERATION
     await _triggerAutomaticChecklist(req, workflow);
 
-    // Trigger Notification for Admins
-    const UserModel = req.tenantConn.model('User');
-    const admins = await UserModel.find({ role: 'admin' });
-    for (const admin of admins) {
-      await notificationController.createInternalNotification(req.tenantConn, {
-        recipient: admin._id,
-        title: 'New Workflow Created',
-        message: `A new workflow "${name}" has been drafted in domain ${workflowDomain}.`,
-        type: 'workflow_created',
-        link: `/admin/workflows?id=${workflow._id}`
-      });
-    }
+    // Notifications Guard
+    try {
+        // Trigger Notification for Admins
+        const UserModel = req.tenantConn.model('User');
+        const admins = await UserModel.find({ role: 'admin' });
+        for (const admin of admins) {
+            const adminId = admin._id.toString();
+            if (adminId === currentUserId?.toString()) continue;
+            
+            await notificationController.createInternalNotification(req.tenantConn, {
+                recipient: admin._id,
+                title: 'New Workflow Created',
+                message: `A new workflow "${name}" has been drafted in domain ${workflowDomain}.`,
+                type: 'workflow_created',
+                link: `/admin/workflows?id=${workflow._id}`
+            });
+        }
 
-    // Trigger Notification for Users in the same domain
-    const searchDomains = [workflowDomain];
-    if (workflowDomain === 'HR' || workflowDomain === 'RH') {
-      searchDomains.push(workflowDomain === 'HR' ? 'RH' : 'HR');
-    }
-    const domainUsers = await UserModel.find({
-      domain: { $in: searchDomains },
-      role: { $ne: 'admin' }
-    });
+        // Trigger Notification for Users in the same domain
+        const searchDomains = [workflowDomain];
+        if (workflowDomain === 'HR' || workflowDomain === 'RH') {
+            searchDomains.push(workflowDomain === 'HR' ? 'RH' : 'HR');
+        }
+        const domainUsers = await UserModel.find({
+            domain: { $in: searchDomains },
+            role: { $ne: 'admin' }
+        });
 
-    for (const user of domainUsers) {
-      if (user._id.toString() === req.user.id.toString()) continue;
-      await notificationController.createInternalNotification(req.tenantConn, {
-        recipient: user._id,
-        title: 'New Workflow Template',
-        message: `A new template "${name}" is available in the ${workflowDomain} department.`,
-        type: 'workflow_created',
-        link: `/User/Workflows`
-      });
+        for (const user of domainUsers) {
+            const uId = user._id.toString();
+            if (uId === currentUserId?.toString()) continue;
+            
+            await notificationController.createInternalNotification(req.tenantConn, {
+                recipient: user._id,
+                title: 'New Workflow Template',
+                message: `A new template "${name}" is available in the ${workflowDomain} department.`,
+                type: 'workflow_created',
+                link: `/User/Workflows`
+            });
+        }
+    } catch (notifErr) {
+        console.warn('⚠️ [WorkflowCtrl] Notification failure (ignored):', notifErr.message);
     }
 
     await recordActivity(req, 'CREATE_WORKFLOW', {
@@ -248,6 +258,7 @@ exports.updateWorkflow = async (req, res) => {
   try {
     const { workflowId } = req.params;
     const updates = req.body;
+    const currentUserId = req.user.id || req.user.userId || req.user._id;
     const Workflow = req.tenantConn.model('Workflow');
     const workflow = await Workflow.findById(workflowId);
 
@@ -317,7 +328,8 @@ exports.updateWorkflow = async (req, res) => {
       const workflowDomain = workflow.domain;
       const admins = await UserModel.find({ role: 'admin' });
       for (const admin of admins) {
-        if (admin._id.toString() === req.user.id.toString()) continue;
+        const adminId = admin._id.toString();
+        if (adminId === currentUserId?.toString()) continue;
         await notificationController.createInternalNotification(req.tenantConn, {
           recipient: admin._id,
           title: 'Workflow Configuration Updated',
@@ -331,7 +343,8 @@ exports.updateWorkflow = async (req, res) => {
       if (workflowDomain === 'HR' || workflowDomain === 'RH') searchDomains.push(workflowDomain === 'HR' ? 'RH' : 'HR');
       const domainUsers = await UserModel.find({ domain: { $in: searchDomains }, role: { $ne: 'admin' } });
       for (const user of domainUsers) {
-        if (user._id.toString() === req.user.id.toString()) continue;
+        const uId = user._id.toString();
+        if (uId === currentUserId?.toString()) continue;
         await notificationController.createInternalNotification(req.tenantConn, {
           recipient: user._id,
           title: 'Workflow Template Updated',

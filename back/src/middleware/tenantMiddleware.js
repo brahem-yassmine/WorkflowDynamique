@@ -145,7 +145,7 @@ const checkPlanLimits = (resourceType) => {
           const incomingNodesCount = req.body.nodes?.length || 0;
           const totalAfterOperation = currentTotalNodes + incomingNodesCount;
 
-          const maxNodes = limits.maxNodes || 20; // Default fallback
+          const maxNodes = limits.maxNodes || 999999; // Default to unlimited if not specified
 
           // If maxNodes is 0 or 999999, it means unlimited
           if (maxNodes !== 0 && maxNodes !== 999999 && totalAfterOperation > maxNodes) {

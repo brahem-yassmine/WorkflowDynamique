@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { apiService } from '@/service/api.service';
+import useUser from '@/hooks/useUser';
 import { toast, Toaster } from 'sonner';
 
 interface Checklist {
@@ -36,6 +37,7 @@ export default function AllChecklistsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const router = useRouter();
+  const { btnDisabledClass } = useUser();
 
   const fetchChecklists = async () => {
     try {
@@ -128,7 +130,7 @@ export default function AllChecklistsPage() {
 
         <button
           onClick={() => router.push('/checklist/designer?source=allchecks')}
-          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-indigo-100 active:scale-95 whitespace-nowrap"
+          className={`flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-indigo-100 active:scale-95 whitespace-nowrap ${btnDisabledClass('CHECKLIST_CREATE')}`}
         >
           <Plus size={18} />
           Create Checklist
@@ -239,16 +241,16 @@ export default function AllChecklistsPage() {
 
                             <div className="flex items-center justify-between mt-auto pt-5 border-t border-slate-50">
                               <div className="flex items-center gap-1">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleClone(checklist._id);
-                                  }}
-                                  className="p-2.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                                  title="Clone Checklist"
-                                >
-                                  <Copy size={18} />
-                                </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleClone(checklist._id);
+                                    }}
+                                    className={`p-2.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all ${btnDisabledClass('CHECKLIST_CLONE')}`}
+                                    title="Clone Checklist"
+                                  >
+                                    <Copy size={18} />
+                                  </button>
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -258,7 +260,7 @@ export default function AllChecklistsPage() {
                                       router.push(`/checklist/designer?id=${checklist._id}&source=allchecks`);
                                     }
                                   }}
-                                  className="p-2.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                                  className={`p-2.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all ${btnDisabledClass('CHECKLIST_EDIT')}`}
                                   title={checklist.instanceId ? "View Instance" : "Edit Checklist"}
                                 >
                                   <Edit3 size={18} />
@@ -268,7 +270,7 @@ export default function AllChecklistsPage() {
                                     e.stopPropagation();
                                     handleDelete(checklist._id);
                                   }}
-                                  className="p-2.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                                  className={`p-2.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all ${btnDisabledClass('CHECKLIST_DELETE')}`}
                                   title="Delete Checklist"
                                 >
                                   <Trash2 size={18} />

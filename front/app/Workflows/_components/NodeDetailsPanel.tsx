@@ -272,7 +272,6 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                 assignmentType,
                 taskContent,
                 userAction,
-                assignedTo
                 assignedTo,
                 deadline
             });

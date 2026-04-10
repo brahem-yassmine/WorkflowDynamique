@@ -75,6 +75,10 @@ export default function UserDashboard() {
     fetchData();
   }, []);
 
+
+
+
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[70vh]">
@@ -240,8 +244,8 @@ export default function UserDashboard() {
               <div className="space-y-4">
                 <CommandButton 
                   icon={<Plus size={18} />} 
-                  label="Initialize Workflow" 
-                  href="/User/Workflows"
+                  label="Initialize Request" 
+                  href="/User/requests"
                   color="indigo"
                 />
                 <CommandButton 
@@ -329,6 +333,7 @@ function MetricCard({ icon, label, value, subValue, color }: any) {
 
 function CommandButton({ icon, label, href, color }: any) {
   const isIndigo = color === 'indigo';
+  
   return (
     <Link 
       href={href}

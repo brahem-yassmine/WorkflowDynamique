@@ -21,6 +21,9 @@ async function createPlans() {
       currency: { type: String, default: 'D' },
       interval: { type: String, default: 'month' },
       features: {
+        maxUsers: { type: Number, default: 10 },
+        maxWorkflows: { type: Number, default: 10 },
+        maxNodes: { type: Number, default: 10 },
         maxStaff: { type: Number, default: 0 },
         maxLocations: { type: Number, default: 0 },
         analysis: { type: String, default: 'Fixed' },
@@ -50,6 +53,7 @@ async function createPlans() {
         features: {
           maxStaff: 5,
           maxLocations: 5,
+          maxWorkflows: 5,
           analysis: 'Fixed',
           reports: false,
           aiSupport: false,
@@ -67,6 +71,7 @@ async function createPlans() {
         features: {
           maxStaff: 10,
           maxLocations: 10,
+          maxWorkflows: 20,
           analysis: 'Pro analysis',
           reports: true,
           aiSupport: false,
@@ -84,6 +89,7 @@ async function createPlans() {
         features: {
           maxStaff: -1, // -1 means unlimited
           maxLocations: -1, // -1 means unlimited
+          maxWorkflows: 999, // Specific limit requested by admin
           analysis: 'Advanced AI',
           reports: true,
           aiSupport: true,

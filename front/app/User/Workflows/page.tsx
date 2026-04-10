@@ -118,6 +118,8 @@ export default function UserWorkflowsPage() {
     }
   };
 
+
+
   const handleDeleteWorkflow = async (e: React.MouseEvent, id: string) => {
     e.preventDefault();
     e.stopPropagation();
@@ -359,7 +361,9 @@ export default function UserWorkflowsPage() {
               <div className="flex gap-2">
                 {mode === 'design' && (
                   <Link href="/User/create_workflows">
-                    <button className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all">
+                    <button 
+                      className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-100 transition-all hover:bg-indigo-700"
+                    >
                       <Plus size={16} /> New Design
                     </button>
                   </Link>
@@ -394,17 +398,28 @@ export default function UserWorkflowsPage() {
                           <GitBranch size={24} />
                         </div>
                         <div className="flex gap-1">
-                          <button onClick={() => { setSelectedWorkflow(workflow); setIsChecklistModalOpen(true); }} className="p-2 bg-slate-50 text-slate-400 hover:text-indigo-600 rounded-xl transition-all">
+                          <button 
+                            onClick={() => { setSelectedWorkflow(workflow); setIsChecklistModalOpen(true); }} 
+                            className="p-2 bg-slate-50 rounded-xl transition-all text-slate-400 hover:text-indigo-600"
+                            title="Preview Schema"
+                          >
                             <Eye size={16} />
                           </button>
                           {mode === 'design' && isOwner && (
                             <>
                               <Link href={`/User/create_workflows?id=${workflow._id}`}>
-                                <button className="p-2 bg-slate-50 text-slate-400 hover:text-indigo-600 rounded-xl transition-all">
+                                <button 
+                                  className="p-2 bg-slate-50 rounded-xl transition-all text-slate-400 hover:text-indigo-600"
+                                  title="Edit Design"
+                                >
                                   <Edit3 size={16} />
                                 </button>
                               </Link>
-                              <button onClick={(e) => handleDeleteWorkflow(e, workflow._id)} className="p-2 bg-rose-50 text-rose-400 hover:bg-rose-500 hover:text-white rounded-xl transition-all">
+                              <button 
+                                onClick={(e) => handleDeleteWorkflow(e, workflow._id)} 
+                                className="p-2 bg-rose-50 rounded-xl transition-all text-rose-400 hover:bg-rose-500 hover:text-white"
+                                title="Delete Design"
+                              >
                                 <Trash2 size={16} />
                               </button>
                             </>
@@ -428,12 +443,20 @@ export default function UserWorkflowsPage() {
 
                       <div className="flex gap-2">
                         <Link href={`/Workflows/instances/new?workflowId=${workflow._id}`} className="flex-1">
-                          <button className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-indigo-600 shadow-lg">
+                          <button 
+                            className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg hover:bg-indigo-600"
+                            title="Initialize Workflow"
+                          >
                             <Play size={14} fill="currentColor" /> Initialize
                           </button>
                         </Link>
                         {mode === 'design' && (
-                          <button onClick={() => handleDuplicate(workflow._id)} disabled={!!duplicatingId} className="px-4 py-4 bg-white border border-slate-100 text-slate-400 rounded-2xl hover:text-indigo-600 shadow-sm transition-all">
+                          <button 
+                            onClick={() => handleDuplicate(workflow._id)} 
+                            disabled={!!duplicatingId} 
+                            className="px-4 py-4 bg-white border border-slate-100 rounded-2xl shadow-sm transition-all text-slate-400 hover:text-indigo-600"
+                            title="Clone Design"
+                          >
                             <Copy size={16} className={duplicatingId === workflow._id ? 'animate-spin' : ''} />
                           </button>
                         )}

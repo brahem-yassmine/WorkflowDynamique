@@ -58,7 +58,7 @@ const initialNodes: Node[] = [
 const getId = (type: string) => `node_${type}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
 // Internal component using useReactFlow
-function WorkflowEditorContent() {
+function WorkflowEditorContent({ onSaveSuccess }: { onSaveSuccess?: () => void }) {
     const searchParams = useSearchParams();
     const router = useRouter();
     const workflowId = searchParams.get('id');
@@ -79,6 +79,7 @@ function WorkflowEditorContent() {
     const moduleIdParam = searchParams.get('moduleId');
     const domainIdParam = searchParams.get('domainId');
     const isTemplateParam = searchParams.get('isTemplate') === 'true';
+    const freshParam = searchParams.get('fresh') === 'true';
 
     useEffect(() => {
         if (moduleIdParam) setWorkflowModuleId(moduleIdParam);
@@ -125,6 +126,7 @@ function WorkflowEditorContent() {
     // Draft Persistence Logic & Double-firing Mitigation
     const draftKey = workflowId ? `workflow_draft_${workflowId}` : 'workflow_draft_new';
     const isInitialLoad = useRef(true);
+    const isInternalUpdate = useRef(false);
 
     // 1. Initial Load (Draft or Server)
     useEffect(() => {
@@ -185,6 +187,11 @@ function WorkflowEditorContent() {
                     toast.error('Error loading workflow');
                 }
             } else if (draft && (draft.nodes?.length > 1 || draft.edges?.length > 0)) {
+                if (freshParam) {
+                    console.log('[Draft] Fresh param detected. Skipping and clearing draft.');
+                    localStorage.removeItem(draftKey);
+                    return;
+                }
                 // Loading "new" workflow but have a meaningful draft
                 console.log('[Draft] Loading unsaved "new" workflow draft');
                 setWorkflowName(draft.name || 'New Workflow');
@@ -240,6 +247,11 @@ function WorkflowEditorContent() {
             // Skip first render to avoid marking dirty on initial load
             const timer = setTimeout(() => { isFirstRender.current = false; }, 1500);
             return () => clearTimeout(timer);
+        }
+        
+        if (isInternalUpdate.current) {
+            isInternalUpdate.current = false;
+            return;
         }
         setIsDirty(true);
         // Persist draft to localStorage so navigation doesn't lose changes
@@ -431,12 +443,42 @@ function WorkflowEditorContent() {
             }
 
             if (response.success) {
+                isInternalUpdate.current = true;
                 setIsDirty(false);
                 // Clear draft on successful save
                 const draftKey = `workflow_draft_${currentWorkflowId || 'new'}`;
                 localStorage.removeItem(draftKey);
                 
                 toast.success(currentWorkflowId ? 'Workflow updated!' : 'Workflow created!');
+
+                // EXIT logic: trigger callback if provided, otherwise perform internal redirect
+                if (onSaveSuccess) {
+                    setTimeout(() => {
+                        onSaveSuccess();
+                    }, 1000);
+                } else {
+                    // Internal context-aware redirection
+                    const isUserContext = typeof window !== 'undefined' && window.location.pathname.startsWith('/User');
+                    
+                    setTimeout(() => {
+                        const moduleQuery = meta.moduleId ? `?moduleId=${meta.moduleId}` : '';
+                        if (isUserContext) {
+                            if (meta.domainId) {
+                                router.push(`/User/MODULES?domainId=${meta.domainId}${meta.moduleId ? `&moduleId=${meta.moduleId}` : ''}`);
+                            } else {
+                                router.push('/User/ALL');
+                            }
+                        } else {
+                            // Admin redirection
+                            if (meta.domainId) {
+                                router.push(`/admin/domains/${meta.domainId}/modules${moduleQuery}`);
+                            } else {
+                                router.push('/admin/workflows');
+                            }
+                        }
+                    }, 1500);
+                }
+
                 setWorkflowName(meta.name);
                 setWorkflowDomainId(meta.domainId);
                 setWorkflowModuleId(meta.moduleId || '');
@@ -447,19 +489,6 @@ function WorkflowEditorContent() {
                 localStorage.removeItem(draftKey);
                 // Also remove generic draft if it was a new creation that just got an ID
                 if (!workflowId) localStorage.removeItem('workflow_draft_new');
-
-                // Redirect back to the functional matrix listing
-                if (meta.domainId) {
-                    setTimeout(() => {
-                        const moduleQuery = meta.moduleId ? `?moduleId=${meta.moduleId}` : '';
-                        router.push(`/admin/domains/${meta.domainId}/modules${moduleQuery}`);
-                    }, 1500); 
-                } else {
-                    // Fallback to generic workflows if no domain context
-                    setTimeout(() => {
-                        router.push('/admin/workflows');
-                    }, 1500);
-                }
             } else {
                 toast.error('Save error: ' + (response.message || 'Unknown error'));
             }
@@ -576,11 +605,11 @@ function WorkflowEditorContent() {
 }
 
 // Main component with Provider on the outside
-export default function WorkflowEditor() {
+export default function WorkflowEditor({ onSaveSuccess }: { onSaveSuccess?: () => void }) {
     return (
         <ReactFlowProvider>
             <React.Suspense fallback={<div>Loading editor...</div>}>
-                <WorkflowEditorContent />
+                <WorkflowEditorContent onSaveSuccess={onSaveSuccess} />
             </React.Suspense>
         </ReactFlowProvider>
     );

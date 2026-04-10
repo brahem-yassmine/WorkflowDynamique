@@ -20,6 +20,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast, Toaster } from 'sonner';
 import { apiService } from '@/service/api.service';
+import useUser from '@/hooks/useUser';
 
 interface Form {
   _id: string;
@@ -36,6 +37,7 @@ export default function AllFormsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const router = useRouter();
+  const { btnDisabledClass } = useUser();
 
   const fetchForms = async () => {
     try {
@@ -146,10 +148,10 @@ export default function AllFormsPage() {
                   onChange={(e) => setSearch(e.target.value)}
                 />
               </div>
-              <Link
-                href="/form"
-                className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg shadow-indigo-100 group whitespace-nowrap"
-              >
+                <Link
+                  href="/form"
+                  className={`flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg shadow-indigo-100 group whitespace-nowrap ${btnDisabledClass('FORM_CREATE')}`}
+                >
                 <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
                 Create Form
               </Link>
@@ -255,21 +257,21 @@ export default function AllFormsPage() {
                                 <div className="flex items-center gap-1">
                                   <button
                                     onClick={(e) => { e.stopPropagation(); handleClone(form._id); }}
-                                    className="p-2.5 text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                                    className={`p-2.5 text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all ${btnDisabledClass('FORM_CLONE')}`}
                                     title="Clone Form"
                                   >
                                     <Copy className="w-4.5 h-4.5" />
                                   </button>
                                   <button
                                     onClick={(e) => { e.stopPropagation(); router.push(`/form?id=${form._id}`); }}
-                                    className="p-2.5 text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                                    className={`p-2.5 text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all ${btnDisabledClass('FORM_EDIT')}`}
                                     title="Edit Form"
                                   >
                                     <Edit3 className="w-4.5 h-4.5" />
                                   </button>
                                   <button
                                     onClick={(e) => { e.stopPropagation(); handleDelete(form._id); }}
-                                    className="p-2.5 text-gray-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                                    className={`p-2.5 text-gray-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all ${btnDisabledClass('FORM_DELETE')}`}
                                     title="Delete Form"
                                   >
                                     <Trash2 className="w-4.5 h-4.5" />

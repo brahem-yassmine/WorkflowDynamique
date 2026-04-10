@@ -14,7 +14,7 @@ const defaultPlans = [
     trialPeriodDays: 15,
     features: {
       maxUsers: 1,
-      maxWorkflows: 3,
+      maxWorkflows: 5,
       aiAssistance: false,
       customBranding: false,
       prioritySupport: false,
@@ -25,7 +25,7 @@ const defaultPlans = [
     highlights: [
       '15-day free trial',
       '1 user',
-      '3 workflows',
+      '5 workflows',
       'Email support'
     ],
     displayOrder: 1,
@@ -41,7 +41,7 @@ const defaultPlans = [
     trialPeriodDays: 14,
     features: {
       maxUsers: 5,
-      maxWorkflows: 10,
+      maxWorkflows: 20,
       aiAssistance: false,
       customBranding: false,
       prioritySupport: true,
@@ -51,7 +51,7 @@ const defaultPlans = [
     },
     highlights: [
       'Up to 5 users',
-      '10 workflows',
+      '20 workflows',
       '5 GB storage',
       'Priority support'
     ],
@@ -68,7 +68,7 @@ const defaultPlans = [
     trialPeriodDays: 14,
     features: {
       maxUsers: 999999,
-      maxWorkflows: 999999,
+      maxWorkflows: 999,
       aiAssistance: true,
       customBranding: true,
       prioritySupport: true,
@@ -78,7 +78,7 @@ const defaultPlans = [
     },
     highlights: [
       'Unlimited users',
-      'Unlimited workflows',
+      '999 workflows',
       'AI Assistance',
       'Custom branding',
       '50 GB storage',

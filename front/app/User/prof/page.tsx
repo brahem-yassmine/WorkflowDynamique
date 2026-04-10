@@ -28,7 +28,8 @@ export default function UserProfilePage() {
   const [formData, setFormData] = useState({
     name: 'Loading...',
     email: '',
-    role: 'User'
+    role: 'User',
+    domain: 'General'
   });
 
   const [profileImage, setProfileImage] = useState<string | null>(null);
@@ -52,7 +53,8 @@ export default function UserProfilePage() {
         setFormData({
           name: user.name || (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : (user.firstName || 'User')),
           email: user.email || '',
-          role: user.role === 'admin' ? 'Administrator' : (user.role === 'super_admin' ? 'Super Admin' : 'Node User')
+          role: user.specificRole || 'Member',
+          domain: user.domain || 'Main Lattice'
         });
 
         if (user.avatar) {
@@ -76,7 +78,7 @@ export default function UserProfilePage() {
         };
 
         setForensics({
-            authLevel: user.role === 'admin' ? 'L2 Admin' : 'L1 User',
+            authLevel: 'L1 User',
             uptime: '99.9%',
             lastUplink: lastLoginDate.toLocaleString(undefined, formatOptions),
             primaryIp: user.ip || '192.168.1.1',
@@ -261,7 +263,7 @@ export default function UserProfilePage() {
           <div className="space-y-4">
             <div className="p-5 bg-slate-50 rounded-[1.5rem] border border-slate-100">
                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Assigned Domain</p>
-               <p className="text-xl font-black text-indigo-700 tracking-tight">Main Lattice</p>
+               <p className="text-xl font-black text-indigo-700 tracking-tight">{formData.domain}</p>
             </div>
             <div className="p-5 bg-indigo-700 text-white rounded-[1.5rem] relative overflow-hidden group/domain">
                <Activity size={50} className="absolute -right-4 -bottom-4 opacity-10 group-hover/domain:scale-125 transition-transform duration-700" />
@@ -295,7 +297,7 @@ export default function UserProfilePage() {
              </div>
           </div>
           <p className="text-[11px] text-slate-500 font-bold leading-relaxed italic border-t border-slate-50 pt-5">
-            Authorized system persona with level-4 lattice clearance and cross-sector operational visibility.
+            Standard system persona with operational lattice clearance and department-specific visibility.
           </p>
         </motion.div>
       </div>

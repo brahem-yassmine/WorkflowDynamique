@@ -18,8 +18,6 @@ const roleSchema = new mongoose.Schema(
         type: String,
         required: true,
         trim: true
-        trim: true,
-        required: true
       }
     ],
     isDefault: {

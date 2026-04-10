@@ -54,7 +54,7 @@ const tenantResolver = async (req, res, next) => {
         const tenantConn = await getTenantConnection(tenant.domain, tenant.databaseName);
         req.tenantConn = tenantConn;
       } catch (connErr) {
-        console.error(`❌ [TenantResolver] Failed to connect to tenant DB:`, connErr.message);
+        console.error(`❌ [TenantResolver] Failed to connect to tenant DB for "${tenant.name}" (${tenant.domain}):`, connErr.message);
         return res.status(503).json({ success: false, message: 'Erreur de connexion à la base du tenant' });
       }
     }

@@ -206,6 +206,7 @@ const SaveButton = ({
                               className="w-full h-12 px-4 bg-slate-50 border-none rounded-2xl font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-100 transition-all appearance-none cursor-pointer text-sm"
                           >
                               <option value="" disabled>-- Select Domain --</option>
+                              <option value="">-- Domain --</option>
                               {domains.map(d => (
                                   <option key={d._id} value={d._id}>{d.name}</option>
                               ))}

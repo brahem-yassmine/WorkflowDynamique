@@ -85,6 +85,12 @@ api.interceptors.response.use(
         }
       }
     } else if (error.request) {
+      // The request was made but no response was received
+      console.error('❌ API Network Error (No Response):', {
+        message: error.message,
+        url: error.config?.url,
+        method: error.config?.method?.toUpperCase(),
+      });
       console.error('❌ API Network Error:', error.message);
     } else {
       console.error('❌ API Request Error:', error.message);

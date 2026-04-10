@@ -126,34 +126,6 @@
   }
 }
 
-/* React Flow Premium Overrides */
-.react-flow__node {
-  outline: none !important;
-  box-shadow: none !important;
-}
-
-.react-flow__node.selected {
-  outline: none !important;
-}
-
-.react-flow__edge.selected .react-flow__edge-path {
-  stroke: #6366f1 !important;
-  stroke-width: 3 !important;
-}
-
-.react-flow__selection,
-.react-flow__nodeselection-rect {
-  background: rgba(99, 102, 241, 0.05) !important;
-  border: 1px dashed #6366f1 !important;
-}
-
-.react-flow__controls {
-  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1) !important;
-  border: 1px solid #f1f5f9 !important;
-  border-radius: 12px !important;
-  overflow: hidden !important;
-}
-
 @layer utilities {
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
@@ -162,36 +134,5 @@
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
-  }
-
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 12px;
-  }
-
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #e2e8f0;
-    border: 3px solid white;
-    border-radius: 12px;
-    transition: background 0.3s ease;
-  }
-
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #cbd5e1;
-  }
-  .animate-spin-slow {
-    animation: spin 3s linear infinite;
-  }
-
-  @keyframes spin {
-    from {
-      transform: rotate(0deg);
-    }
-    to {
-      transform: rotate(360deg);
-    }
   }
 }

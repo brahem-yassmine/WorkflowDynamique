@@ -93,6 +93,11 @@ export default function RolesPage() {
     loadInitialData();
   }, [router]);
 
+<<<<<<< HEAD
+  const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
+
+=======
+>>>>>>> feature/workflow-dynamique
   const loadInitialData = async () => {
     try {
       setLoading(true);
@@ -355,6 +360,12 @@ export default function RolesPage() {
                     </td>
                     <td className="px-6 py-5 text-center">
                       {role.isSystemRole || role.isDefault ? (
+<<<<<<< HEAD
+                        <Lock size={14} className="text-slate-300" />
+                      ) : (
+                        <button className="px-4 py-1.5 bg-slate-50/80 text-slate-400 text-[10px] font-black uppercase italic rounded-full border border-slate-100 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm active:scale-95">
+                          CUSTOM
+=======
                         <div className="flex items-center justify-center gap-2 text-slate-300 font-bold text-[10px] uppercase tracking-widest">
                           <Lock size={12} />
                           <span>System</span>
@@ -368,6 +379,7 @@ export default function RolesPage() {
                           className="px-4 py-2 bg-indigo-50/50 text-indigo-600 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white hover:shadow-lg hover:shadow-indigo-100 transition-all active:scale-95 border border-indigo-100/50 shrink-0"
                         >
                           Configure Custom
+>>>>>>> feature/workflow-dynamique
                         </button>
                       )}
                     </td>
@@ -431,6 +443,12 @@ export default function RolesPage() {
                     </p>
                   </div>
 
+                  <div className="space-y-8">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] border-b border-slate-50 pb-2">Active Permissions Matrix ({selectedRole.permissions.length})</p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {activeCategories.map(cat => {
+                        const groupPerms = selectedRole.permissions.filter(pName =>
                   <div className="space-y-6 mb-10">
                     <div className="flex items-center gap-3 border-b border-slate-50 pb-6">
                       <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">

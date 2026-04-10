@@ -13,11 +13,13 @@ const WorkflowArchitectContent = () => {
     const projectId = searchParams.get('projectId');
     const flowId = searchParams.get('id');
 
+<<<<<<< HEAD
     const isTemplate = searchParams.get('isTemplate') === 'true';
     const accentColor = isTemplate ? 'bg-indigo-600 shadow-indigo-500/40 border-indigo-400/30' : 'bg-emerald-500 shadow-emerald-500/40 border-emerald-400/30';
     const textColor = isTemplate ? 'text-indigo-400' : 'text-emerald-400';
     const badgeColor = isTemplate ? 'bg-indigo-500' : 'bg-emerald-500';
-
+=======
+>>>>>>> feature/workflow-dynamique
     useEffect(() => {
         const notif = searchParams.get('notif');
         if (notif) {
@@ -30,38 +32,58 @@ const WorkflowArchitectContent = () => {
             router.replace(`${window.location.pathname}?${newParams.toString()}`);
         }
     }, [searchParams, router]);
+    const isTemplate = searchParams.get('isTemplate') === 'true';
+    const accentColor = 'bg-indigo-600 shadow-indigo-500/40 border-indigo-400/30';
+    const textColor = 'text-indigo-400';
+    const badgeColor = 'bg-indigo-500';
 
     const handleBack = () => {
         const domainId = searchParams.get('domainId');
         const moduleId = searchParams.get('moduleId');
         const returnUrl = searchParams.get('returnUrl');
 
-        // Priority 1: returnUrl parameter
         if (returnUrl) {
             window.location.href = returnUrl;
-            return;
-        }
-
-        // Priority 2: Specific Workflow Context (Admin)
-        if (flowId) {
+        } else if (flowId) {
             window.location.href = `/admin/workflows/${flowId}?tab=visual`;
-            return;
-        }
-
-        // Priority 3: Project Context (Admin)
-        if (projectId) {
+        } else if (projectId) {
             window.location.href = `/admin/projects/${projectId}`;
-            return;
-        }
-
-        // Priority 4: Operational Context (Module/Domain)
-        if (domainId && moduleId) {
+        } else if (domainId && moduleId) {
             window.location.href = `/admin/domains/${domainId}/modules?moduleId=${moduleId}`;
+        } else {
+            window.location.href = '/admin/workflows' + (isTemplate ? '?isTemplate=true' : '');
+        const referrer = typeof document !== 'undefined' ? document.referrer : null;
+
+        // Priority 1: Specific Workflow Context (Admin)
+        if (flowId) {
+            router.push(`/admin/workflows/${flowId}?tab=visual`);
             return;
         }
 
-        // Priority 5: Default Fallback
-        window.location.href = '/admin/workflows' + (isTemplate ? '?isTemplate=true' : '');
+        // Priority 2: Project Context (Admin)
+        if (projectId) {
+            router.push(`/admin/projects/${projectId}`);
+            return;
+        }
+
+        // Priority 3: Operational Context (Module/Domain)
+        if (domainId && moduleId) {
+            router.push(`/admin/domains/${domainId}/modules?moduleId=${moduleId}`);
+            return;
+        }
+
+        // Priority 4: Safe Admin Referrer
+        if (referrer && referrer.includes(window.location.host)) {
+            const relativePath = referrer.split(window.location.host)[1];
+            // Only go back if we are staying in the admin space and not going back to the creator itself
+            if (relativePath.startsWith('/admin') && !relativePath.includes('/create-workflow')) {
+                router.push(relativePath);
+                return;
+            }
+        }
+
+        // Priority 5: Default Admin Fallback
+        router.push('/admin/workflows' + (isTemplate ? '?isTemplate=true' : ''));
     };
 
     return (
@@ -79,7 +101,7 @@ const WorkflowArchitectContent = () => {
                         <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
                         <span className="text-[10px] font-black uppercase tracking-[0.2em] pt-0.5">Exit Architect</span>
                     </button>
-                    
+
                     <div className="h-10 w-px bg-white/10 mx-2"></div>
 
                     <div className="flex items-center gap-5">
@@ -107,6 +129,7 @@ const WorkflowArchitectContent = () => {
                     </div>
                 </div>
             </div>
+
 
             {/* Editor Canvas Container - NOW FULL SCREEN */}
             <div className="flex-grow overflow-hidden relative">

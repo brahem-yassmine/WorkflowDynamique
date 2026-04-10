@@ -6,6 +6,21 @@ const path = require('path');
 require('dotenv').config();
 
 // ========================
+// GLOBAL ERROR CATCHERS
+// ========================
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ [UNHANDLED REJECTION] Raison:', reason);
+  console.error('❌ [UNHANDLED REJECTION] Promise:', promise);
+  process.exit(1);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('❌ [UNCAUGHT EXCEPTION]:', err.message);
+  console.error(err.stack);
+  process.exit(1);
+});
+
+// ========================
 // ROUTE IMPORTS
 // ========================
 const userRoutes = require('./src/routes/userRoutes');
@@ -106,7 +121,7 @@ masterConnection.once('connected', () => {
     const PORT = process.env.PORT || 5000;
     const HOST = process.env.HOST || 'localhost';
 
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       console.log(`
   ╔════════════════════════════════════════════════╗
   ║     🚀  DYNAMIC WORKFLOW - SERVER READY       ║
@@ -128,6 +143,16 @@ masterConnection.once('connected', () => {
         subscriptionService.checkArchivedTenants(masterConnection);
         subscriptionService.handleExpiredSubscriptions(masterConnection);
       }, 24 * 60 * 60 * 1000);
+    });
+
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        console.error(`❌ Le port ${PORT} est déjà utilisé par un autre processus.`);
+        console.error(`💡 Solution: Ouvre PowerShell en Admin et tape: netstat -ano | findstr :${PORT}  puis  taskkill /PID <ID> /F`);
+        process.exit(1);
+      } else {
+        throw err;
+      }
     });
   } catch (error) {
     console.error('❌ Erreur lors du chargement des modèles:', error);

@@ -13,6 +13,10 @@ const WorkflowArchitectContent = () => {
     const projectId = searchParams.get('projectId');
     const flowId = searchParams.get('id');
 
+    const isTemplate = searchParams.get('isTemplate') === 'true';
+    const accentColor = isTemplate ? 'bg-indigo-600 shadow-indigo-500/40 border-indigo-400/30' : 'bg-emerald-500 shadow-emerald-500/40 border-emerald-400/30';
+    const textColor = isTemplate ? 'text-indigo-400' : 'text-emerald-400';
+    const badgeColor = isTemplate ? 'bg-indigo-500' : 'bg-emerald-500';
     useEffect(() => {
         const notif = searchParams.get('notif');
         if (notif) {
@@ -33,8 +37,11 @@ const WorkflowArchitectContent = () => {
     const handleBack = () => {
         const domainId = searchParams.get('domainId');
         const moduleId = searchParams.get('moduleId');
+        const returnUrl = searchParams.get('returnUrl');
 
-        if (flowId) {
+        if (returnUrl) {
+            window.location.href = returnUrl;
+        } else if (flowId) {
             window.location.href = `/admin/workflows/${flowId}?tab=visual`;
         } else if (projectId) {
             window.location.href = `/admin/projects/${projectId}`;

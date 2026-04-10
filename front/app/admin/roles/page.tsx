@@ -75,8 +75,6 @@ export default function RolesPage() {
 
   const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
 
-  const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
-
   const loadInitialData = async () => {
     try {
       setLoading(true);

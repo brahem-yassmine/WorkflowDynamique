@@ -232,7 +232,7 @@ export default function AdminOperationsPage() {
                             const cleanTitle = projectName.toUpperCase();
                             
                             return (
-                                <Link href={instance.isVirtual ? `/admin/create_workflows?id=${instance.workflowId?._id}` : `/Workflows/instances/${instance._id}`} key={instance._id}>
+                                <Link href={instance.isVirtual ? `/create-workflow?id=${instance.workflowId?._id}&isTemplate=true&returnUrl=/admin/operations` : `/Workflows/instances/${instance._id}`} key={instance._id}>
                                     <div className="bg-white p-7 rounded-[40px] border border-slate-100 shadow-sm hover:shadow-2xl hover:shadow-indigo-500/5 hover:-translate-y-1 transition-all group cursor-pointer relative overflow-hidden">
                                         <div className={`absolute top-0 left-0 w-2 h-full ${instance.status === 'in_progress' ? 'bg-indigo-600' : instance.status === 'completed' ? 'bg-emerald-500' : instance.status === 'not_started' ? 'bg-slate-300' : 'bg-rose-500'}`}></div>
 

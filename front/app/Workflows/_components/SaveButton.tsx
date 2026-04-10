@@ -100,8 +100,12 @@ const SaveButton = ({
       toast.error('Workflow Name is required!');
       return;
     }
-    if (!domainId) {
+    if (!domainId || domainId === 'standard') {
       toast.error('Please select a target Domain!');
+      return;
+    }
+    if (!isTemplate && !projectId) {
+      toast.error('Please select a Project for this workflow!');
       return;
     }
     if (isTemplate && !moduleId) {
@@ -186,7 +190,7 @@ const SaveButton = ({
                             onChange={(e) => setProjectId(e.target.value)}
                             className="w-full h-12 px-4 bg-slate-50 border-none rounded-2xl font-bold text-slate-700 outline-none focus:ring-4 focus:ring-emerald-100 transition-all appearance-none cursor-pointer text-sm"
                         >
-                            <option value="">Standard / Common Project</option>
+                            <option value="" disabled>-- Select Project --</option>
                             {projects.map(p => (
                                 <option key={p._id} value={p._id}>{p.name}</option>
                             ))}
@@ -201,8 +205,7 @@ const SaveButton = ({
                               onChange={(e) => setDomainId(e.target.value)}
                               className="w-full h-12 px-4 bg-slate-50 border-none rounded-2xl font-bold text-slate-700 outline-none focus:ring-4 focus:ring-emerald-100 transition-all appearance-none cursor-pointer text-sm"
                           >
-                              <option value="">-- Domain --</option>
-                              <option value="standard">Standard</option>
+                              <option value="" disabled>-- Select Domain --</option>
                               {domains.map(d => (
                                   <option key={d._id} value={d._id}>{d.name}</option>
                               ))}
@@ -231,8 +234,7 @@ const SaveButton = ({
                             onChange={(e) => setDomainId(e.target.value)}
                             className="w-full h-12 px-4 bg-slate-50 border-none rounded-2xl font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-100 transition-all appearance-none cursor-pointer text-sm"
                         >
-                            <option value="">-- Select Domain --</option>
-                            <option value="standard">Standard / Universal</option>
+                            <option value="" disabled>-- Select Domain --</option>
                             {domains.map(d => (
                                 <option key={d._id} value={d._id}>{d.name}</option>
                             ))}

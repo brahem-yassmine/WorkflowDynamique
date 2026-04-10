@@ -29,7 +29,7 @@ const ActionNode = ({ data }: any) => {
                 <div className="flex-1 min-w-0">
                     <div className="text-[9px] font-black text-slate-700 leading-tight truncate uppercase tracking-tight">{data.label || 'Task'}</div>
                     <div className="text-[6px] text-slate-400 font-bold uppercase tracking-widest mt-0.5 truncate">
-                        {data.responsibleDomain || 'Standard'}
+                        {data.responsibleDomain || 'N/D'}
                     </div>
                 </div>
             </div>

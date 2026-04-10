@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
   Bell,
-  GitBranch,
+  Workflow,
   Users,
   User,
   HelpCircle,
@@ -63,7 +63,7 @@ function UserSidebar() {
     { icon: User, label: "My Profile", href: "/User/prof" },
     { icon: CheckSquare, label: "My Tasks", href: "/User/tasks", badge: taskCount },
     { icon: Bell, label: "Alert Inbox", href: "/User/Notifications" },
-    { icon: GitBranch, label: "My History", href: "/User/Workflows" },
+    { icon: Workflow, label: "Workflows", href: "/User/Workflows" },
     { icon: ShieldAlert, label: "Critical Requests", href: "/User/requests", color: "text-rose-400" },
     { icon: Users, label: "Team Space", href: "/User/InviteTeam" },
     { icon: Layers, label: "Forms Lab", href: "/User/Allforms" },

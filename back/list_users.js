@@ -16,11 +16,11 @@ async function getUsers() {
     const SuperAdmin = connection.model('SuperAdmin', superAdminSchema, 'superadmins');
     
     const superAdmins = await SuperAdmin.find({}, 'email role').lean();
-    console.log('--- SuperAdmins ---');
-    console.log(superAdmins);
-
-    // Tenant model for finding admin/user emails
-    // Let's also look into the tenant databases if possible, but first master.
+    const tenantSchema = new mongoose.Schema({ name: String, domain: String, databaseName: String });
+    const Tenant = connection.model('Tenant', tenantSchema, 'tenants');
+    const tenants = await Tenant.find({}, 'name domain databaseName').lean();
+    console.log('--- Tenants ---');
+    console.log(tenants);
     
     process.exit(0);
   } catch (err) {

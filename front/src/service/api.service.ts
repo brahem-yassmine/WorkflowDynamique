@@ -312,6 +312,13 @@ class ApiService {
     return this.request('/notifications');
   }
 
+  createNotification(data: any) {
+    return this.request('/notifications', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
   markNotificationAsRead(id: string) {
     return this.request(`/notifications/${id}/read`, { method: 'PUT' });
   }

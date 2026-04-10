@@ -23,7 +23,7 @@ api.interceptors.request.use((config) => {
 
     console.log('🔍 Interceptor - values:', {
       token: token ? 'yes' : 'no',
-      tenantId: tenantId ? tenantId : 'no'
+      tenantId: tenantId ? tenantId : 'no',
     });
 
     if (token) {
@@ -44,6 +44,29 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Determine the nature of the error
+    const isNetworkError = !error.response && error.request;
+    const isResponseError = !!error.response;
+
+    const apiError = {
+      status: error.response?.status || (isNetworkError ? 'Network Error' : 'Unknown'),
+      message: error.response?.data?.message || error.response?.data?.error || error.message || 'An unexpected error occurred',
+      data: error.response?.data || null,
+      url: error.config?.url,
+      method: error.config?.method?.toUpperCase(),
+      timestamp: new Date().toISOString(),
+    };
+
+    console.group('❌ API Error Detail');
+    console.error('Context:', apiError);
+    if (isResponseError) {
+      console.error('Response Data:', error.response.data);
+    } else if (isNetworkError) {
+      console.error('Request Info:', error.request);
+      console.error('Tip: Check CORS settings or if the backend is running correctly.');
+    }
+    console.groupEnd();
+
     if (error.response) {
       // The request was made and the server responded with a status code
       // that falls out of the range of 2xx
@@ -52,7 +75,7 @@ api.interceptors.response.use(
         message: error.response.data?.message || error.message,
         data: error.response.data,
         url: error.config?.url,
-        method: error.config?.method?.toUpperCase()
+        method: error.config?.method?.toUpperCase(),
       });
 
       // Handle 401 Unauthorized globally
@@ -73,7 +96,7 @@ api.interceptors.response.use(
       console.error('❌ API Network Error (No Response):', {
         message: error.message,
         url: error.config?.url,
-        method: error.config?.method?.toUpperCase()
+        method: error.config?.method?.toUpperCase(),
       });
     } else {
       // Something happened in setting up the request that triggered an Error

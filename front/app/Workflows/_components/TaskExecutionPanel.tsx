@@ -43,6 +43,7 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                             vars[node.id + '_executed'] || 
                             vars[node.id + '_data'] ||
                             node.status === 'executed' || 
+                            node.workerCompleted ||
                             (isExecutedParam && nodeIdParam === node.id) ||
                             ((userAction === 'Upload File' || userAction === 'Upload Image') && instance?.attachments?.length > 0);
 
@@ -51,6 +52,20 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
             setVariables(instance.variables);
         }
     }, [instance, node.id, searchParams]);
+
+    const isValidator = node?.data?.validatorIds?.includes(currentUser?._id) || 
+                       node?.data?.validatorIds?.includes(currentUser?.id) ||
+                       (node?.data?.validatorType === 'role' && (
+                           node?.data?.validatorIds?.includes(currentUser?.role) ||
+                           node?.data?.validatorIds?.includes(currentUser?.specificRole) ||
+                           (currentUser?.specificRoleId && node?.data?.validatorIds?.includes(currentUser?.specificRoleId))
+                       )) ||
+                       (currentUser?.role?.toLowerCase() === 'admin' || currentUser?.role?.toLowerCase() === 'super_admin');
+
+    // Get work submitted by node operator
+    const lastWorkerSubmission = [...(instance?.history || [])]
+        .reverse()
+        .find((h: any) => h.nodeId === node.id && (h.action === 'step_submitted_for_validation' || h.action === 'step_rejected_for_validation' || h.action === 'worker_submitted' || h.action === 'worker_rejected'));
 
     const data = node?.data || {};
     const {
@@ -107,10 +122,15 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
     const needsLock = isAnyAssignment && !isLocked;
     const isHistoryNode = instance?.currentNodes ? !instance.currentNodes.some((cn: any) => cn.nodeId === node.id) : false;
 
-    const isActive = instance?.status === 'active' || instance?.status === 'in_progress' || instance?.status === 'pending';
-    const isInstanceActive = !instance || ['active', 'in_progress', 'pending'].includes(instance.status);
-    const canPerform = isActive || node.type === 'start';
-    const canValidate = canPerform && isInstanceActive;
+    const safeStatus = String(instance?.status || 'pending').toLowerCase();
+    const isActive = safeStatus === 'active' || safeStatus === 'in_progress' || safeStatus === 'pending';
+    const isInstanceActive = !instance || ['active', 'in_progress', 'pending'].includes(safeStatus);
+    const isWorkerCompleted = !!node.workerCompleted;
+    
+    // Only allow performance if it's an active node (in currentNodes) and not already submitted by worker (unless validator)
+    const isValidActiveNode = !instance ? (node.type === 'start') : (!isHistoryNode);
+    const canPerform = isActive && isValidActiveNode && (!isWorkerCompleted || isValidator);
+    const canValidate = canPerform && isInstanceActive && isWorkerCompleted && isValidator;
     const showButtons = canPerform || canValidate;
 
     const getFullUrl = (url: string) => {
@@ -196,9 +216,13 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
     const handleApprove = async () => {
         if (loading || !instance?._id) return;
         
-        // Safety check if execution is required
-        if (data.linkedObjectId && !isExecuted) {
-            toast.warning('You must execute the required task before finalising this stage.');
+        const isUploadTask = Boolean(String(userAction).match(/file|image/i));
+        const hasUploadedItems = localAttachments.length > 0;
+        const validLinkedObjectId = data.linkedObjectId && String(data.linkedObjectId).trim() !== '';
+        
+        // Safety check if execution is required (bypass if it's purely an upload task and files are provided)
+        if (validLinkedObjectId && !isExecuted && !(isUploadTask && hasUploadedItems)) {
+            toast.warning('⚠️ Action requise : Vous devez d\'abord compléter le formulaire affilié ou l\'action obligatoire de cette étape avant de finaliser.');
             return;
         }
 
@@ -414,18 +438,22 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                 <div className={`p-8 border rounded-[32px] transition-all duration-500 ${isExecuted ? 'bg-emerald-50/30 border-emerald-200' : 'bg-slate-50 border-slate-100 hover:border-indigo-200'}`}>
                                     <div className="flex items-center justify-between mb-8">
                                         <div className="flex items-center gap-5">
-                                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm transition-transform duration-500 ${isExecuted ? 'bg-emerald-500 text-white' : 'bg-white text-slate-400 group-hover:scale-110'}`}>
+                                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm transition-transform duration-500 ${isExecuted || (Boolean(String(userAction).match(/file|image/i)) && localAttachments.length > 0) ? 'bg-emerald-500 text-white' : 'bg-white text-slate-400 group-hover:scale-110'}`}>
                                                 {data.taskType === 'form' ? <ClipboardList size={26} /> : <ListChecks size={26} />}
                                             </div>
                                             <div>
-                                                <h4 className={`text-lg font-black ${isExecuted ? 'text-emerald-900' : 'text-slate-800'}`}>
-                                                    {String(data.taskType || 'Task').toUpperCase()} Required
+                                                <h4 className={`text-lg font-black ${isExecuted || (Boolean(String(userAction).match(/file|image/i)) && localAttachments.length > 0) ? 'text-emerald-900' : 'text-slate-800'}`}>
+                                                    {data.taskType === 'form' ? 'Formulaire requis' : 
+                                                     data.taskType === 'checklist' ? 'Checklist requise' : 
+                                                     'Action complémentaire'}
                                                 </h4>
-                                                <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">Submit details to continue</p>
+                                                <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">
+                                                    {isExecuted || (Boolean(String(userAction).match(/file|image/i)) && localAttachments.length > 0) ? 'Condition remplie' : 'Action obligatoire pour continuer'}
+                                                </p>
                                             </div>
                                         </div>
-                                        <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${isExecuted ? 'bg-emerald-500 text-white' : 'bg-rose-50 text-rose-600'}`}>
-                                            {isExecuted ? 'Completed' : 'Mandatory'}
+                                        <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${(isExecuted || (Boolean(String(userAction).match(/file|image/i)) && localAttachments.length > 0)) ? 'bg-emerald-500 text-white' : 'bg-rose-50 text-rose-600'}`}>
+                                            {(isExecuted || (Boolean(String(userAction).match(/file|image/i)) && localAttachments.length > 0)) ? 'Validé' : 'Obligatoire'}
                                         </div>
                                     </div>
 
@@ -439,24 +467,24 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                         <Link
                                             href={
                                                 (data.taskType === 'form' || !!data.formId || String(userAction || '').toLowerCase().includes('form')) 
-                                                    ? `/form/form2?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}${data.linkedObjectId ? `&formId=${data.linkedObjectId}` : ''}&from=${typeof window !== 'undefined' ? window.location.pathname : ''}` :
+                                                    ? `/form/form2?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}${data.linkedObjectId ? `&formId=${data.linkedObjectId}` : ''}&from=${typeof window !== 'undefined' ? window.location.pathname : ''}${isValidator ? '&consult=true' : ''}` :
                                                 (data.taskType === 'checklist' || String(userAction || '').toLowerCase().includes('checklist')) 
-                                                    ? `/checklist/designer?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}${data.linkedObjectId ? `&id=${data.linkedObjectId}` : ''}&from=${typeof window !== 'undefined' ? window.location.pathname : ''}` :
+                                                    ? `/checklist/designer?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}${data.linkedObjectId ? `&id=${data.linkedObjectId}` : ''}&from=${typeof window !== 'undefined' ? window.location.pathname : ''}${isValidator ? '&consult=true' : ''}` :
                                                 data.taskType === 'kanban' 
-                                                    ? `/kanban?boardId=${data.linkedObjectId}&instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}&from=${typeof window !== 'undefined' ? window.location.pathname : ''}` :
-                                                `/${data.taskType || 'task'}/${data.linkedObjectId}?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}&from=${typeof window !== 'undefined' ? window.location.pathname : ''}`
+                                                    ? `/kanban?boardId=${data.linkedObjectId}&instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}&from=${typeof window !== 'undefined' ? window.location.pathname : ''}${isValidator ? '&consult=true' : ''}` :
+                                                `/${data.taskType || 'task'}/${data.linkedObjectId}?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}&from=${typeof window !== 'undefined' ? window.location.pathname : ''}${isValidator ? '&consult=true' : ''}`
                                             }
                                             onClick={() => {
                                                 if (!data.taskType?.includes('form')) setIsExecuted(true);
                                                 handleClose();
                                             }}
-                                            className={`w-full h-14 rounded-[22px] flex items-center justify-center gap-3 text-xs font-black uppercase tracking-[0.15em] transition-all ${isExecuted
-                                                ? 'bg-indigo-900 text-white hover:bg-slate-800 shadow-lg shadow-emerald-100'
-                                                : isActive ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-xl shadow-indigo-100' : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                            className={`w-full h-14 rounded-[22px] flex items-center justify-center gap-3 text-xs font-black uppercase tracking-[0.15em] transition-all ${isExecuted || isValidator
+                                                ? 'bg-indigo-900 text-white hover:bg-slate-800 shadow-lg'
+                                                : canPerform ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-xl shadow-indigo-100' : 'bg-slate-100 text-slate-400 cursor-not-allowed hidden'
                                                 }`}
                                         >
-                                            {isExecuted ? 'Modify My Submission' : 'Complete Required Action'} 
-                                            {isExecuted ? <CheckCircle2 size={18} /> : <ExternalLink size={18} />}
+                                            {isValidator ? 'Consult Record / Operator Data' : isExecuted ? 'Modify My Submission' : 'Complete Required Action'} 
+                                            {isExecuted || isValidator ? <CheckCircle2 size={18} /> : <ExternalLink size={18} />}
                                         </Link>
                                     ) : (
                                         null
@@ -598,24 +626,81 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                             </div>
                         )}
 
-                        {/* 4. TEXT AREAS */}
-                        {(String(userAction).toLowerCase().includes('report') || String(userAction).toLowerCase().includes('text') || userAction === 'Write Report') && (
+                        {/* 4. OPERATOR EVIDENCE (Special section for validators) */}
+                        {isValidator && lastWorkerSubmission && (
+                            <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-700">
+                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-600 flex items-center gap-2">
+                                    <ShieldCheck size={14} /> Operator Evidence & Submissions
+                                </p>
+                                <div className="p-8 bg-amber-50/30 border-2 border-amber-100 rounded-[32px] space-y-6">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-amber-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-amber-100">
+                                            {lastWorkerSubmission.action.includes('rejected') ? <XCircle size={24} /> : <ClipboardList size={24} />}
+                                        </div>
+                                        <div>
+                                            <h4 className="text-sm font-black text-amber-900 uppercase tracking-tight">Operator Report</h4>
+                                            <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest italic">
+                                                {lastWorkerSubmission.action.includes('rejected') ? 'Signal d\'échec reçu' : 'Données soumises pour validation'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    
+                                    {lastWorkerSubmission.comments && (
+                                        <div className="bg-white/80 p-6 rounded-2xl border border-amber-100 shadow-sm">
+                                            <p className="text-[11px] font-black uppercase text-amber-400 mb-2 tracking-widest">Observations de l'opérateur</p>
+                                            <p className="text-sm font-medium text-slate-700 leading-relaxed italic">
+                                                "{lastWorkerSubmission.comments}"
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    {/* RESPONSE DATA DISPLAY */}
+                                    {lastWorkerSubmission.outputData && Object.keys(lastWorkerSubmission.outputData).length > 0 && (
+                                        <div className="bg-white/95 p-6 rounded-2xl border border-amber-100 shadow-sm">
+                                            <p className="text-[11px] font-black uppercase text-amber-400 mb-4 tracking-widest">Réponse Structurée</p>
+                                            <div className="grid grid-cols-1 gap-4">
+                                                {Object.entries(lastWorkerSubmission.outputData).map(([key, val]: [string, any]) => (
+                                                    <div key={key} className="flex flex-col gap-1 pb-3 border-b border-amber-50 last:border-0 last:pb-0">
+                                                        <span className="text-[9px] font-black text-slate-400 uppercase">{key.replace(/_/g, ' ')}</span>
+                                                        <span className="text-sm font-bold text-slate-800">
+                                                            {Array.isArray(val) ? val.join(', ') : typeof val === 'object' ? JSON.stringify(val) : String(val)}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                    
+                                    <div className="flex items-center gap-4 text-[10px] font-bold text-amber-600">
+                                        <div className="px-3 py-1 bg-white rounded-full border border-amber-100">
+                                             Par: Utilisateur (ID: {lastWorkerSubmission.performedBy ? String(lastWorkerSubmission.performedBy).slice(-6) : 'N/A'})
+                                        </div>
+                                        <div className="px-3 py-1 bg-white rounded-full border border-amber-100">
+                                             {new Date(lastWorkerSubmission.timestamp || instance.updatedAt).toLocaleString()}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        {((String(userAction).toLowerCase().includes('report') || String(userAction).toLowerCase().includes('text') || userAction === 'Write Report')) && (
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between">
                                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-                                        Section: Mandatory Report & Synthesis
+                                        {isValidator && isWorkerCompleted ? "Section: Remarques de Validation" : "Section: Mandatory Report & Synthesis"}
                                     </p>
-                                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border ${comment.trim().length > 10 ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
-                                        {comment.trim().length > 10 ? 'Satisfied' : 'Required'}
+                                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border ${(isValidator && isWorkerCompleted) || comment.trim().length > 10 ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
+                                        {(isValidator && isWorkerCompleted) ? 'Optional' : comment.trim().length > 10 ? 'Satisfied' : 'Required'}
                                     </span>
                                 </div>
                                 <Textarea
                                     value={comment}
                                     onChange={(e) => setComment(e.target.value)}
-                                    placeholder="Please provide a detailed report of the activities or findings..."
+                                    placeholder={isValidator && isWorkerCompleted ? "Ajoutez une note ou un motif de refus (optionnel)..." : "Please provide a detailed report of the activities or findings..."}
                                     className="min-h-[220px] rounded-[32px] bg-slate-50 border-slate-100 p-8 text-sm placeholder:text-slate-300 focus:ring-4 focus:ring-indigo-100 transition-all shadow-inner border-2 focus:bg-white"
                                 />
-                                <p className="text-[9px] font-bold text-slate-400 italic px-2">Minimum 10 characters required for finalization.</p>
+                                {(!isValidator || !isWorkerCompleted) && (
+                                    <p className="text-[9px] font-bold text-slate-400 italic px-2">Minimum 10 characters required for finalization.</p>
+                                )}
                             </div>
                         )}
                         
@@ -626,42 +711,91 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                 {/* FIXED FOOTER: Action Hub */}
                 <div className="p-8 bg-white border-t border-slate-100 shadow-[0_-12px_48px_rgba(0,0,0,0.06)] shrink-0 z-20">
                     <div className="flex gap-4">
-                        {userAction === 'Approve / Reject' && (
-                            <Button
-                                variant="outline"
-                                onClick={handleReject}
-                                disabled={loading}
-                                className="h-16 flex-1 border-2 border-slate-100 rounded-[24px] font-black uppercase text-[10px] tracking-[0.15em] text-rose-500 hover:bg-rose-50/50 hover:border-rose-200 transition-all"
-                            >
-                                <XCircle size={18} className="mr-2" /> Reject Step
-                            </Button>
+                        {isValidator && (
+                            <div className="flex flex-col sm:flex-row gap-4 w-full">
+                                <Button
+                                    variant="outline"
+                                    onClick={handleReject}
+                                    disabled={loading}
+                                    className="h-16 flex-1 border-2 border-rose-100 rounded-[24px] font-black uppercase text-[10px] tracking-[0.10em] text-rose-500 hover:bg-rose-50 hover:border-rose-200 transition-all"
+                                >
+                                    <XCircle size={18} className="mr-2" /> Exit Protocol
+                                </Button>
+                                
+                                <Button
+                                    variant="outline"
+                                    onClick={async () => {
+                                        const msg = prompt("Enter alert message for the worker:");
+                                        if (msg) {
+                                            setLoading(true);
+                                            try {
+                                                await apiService.createNotification({
+                                                    recipient: lastWorkerSubmission?.performedBy,
+                                                    title: "Action Required / Alert",
+                                                    message: `Admin Alert for "${node.data?.label}": ${msg}`,
+                                                    type: "alert",
+                                                    link: `/Workflows/instances/${instance._id}`
+                                                });
+                                                toast.success("Alert sent to worker");
+                                            } catch (err) {
+                                                toast.error("Failed to send alert");
+                                            } finally {
+                                                setLoading(false);
+                                            }
+                                        }
+                                    }}
+                                    disabled={loading}
+                                    className="h-16 flex-1 border-2 border-amber-100 rounded-[24px] font-black uppercase text-[10px] tracking-[0.10em] text-amber-600 hover:bg-amber-50 hover:border-amber-200 transition-all"
+                                >
+                                    <AlertCircle size={18} className="mr-2" /> Envoiyer Alerte
+                                </Button>
+
+                                <Button
+                                    onClick={handleApprove}
+                                    disabled={loading || !canValidate}
+                                    className="h-16 flex-[1.5] bg-emerald-600 hover:bg-emerald-700 text-white shadow-xl shadow-emerald-100 rounded-[24px] font-black uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-3 transition-all active:scale-95"
+                                >
+                                    <CheckCircle2 size={20} /> Validate Step
+                                </Button>
+                            </div>
                         )}
-                        <Button
-                            onClick={handleApprove}
-                            disabled={
-                                loading || 
-                                !canPerform || 
-                                (data.linkedObjectId && !isExecuted) || 
-                                ((String(userAction).includes('File') || String(userAction).includes('Image')) && localAttachments.length === 0) ||
-                                ((String(userAction).toLowerCase().includes('report') || String(userAction).toLowerCase().includes('text')) && comment.trim().length < 10)
-                            }
-                            className={`h-16 ${(userAction === 'Approve / Reject' || canValidate) ? 'flex-[1.8]' : 'w-full'} ${(
-                                loading || 
-                                !canPerform || 
-                                (data.linkedObjectId && !isExecuted) || 
-                                ((String(userAction).includes('File') || String(userAction).includes('Image')) && localAttachments.length === 0) ||
-                                ((String(userAction).toLowerCase().includes('report') || String(userAction).toLowerCase().includes('text')) && comment.trim().length < 10)
-                            ) 
-                                ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-70' 
-                                : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xl shadow-indigo-100 transition-transform active:scale-95'
-                            } rounded-[24px] font-black uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-3`}
-                        >
-                            {loading ? <Clock size={20} className="animate-spin" /> : isExecuted ? <CheckCircle2 size={20} /> : <Send size={18} />}
-                            {userAction === 'Fill Form' ? (isExecuted ? 'Update & Finalize' : 'Submit & Continue') :
-                             userAction === 'Approve / Reject' ? 'Authorize Progression' :
-                             (String(userAction).includes('File') || String(userAction).includes('Image')) ? (isHistoryNode ? 'Update Assets' : 'Upload & Finalize') : 
-                             isHistoryNode ? 'Update Data' : 'Finalize Stage'}
-                        </Button>
+
+                        {!isValidator && (
+                            <>
+                            {isWorkerCompleted ? (
+                                <div className="w-full flex items-center justify-center gap-3 h-16 bg-amber-50 text-amber-600 rounded-[24px] font-black uppercase text-[11px] tracking-[0.2em] border border-amber-100">
+                                    <Clock size={20} /> Waiting for Validation
+                                </div>
+                            ) : (
+                                <Button
+                                onClick={handleApprove}
+                                disabled={
+                                    loading || 
+                                    !canPerform || 
+                                    !!(data.linkedObjectId && !isExecuted && !String(userAction).match(/file|image/i)) || 
+                                    (Boolean(String(userAction).match(/file|image/i)) && localAttachments.length === 0) ||
+                                    (Boolean(String(userAction).match(/report|text|writing/i)) && comment.trim().length < 10)
+                                }
+                                className={`h-16 w-full ${(
+                                    loading || 
+                                    !canPerform || 
+                                    !!(data.linkedObjectId && !isExecuted && !String(userAction).match(/file|image/i)) || 
+                                    (Boolean(String(userAction).match(/file|image/i)) && localAttachments.length === 0) ||
+                                    (Boolean(String(userAction).match(/report|text|writing/i)) && comment.trim().length < 10)
+                                ) 
+                                    ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-70' 
+                                    : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xl shadow-indigo-100 transition-transform active:scale-95'
+                                } rounded-[24px] font-black uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-3`}
+                            >
+                                {loading ? <Clock size={20} className="animate-spin" /> : isExecuted ? <CheckCircle2 size={20} /> : <Send size={18} />}
+                                {userAction === 'Fill Form' ? (isExecuted ? 'Update & Finalize' : 'Submit & Continue') :
+                                 userAction === 'Approve / Reject' ? 'Authorize Progression' :
+                                 (String(userAction).includes('File') || String(userAction).includes('Image')) ? (isHistoryNode ? 'Update Assets' : 'Upload & Finalize') : 
+                                 isHistoryNode ? 'Update Data' : 'Finalize Stage'}
+                            </Button>
+                            )}
+                            </>
+                        )}
                     </div>
                 </div>
 

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  GitBranch,
+  Workflow,
   Search,
   Filter,
   Eye,
@@ -36,10 +36,15 @@ interface Workflow {
   status: 'draft' | 'active' | 'archived';
   nodes: any[];
   edges: any[];
-  projectId?: string;
+  projectId?: any;
   userId?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+interface Project {
+  _id: string;
+  name: string;
 }
 
 interface WorkflowInstance {
@@ -54,6 +59,7 @@ interface WorkflowInstance {
 
 export default function UserWorkflowsPage() {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [instances, setInstances] = useState<WorkflowInstance[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -81,17 +87,16 @@ export default function UserWorkflowsPage() {
     try {
       setLoading(true);
 
-      // Fetch available templates
-      const workflowRes = await apiService.getWorkflows();
-      if (workflowRes.success) {
-        setWorkflows(workflowRes.data);
-      }
-
-      // Fetch pending tasks
-      const [userInstances, domainInstances] = await Promise.all([
+      // Fetch data in parallel
+      const [workflowRes, projectRes, userInstances, domainInstances] = await Promise.all([
+        apiService.getWorkflows(),
+        apiService.getProjects(),
         apiService.getInstances({ status: 'in_progress', responsibleUser: currentUser?._id || currentUser?.id }),
         apiService.getInstances({ status: 'in_progress', responsibleDomain: currentUser?.domain })
       ]);
+
+      if (workflowRes.success) setWorkflows(workflowRes.data);
+      if (projectRes.success) setProjects(projectRes.data);
 
       const combinedInstances = [...(userInstances.data || [])];
       if (domainInstances.data) {
@@ -161,18 +166,10 @@ export default function UserWorkflowsPage() {
     const matchesSearch = w.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           w.domain.toLowerCase().includes(searchTerm.toLowerCase());
     
-    // Unified HR/RH matching
-    const getDomainGroup = (d: string) => {
-      const normalized = d?.toLowerCase().trim() || '';
-      if (normalized === 'hr' || normalized === 'rh') return 'hr_rh';
-      return normalized;
-    };
-
-    const matchesDomain = !user?.domain || getDomainGroup(w.domain) === getDomainGroup(user.domain);
     const matchesStatusFilter = statusFilter === 'all' || w.status === statusFilter;
     const matchesModeStatus = mode === 'design' ? true : (w.status === 'active' || w.status === 'draft');
 
-    return matchesSearch && matchesDomain && matchesStatusFilter && matchesModeStatus;
+    return matchesSearch && matchesStatusFilter && matchesModeStatus;
   });
 
   const ChecklistPreviewModal = ({ workflow, isOpen, onClose }: { workflow: Workflow | null, isOpen: boolean, onClose: () => void }) => {
@@ -259,7 +256,7 @@ export default function UserWorkflowsPage() {
           <div className="space-y-2">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-white/10 rounded-xl backdrop-blur-md">
-                <GitBranch size={24} />
+                <Workflow size={24} />
               </div>
               <h1 className="text-3xl font-black tracking-tight">Workflow Hub</h1>
             </div>
@@ -391,7 +388,7 @@ export default function UserWorkflowsPage() {
                     <motion.div layout key={workflow._id} className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm hover:shadow-xl transition-all group">
                       <div className="flex justify-between items-start mb-6">
                         <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl group-hover:bg-indigo-600 group-hover:text-white transition-all">
-                          <GitBranch size={24} />
+                          <Workflow size={24} />
                         </div>
                         <div className="flex gap-1">
                           <button onClick={() => { setSelectedWorkflow(workflow); setIsChecklistModalOpen(true); }} className="p-2 bg-slate-50 text-slate-400 hover:text-indigo-600 rounded-xl transition-all">
@@ -413,7 +410,13 @@ export default function UserWorkflowsPage() {
                       </div>
 
                       <h3 className="text-xl font-black text-slate-800 mb-2 truncate group-hover:text-indigo-600 transition-colors uppercase tracking-tight">{workflow.name}</h3>
-                      <p className="text-[10px] font-black text-indigo-500/60 uppercase tracking-widest mb-4">{workflow.domain} Sector</p>
+                      <div className="flex items-center gap-2 mb-4">
+                        <p className="text-[10px] font-black text-indigo-500/60 uppercase tracking-widest">{workflow.domain} Sector</p>
+                        <span className="w-1 h-1 bg-slate-200 rounded-full"></span>
+                        <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">
+                          {workflow.projectId?.name || (typeof workflow.projectId === 'string' && projects.find(p => p._id === workflow.projectId)?.name) || 'Global Process'}
+                        </p>
+                      </div>
                       
                       <div className="grid grid-cols-2 gap-3 mb-6">
                         <div className="p-3 bg-slate-50 rounded-2xl">

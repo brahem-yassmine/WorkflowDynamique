@@ -21,7 +21,7 @@ interface WorkflowTask {
   priority: 'low' | 'medium' | 'high';
 }
 
-function SortableTask({ task, onUpdate, onDelete }: any) {
+function SortableTask({ task, onUpdate, onDelete, isConsult }: any) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
 
   const style = {
@@ -50,11 +50,12 @@ function SortableTask({ task, onUpdate, onDelete }: any) {
       </button>
 
       <button
-        onClick={() => onUpdate(task.id, { completed: !task.completed })}
+        onClick={() => !isConsult && onUpdate(task.id, { completed: !task.completed })}
+        disabled={isConsult}
         className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${task.completed
           ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-100'
           : 'border-slate-200 hover:border-indigo-400 text-transparent'
-          }`}
+          } ${isConsult ? 'cursor-not-allowed opacity-80' : ''}`}
       >
         <Check size={14} className="stroke-[4px]" />
       </button>
@@ -63,29 +64,33 @@ function SortableTask({ task, onUpdate, onDelete }: any) {
         <input
           type="text"
           value={task.title}
+          disabled={isConsult}
           onChange={(e) => onUpdate(task.id, { title: e.target.value })}
           className={`text-sm font-black bg-transparent border-b-2 border-transparent focus:border-indigo-400 outline-none w-full transition-all ${task.completed ? 'line-through text-slate-400' : 'text-slate-700'
-            }`}
+            } ${isConsult ? 'cursor-not-allowed' : ''}`}
         />
       </div>
 
       <div className="flex items-center gap-3">
         <select
           value={task.priority}
+          disabled={isConsult}
           onChange={(e) => onUpdate(task.id, { priority: e.target.value })}
-          className={`text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl border appearance-none cursor-pointer transition-all ${priorityColors[task.priority as keyof typeof priorityColors]}`}
+          className={`text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl border appearance-none cursor-pointer transition-all ${priorityColors[task.priority as keyof typeof priorityColors]} ${isConsult ? 'cursor-not-allowed' : ''}`}
         >
           <option value="low">Low</option>
           <option value="medium">Medium</option>
           <option value="high">High</option>
         </select>
 
-        <button
-          onClick={() => onDelete(task.id)}
-          className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"
-        >
-          <Trash2 size={16} />
-        </button>
+        {!isConsult && (
+          <button
+            onClick={() => onDelete(task.id)}
+            className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+          >
+            <Trash2 size={16} />
+          </button>
+        )}
       </div>
     </motion.div>
   );
@@ -111,6 +116,7 @@ export default function WorkflowChecklist() {
   const [instanceId, setInstanceId] = useState<string | null>(null);
   const [nodeId, setNodeId] = useState<string | null>(null);
   const [from, setFrom] = useState<string | null>(null);
+  const [isConsult, setIsConsult] = useState<boolean>(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -123,6 +129,7 @@ export default function WorkflowChecklist() {
     const instId = params.get('instanceId');
     const nId = params.get('nodeId');
     const fromPath = params.get('from');
+    setIsConsult(params.get('consult') === 'true');
 
     if (id) {
       setChecklistId(id);
@@ -309,9 +316,15 @@ export default function WorkflowChecklist() {
     <div className="min-h-screen bg-gray-50/50 pb-20">
       <Toaster position="top-right" richColors />
       
-      {isExecutionMode && (
+      {isExecutionMode && !isConsult && (
         <div className="bg-amber-600 text-white px-4 py-2 text-center text-[10px] font-black uppercase tracking-[0.2em] shadow-lg sticky top-0 z-[60]">
           Protocol Execution Active — Synchronizing with Live Lattice
+        </div>
+      )}
+
+      {isConsult && (
+        <div className="bg-amber-500 text-white px-4 py-2 text-center text-[10px] font-black uppercase tracking-[0.2em] shadow-lg sticky top-0 z-[60]">
+          Validator Consultation View — Checklist is Read-Only
         </div>
       )}
 
@@ -429,14 +442,24 @@ export default function WorkflowChecklist() {
                 <ChevronLeft size={16} /> <span className="hidden xs:inline">Back to Workflow</span><span className="xs:hidden">Workflow</span>
               </button>
             )}
-            <button 
-              onClick={handleSave} 
-              disabled={isSaving || isLoading} 
-              className="flex items-center gap-3 px-6 sm:px-8 py-2.5 sm:py-3 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-indigo-700 active:scale-95 transition-all shadow-xl shadow-indigo-100 disabled:opacity-50 whitespace-nowrap"
-            >
-              {isSaving ? <Clock className="w-4 h-4 animate-spin" /> : (isExecutionMode ? <CheckSquare size={18} /> : <Save size={18} />)}
-              {isSaving ? 'Saving...' : (isExecutionMode ? 'Synchronize' : 'Save Checklist')}
-            </button>
+            {isConsult ? (
+              <button 
+                onClick={() => router.back()} 
+                className="flex items-center gap-3 px-6 sm:px-8 py-2.5 sm:py-3 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-slate-700 active:scale-95 transition-all shadow-xl shadow-slate-100 whitespace-nowrap"
+              >
+                <ChevronLeft size={18} />
+                Return to Workflow
+              </button>
+            ) : (
+              <button 
+                onClick={handleSave} 
+                disabled={isSaving || isLoading} 
+                className="flex items-center gap-3 px-6 sm:px-8 py-2.5 sm:py-3 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-indigo-700 active:scale-95 transition-all shadow-xl shadow-indigo-100 disabled:opacity-50 whitespace-nowrap"
+              >
+                {isSaving ? <Clock className="w-4 h-4 animate-spin" /> : (isExecutionMode ? <CheckSquare size={18} /> : <Save size={18} />)}
+                {isSaving ? 'Saving...' : (isExecutionMode ? 'Synchronize' : 'Save Checklist')}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -476,7 +499,7 @@ export default function WorkflowChecklist() {
                   <option value="completed">Completed</option>
                 </select>
 
-                {!isExecutionMode && (
+                {!isExecutionMode && !isConsult && (
                   <button
                     onClick={addTask}
                     className="flex items-center gap-2 px-8 py-4 bg-indigo-50 text-indigo-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-100 transition-all border border-indigo-100 shadow-sm whitespace-nowrap active:scale-95"
@@ -493,7 +516,7 @@ export default function WorkflowChecklist() {
               <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
                 <div className="space-y-4">
                   {tasks.map(task => (
-                    <SortableTask key={task.id} task={task} onUpdate={updateTask} onDelete={isExecutionMode ? undefined : deleteTask} />
+                    <SortableTask key={task.id} task={task} onUpdate={updateTask} onDelete={isExecutionMode ? undefined : deleteTask} isConsult={isConsult} />
                   ))}
                   {tasks.length === 0 && (
                     <div className="text-center py-32 border-2 border-dashed border-slate-100 rounded-[40px] bg-slate-50/30">
@@ -507,7 +530,7 @@ export default function WorkflowChecklist() {
               </SortableContext>
             </DndContext>
             
-            {isExecutionMode && (
+            {isExecutionMode && !isConsult && (
               <div className="mt-12 flex flex-col items-center p-8 bg-slate-50 rounded-[32px] border border-slate-100">
                  <div className="flex items-center gap-4 mb-6">
                    <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-100">
@@ -525,6 +548,28 @@ export default function WorkflowChecklist() {
                   className="w-full max-w-sm py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 active:scale-95"
                  >
                    Synchronize and Finalize
+                 </button>
+              </div>
+            )}
+
+            {isConsult && (
+              <div className="mt-12 flex flex-col items-center p-8 bg-slate-50 rounded-[32px] border border-slate-100">
+                 <div className="flex items-center gap-4 mb-6">
+                   <div className="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-slate-100">
+                     <AlertCircle className="w-8 h-8" />
+                   </div>
+                   <div className="text-left">
+                     <h3 className="font-black text-slate-800 uppercase tracking-tight">Consultation Complete</h3>
+                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                       Checklist values are read-only in this view
+                     </p>
+                   </div>
+                 </div>
+                 <button 
+                  onClick={() => router.back()}
+                  className="w-full max-w-sm py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-700 transition-all shadow-xl shadow-slate-100 active:scale-95"
+                 >
+                   Return to Instance
                  </button>
               </div>
             )}

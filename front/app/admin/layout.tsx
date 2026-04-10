@@ -10,6 +10,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import Header from './components/header';
 import { useAuth } from '@/hooks/useAuth';
 import DomainSidebar from './components/domain-sidebar';
+import WelcomeWizard from '@/components/WelcomeWizard';
+import VisualHint from '@/components/VisualHint';
 
 const PAGE_METADATA: Record<string, { title: string, subtitle: string }> = {
     '/admin': {
@@ -83,6 +85,10 @@ const PAGE_METADATA: Record<string, { title: string, subtitle: string }> = {
     '/admin/domains': {
         title: "Organizational Sectors",
         subtitle: "Architect and manage specialized business domains across your organization."
+    },
+    '/admin/guide': {
+        title: "Platform Onboarding",
+        subtitle: "Master the architecture and configuration of your organizational lattice."
     }
 };
 
@@ -170,6 +176,23 @@ export default function AdminLayout({
 
     return (
         <div className="flex h-screen bg-slate-50 overflow-hidden text-slate-900">
+            <WelcomeWizard />
+            <VisualHint 
+                id="hint-nav-domains" 
+                targetId="sidebar-link-domains" 
+                title="Organizational Sectors" 
+                content="Define your business domains and manage functional modules here."
+                position="right"
+                delay={4}
+            />
+            <VisualHint 
+                id="hint-nav-studio" 
+                targetId="sidebar-link-workflow-studio" 
+                title="Architect's Studio" 
+                content="Create and manage your professional business protocols and templates."
+                position="right"
+                delay={5}
+            />
             <div className="flex flex-1 min-w-0 overflow-hidden relative">
                 {/* Sidebar with responsive overlay logic */}
                 {!hideSidebar && (

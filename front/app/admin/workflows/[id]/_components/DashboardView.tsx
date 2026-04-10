@@ -9,7 +9,11 @@ import {
   AlertCircle,
   TrendingUp,
   PieChart as PieIcon,
-  Activity
+  Activity,
+  Layers,
+  LayoutGrid,
+  GitBranch,
+  Edit2
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -27,6 +31,7 @@ export default function DashboardView({ workflowId }: DashboardViewProps) {
     activeInstances: 0,
     completionRate: 0
   });
+  const [workflow, setWorkflow] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [launching, setLaunching] = useState(false);
 
@@ -57,6 +62,7 @@ export default function DashboardView({ workflowId }: DashboardViewProps) {
 
       if (wfRes.success && instancesRes.success) {
         const workflow = wfRes.data || { nodes: [] };
+        setWorkflow(workflow);
         const instances = instancesRes.data || [];
         
         // Comprehensive list of system nodes to exclude from manual task counts
@@ -197,6 +203,78 @@ export default function DashboardView({ workflowId }: DashboardViewProps) {
       description: 'Total times this workflow was triggered'
     }
   ];
+
+  if (workflow?.isTemplate) {
+    const templateCards = [
+      {
+        title: 'Organization Domain',
+        value: workflow.domain || workflow.domainId?.name || 'Generic',
+        icon: <LayoutGrid className="text-indigo-500" />,
+        color: 'bg-indigo-50 text-indigo-600 border-indigo-100',
+        description: 'Primary structural categorization'
+      },
+      {
+        title: 'Parent Module',
+        value: workflow.moduleId?.name || 'Standard',
+        icon: <Layers className="text-blue-500" />,
+        color: 'bg-blue-50 text-blue-600 border-blue-100',
+        description: 'Module classification of this blueprint'
+      },
+      {
+        title: 'Structural Blocks',
+        value: workflow.nodes?.length || 0,
+        icon: <GitBranch className="text-fuchsia-500" />,
+        color: 'bg-fuchsia-50 text-fuchsia-600 border-fuchsia-100',
+        description: 'Number of logic nodes in the lattice'
+      }
+    ];
+
+    return (
+      <div className="space-y-10">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-slate-900 rounded-[40px] p-12 text-white flex flex-col md:flex-row items-center justify-between gap-8 shadow-2xl"
+        >
+          <div className="space-y-4 text-center md:text-left">
+            <h2 className="text-3xl font-black tracking-tight">Modify Base Blueprint</h2>
+            <p className="text-slate-400 font-medium max-w-md">Enter the architect mode to restructure the logic nodes, add new edges, or configure step parameters for this template.</p>
+          </div>
+          <button 
+            onClick={() => window.location.href = `/create-workflow?id=${workflowId}`}
+            className="px-10 py-5 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-[0.2em] shadow-xl hover:scale-105 transition-all active:scale-95 flex items-center gap-3"
+          >
+            <Edit2 size={20} />
+            Architect Mode
+          </button>
+        </motion.div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {templateCards.map((card, idx) => (
+            <motion.div
+              key={idx}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.1 }}
+              className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm hover:shadow-md transition-all group"
+            >
+              <div className="flex justify-between items-start mb-6">
+                <div className={`p-4 rounded-2xl ${card.color.split(' ')[0]} transition-transform group-hover:scale-110`}>
+                  {React.cloneElement(card.icon as any, { size: 24 })}
+                </div>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Blueprint Metadata</span>
+              </div>
+              <h3 className="text-2xl font-black text-slate-800 tracking-tight mb-2 truncate" title={card.value.toString()}>{card.value}</h3>
+              <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none">{card.title}</p>
+              <p className="text-[9px] font-bold text-slate-400 mt-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                {card.description}
+              </p>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-10">

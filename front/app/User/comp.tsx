@@ -22,6 +22,7 @@ import {
   AlertCircle,
   FileText,
   Eye,
+  Briefcase,
   X
 } from 'lucide-react';
 import { apiService } from '@/service/api.service';
@@ -60,6 +61,8 @@ function UserSidebar() {
 
   const menuItems = [
     { icon: LayoutGrid, label: "Command Center", href: "/User" },
+    { icon: Briefcase, label: "All Operational Domains", href: "/User/DOMAINS" },
+    { icon: Layers, label: "All Workflows", href: "/User/ALL" },
     { icon: User, label: "My Profile", href: "/User/prof" },
     { icon: CheckSquare, label: "My Tasks", href: "/User/tasks", badge: taskCount },
     { icon: Bell, label: "Alert Inbox", href: "/User/Notifications" },

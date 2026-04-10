@@ -6,35 +6,32 @@ const Permission = require('../src/models/master/permission.model');
 const MASTER_DB_URI = process.env.MASTER_DB_URI || 'mongodb://localhost:27017/workflow_master';
 
 const permissions = [
-    // WORKFLOW permissions
-    { name: 'WORKFLOW_CREATE', description: 'Can create new workflows', category: 'WORKFLOW' },
-    { name: 'WORKFLOW_VIEW', description: 'Can view workflows', category: 'WORKFLOW' },
-    { name: 'WORKFLOW_EDIT', description: 'Can edit existing workflows', category: 'WORKFLOW' },
-    { name: 'WORKFLOW_DELETE', description: 'Can delete workflows', category: 'WORKFLOW' },
-    { name: 'WORKFLOW_PUBLISH', description: 'Can publish workflows', category: 'WORKFLOW' },
-    { name: 'WORKFLOW_ARCHIVE', description: 'Can archive workflows', category: 'WORKFLOW' },
-    { name: 'WORKFLOW_DUPLICATE', description: 'Can duplicate workflows', category: 'WORKFLOW' },
-    { name: 'WORKFLOW_CONFIGURE_ACL', description: 'Can configure access control for workflows', category: 'WORKFLOW' },
 
-    // USER permissions
-    { name: 'USER_CREATE', description: 'Can create users', category: 'USER' },
-    { name: 'USER_EDIT', description: 'Can edit users', category: 'USER' },
-    { name: 'USER_DELETE', description: 'Can delete users', category: 'USER' },
-    { name: 'USER_VIEW', description: 'Can view users', category: 'USER' },
 
-    // ROLE permissions
-    { name: 'ROLE_CREATE', description: 'Can create roles', category: 'ROLE' },
-    { name: 'ROLE_EDIT', description: 'Can edit roles', category: 'ROLE' },
-    { name: 'ROLE_DELETE', description: 'Can delete roles', category: 'ROLE' },
-    { name: 'ROLE_VIEW', description: 'Can view roles', category: 'ROLE' },
+    // FORM permissions
+    { name: 'FORM_ADD', description: 'Can add new forms to sectors', category: 'FORM' },
+    { name: 'FORM_CREATE', description: 'Can create form templates', category: 'FORM' },
+    { name: 'FORM_DELETE', description: 'Can delete forms', category: 'FORM' },
+    { name: 'FORM_EDIT', description: 'Can edit form structures', category: 'FORM' },
+    { name: 'FORM_FILL', description: 'Can fill out and submit forms', category: 'FORM' },
+    { name: 'FORM_CLONE', description: 'Can clone existing forms', category: 'FORM' },
+    { name: 'FORM_VIEW', description: 'Can view form responses', category: 'FORM' },
+    { name: 'FORM_MANAGE_STATUS', description: 'Can activate or draft forms', category: 'FORM' },
 
-    // PROJECT permissions
-    { name: 'PROJECT_CREATE', description: 'Can create projects', category: 'PROJECT' },
-    { name: 'PROJECT_EDIT', description: 'Can edit projects', category: 'PROJECT' },
-    { name: 'PROJECT_DELETE', description: 'Can delete projects', category: 'PROJECT' },
-    { name: 'PROJECT_VIEW', description: 'Can view projects', category: 'PROJECT' },
-    { name: 'PROJECT_ARCHIVE', description: 'Can archive projects', category: 'PROJECT' },
-    { name: 'PROJECT_PUBLISH', description: 'Can publish projects', category: 'PROJECT' },
+    // CHECKLIST permissions
+    { name: 'CHECKLIST_CLONE', description: 'Can clone checklist templates', category: 'CHECKLIST' },
+    { name: 'CHECKLIST_EDIT', description: 'Can edit checklists', category: 'CHECKLIST' },
+    { name: 'CHECKLIST_DELETE', description: 'Can delete checklists', category: 'CHECKLIST' },
+    { name: 'CHECKLIST_CREATE', description: 'Can create new checklists', category: 'CHECKLIST' },
+    { name: 'CHECKLIST_VIEW', description: 'Can view checklists', category: 'CHECKLIST' },
+    { name: 'CHECKLIST_ADD_TASK', description: 'Can add tasks to active checklists', category: 'CHECKLIST' },
+
+    // KANBAN permissions
+    { name: 'KANBAN_ADD', description: 'Can add tasks to boards', category: 'KANBAN' },
+    { name: 'KANBAN_CREATE', description: 'Can create new boards', category: 'KANBAN' },
+    { name: 'KANBAN_DELETE', description: 'Can delete boards', category: 'KANBAN' },
+    { name: 'KANBAN_CLONE', description: 'Can clone existing boards', category: 'KANBAN' },
+    { name: 'KANBAN_VIEW', description: 'Can view boards', category: 'KANBAN' },
 ];
 
 async function seedPermissions() {
@@ -46,7 +43,14 @@ async function seedPermissions() {
         console.log('✅ Connected to Master DB');
 
         const Permission = require('../src/models/master/permission.model')(conn);
+        // 1. Clean up obsolete permissions
+        const currentPermissionNames = permissions.map(p => p.name);
+        const deleteResult = await Permission.deleteMany({ name: { $nin: currentPermissionNames } });
+        if (deleteResult.deletedCount > 0) {
+            console.log(`🗑️ Removed ${deleteResult.deletedCount} obsolete permissions`);
+        }
 
+        // 2. Upsert current permissions
         for (const p of permissions) {
             await Permission.findOneAndUpdate(
                 { name: p.name },
@@ -56,8 +60,7 @@ async function seedPermissions() {
             console.log(`📦 Seeded permission: ${p.name}`);
         }
 
-        console.log('🚀 Permissions seeded successfully!');
-
+        console.log('🚀 Permissions synchronized successfully!');
         // Seed Global Roles
         const Role = require('../src/models/master/Role')(conn);
         const globalRoles = [
@@ -70,8 +73,8 @@ async function seedPermissions() {
             },
             {
                 name: 'Manager',
-                description: 'Manage workflows and users within their assigned domain.',
-                permissions: ['WORKFLOW_VIEW', 'WORKFLOW_EDIT', 'USER_VIEW', 'ROLE_VIEW', 'PROJECT_VIEW', 'PROJECT_EDIT'],
+                description: 'Manage users and assets within their assigned domain.',
+                permissions: ['USER_VIEW', 'ROLE_VIEW'],
                 isDefault: false,
                 isSystemRole: true
             }

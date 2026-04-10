@@ -40,6 +40,7 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { apiService } from '@/service/api.service';
+import useUser from '@/hooks/useUser';
 
 // --- Types ---
 interface Task {
@@ -222,6 +223,7 @@ function KanbanColumn({
   bar: string;
 }) {
   const { setNodeRef } = useDroppable({ id, data: { type: 'Column' } });
+  const { btnDisabledClass } = useUser();
 
   return (
     <div
@@ -239,8 +241,9 @@ function KanbanColumn({
           </div>
         </div>
         <button
-          onClick={() => onAdd(id)}
-          className="w-10 h-10 bg-white text-indigo-600 rounded-2xl flex items-center justify-center transition-all border border-slate-100 shadow-sm hover:bg-indigo-600 hover:text-white active:scale-90 outline-none"
+          onClick={() => { onAdd(id); }}
+          className={`w-10 h-10 bg-white rounded-2xl flex items-center justify-center transition-all border border-slate-100 shadow-sm active:scale-90 outline-none text-indigo-600 hover:bg-indigo-600 hover:text-white ${btnDisabledClass('KANBAN_ADD')}`}
+          title="Add Task"
         >
           <Plus size={20} />
         </button>
@@ -271,11 +274,13 @@ function KanbanColumn({
 // --- Main Page ---
 export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [user, setUser] = useState<any>(null);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [designerWorkflowId, setDesignerWorkflowId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string>('admin');
   const [isSaving, setIsSaving] = useState(false);
+  const { btnDisabledClass, hasPermission } = useUser();
 
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [boardName, setBoardName] = useState('New Board');
@@ -353,6 +358,11 @@ export default function TasksPage() {
   };
 
   useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
+
     const id = searchParams.get('boardId');
     const dwId = searchParams.get('designerWorkflowId');
     const role = searchParams.get('role');
@@ -381,6 +391,8 @@ export default function TasksPage() {
     fetchWorkflows();
     fetchUsers();
   }, [searchParams]);
+
+
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -800,8 +812,9 @@ export default function TasksPage() {
           <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
             <button 
               onClick={saveBoard}
-              disabled={isSaving || isLoading} 
-              className="flex items-center gap-3 px-6 sm:px-8 py-2.5 sm:py-3 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-indigo-700 active:scale-95 transition-all shadow-xl shadow-indigo-100 disabled:opacity-50 whitespace-nowrap"
+              disabled={isSaving || isLoading || (!hasPermission('KANBAN_CREATE') && !hasPermission('KANBAN_EDIT'))} 
+              className={`flex items-center gap-3 px-6 sm:px-8 py-2.5 sm:py-3 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all shadow-xl active:scale-95 whitespace-nowrap ${(!hasPermission('KANBAN_CREATE') && !hasPermission('KANBAN_EDIT')) ? btnDisabledClass : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100'}`}
+              title={(!hasPermission('KANBAN_CREATE') && !hasPermission('KANBAN_EDIT')) ? "Permission denied" : ""}
             >
               {isSaving ? <Clock className="w-4 h-4 animate-spin" /> : <SaveIcon size={18} />}
               {isSaving ? 'Synchronizing...' : 'Save Lattice State'}

@@ -12,7 +12,7 @@ const {
     updateFormStatus
 } = require('../controllers/formController');
 
-const { auth } = require('../middleware/auth');
+const { auth, hasPermission } = require('../middleware/auth');
 const { checkTenantActive } = require('../middleware/tenantMiddleware');
 
 // Public routes (if any, e.g., submitting a response might be public if the form is public)

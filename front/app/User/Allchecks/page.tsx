@@ -26,14 +26,21 @@ import { toast, Toaster } from 'sonner';
 
 export default function AllChecklistsPage() {
   const [checklists, setChecklists] = useState<any[]>([]);
+  const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedChecklist, setSelectedChecklist] = useState<any>(null);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
 
   useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
     fetchChecklists();
   }, []);
+
+
 
   const fetchChecklists = async () => {
     try {
@@ -238,7 +245,9 @@ export default function AllChecklistsPage() {
               />
             </div>
             <Link href="/User/newCheck">
-              <button className="flex items-center gap-2 px-6 py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all active:scale-95 shadow-lg shadow-indigo-100 whitespace-nowrap">
+              <button 
+                className="flex items-center gap-2 px-6 py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg active:scale-95 shadow-indigo-100 whitespace-nowrap hover:bg-indigo-700"
+              >
                 <Plus size={18} strokeWidth={3} />
                 Create Checklist
               </button>
@@ -327,14 +336,15 @@ export default function AllChecklistsPage() {
                                         setSelectedChecklist(checklist);
                                         setIsPreviewModalOpen(true);
                                       }}
-                                      className="p-3 bg-white border border-slate-100 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all shadow-sm"
+                                      className="p-3 bg-white border border-slate-100 transition-all shadow-sm rounded-2xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
                                       title="Quick Preview"
                                     >
                                       <Eye size={20} strokeWidth={2.5} />
                                     </button>
                                     <button 
-                                      onClick={(e) => handleDeleteChecklist(e, checklist._id, checklist.instanceId)}
-                                      className="p-3 bg-white border border-slate-100 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-2xl transition-all shadow-sm"
+                                      onClick={(e) => { handleDeleteChecklist(e, checklist._id, checklist.instanceId); }}
+                                      className="p-3 bg-white border border-slate-100 transition-all shadow-sm rounded-2xl text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                                      title="Delete"
                                     >
                                       <Trash2 size={20} strokeWidth={2.5} />
                                     </button>

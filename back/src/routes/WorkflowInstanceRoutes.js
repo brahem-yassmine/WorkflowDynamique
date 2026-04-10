@@ -18,7 +18,7 @@ const {
   checkDeadlines
 } = require('../controllers/WorkflowInstanceController.js');
 
-const { auth } = require('../middleware/auth');
+const { auth, hasPermission } = require('../middleware/auth');
 const { checkTenantActive } = require('../middleware/tenantMiddleware');
 
 // All routes require auth + active tenant

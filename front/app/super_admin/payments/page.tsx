@@ -351,8 +351,8 @@ export default function SubscriptionPaymentPage() {
                   <p className={`text-[10px] font-black uppercase tracking-widest ${plan.isActive !== false ? 'text-emerald-500' : 'text-slate-400'}`}>{plan.isActive !== false ? 'Active' : 'Inactive'}</p>
                 </div>
                 <div className="space-y-4 mb-8">
-                  <TierMetric label="User Capacity" value={plan.features?.maxUsers || 0} icon={<Users size={14} />} />
-                  <TierMetric label="Flow Nodes" value={plan.features?.maxNodes || 0} icon={<Zap size={14} />} />
+                  <TierMetric label="User Capacity" value={(plan.features?.maxUsers || 0) >= 999999 ? 'Unlimited' : (plan.features?.maxUsers || 0)} icon={<Users size={14} />} />
+                  <TierMetric label="Flow Nodes" value={(plan.features?.maxNodes || 0) >= 999999 ? 'Unlimited' : (plan.features?.maxNodes || 0)} icon={<Zap size={14} />} />
                   <TierMetric label="Cloud Lattice" value={plan.interval === 'month' ? 'Monthly' : 'Yearly'} icon={<CreditCard size={14} />} />
                 </div>
                 <div className="pt-6 border-t border-slate-50 flex justify-between items-center">
@@ -415,7 +415,9 @@ export default function SubscriptionPaymentPage() {
                     <div className="p-1.5 bg-indigo-50 rounded-lg text-indigo-600">
                       <Users size={16} />
                     </div>
-                    <span className="text-2xl font-black text-slate-800">{selectedPlanDetails?.features?.maxUsers || 0}</span>
+                    <span className="text-2xl font-black text-slate-800">
+                      {(selectedPlanDetails?.features?.maxUsers || 0) >= 999999 ? 'Unlimited' : (selectedPlanDetails?.features?.maxUsers || 0)}
+                    </span>
                   </div>
                 </div>
                 <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 group hover:border-amber-500 transition-colors">
@@ -424,7 +426,9 @@ export default function SubscriptionPaymentPage() {
                     <div className="p-1.5 bg-amber-50 rounded-lg text-amber-500">
                       <Zap size={16} />
                     </div>
-                    <span className="text-2xl font-black text-slate-800">{selectedPlanDetails?.features?.maxNodes || 0}</span>
+                    <span className="text-2xl font-black text-slate-800">
+                      {(selectedPlanDetails?.features?.maxNodes || 0) >= 999999 ? 'Unlimited' : (selectedPlanDetails?.features?.maxNodes || 0)}
+                    </span>
                   </div>
                 </div>
                 <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 group hover:border-emerald-500 transition-colors">
@@ -463,9 +467,11 @@ export default function SubscriptionPaymentPage() {
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {subscribers.map((sub) => {
-                          const userPercent = (sub.consumption?.users / (selectedPlanDetails?.features?.maxUsers || 1)) * 100;
-                          const nodePercent = (sub.consumption?.nodes / (selectedPlanDetails?.features?.maxNodes || 1)) * 100;
-                          const isHighUsage = userPercent > 80 || nodePercent > 80;
+                          const isUserUnlimited = (selectedPlanDetails?.features?.maxUsers || 0) >= 999999;
+                          const isNodeUnlimited = (selectedPlanDetails?.features?.maxNodes || 0) >= 999999;
+                          const userPercent = isUserUnlimited ? 0 : (sub.consumption?.users / (selectedPlanDetails?.features?.maxUsers || 1)) * 100;
+                          const nodePercent = isNodeUnlimited ? 0 : (sub.consumption?.nodes / (selectedPlanDetails?.features?.maxNodes || 1)) * 100;
+                          const isHighUsage = !isUserUnlimited && (userPercent > 80 || nodePercent > 80);
 
                           return (
                             <tr key={sub.id} className="hover:bg-slate-50/50 transition-colors group">
@@ -495,7 +501,9 @@ export default function SubscriptionPaymentPage() {
                                       style={{ width: `${Math.min(userPercent, 100)}%` }}
                                     />
                                   </div>
-                                  <span className="text-[9px] font-bold text-slate-500">{sub.consumption?.users || 0}/{selectedPlanDetails?.features?.maxUsers}</span>
+                                  <span className="text-[9px] font-bold text-slate-500">
+                                    {sub.consumption?.users || 0}/{isUserUnlimited ? '∞' : selectedPlanDetails?.features?.maxUsers}
+                                  </span>
                                 </div>
                               </td>
                               <td className="px-6 py-5">
@@ -506,7 +514,9 @@ export default function SubscriptionPaymentPage() {
                                       style={{ width: `${Math.min(nodePercent, 100)}%` }}
                                     />
                                   </div>
-                                  <span className="text-[9px] font-bold text-slate-500">{sub.consumption?.nodes || 0}/{selectedPlanDetails?.features?.maxNodes}</span>
+                                  <span className="text-[9px] font-bold text-slate-500">
+                                    {sub.consumption?.nodes || 0}/{isNodeUnlimited ? '∞' : selectedPlanDetails?.features?.maxNodes}
+                                  </span>
                                 </div>
                               </td>
                               <td className="px-6 py-5 text-right">

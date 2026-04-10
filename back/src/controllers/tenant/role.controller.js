@@ -14,15 +14,30 @@ class RoleController {
   // Create a role
   static async create(req, res) {
     try {
-      const Role = RoleController.getModel(req);
-      const { name, description, permissions, isDefault } = req.body;
-      console.log('📦 Create Payload:', { name, permissionsCount: permissions?.length });
+      console.log('🏗️ [RoleController] Hit CREATE route');
+      console.log(`📝 [RoleController] Creating role for tenant: ${req.tenantId || 'Unknown'}`);
+      console.log('📦 Payload:', JSON.stringify(req.body, null, 2));
 
-      const existingRole = await Role.findOne({ name });
+      const Role = RoleController.getModel(req);
+      const { name, description, permissions, isDefault, modulePermissions, domainPermissions } = req.body;
+      
+      if (!name) {
+        return res.status(400).json({ success: false, message: 'Role name is required' });
+      }
+
+      // Clean and validate ObjectIds
+      const domainId = RoleController.normalizeId(req.body.domainId);
+      const moduleId = RoleController.normalizeId(req.body.moduleId);
+
+      console.log('📦 Create Payload (Normalized):', { name, permissionsCount: permissions?.length, domainId, moduleId });
+
+      // Case-insensitive check with escaped name
+      const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const existingRole = await Role.findOne({ name: { $regex: new RegExp(`^${escapedName}$`, 'i') } });
       if (existingRole) {
         return res.status(400).json({
           success: false,
-          message: 'A role with this name already exists'
+          message: `The role name "${name}" is already taken.`
         });
       }
 
@@ -31,16 +46,31 @@ class RoleController {
         description,
         permissions: permissions || [],
         isDefault: isDefault || false,
-        isActive: true
+        isActive: true,
+        domainId: domainId || undefined,
+        moduleId: moduleId || undefined,
+        domainPermissions: domainPermissions || [],
+        modulePermissions: modulePermissions || []
       });
 
       await role.save();
-      console.log('✅ Role created successfully:', role._id);
+      console.log('✅ [RoleController] Role created successfully:', role._id);
       res.status(201).json({ success: true, data: role });
 
     } catch (error) {
-      console.error('Role creation Error:', error);
-      res.status(500).json({ success: false, message: error.message });
+      console.error('❌ [RoleController] Role creation Error:', error);
+      
+      // Handle Mongoose duplicate key error (if findOne missed it)
+      if (error.code === 11000) {
+        return res.status(400).json({ success: false, message: 'A role with this name already exists (unique constraint)' });
+      }
+
+      res.status(500).json({ 
+        success: false, 
+        message: 'Internal Server Error during Role Creation',
+        details: error.message,
+        stack: error.stack
+      });
     }
   }
 
@@ -95,20 +125,26 @@ class RoleController {
     try {
       const Role = RoleController.getModel(req);
       const { id } = req.params;
-      const { name, description, permissions, isDefault, isActive } = req.body;
-      console.log('📦 Update Payload:', { name, permissionsCount: permissions?.length });
+      const { name, description, permissions, isDefault, isActive, modulePermissions, domainPermissions } = req.body;
+      
+      // Clean and validate ObjectIds
+      const domainId = req.body.hasOwnProperty('domainId') ? RoleController.normalizeId(req.body.domainId) : undefined;
+      const moduleId = req.body.hasOwnProperty('moduleId') ? RoleController.normalizeId(req.body.moduleId) : undefined;
+
+      console.log('📦 Update Payload (Normalized):', { name, permissionsCount: permissions?.length, domainId, moduleId });
 
       const role = await Role.findById(id);
       if (!role) {
         return res.status(404).json({ success: false, message: 'Role not found' });
       }
 
-      if (name && name !== role.name) {
-        const existingRole = await Role.findOne({ name });
+      if (name && name.toLowerCase() !== role.name.toLowerCase()) {
+        const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const existingRole = await Role.findOne({ name: { $regex: new RegExp(`^${escapedName}$`, 'i') } });
         if (existingRole) {
           return res.status(400).json({
             success: false,
-            message: 'A role with this name already exists'
+            message: `The role name "${name}" is already taken by another role.`
           });
         }
       }
@@ -118,19 +154,43 @@ class RoleController {
       role.permissions = permissions || role.permissions;
       if (isDefault !== undefined) role.isDefault = isDefault;
       if (isActive !== undefined) role.isActive = isActive;
+      
+      // Explicitly allow clearing by setting to null
+      if (domainId !== undefined) role.domainId = domainId;
+      if (moduleId !== undefined) role.moduleId = moduleId;
+      
+      role.domainPermissions = domainPermissions || role.domainPermissions;
+      role.modulePermissions = modulePermissions || role.modulePermissions;
 
       await role.save();
-      console.log('✅ Role updated successfully:', role._id);
+      console.log('✅ [RoleController] Role updated successfully:', role._id);
       res.json({ success: true, data: role });
 
     } catch (error) {
-      console.error('❌ [RoleController] Update Error:', error);
+      console.error('❌ [RoleController] Role Update Error:', error);
+      
+      if (error.code === 11000) {
+        return res.status(400).json({ success: false, message: 'This role name is already in use.' });
+      }
+
       res.status(500).json({ 
         success: false, 
         message: 'Internal Server Error during Role Update',
-        details: error.message 
+        details: error.message,
+        stack: error.stack
       });
     }
+  }
+
+  // Helper to normalize IDs
+  static normalizeId(id) {
+    if (!id || id === '' || id === 'null' || id === 'undefined') return null;
+    if (typeof id === 'string' && id.length === 24 && /^[0-9a-fA-F]{24}$/.test(id)) {
+      return id;
+    }
+    // If it's already an ObjectId
+    if (id instanceof mongoose.Types.ObjectId) return id;
+    return null;
   }
 
   // Delete a role

@@ -1,7 +1,7 @@
 'use client';
 
 import React from "react";
-import WorkflowEditor from "../Workflows/_components/WorkflowEditor";
+import WorkflowEditor from "../../Workflows/_components/WorkflowEditor";
 import { ArrowLeft, Zap, Info, Activity } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect } from "react";
@@ -12,11 +12,6 @@ const WorkflowArchitectContent = () => {
     const searchParams = useSearchParams();
     const projectId = searchParams.get('projectId');
     const flowId = searchParams.get('id');
-
-    const isTemplate = searchParams.get('isTemplate') === 'true';
-    const accentColor = isTemplate ? 'bg-indigo-600 shadow-indigo-500/40 border-indigo-400/30' : 'bg-emerald-500 shadow-emerald-500/40 border-emerald-400/30';
-    const textColor = isTemplate ? 'text-indigo-400' : 'text-emerald-400';
-    const badgeColor = isTemplate ? 'bg-indigo-500' : 'bg-emerald-500';
 
     useEffect(() => {
         const notif = searchParams.get('notif');
@@ -30,38 +25,35 @@ const WorkflowArchitectContent = () => {
             router.replace(`${window.location.pathname}?${newParams.toString()}`);
         }
     }, [searchParams, router]);
+    const isTemplate = searchParams.get('isTemplate') === 'true';
+    const accentColor = 'bg-indigo-600 shadow-indigo-500/40 border-indigo-400/30';
+    const textColor = 'text-indigo-400';
+    const badgeColor = 'bg-indigo-500';
 
     const handleBack = () => {
         const domainId = searchParams.get('domainId');
         const moduleId = searchParams.get('moduleId');
-        const returnUrl = searchParams.get('returnUrl');
+        const referrer = typeof document !== 'undefined' ? document.referrer : null;
 
-        // Priority 1: returnUrl parameter
-        if (returnUrl) {
-            window.location.href = returnUrl;
-            return;
-        }
-
-        // Priority 2: Specific Workflow Context (Admin)
-        if (flowId) {
-            window.location.href = `/admin/workflows/${flowId}?tab=visual`;
-            return;
-        }
-
-        // Priority 3: Project Context (Admin)
-        if (projectId) {
-            window.location.href = `/admin/projects/${projectId}`;
-            return;
-        }
-
-        // Priority 4: Operational Context (Module/Domain)
+        // Priority 1: Operational Context (Module/Domain)
         if (domainId && moduleId) {
-            window.location.href = `/admin/domains/${domainId}/modules?moduleId=${moduleId}`;
+            router.push(`/User/MODULES?domainId=${domainId}&moduleId=${moduleId}`);
             return;
         }
 
-        // Priority 5: Default Fallback
-        window.location.href = '/admin/workflows' + (isTemplate ? '?isTemplate=true' : '');
+        // Priority 2: Workflow List or search referrer (excluding creator and profile)
+        if (referrer && referrer.includes(window.location.host)) {
+            const relativePath = referrer.split(window.location.host)[1];
+            
+            // Allow returning to list or previous context, but NOT profile or the editor itself
+            if (!relativePath.includes('/User/create') && !relativePath.includes('/User/prof')) {
+                router.push(relativePath);
+                return;
+            }
+        }
+
+        // Priority 3: Fallback to global workflow list
+        router.push('/User/ALL' + (isTemplate ? '?isTemplate=true' : ''));
     };
 
     return (
@@ -79,7 +71,7 @@ const WorkflowArchitectContent = () => {
                         <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
                         <span className="text-[10px] font-black uppercase tracking-[0.2em] pt-0.5">Exit Architect</span>
                     </button>
-                    
+
                     <div className="h-10 w-px bg-white/10 mx-2"></div>
 
                     <div className="flex items-center gap-5">
@@ -107,6 +99,7 @@ const WorkflowArchitectContent = () => {
                     </div>
                 </div>
             </div>
+
 
             {/* Editor Canvas Container - NOW FULL SCREEN */}
             <div className="flex-grow overflow-hidden relative">

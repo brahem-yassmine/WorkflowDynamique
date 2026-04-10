@@ -54,7 +54,13 @@ class ModuleController {
             const { domainId } = req.query;
             
             let query = {};
-            if (domainId) {
+            
+            // If domainId is provided but is an empty string or 'null', handle as an intentional filter for nothing or a specific domain
+            if (domainId !== undefined) {
+                if (!domainId || domainId === 'null' || domainId === 'undefined') {
+                    // If requester is filtering by an empty/invalid ID, return nothing instead of everything
+                    return res.json({ success: true, data: [] });
+                }
                 query.domainId = domainId;
             }
 

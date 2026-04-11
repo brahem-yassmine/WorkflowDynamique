@@ -15,8 +15,8 @@ const permissions = [
     { name: 'FORM_EDIT', description: 'Can edit form structures', category: 'FORM' },
     { name: 'FORM_FILL', description: 'Can fill out and submit forms', category: 'FORM' },
     { name: 'FORM_CLONE', description: 'Can clone existing forms', category: 'FORM' },
-    { name: 'FORM_VIEW', description: 'Can view form responses', category: 'FORM' },
-    { name: 'FORM_MANAGE_STATUS', description: 'Can activate or draft forms', category: 'FORM' },
+    { name: 'FORM_VIEW', description: 'Can view form', category: 'FORM' },
+    { name: 'FORM_MANAGE_STATUS', description: 'Can activate, draft, approve or reject forms', category: 'FORM' },
 
     // CHECKLIST permissions
     { name: 'CHECKLIST_CLONE', description: 'Can clone checklist templates', category: 'CHECKLIST' },

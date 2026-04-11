@@ -45,7 +45,7 @@ export default function AllChecklistsPage() {
   const fetchChecklists = async () => {
     try {
       setLoading(true);
-      const res = await apiService.getChecklists();
+      const res = await apiService.getChecklists({ filter: 'mine' });
       if (res.success) {
         setChecklists(res.data || []);
       }
@@ -244,7 +244,7 @@ export default function AllChecklistsPage() {
                 className="pl-12 pr-6 py-4 bg-white border border-slate-200 rounded-2xl w-full md:w-72 shadow-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none font-bold text-sm text-slate-900 placeholder:text-slate-400"
               />
             </div>
-            <Link href="/User/newCheck">
+            <Link href="/checklist/designer?source=allchecks&role=User">
               <button 
                 className="flex items-center gap-2 px-6 py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg active:scale-95 shadow-indigo-100 whitespace-nowrap hover:bg-indigo-700"
               >
@@ -319,7 +319,14 @@ export default function AllChecklistsPage() {
                             return (
                               <div 
                                 key={checklist._id}
-                                className="group bg-white border border-slate-100 rounded-[32px] p-8 hover:shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] transition-all duration-500 relative overflow-hidden flex flex-col h-full"
+                                onClick={() => {
+                                  if (checklist.instanceId) {
+                                    router.push(`/Workflows/instances/${checklist.instanceId}`);
+                                  } else {
+                                    router.push(`/checklist/designer?id=${checklist._id}&source=allchecks&role=User`);
+                                  }
+                                }}
+                                className="group bg-white border border-slate-100 rounded-[32px] p-8 hover:shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] transition-all duration-500 relative overflow-hidden flex flex-col h-full cursor-pointer"
                               >
                                 {/* Status Indicator Bar */}
                                 <div className={`absolute top-0 left-0 right-0 h-1.5 transition-all duration-500 ${checklist.status === 'completed' ? 'bg-emerald-500' : checklist.instanceId ? 'bg-amber-500' : 'bg-indigo-600'}`}></div>
@@ -404,13 +411,14 @@ export default function AllChecklistsPage() {
                                 </div>
 
                                 <div className="mt-8 pt-6 border-t border-slate-50">
-                                  <Link 
-                                    href={checklist.instanceId ? `/Workflows/instances/${checklist.instanceId}` : (checklist.workflowId ? `/admin/workflows/${(typeof checklist.workflowId === 'string' ? checklist.workflowId : checklist.workflowId._id)}` : `/User/newCheck?id=${checklist._id}`)}
-                                    className="flex items-center justify-between w-full group/btn"
-                                  >
-                                    <span className="text-[11px] font-black uppercase tracking-widest text-slate-900 group-hover/btn:text-indigo-600 transition-colors">
-                                      {checklist.instanceId ? "View Workflow Task" : (checklist.workflowId ? "View Workflow Designer" : "View Detailed Log")}
-                                    </span>
+                                    <Link 
+                                      href={checklist.instanceId ? `/Workflows/instances/${checklist.instanceId}` : `/checklist/designer?id=${checklist._id}&source=allchecks&role=User`}
+                                      className="flex items-center justify-between w-full group/btn"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <span className="text-[11px] font-black uppercase tracking-widest text-slate-900 group-hover/btn:text-indigo-600 transition-colors">
+                                        {checklist.instanceId ? "View Workflow Task" : "View Checklist Designer"}
+                                      </span>
                                     <div className="p-2 bg-slate-50 text-slate-400 group-hover/btn:bg-indigo-600 group-hover/btn:text-white rounded-xl transition-all duration-300">
                                       <ArrowRight size={18} />
                                     </div>
@@ -448,7 +456,14 @@ export default function AllChecklistsPage() {
                     return (
                       <div 
                         key={checklist._id}
-                        className="group bg-white border border-slate-100 rounded-[32px] p-8 hover:shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] transition-all duration-500 relative overflow-hidden flex flex-col h-full"
+                        onClick={() => {
+                          if (checklist.instanceId) {
+                            router.push(`/Workflows/instances/${checklist.instanceId}`);
+                          } else {
+                            router.push(`/checklist/designer?id=${checklist._id}&source=allchecks&role=User`);
+                          }
+                        }}
+                        className="group bg-white border border-slate-100 rounded-[32px] p-8 hover:shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] transition-all duration-500 relative overflow-hidden flex flex-col h-full cursor-pointer"
                       >
                         {/* Status Indicator Bar */}
                         <div className={`absolute top-0 left-0 right-0 h-1.5 transition-all duration-500 ${checklist.status === 'completed' ? 'bg-emerald-500' : 'bg-slate-400'}`}></div>
@@ -523,11 +538,12 @@ export default function AllChecklistsPage() {
 
                         <div className="mt-8 pt-6 border-t border-slate-50">
                           <Link 
-                            href={checklist.instanceId ? `/Workflows/instances/${checklist.instanceId}` : (checklist.workflowId ? `/admin/workflows/${(typeof checklist.workflowId === 'string' ? checklist.workflowId : checklist.workflowId._id)}` : `/User/newCheck?id=${checklist._id}`)}
+                            href={checklist.instanceId ? `/Workflows/instances/${checklist.instanceId}` : `/checklist/designer?id=${checklist._id}&source=allchecks&role=User`}
                             className="flex items-center justify-between w-full group/btn"
+                            onClick={(e) => e.stopPropagation()}
                           >
                             <span className="text-[11px] font-black uppercase tracking-widest text-slate-900 group-hover/btn:text-slate-600 transition-colors">
-                              {checklist.instanceId ? "View Workflow Task" : (checklist.workflowId ? "View Workflow Designer" : "View Detailed Log")}
+                              {checklist.instanceId ? "View Workflow Task" : "View Checklist Designer"}
                             </span>
                             <div className="p-2 bg-slate-50 text-slate-400 group-hover/btn:bg-slate-600 group-hover/btn:text-white rounded-xl transition-all duration-300">
                               <ArrowRight size={18} />

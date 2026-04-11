@@ -15,10 +15,10 @@ const { checkTenantActive } = require('../middleware/tenantMiddleware');
 
 router.use(auth, checkTenantActive);
 
-router.get('/', getProjects);
-router.get('/:projectId', getProjectById);
-router.post('/', createProject);
-router.put('/:projectId', updateProject);
-router.delete('/:projectId', deleteProject);
+router.get('/', hasPermission('PROJECT_VIEW'), getProjects);
+router.get('/:projectId', hasPermission('PROJECT_VIEW'), getProjectById);
+router.post('/', hasPermission('PROJECT_CREATE'), createProject);
+router.put('/:projectId', hasPermission('PROJECT_EDIT'), updateProject);
+router.delete('/:projectId', hasPermission('PROJECT_DELETE'), deleteProject);
 
 module.exports = router;

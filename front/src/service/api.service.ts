@@ -291,8 +291,9 @@ class ApiService {
   }
 
   // Checklist Management
-  getChecklists() {
-    return this.request('/checklists');
+  getChecklists(params?: any) {
+    const query = params ? `?${new URLSearchParams(params).toString()}` : '';
+    return this.request(`/checklists${query}`);
   }
 
   toggleTaskStatus(id: string, taskId: string) {
@@ -310,6 +311,13 @@ class ApiService {
   // Notification Management
   getNotifications() {
     return this.request('/notifications');
+  }
+
+  createNotification(data: any) {
+    return this.request('/notifications', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
   }
 
   markNotificationAsRead(id: string) {

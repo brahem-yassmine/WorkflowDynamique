@@ -13,6 +13,10 @@ const WorkflowArchitectContent = () => {
     const projectId = searchParams.get('projectId');
     const flowId = searchParams.get('id');
 
+    const isTemplate = searchParams.get('isTemplate') === 'true';
+    const accentColor = isTemplate ? 'bg-indigo-600 shadow-indigo-500/40 border-indigo-400/30' : 'bg-emerald-500 shadow-emerald-500/40 border-emerald-400/30';
+    const textColor = isTemplate ? 'text-indigo-400' : 'text-emerald-400';
+    const badgeColor = isTemplate ? 'bg-indigo-500' : 'bg-emerald-500';
     useEffect(() => {
         const notif = searchParams.get('notif');
         if (notif) {
@@ -25,15 +29,16 @@ const WorkflowArchitectContent = () => {
             router.replace(`${window.location.pathname}?${newParams.toString()}`);
         }
     }, [searchParams, router]);
-    const isTemplate = searchParams.get('isTemplate') === 'true';
-    const accentColor = 'bg-indigo-600 shadow-indigo-500/40 border-indigo-400/30';
-    const textColor = 'text-indigo-400';
-    const badgeColor = 'bg-indigo-500';
-
     const handleBack = () => {
         const domainId = searchParams.get('domainId');
         const moduleId = searchParams.get('moduleId');
-        const referrer = typeof document !== 'undefined' ? document.referrer : null;
+        const returnUrl = searchParams.get('returnUrl');
+
+        // Priority 0: Explicit Return URL
+        if (returnUrl) {
+            router.push(returnUrl);
+            return;
+        }
 
         // Priority 1: Specific Workflow Context (Admin)
         if (flowId) {
@@ -53,19 +58,10 @@ const WorkflowArchitectContent = () => {
             return;
         }
 
-        // Priority 4: Safe Admin Referrer
-        if (referrer && referrer.includes(window.location.host)) {
-            const relativePath = referrer.split(window.location.host)[1];
-            // Only go back if we are staying in the admin space and not going back to the creator itself
-            if (relativePath.startsWith('/admin') && !relativePath.includes('/create-workflow')) {
-                router.push(relativePath);
-                return;
-            }
-        }
-
-        // Priority 5: Default Admin Fallback
+        // Priority 4: Default Admin Fallback
         router.push('/admin/workflows' + (isTemplate ? '?isTemplate=true' : ''));
     };
+
 
     return (
         <div className="flex flex-col h-screen w-full bg-[#fdfdfd] overflow-hidden isolate">

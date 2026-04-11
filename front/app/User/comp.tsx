@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
   Bell,
-  GitBranch,
+  Workflow,
   Users,
   User,
   HelpCircle,
@@ -62,13 +62,15 @@ function UserSidebar() {
   const menuItems = [
     { icon: LayoutGrid, label: "Command Center", href: "/User" },
     { icon: Briefcase, label: "All Operational Domains", href: "/User/DOMAINS" },
-    { icon: Layers, label: "All Workflows", href: "/User/ALL" },
+    { icon: Layers, label: "Attached Workflows", href: "/User/ALL" },
     { icon: User, label: "My Profile", href: "/User/prof" },
     { icon: CheckSquare, label: "My Tasks", href: "/User/tasks", badge: taskCount },
     { icon: Bell, label: "Alert Inbox", href: "/User/Notifications" },
+    { icon: Workflow, label: "Workflows", href: "/User/Workflows" },
     { icon: ShieldAlert, label: "Critical Requests", href: "/User/requests", color: "text-rose-400" },
     { icon: Users, label: "Team Space", href: "/User/InviteTeam" },
     { icon: Layers, label: "Forms Lab", href: "/User/Allforms" },
+    { icon: ListTodo, label: "Checks Matrix", href: "/User/Allchecks" },
     { icon: Zap, label: "AI Co-pilot", href: "/User/AIGenerate", color: "text-amber-400" },
   ];
 

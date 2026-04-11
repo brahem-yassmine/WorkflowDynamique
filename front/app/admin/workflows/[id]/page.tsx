@@ -121,15 +121,21 @@ function WorkflowAdminDetailsContent() {
     );
   }
 
-  const tabs = [
-    { id: 'dashboard', label: 'Progress Dashboard', description: 'Monitor task advancement and efficiency stats', icon: <BarChart3 size={24} />, color: 'bg-blue-500' },
-    { id: 'taskLog', label: 'Tasks & Entries', description: 'Review completed, rejected, and pending tasks', icon: <ClipboardList size={24} />, color: 'bg-emerald-500' },
-    { id: 'kanban', label: 'Kanban Boards', description: 'Manage operational tasks in a grid view', icon: <LayoutDashboard size={24} />, color: 'bg-amber-500' },
-    { id: 'visual', label: 'Visual Flow', description: 'Analyze the workflow structural lattice', icon: <GitBranch size={24} />, color: 'bg-indigo-500' },
-    { id: 'members', label: 'Team Members', description: 'Manage personnel assigned to this unit', icon: <Users size={24} />, color: 'bg-fuchsia-500' },
-    { id: 'checklist', label: 'Checklists', description: 'Verify standard operational procedures', icon: <CheckSquare size={24} />, color: 'bg-slate-500' },
-    { id: 'architect', label: 'Architect', description: 'Modify structural lattice', icon: <GitBranch size={24} />, color: 'bg-indigo-600' },
-  ];
+  const tabs = workflow?.isTemplate 
+    ? [
+        { id: 'dashboard', label: 'Blueprint Info', description: 'Core metadata and structural summary', icon: <BarChart3 size={24} />, color: 'bg-indigo-500' },
+        { id: 'visual', label: 'Visual Lattice', description: 'Analyze the workflow structural logic', icon: <GitBranch size={24} />, color: 'bg-indigo-500' },
+        { id: 'architect', label: 'Architect', description: 'Modify structural lattice', icon: <GitBranch size={24} />, color: 'bg-indigo-600' },
+      ]
+    : [
+        { id: 'dashboard', label: 'Progress Dashboard', description: 'Monitor task advancement and efficiency stats', icon: <BarChart3 size={24} />, color: 'bg-blue-500' },
+        { id: 'taskLog', label: 'Tasks & Entries', description: 'Review completed, rejected, and pending tasks', icon: <ClipboardList size={24} />, color: 'bg-emerald-500' },
+        { id: 'kanban', label: 'Kanban Boards', description: 'Manage operational tasks in a grid view', icon: <LayoutDashboard size={24} />, color: 'bg-amber-500' },
+        { id: 'visual', label: 'Visual Flow', description: 'Analyze the workflow structural lattice', icon: <GitBranch size={24} />, color: 'bg-indigo-500' },
+        { id: 'members', label: 'Team Members', description: 'Manage personnel assigned to this unit', icon: <Users size={24} />, color: 'bg-fuchsia-500' },
+        { id: 'checklist', label: 'Checklists', description: 'Verify standard operational procedures', icon: <CheckSquare size={24} />, color: 'bg-slate-500' },
+        { id: 'architect', label: 'Architect', description: 'Modify structural lattice', icon: <GitBranch size={24} />, color: 'bg-indigo-600' },
+      ];
 
   return (
     <div className="flex flex-col h-full bg-[#F8FAFC] overflow-hidden relative">
@@ -137,7 +143,7 @@ function WorkflowAdminDetailsContent() {
       
       {/* HEADER */}
       {workflow?.isTemplate ? (
-        <header className="bg-white border-b border-indigo-100 shrink-0 z-[999] shadow-sm relative h-20 px-10 flex items-center justify-between">
+        <header className="bg-white border-b border-indigo-100 shrink-0 z-40 shadow-sm relative h-20 px-10 flex items-center justify-between">
           <div className="absolute top-0 left-0 right-0 h-1 bg-indigo-600 z-30" />
           <div className="flex items-center gap-6">
             <button 
@@ -170,7 +176,7 @@ function WorkflowAdminDetailsContent() {
           </div>
         </header>
       ) : (
-        <header className="bg-white border-b border-indigo-100 shrink-0 z-[999] shadow-sm relative">
+        <header className="bg-white border-b border-indigo-100 shrink-0 z-40 shadow-sm relative">
             {/* Top accent line */}
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-600 via-blue-500 to-indigo-600 z-30 pointer-events-none" />
             
@@ -190,7 +196,7 @@ function WorkflowAdminDetailsContent() {
                         router.push('/admin/workflows');
                       }
                     }}
-                    className="w-10 h-10 bg-white hover:bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 transition-all border border-slate-100 shadow-sm active:scale-95 group relative z-[1001] pointer-events-auto"
+                    className="w-10 h-10 bg-white hover:bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 transition-all border border-slate-100 shadow-sm active:scale-95 group relative z-50 pointer-events-auto"
                   >
                     <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
                   </button>
@@ -225,7 +231,7 @@ function WorkflowAdminDetailsContent() {
             </div>
 
             {/* COMPACT NAVIGATION STRIP */}
-            <div className="px-10 flex items-center gap-1 overflow-x-auto no-scrollbar border-t border-slate-50 py-2 bg-slate-50/30 relative z-[1000]">
+            <div className="px-10 flex items-center gap-1 overflow-x-auto no-scrollbar border-t border-slate-50 py-2 bg-slate-50/30 relative z-30">
                {tabs.map((tab) => (
                  <button
                    key={tab.id}
@@ -236,7 +242,7 @@ function WorkflowAdminDetailsContent() {
                        setActiveTab(tab.id);
                      }
                    }}
-                    className={`px-5 py-2.5 rounded-xl transition-all flex items-center gap-3 whitespace-nowrap cursor-pointer relative z-[1001] pointer-events-auto ${
+                    className={`px-5 py-2.5 rounded-xl transition-all flex items-center gap-3 whitespace-nowrap cursor-pointer relative z-40 pointer-events-auto ${
                      activeTab === tab.id 
                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' 
                        : 'text-slate-400 hover:bg-white hover:text-indigo-600 hover:shadow-sm'

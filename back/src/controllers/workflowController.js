@@ -117,6 +117,20 @@ exports.createWorkflow = async (req, res) => {
       });
     }
 
+    if (!isTemplate && (!projectId || !domainId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Un workflow doit être lié à un projet et un domaine.'
+      });
+    }
+
+    if (isTemplate && (!moduleId || !domainId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Un template de workflow doit être lié à un module et un domaine.'
+      });
+    }
+
     const currentUserId = req.user.id || req.user.userId || req.user._id;
     const workflowDomain = domain || req.user.domain || "General";
     let workflowNodes = nodes || [];
@@ -233,7 +247,7 @@ exports.createWorkflow = async (req, res) => {
         console.warn('⚠️ [WorkflowCtrl] Notification failure (ignored):', notifErr.message);
     }
 
-    await recordActivity(req, 'CREATE_WORKFLOW', {
+    await recordActivity(req, 'WORKFLOW_CREATE', {
       type: 'Workflow',
       id: workflow._id,
       name: workflow.name
@@ -298,7 +312,16 @@ exports.updateWorkflow = async (req, res) => {
       if (key !== '_id') workflow[key] = updates[key];
     });
 
+    // Ensure Mongoose detects changes in nodes/edges arrays
+    if (updates.nodes) workflow.markModified('nodes');
+    if (updates.edges) workflow.markModified('edges');
+
     await workflow.save();
+
+    // ⚡ PROXIMITY SYNC: Update all active instances to reflect new node assignments/data
+    if (updates.nodes) {
+      await _syncActiveInstances(req.tenantConn, workflow);
+    }
 
     // IF status becomes active, automatically start an instance (only if it was draft)
     if (newStatus === 'active' && oldStatus === 'draft') {
@@ -316,7 +339,7 @@ exports.updateWorkflow = async (req, res) => {
     // 🚀 AUTOMATIC CHECKLIST SYNC
     await _triggerAutomaticChecklist(req, workflow);
 
-    await recordActivity(req, 'UPDATE_WORKFLOW', {
+    await recordActivity(req, 'WORKFLOW_EDIT', {
       type: 'Workflow',
       id: workflow._id,
       name: workflow.name
@@ -381,7 +404,7 @@ exports.deleteWorkflow = async (req, res) => {
     const workflow = await Workflow.findByIdAndDelete(workflowId);
 
     if (workflow) {
-      await recordActivity(req, 'DELETE_WORKFLOW', {
+      await recordActivity(req, 'WORKFLOW_DELETE', {
         type: 'Workflow',
         id: workflow._id,
         name: workflow.name
@@ -779,6 +802,8 @@ exports.duplicateWorkflow = async (req, res) => {
       };
     });
 
+    const isCreatingTemplate = !projectId; // If no projectId, it's a template copy
+
     const duplicate = new Workflow({
       name: name || `${original.name} (copy)`,
       description: original.description,
@@ -786,10 +811,10 @@ exports.duplicateWorkflow = async (req, res) => {
       nodes: newNodes,
       edges: newEdges,
       status: 'draft',
-      isTemplate: !projectId, // If no projectId, it's a template copy
+      isTemplate: isCreatingTemplate,
       templateId: original.isTemplate ? original._id : original.templateId,
       projectId: projectId || null,
-      moduleId: original.moduleId,
+      moduleId: isCreatingTemplate ? original.moduleId : original.moduleId, // Can keep moduleId for tracking origin
       createdBy: req.user.id || req.user.userId || req.user._id
     });
 
@@ -815,6 +840,103 @@ exports.duplicateWorkflow = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error: ' + error.message });
   }
 };
+
+/**
+ * PRIVATE HELPER: Syncs all active instances of a workflow with the new definition
+ * (Mainly updates assignments and node data for active nodes)
+ */
+async function _syncActiveInstances(tenantConn, workflow) {
+  try {
+    const WorkflowInstance = tenantConn.model('WorkflowInstance');
+    const UserModel = tenantConn.model('User');
+    const DomainModel = tenantConn.model('Domain');
+    const RoleModel = tenantConn.model('Role');
+
+    const instances = await WorkflowInstance.find({ 
+      workflowId: workflow._id, 
+      status: 'in_progress' 
+    });
+
+    if (instances.length === 0) return;
+
+    console.log(`🔄 [Sync] Synchronizing ${instances.length} active instances for workflow: ${workflow.name}`);
+
+    for (const instance of instances) {
+      let changed = false;
+      
+      if (instance.currentNodes && Array.isArray(instance.currentNodes)) {
+        for (const currentNode of instance.currentNodes) {
+          // Find corresponding node in the NEW definition
+          const nodeDef = workflow.nodes.find(n => n.id === currentNode.nodeId);
+          if (nodeDef && nodeDef.data) {
+            const data = nodeDef.data;
+            const assignmentType = data.assignmentType || 'SINGLE';
+            const assignedId = data.assignedTo || data.assignedUser;
+
+            // Update assignment fields if they differ or to ensure consistency
+            // Note: We only update if the instance node is still 'in_progress' or 'pending'
+            if (['in_progress', 'pending'].includes(currentNode.status)) {
+              
+              // 1. Identification logic (matches processNodeTransition in WorkflowInstanceController)
+              let responsibleUser = null;
+              let responsibleDomain = data.responsibleDomain || data.domain || null;
+              let nodeAssignees = data.assigneeIds || data.validatorIds || [];
+
+              if (assignmentType === 'SINGLE' && assignedId && mongoose.Types.ObjectId.isValid(assignedId)) {
+                const domMaybe = await DomainModel.findById(assignedId);
+                if (domMaybe) {
+                  responsibleDomain = domMaybe.name;
+                } else {
+                  const roleMaybe = await RoleModel.findById(assignedId);
+                  if (roleMaybe) responsibleDomain = roleMaybe.name;
+                  else responsibleUser = assignedId;
+                }
+              } else if (assignmentType === 'ALL' && assignedId) {
+                nodeAssignees = (Array.isArray(assignedId) ? assignedId : [assignedId]);
+              } else if (assignedId && mongoose.Types.ObjectId.isValid(assignedId)) {
+                // ANY/ALL with ID
+                const domMaybe = await DomainModel.findById(assignedId) || await RoleModel.findById(assignedId);
+                if (domMaybe) {
+                   responsibleDomain = domMaybe.name;
+                } else {
+                   // User ID
+                   if (!nodeAssignees.map(id => id.toString()).includes(assignedId.toString())) {
+                       nodeAssignees.push(new mongoose.Types.ObjectId(assignedId));
+                   }
+                }
+              } else {
+                responsibleUser = data.assignedUser || (data.assigneeSelectionType === 'user' ? (data.assigneeIds?.[0]) : null);
+                responsibleDomain = data.responsibleDomain || data.domain || assignedId;
+              }
+
+              // Final resolution for domain names if stored as IDs
+              if (responsibleDomain && mongoose.Types.ObjectId.isValid(responsibleDomain)) {
+                const domObj = await DomainModel.findById(responsibleDomain) || await RoleModel.findById(responsibleDomain);
+                if (domObj) responsibleDomain = domObj.name;
+              }
+
+              // Apply updates to the instance node
+              currentNode.responsibleUser = responsibleUser;
+              currentNode.responsibleDomain = responsibleDomain;
+              currentNode.assignees = nodeAssignees;
+              currentNode.restrictedDomain = data.restrictedDomain || null;
+              currentNode.deadline = data.deadline ? new Date(data.deadline) : currentNode.deadline;
+              
+              changed = true;
+            }
+          }
+        }
+      }
+
+      if (changed) {
+        instance.markModified('currentNodes');
+        await instance.save();
+      }
+    }
+  } catch (error) {
+    console.error('❌ [Sync] Active Instances Sync Error:', error.message);
+  }
+}
 
 /**
  * PRIVATE HELPER: Automatically generates/syncs checklist

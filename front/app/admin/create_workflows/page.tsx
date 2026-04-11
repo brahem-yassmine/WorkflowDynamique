@@ -33,7 +33,7 @@ const CreateWorkflowsPage = () => {
       </div>
 
       {/* Editor Canvas Container */}
-      <div className="bg-white rounded-[40px] shadow-2xl shadow-indigo-900/10 border border-slate-100 h-[calc(100vh-320px)] min-h-[500px] overflow-hidden relative">
+      <div className="bg-white rounded-[40px] shadow-2xl shadow-indigo-900/10 border border-slate-100 h-[calc(100vh-140px)] min-h-[500px] overflow-hidden relative">
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-blue-500 to-indigo-500 opacity-50"></div>
         <WorkflowEditor />
       </div>

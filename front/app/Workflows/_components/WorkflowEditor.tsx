@@ -68,11 +68,11 @@ function WorkflowEditorContent({ onSaveSuccess }: { onSaveSuccess?: () => void }
     const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
     const [selectedNode, setSelectedNode] = useState<Node | null>(null);
-    const [workflowName, setWorkflowName] = useState('New Workflow');
+    const [workflowName, setWorkflowName] = useState(searchParams.get('isTemplate') === 'true' ? 'New Template' : 'New Workflow');
     const [workflowDomainId, setWorkflowDomainId] = useState<string>('');
     const [workflowProjectId, setWorkflowProjectId] = useState<string>('');
     const [workflowModuleId, setWorkflowModuleId] = useState<string>('');
-    const [workflowIsTemplate, setWorkflowIsTemplate] = useState<boolean>(false);
+    const [workflowIsTemplate, setWorkflowIsTemplate] = useState<boolean>(searchParams.get('isTemplate') === 'true');
     const [currentWorkflowId, setCurrentWorkflowId] = useState<string | null>(workflowId);
     
     // NEW: Capture module/domain context from URL
@@ -449,6 +449,10 @@ function WorkflowEditorContent({ onSaveSuccess }: { onSaveSuccess?: () => void }
                 const draftKey = `workflow_draft_${currentWorkflowId || 'new'}`;
                 localStorage.removeItem(draftKey);
                 
+                toast.success(currentWorkflowId 
+                    ? (meta.isTemplate ? 'Template updated!' : 'Workflow updated!') 
+                    : (meta.isTemplate ? 'Template created!' : 'Workflow created!')
+                );
                 toast.success(currentWorkflowId ? 'Workflow updated!' : 'Workflow created!');
 
                 // EXIT logic: trigger callback if provided, otherwise perform internal redirect
@@ -489,6 +493,17 @@ function WorkflowEditorContent({ onSaveSuccess }: { onSaveSuccess?: () => void }
                 localStorage.removeItem(draftKey);
                 // Also remove generic draft if it was a new creation that just got an ID
                 if (!workflowId) localStorage.removeItem('workflow_draft_new');
+
+                const savedId = currentWorkflowId || response?.data?._id;
+
+                // Redirect to the workflow dashboard space to see the dashboard and other information
+                setTimeout(() => {
+                    if (savedId) {
+                        router.push(`/admin/workflows/${savedId}`);
+                    } else {
+                        router.push('/admin/workflows');
+                    }
+                }, 1500);
             } else {
                 toast.error('Save error: ' + (response.message || 'Unknown error'));
             }
@@ -545,7 +560,7 @@ function WorkflowEditorContent({ onSaveSuccess }: { onSaveSuccess?: () => void }
             </motion.button>
             
             <div className="absolute top-4 right-[250px] z-[999]">
-                <AIGeneratorModal type="workflow" onGenerate={handleAIGeneration} />
+                <AIGeneratorModal type="workflow" isTemplate={workflowIsTemplate} onGenerate={handleAIGeneration} />
             </div>
 
             <SaveButton

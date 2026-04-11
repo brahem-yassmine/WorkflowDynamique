@@ -22,6 +22,8 @@ exports.getUsers = async (req, res) => {
 
     const users = await User.find()
       .select('-password')
+      .populate('domainId', 'name')
+      .populate('moduleId', 'name')
       .sort({ createdAt: -1 });
 
     res.json({
@@ -49,7 +51,7 @@ exports.createUser = async (req, res) => {
       });
     }
 
-    const { email, password, firstName, lastName, role, domain, specificRole, specificRoleId } = req.body;
+    const { email, password, firstName, lastName, role, domain, specificRole, specificRoleId, domainId, moduleId } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({
@@ -81,6 +83,8 @@ exports.createUser = async (req, res) => {
       domain: domain || 'HR',
       specificRole: specificRole || '',
       specificRoleId: specificRoleId || null,
+      domainId: domainId || null,
+      moduleId: moduleId || null,
       hasSelectedPlan: false
     });
 
@@ -306,8 +310,12 @@ exports.getUserTasks = async (req, res) => {
       matchingIds.push(new mongoose.Types.ObjectId(specificRoleIdStr));
     }
 
+    // CRITICAL: include current user ID as a potential "domain" (string match) 
+    // because some assignments store User IDs as strings in domain fields.
     const domainsToMatch = Array.from(new Set([
-      domain, 'GLOBAL', 'ALL', 'PUBLIC', 'TOUS', 'EVERYONE'
+      userId.toString(),
+      domain, 
+      'GLOBAL', 'ALL', 'PUBLIC', 'TOUS', 'EVERYONE'
     ])).filter(Boolean);
 
     if (domain) {
@@ -326,7 +334,8 @@ exports.getUserTasks = async (req, res) => {
     
     // Also include the NAME of the role if we found it
     if (userRole?.name) {
-      domainsToMatch.push(userRole.name, userRole.name.toUpperCase());
+      const rName = userRole.name;
+      domainsToMatch.push(rName, rName.toUpperCase(), rName.toLowerCase());
     }
 
     console.log(`🔍 [getUserTasks] User: ${user?.email} | ID: ${userId} | Matching IDs: [${matchingIds.join(', ')}] | Match Domains: ${domainsToMatch.join(', ')}`);
@@ -372,7 +381,6 @@ exports.getUserTasks = async (req, res) => {
     
     if (!isAdmin) {
       const domainRegexes = domainsToMatch.map(d => {
-          // If it's a valid ObjectId string, use exact match, else use regex i
           if (mongoose.Types.ObjectId.isValid(d)) return d;
           return new RegExp(`^${d}$`, 'i');
       });
@@ -382,10 +390,17 @@ exports.getUserTasks = async (req, res) => {
         { 'currentNodes.restrictedDomain': { $in: domainRegexes } },
         { 'currentNodes.responsibleUser': { $in: matchingIds } },
         { 'currentNodes.assignees': { $in: matchingIds } },
-        { createdBy: new mongoose.Types.ObjectId(userId) }
+        { 'currentNodes.validatorApprovals': { $in: matchingIds } },
+        { createdBy: new mongoose.Types.ObjectId(userId) },
+        // Also look for instances where the user of this domain might be a validator
+        { 'currentNodes.nodeId': { $exists: true } } // Broaden search so the loop can filter
       ];
+      
+      // If we have a lot of instances, the above catch-all might be slow, 
+      // but for "not showing up" issues, it's better to be permissive and filter in code.
       console.log(`🔍 [getUserTasks] Final query for instances:`, JSON.stringify(pendingQuery, null, 2));
     }
+
 
     const activeInstances = await WorkflowInstance.find(pendingQuery).populate({
       path: 'workflowId',
@@ -482,6 +497,24 @@ exports.getUserTasks = async (req, res) => {
 
         // 7. Final Visibility Decision
         if (isVisible) {
+          
+          // Identify if the current specific user has validator privileges for this node
+          let isUserValidator = false;
+          const vType = String(nodeDef.data?.validationType || '').toLowerCase();
+          if (vType === 'simple' || vType === 'multi') {
+              const validatorIds = nodeDef.data?.validatorIds || [];
+              isUserValidator = validatorIds.includes(userId.toString()) || 
+                               (nodeDef.data?.validatorType === 'role' && validatorIds.includes(userRoleStr)) ||
+                               isAdmin;
+          }
+
+          // If worker has finished, only validators should see it in their pending list
+          if (node.workerCompleted && !isUserValidator) {
+              isVisible = false;
+          }
+        }
+
+        if (isVisible) {
           // Add timestamp/index to ensure absolute uniqueness for parallel executions of same node
           const uniqueSuffix = node.startedAt ? new Date(node.startedAt).getTime() : index;
           const taskId = `${instance._id}_${node.nodeId}_${uniqueSuffix}`;
@@ -554,9 +587,15 @@ exports.getUserTasks = async (req, res) => {
           return tasks;
         };
 
+        // A task is "editable" (meaning awaiting validation) if it's still in currentNodes and has workerCompleted = true
+        const currentNodeEntry = instance.currentNodes.find(cn => cn.nodeId === action.nodeId);
+        const isAwaitingValidation = currentNodeEntry && currentNodeEntry.workerCompleted;
+        
         const nextExecutableIds = getNextTaskNodes(action.nodeId);
         const isActiveNext = instance.currentNodes.some(cn => nextExecutableIds.includes(cn.nodeId));
-        const isEditable = instance.status === 'in_progress' && isActiveNext;
+        
+        // It is editable if it's awaiting validation OR if the next step is already active (to allow corrections before it's too late)
+        const isEditable = (instance.status === 'in_progress' && (isAwaitingValidation || isActiveNext));
 
         workflowTasks.push({
           _id: `${instance._id}_${action.nodeId}_${new Date(action.timestamp).getTime()}`,

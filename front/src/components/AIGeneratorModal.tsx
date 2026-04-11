@@ -5,10 +5,11 @@ import { toast } from 'sonner';
 
 interface AIGeneratorModalProps {
   type: 'workflow' | 'form';
+  isTemplate?: boolean;
   onGenerate: (data: any) => void;
 }
 
-export default function AIGeneratorModal({ type, onGenerate }: AIGeneratorModalProps) {
+export default function AIGeneratorModal({ type, onGenerate, isTemplate = false }: AIGeneratorModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
@@ -30,7 +31,7 @@ export default function AIGeneratorModal({ type, onGenerate }: AIGeneratorModalP
       onGenerate(data);
       setIsOpen(false);
       setPrompt('');
-      toast.success(`${type === 'workflow' ? 'Workflow' : 'Form'} successfully generated!`);
+      toast.success(`${type === 'workflow' ? (isTemplate ? 'Template' : 'Workflow') : 'Form'} successfully generated!`);
     } catch(err: any) {
       toast.error(err.message || 'Error occurred during generation. Please try again.');
     } finally {
@@ -53,7 +54,7 @@ export default function AIGeneratorModal({ type, onGenerate }: AIGeneratorModalP
           <div className="bg-white rounded-xl shadow-[0_20px_50px_rgba(8,_112,_184,_0.7)] p-6 w-full max-w-lg border border-indigo-100">
             <div className="flex justify-between items-center mb-4">
                <h3 className="font-bold text-xl flex items-center gap-2 text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600">
-                  <Wand2 className="text-pink-500" /> AI {type === 'workflow' ? 'Workflow' : 'Form'} Generator
+                  <Wand2 className="text-pink-500" /> AI {type === 'workflow' ? (isTemplate ? 'Template' : 'Workflow') : 'Form'} Generator
                </h3>
                <button onClick={() => setIsOpen(false)} className="bg-gray-100 p-1.5 rounded-full text-gray-500 hover:text-gray-800 hover:bg-gray-200 transition-colors">
                  <X size={18} />

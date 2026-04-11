@@ -18,7 +18,8 @@ const permissionSchema = new mongoose.Schema(
     category: {
       type: String,
       enum: [
-        "DEPARTMENT",
+        "DOMAIN",
+        "MODULE",
         "WORKFLOW",
         "PROJECT",
         "KANBAN",

@@ -33,7 +33,7 @@ class ModuleController {
             await module.save();
 
             // Log activity
-            await recordActivity(req, 'CREATE_MODULE', {
+            await recordActivity(req, 'MODULE_CREATE', {
                 type: 'Module',
                 id: module._id,
                 name: module.name,
@@ -101,7 +101,7 @@ class ModuleController {
             }
 
             // Log activity
-            await recordActivity(req, 'UPDATE_MODULE', {
+            await recordActivity(req, 'MODULE_EDIT', {
                 type: 'Module',
                 id: module._id,
                 name: module.name
@@ -136,7 +136,7 @@ class ModuleController {
             }
 
             // Log activity
-            await recordActivity(req, 'DELETE_MODULE', {
+            await recordActivity(req, 'MODULE_DELETE', {
                 type: 'Module',
                 id: module._id,
                 name: module.name

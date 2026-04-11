@@ -22,6 +22,8 @@ exports.getUsers = async (req, res) => {
 
     const users = await User.find()
       .select('-password')
+      .populate('domainId', 'name')
+      .populate('moduleId', 'name')
       .sort({ createdAt: -1 });
 
     res.json({
@@ -49,7 +51,7 @@ exports.createUser = async (req, res) => {
       });
     }
 
-    const { email, password, firstName, lastName, role, domain, specificRole, specificRoleId } = req.body;
+    const { email, password, firstName, lastName, role, domain, specificRole, specificRoleId, domainId, moduleId } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({
@@ -81,6 +83,8 @@ exports.createUser = async (req, res) => {
       domain: domain || 'HR',
       specificRole: specificRole || '',
       specificRoleId: specificRoleId || null,
+      domainId: domainId || null,
+      moduleId: moduleId || null,
       hasSelectedPlan: false
     });
 

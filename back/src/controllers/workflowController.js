@@ -247,7 +247,7 @@ exports.createWorkflow = async (req, res) => {
         console.warn('⚠️ [WorkflowCtrl] Notification failure (ignored):', notifErr.message);
     }
 
-    await recordActivity(req, 'CREATE_WORKFLOW', {
+    await recordActivity(req, 'WORKFLOW_CREATE', {
       type: 'Workflow',
       id: workflow._id,
       name: workflow.name
@@ -339,7 +339,7 @@ exports.updateWorkflow = async (req, res) => {
     // 🚀 AUTOMATIC CHECKLIST SYNC
     await _triggerAutomaticChecklist(req, workflow);
 
-    await recordActivity(req, 'UPDATE_WORKFLOW', {
+    await recordActivity(req, 'WORKFLOW_EDIT', {
       type: 'Workflow',
       id: workflow._id,
       name: workflow.name
@@ -404,7 +404,7 @@ exports.deleteWorkflow = async (req, res) => {
     const workflow = await Workflow.findByIdAndDelete(workflowId);
 
     if (workflow) {
-      await recordActivity(req, 'DELETE_WORKFLOW', {
+      await recordActivity(req, 'WORKFLOW_DELETE', {
         type: 'Workflow',
         id: workflow._id,
         name: workflow.name

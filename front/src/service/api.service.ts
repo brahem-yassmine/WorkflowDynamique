@@ -291,8 +291,9 @@ class ApiService {
   }
 
   // Checklist Management
-  getChecklists() {
-    return this.request('/checklists');
+  getChecklists(params?: any) {
+    const query = params ? `?${new URLSearchParams(params).toString()}` : '';
+    return this.request(`/checklists${query}`);
   }
 
   toggleTaskStatus(id: string, taskId: string) {

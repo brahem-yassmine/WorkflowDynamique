@@ -99,7 +99,7 @@ exports.createProject = async (req, res) => {
         await project.save();
 
         // Log the activity
-        await recordActivity(req, 'CREATE_PROJECT', {
+        await recordActivity(req, 'PROJECT_CREATE', {
             type: 'Project',
             id: project._id,
             name: project.name
@@ -141,7 +141,7 @@ exports.updateProject = async (req, res) => {
 
         if (project) {
             // Log the activity
-            await recordActivity(req, 'UPDATE_PROJECT', {
+            await recordActivity(req, 'PROJECT_EDIT', {
                 type: 'Project',
                 id: project._id,
                 name: project.name
@@ -203,7 +203,7 @@ exports.deleteProject = async (req, res) => {
 
         if (project) {
             // Log the activity
-            await recordActivity(req, 'DELETE_PROJECT', {
+            await recordActivity(req, 'PROJECT_DELETE', {
                 type: 'Project',
                 id: project._id,
                 name: project.name

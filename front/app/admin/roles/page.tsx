@@ -21,7 +21,10 @@ import {
   ListChecks,
   Trello,
   Globe,
-  Package
+  Package,
+  UserPlus,
+  Activity,
+  Check
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -47,7 +50,8 @@ interface Permission {
   category: string;
 }
 
-const PERMISSION_ORDER = ['KANBAN', 'FORM', 'CHECKLIST', 'DEPARTMENT', 'TASK', 'SYSTEM'];
+const PERMISSION_ORDER = ['PROJECT', 'WORKFLOW', 'DOMAIN', 'MODULE', 'FORM', 'CHECKLIST', 'KANBAN'];
+const WIZARD_CATEGORIES = ['PROJECT', 'DOMAIN', 'MODULE', 'FORM', 'KANBAN', 'TASK'];
 
 export default function RolesPage() {
   const [roles, setRoles] = useState<Role[]>([]);
@@ -75,6 +79,18 @@ export default function RolesPage() {
   const [selectedModuleId, setSelectedModuleId] = useState<string>('');
   const [selectedDomainPermissions, setSelectedDomainPermissions] = useState<string[]>([]);
   const [selectedModulePermissions, setSelectedModulePermissions] = useState<string[]>([]);
+  
+  // Wizard State
+  const [isWizardActive, setIsWizardActive] = useState(false);
+  const [wizardStep, setWizardStep] = useState(0); // Index of WIZARD_CATEGORIES
+  
+  // User Assignment State
+  const [users, setUsers] = useState<any[]>([]);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [assignUserId, setAssignUserId] = useState('');
+  const [assignDomainId, setAssignDomainId] = useState('');
+  const [assignModuleId, setAssignModuleId] = useState('');
+  const [isAssigning, setIsAssigning] = useState(false);
 
   const activeCategories = PERMISSION_ORDER.filter(cat =>
     availablePermissions.some(p => p.category === cat)
@@ -99,17 +115,19 @@ export default function RolesPage() {
       setLoading(true);
       setError('');
 
-      const [rolesRes, permsRes, domainsRes, modulesRes] = await Promise.all([
+      const [rolesRes, permsRes, domainsRes, modulesRes, usersRes] = await Promise.all([
         api.get('/api/tenant/roles'),
         api.get('/api/tenant/roles/permissions'),
         api.get('/api/tenant/domains'),
-        api.get('/api/modules')
+        api.get('/api/modules'),
+        api.get('/api/users')
       ]);
 
       if (rolesRes.data.success) setRoles(rolesRes.data.data);
       if (permsRes.data.success) setAvailablePermissions(permsRes.data.data);
       if (domainsRes.data.success) setDomains(domainsRes.data.data);
       if (modulesRes.data.success) setModules(modulesRes.data.data);
+      if (usersRes.data.success) setUsers(usersRes.data.data);
 
     } catch (err: any) {
       console.error('❌ Initialization error:', err);
@@ -153,8 +171,6 @@ export default function RolesPage() {
         name: newRoleName.trim(),
         description: newRoleDescription,
         permissions: selectedPermissions,
-        domainId: selectedDomainId || null,
-        moduleId: selectedModuleId || null
       };
 
       const response = editingRoleId
@@ -225,11 +241,19 @@ export default function RolesPage() {
   };
 
   const togglePermission = (permName: string) => {
+    const isAdding = !selectedPermissions.includes(permName);
+    
     setSelectedPermissions(prev =>
-      prev.includes(permName)
-        ? prev.filter(p => p !== permName)
-        : [...prev, permName]
+      isAdding
+        ? [...prev, permName]
+        : prev.filter(p => p !== permName)
     );
+
+    // Contextual Wizard Trigger
+    if (isAdding && (permName === 'WORKFLOW_CREATE' || permName === 'WORKFLOW_EDIT')) {
+      setWizardStep(0);
+      setIsWizardActive(true);
+    }
   };
 
   const selectAllInCategory = (category: string) => {
@@ -252,13 +276,16 @@ export default function RolesPage() {
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
-      case 'WORKFLOW': return <Layers size={20} />;
       case 'PROJECT': return <Briefcase size={20} />;
-      case 'KANBAN': return <Trello size={20} />;
+      case 'WORKFLOW': return <Layers size={20} />;
+      case 'DOMAIN': return <Globe size={20} />;
+      case 'MODULE': return <Package size={20} />;
       case 'FORM': return <Clipboard size={20} />;
       case 'CHECKLIST': return <ListChecks size={20} />;
-      case 'SYSTEM': return <Info size={20} />;
-      default: return <CheckCircle2 size={20} />;
+      case 'TASK': return <AlertCircle size={20} />;
+      case 'KANBAN': return <Trello size={20} />;
+      case 'SYSTEM': return <Lock size={20} />;
+      default: return <Shield size={20} />;
     }
   };
 
@@ -432,34 +459,6 @@ export default function RolesPage() {
                     </p>
                   </div>
 
-                  <div className="space-y-6 mb-10">
-                    <div className="flex items-center gap-3 border-b border-slate-50 pb-6">
-                      <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
-                        <Layers size={20} />
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-black text-slate-800 tracking-tight">Organization Assignment</h3>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Linked Authority Context</p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Target Domain</label>
-                        <div className="w-full h-14 bg-slate-50 rounded-2xl px-6 flex items-center font-black text-slate-700 text-sm">
-                          {domains.find(d => d._id === selectedRole.domainId)?.name || <span className="text-slate-300 italic font-medium">Global / Unassigned</span>}
-                        </div>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Specific Module</label>
-                        <div className="w-full h-14 bg-slate-50 rounded-2xl px-6 flex items-center font-black text-slate-700 text-sm">
-                          {modules.find(m => m._id === selectedRole.moduleId)?.name || <span className="text-slate-300 italic font-medium">Global / Full Module Access</span>}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
                   <div className="space-y-8">
                     <div className="flex items-center justify-between border-b border-slate-50 pb-4 mb-6">
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
@@ -474,14 +473,23 @@ export default function RolesPage() {
 
                         if (groupPerms.length === 0) return null;
 
+                        const isWorkflowManager = (selectedRole.permissions || []).some(p => p === 'WORKFLOW_CREATE' || p === 'WORKFLOW_EDIT');
+                        const isMainWorkflowCard = cat === 'WORKFLOW' && isWorkflowManager;
+
                         return (
-                          <div key={cat} className="p-6 bg-slate-50 rounded-[28px] space-y-4 border border-slate-100/50 hover:bg-white hover:shadow-xl hover:shadow-indigo-50/50 transition-all group">
+                          <div 
+                            key={cat} 
+                            className={`p-6 bg-slate-50 rounded-[28px] space-y-4 border border-slate-100/50 hover:bg-white hover:shadow-xl hover:shadow-indigo-50/50 transition-all group ${isMainWorkflowCard ? 'md:col-span-2' : ''}`}
+                          >
                             <div className="flex items-center gap-3 text-indigo-600">
                               <div className="p-2 bg-white rounded-xl shadow-sm group-hover:bg-indigo-600 group-hover:text-white transition-all">
                                 {getCategoryIcon(cat)}
                               </div>
-                              <span className="text-[10px] font-black uppercase tracking-widest">{cat}</span>
+                              <span className="text-[10px] font-black uppercase tracking-widest">
+                                {isMainWorkflowCard ? 'Workflow & Scope Architecture' : cat}
+                              </span>
                             </div>
+
                             <div className="flex flex-wrap gap-2">
                               {groupPerms.map(p => (
                                 <span key={p} className="bg-white text-slate-700 text-[9px] font-black px-3 py-1.5 rounded-lg border border-slate-100 shadow-sm uppercase tracking-tight">
@@ -489,6 +497,37 @@ export default function RolesPage() {
                                 </span>
                               ))}
                             </div>
+
+                            {/* Nested Scope for Workflow Managers */}
+                            {isMainWorkflowCard && (
+                              <div className="mt-8 pt-6 border-t border-slate-100 space-y-6">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Configuration Scope</p>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                  {WIZARD_CATEGORIES.map(scopeCat => {
+                                    const scopePerms = (selectedRole.permissions || []).filter(pName =>
+                                      availablePermissions.find(ap => ap.name === pName)?.category === scopeCat
+                                    );
+                                    if (scopePerms.length === 0) return null;
+
+                                    return (
+                                      <div key={scopeCat} className="bg-white/50 p-4 rounded-2xl border border-slate-50">
+                                        <div className="flex items-center gap-2 mb-2">
+                                          <div className="text-slate-400">{getCategoryIcon(scopeCat)}</div>
+                                          <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{scopeCat}</p>
+                                        </div>
+                                        <div className="flex flex-wrap gap-1">
+                                          {scopePerms.map(p => (
+                                            <span key={p} className="text-[8px] font-bold text-indigo-600 bg-indigo-50/50 px-2 py-1 rounded-md uppercase">
+                                              {p.split('_').slice(1).join(' ')}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         );
                       })}
@@ -510,6 +549,18 @@ export default function RolesPage() {
                     <Edit3 size={18} />
                     Modify Permissions
                   </button>
+                  <button
+                    onClick={() => {
+                        setAssignUserId('');
+                        setAssignDomainId('');
+                        setAssignModuleId('');
+                        setIsAssignModalOpen(true);
+                    }}
+                    className="flex-[1.5] py-5 bg-emerald-600 text-white rounded-[24px] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-emerald-700 transition-all active:scale-95 shadow-xl shadow-emerald-100"
+                  >
+                    <UserPlus size={18} />
+                    Add
+                  </button>
                   {!(selectedRole.isSystemRole || selectedRole.isDefault) && (
                     <button 
                       onClick={() => {
@@ -522,6 +573,148 @@ export default function RolesPage() {
                       Purge
                     </button>
                   )}
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* User Assignment Modal */}
+        <AnimatePresence>
+          {isAssignModalOpen && selectedRole && (
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setIsAssignModalOpen(false)}
+                className="absolute inset-0 bg-slate-900/60 backdrop-blur-lg"
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="bg-white rounded-[40px] shadow-2xl w-full max-w-2xl relative z-10 overflow-hidden border border-slate-100 flex flex-col"
+              >
+                <div className="bg-indigo-600 p-10 text-white relative">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h2 className="text-2xl font-black tracking-tight uppercase">Custom Authority Assignment</h2>
+                      <p className="text-indigo-200 text-xs font-bold uppercase tracking-widest mt-1">
+                        Role: {selectedRole.name}
+                      </p>
+                    </div>
+                    <button onClick={() => setIsAssignModalOpen(false)} className="p-3 hover:bg-indigo-500 rounded-2xl transition-all">
+                      <X size={24} />
+                    </button>
+                  </div>
+                  <div className="absolute bottom-0 left-0 h-1.5 bg-indigo-500 w-full font-black text-[10px] uppercase tracking-widest">
+                    <div className="h-full bg-white w-full shadow-[0_0_10px_white]" />
+                  </div>
+                </div>
+
+                <div className="p-10 space-y-8 overflow-y-auto custom-scrollbar max-h-[60vh]">
+                  <div className="flex items-center gap-3 border-b border-slate-50 pb-6">
+                    <div className="w-12 h-12 bg-indigo-50 rounded-[20px] flex items-center justify-center text-indigo-600">
+                      <UserPlus size={24} />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-slate-800 tracking-tight">Persona Selection</h3>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Select target persona for matrix injection</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Target Persona</label>
+                      <select
+                        value={assignUserId}
+                        onChange={(e) => setAssignUserId(e.target.value)}
+                        className="w-full h-14 bg-slate-50 rounded-2xl px-6 font-black text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none text-sm transition-all appearance-none cursor-pointer"
+                      >
+                        <option value="">Select a Persona...</option>
+                        {users.map(u => (
+                          <option key={u._id} value={u._id}>{u.firstName} {u.lastName} ({u.email})</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Target Domain</label>
+                        <select
+                          value={assignDomainId}
+                          onChange={(e) => {
+                            setAssignDomainId(e.target.value);
+                            setAssignModuleId('');
+                          }}
+                          className="w-full h-14 bg-slate-50 rounded-2xl px-6 font-black text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none text-sm transition-all appearance-none cursor-pointer"
+                        >
+                          <option value="">Select Domain...</option>
+                          {domains.map(d => (
+                            <option key={d._id} value={d._id}>{d.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Specific Module</label>
+                        <select
+                          value={assignModuleId}
+                          onChange={(e) => setAssignModuleId(e.target.value)}
+                          disabled={!assignDomainId}
+                          className="w-full h-14 bg-slate-50 rounded-2xl px-6 font-black text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none text-sm transition-all appearance-none cursor-pointer disabled:opacity-50"
+                        >
+                          <option value="">Select Module...</option>
+                          {modules
+                            .filter(m => (m.domainId?._id || m.domainId) === assignDomainId)
+                            .map(m => (
+                              <option key={m._id} value={m._id}>{m.name}</option>
+                            ))
+                          }
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-8 border-t border-slate-100 bg-slate-50/30 flex justify-end gap-4">
+                  <button
+                    onClick={() => setIsAssignModalOpen(false)}
+                    className="px-8 py-4 text-slate-400 font-black hover:text-slate-600 transition-all uppercase text-[10px] tracking-widest"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (!assignUserId || !selectedRole) return;
+                      try {
+                        setIsAssigning(true);
+                        await api.put(`/api/users/${assignUserId}`, {
+                          specificRoleId: selectedRole._id,
+                          specificRole: selectedRole.name,
+                          domainId: assignDomainId || null,
+                          moduleId: assignModuleId || null
+                        });
+                        setIsAssignModalOpen(false);
+                        loadInitialData();
+                        // Reset forms
+                        setAssignUserId('');
+                        setAssignDomainId('');
+                        setAssignModuleId('');
+                      } catch (err: any) {
+                        console.error('❌ Assignment error:', err);
+                        alert(err.response?.data?.message || 'Matrix injection failed');
+                      } finally {
+                        setIsAssigning(false);
+                      }
+                    }}
+                    disabled={isAssigning || !assignUserId}
+                    className="px-10 py-5 bg-emerald-600 text-white rounded-[24px] font-black shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all active:scale-95 uppercase text-[10px] tracking-widest disabled:opacity-50 flex items-center justify-center gap-3"
+                  >
+                    {isAssigning ? 'Updating Matrix...' : 'Commit Node to Matrix'}
+                    <Shield size={18} />
+                  </button>
                 </div>
               </motion.div>
             </div>
@@ -551,10 +744,8 @@ export default function RolesPage() {
                     <h2 className="text-2xl font-black tracking-tight">{editingRoleId ? 'Modify Existing Authority' : 'Construct New Authority Node'}</h2>
                     {currentStep === 0 ? (
                       <p className="text-indigo-200 text-xs font-bold uppercase tracking-widest mt-1">Step 1: Identity Profile</p>
-                    ) : currentStep <= activeCategories.length ? (
-                      <p className="text-indigo-200 text-xs font-bold uppercase tracking-widest mt-1">Step {currentStep + 1}: {currentCategory} Matrix</p>
                     ) : (
-                      <p className="text-indigo-200 text-xs font-bold uppercase tracking-widest mt-1">Step {activeCategories.length + 2}: Organization Assignment</p>
+                      <p className="text-indigo-200 text-xs font-bold uppercase tracking-widest mt-1">Step {currentStep + 1}: {currentCategory} Matrix</p>
                     )}
                   </div>
                   <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-indigo-500 rounded-xl transition-all">
@@ -567,7 +758,7 @@ export default function RolesPage() {
                   <motion.div
                     className="h-full bg-white shadow-[0_0_10px_white]"
                     initial={{ width: 0 }}
-                    animate={{ width: `${((currentStep + 1) / (activeCategories.length + 2)) * 100}%` }}
+                    animate={{ width: `${((currentStep + 1) / (activeCategories.length + 1)) * 100}%` }}
                   />
                 </div>
               </div>
@@ -596,7 +787,7 @@ export default function RolesPage() {
                       </div>
                     </div>
                   </div>
-                ) : currentStep <= activeCategories.length ? (
+                ) : (
                   <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
                     <div className="flex items-center justify-between border-b border-slate-50 pb-6 mb-6">
                       <div className="flex items-center gap-3">
@@ -652,65 +843,28 @@ export default function RolesPage() {
                               {selectedPermissions.includes(permission.name) && <CheckCircle2 size={14} className="stroke-[4]" />}
                             </div>
                             <div>
-                              <p className="text-sm font-black text-slate-700">{permission.name.replace(`${currentCategory}_`, '')}</p>
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-black text-slate-700">{permission.name.replace(`${currentCategory}_`, '').replace(/_/g, ' ')}</p>
+                                {(permission.name === 'WORKFLOW_CREATE' || permission.name === 'WORKFLOW_EDIT') && selectedPermissions.includes(permission.name) && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setWizardStep(0);
+                                      setIsWizardActive(true);
+                                    }}
+                                    className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-all border border-indigo-100"
+                                    title="Configure Scope"
+                                  >
+                                    <Layers size={12} />
+                                  </button>
+                                )}
+                              </div>
                               <p className="text-xs text-slate-400 font-medium leading-tight mt-0.5">{permission.description}</p>
                             </div>
                           </label>
                         ))
                       }
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
-                    <div className="space-y-6">
-                      <div className="flex items-center gap-3 border-b border-slate-50 pb-6">
-                        <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
-                          <Layers size={20} />
-                        </div>
-                        <div>
-                          <h3 className="text-xl font-black text-slate-800 tracking-tight">Organization Assignment</h3>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Assign this authority node to a specific Domain & Module</p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Target Domain</label>
-                          <select
-                            value={selectedDomainId}
-                            onChange={(e) => {
-                              setSelectedDomainId(e.target.value);
-                              setSelectedModuleId(''); // Reset module when domain changes
-                            }}
-                            className="w-full h-14 bg-slate-50 rounded-2xl px-6 font-black text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none text-sm transition-all appearance-none cursor-pointer"
-                          >
-                            <option value="">Select an Authority Domain...</option>
-                            {domains.map(d => (
-                              <option key={d._id} value={d._id}>{d.name}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Specific Module</label>
-                          <select
-                            value={selectedModuleId}
-                            onChange={(e) => setSelectedModuleId(e.target.value)}
-                            disabled={!selectedDomainId}
-                            className="w-full h-14 bg-slate-50 rounded-2xl px-6 font-black text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none text-sm transition-all appearance-none cursor-pointer disabled:opacity-50"
-                          >
-                            <option value="">Select a Functional Module...</option>
-                            {modules
-                              .filter(m => m.domainId === selectedDomainId || m.domainId?._id === selectedDomainId)
-                              .map(m => (
-                                <option key={m._id} value={m._id}>{m.name}</option>
-                              ))
-                            }
-                          </select>
-                        </div>
-                      </div>
-
-
                     </div>
                   </div>
                 )}
@@ -728,7 +882,7 @@ export default function RolesPage() {
 
                 <div className="flex-grow"></div>
 
-                {currentStep <= activeCategories.length ? (
+                {currentStep < activeCategories.length ? (
                   <button
                     onClick={() => setCurrentStep(prev => prev + 1)}
                     disabled={currentStep === 0 && !newRoleName}
@@ -840,6 +994,125 @@ export default function RolesPage() {
                 >
                   Confirm Purge
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Workflow Scope Configuration Wizard (Sub-Modal) */}
+      <AnimatePresence>
+        {isWizardActive && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-950/80 backdrop-blur-2xl"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 30 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 30 }}
+              className="bg-white rounded-[32px] shadow-2xl w-full max-w-2xl relative z-10 overflow-hidden border border-white/20 flex flex-col h-[80vh] max-h-[700px]"
+            >
+              {/* Wizard Header */}
+              <div className="bg-indigo-600 p-10 text-white relative shrink-0">
+                <div className="flex justify-between items-center relative z-10">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-md border border-white/20">
+                      {getCategoryIcon(WIZARD_CATEGORIES[wizardStep])}
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-black tracking-tight uppercase">Workflow Scope Configuration</h2>
+                      <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-widest mt-1">
+                        Step {wizardStep + 1} of {WIZARD_CATEGORIES.length}: {WIZARD_CATEGORIES[wizardStep]} Matrix
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Scope Progress Bar */}
+                <div className="absolute bottom-0 left-0 h-2 bg-indigo-700 w-full">
+                  <motion.div
+                    className="h-full bg-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.5)]"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${((wizardStep + 1) / WIZARD_CATEGORIES.length) * 100}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Wizard Content */}
+              <div className="flex-grow overflow-y-auto p-10 bg-slate-50/30">
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">Available {WIZARD_CATEGORIES[wizardStep]} Permissions</h4>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed mt-1">
+                        Define what users with this workflow role can access in this sector.
+                      </p>
+                    </div>
+                    <div className="bg-white px-4 py-2 rounded-xl text-[10px] font-black text-indigo-600 border border-indigo-50 shadow-sm">
+                      {selectedPermissions.filter(p => availablePermissions.find(ap => ap.name === p)?.category === WIZARD_CATEGORIES[wizardStep]).length} Selected
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3">
+                    {availablePermissions
+                      .filter(p => p.category === WIZARD_CATEGORIES[wizardStep])
+                      .map(permission => (
+                        <label
+                          key={permission._id}
+                          className={`flex items-center gap-4 p-5 rounded-2xl cursor-pointer transition-all border-2 ${selectedPermissions.includes(permission.name) ? 'bg-indigo-50/40 border-indigo-200' : 'bg-white border-slate-100/50 hover:border-indigo-100 shadow-sm'}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedPermissions.includes(permission.name)}
+                            onChange={() => togglePermission(permission.name)}
+                            className="hidden"
+                          />
+                          <div className={`w-6 h-6 rounded-lg flex items-center justify-center border-2 transition-all ${selectedPermissions.includes(permission.name) ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-200'}`}>
+                            {selectedPermissions.includes(permission.name) && <Check size={14} className="stroke-[3]" />}
+                          </div>
+                          <div>
+                            <p className="text-sm font-black text-slate-700">{permission.name.replace(`${WIZARD_CATEGORIES[wizardStep]}_`, '').replace(/_/g, ' ')}</p>
+                            <p className="text-xs text-slate-400 font-medium leading-tight mt-0.5">{permission.description}</p>
+                          </div>
+                        </label>
+                      ))
+                    }
+                  </div>
+                </div>
+              </div>
+
+              {/* Wizard Footer */}
+              <div className="p-8 border-t border-slate-100 flex gap-4 bg-white shrink-0">
+                {wizardStep > 0 && (
+                  <button
+                    onClick={() => setWizardStep(prev => prev - 1)}
+                    className="px-8 py-4 text-slate-400 font-black hover:text-slate-600 transition-all uppercase text-[10px] tracking-widest"
+                  >
+                    Back Level
+                  </button>
+                )}
+                <div className="flex-grow"></div>
+                {wizardStep < WIZARD_CATEGORIES.length - 1 ? (
+                  <button
+                    onClick={() => setWizardStep(prev => prev + 1)}
+                    className="px-10 py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 uppercase text-[10px] tracking-widest flex items-center gap-2"
+                  >
+                    Next Sector
+                    <ChevronRight size={16} />
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setIsWizardActive(false)}
+                    className="px-10 py-4 bg-emerald-600 text-white rounded-2xl font-black shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all active:scale-95 uppercase text-[10px] tracking-widest flex items-center justify-center gap-2"
+                  >
+                    <CheckCircle2 size={16} />
+                    Save Configuration
+                  </button>
+                )}
               </div>
             </motion.div>
           </div>

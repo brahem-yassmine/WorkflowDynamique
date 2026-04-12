@@ -290,6 +290,13 @@ class ApiService {
     });
   }
 
+  updateFormStatus(id: string, status: string) {
+    return this.request(`/forms/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+  }
+
   // Checklist Management
   getChecklists(params?: any) {
     const query = params ? `?${new URLSearchParams(params).toString()}` : '';

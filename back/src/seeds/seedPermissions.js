@@ -16,6 +16,7 @@ const permissions = [
   { name: 'WORKFLOW_VIEW', description: 'Can view workflow designs', category: 'WORKFLOW' },
 
   // --- DOMAIN ---
+  { name: 'DOMAIN_ADD', description: 'Can add domains to specific workflows or scopes', category: 'DOMAIN' },
   { name: 'DOMAIN_CREATE', description: 'Can create new administrative domains', category: 'DOMAIN' },
   { name: 'DOMAIN_DELETE', description: 'Can remove administrative domains', category: 'DOMAIN' },
   { name: 'DOMAIN_EDIT', description: 'Can update domain configurations', category: 'DOMAIN' },
@@ -43,19 +44,25 @@ const permissions = [
   { name: 'CHECKLIST_CREATE', description: 'Can initialize new standalone checklists', category: 'CHECKLIST' },
   { name: 'CHECKLIST_DELETE', description: 'Can remove checklist matrices', category: 'CHECKLIST' },
   { name: 'CHECKLIST_EDIT', description: 'Can modify checklist tasks and properties', category: 'CHECKLIST' },
+  { name: 'CHECKLIST_VIEW', description: 'Can view checklist outlines and items', category: 'CHECKLIST' },
+  { name: 'CHECKLIST_MANAGE_STATUS', description: 'Manage status (Draft or Completed)', category: 'CHECKLIST' },
 
   // --- TASK ---
-  { name: 'TASK_CREATE', description: 'Can create new tasks', category: 'TASK' },
-  { name: 'TASK_ASSIGN_TO_USER', description: 'Can assign tasks to users or groups', category: 'TASK' },
-  { name: 'TASK_MANAGE_VALIDATION', description: 'Manage validation (multi ou simple)', category: 'TASK' },
-  { name: 'TASK_ASSIGN_KANBAN', description: 'Assign kanban ou non', category: 'TASK' },
-  { name: 'TASK_EDIT', description: 'Can modify task details and execution parameters', category: 'TASK' },
-  { name: 'TASK_VIEW', description: 'Can view task progress and details', category: 'TASK' },
-  { name: 'TASK_ACTION', description: 'Action (pour importer doc/image/form ou ecrire report)', category: 'TASK' },
+  { name: 'TASK_ACTION', description: 'Action (importer image/doc/form et ecrire report)', category: 'TASK' },
+  { name: 'TASK_ASSIGN_TO_USER', description: 'Can assign tasks to personas', category: 'TASK' },
+  { name: 'TASK_ASSIGN_KANBAN', description: 'Can assign tasks to kanban boards', category: 'TASK' },
+  { name: 'TASK_EDIT', description: 'Can modify task parameters', category: 'TASK' },
+  { name: 'TASK_VIEW', description: 'Can view task details', category: 'TASK' },
+
+  // --- TASK ACTION SCOPE ---
+  { name: 'TASK_ACTION_WRITE_REPORT', description: 'Can write and submit reports', category: 'TASK_ACTION_SCOPE' },
+  { name: 'TASK_ACTION_IMPORT_IMAGE', description: 'Can upload and attach images', category: 'TASK_ACTION_SCOPE' },
+  { name: 'TASK_ACTION_IMPORT_DOCUMENT', description: 'Can upload and attach documents', category: 'TASK_ACTION_SCOPE' },
+  { name: 'TASK_ACTION_ASSIGN_FORM', description: 'Can assign and link dynamic forms', category: 'TASK_ACTION_SCOPE' },
 
   // --- KANBAN ---
-  { name: 'KANBAN_VIEW', description: 'Can view kanban boards', category: 'KANBAN' },
-  { name: 'KANBAN_MANAGE', description: 'Can manage kanban cards and columns', category: 'KANBAN' }
+  { name: 'KANBAN_CREATE', description: 'Can create and initialize new kanban boards', category: 'KANBAN' },
+  { name: 'KANBAN_VIEW', description: 'Can view kanban board structures', category: 'KANBAN' }
 ];
 
 async function seedPermissions(masterConnection) {

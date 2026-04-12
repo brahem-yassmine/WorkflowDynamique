@@ -26,6 +26,7 @@ const permissionSchema = new mongoose.Schema(
         "FORM",
         "CHECKLIST",
         "TASK",
+        "TASK_ACTION_SCOPE",
       ],
       required: true
     }

@@ -27,7 +27,7 @@ const dynamicFormSchema = new mongoose.Schema({
     steps: [stepSchema],
     status: {
         type: String,
-        enum: ['draft', 'published', 'archived', 'approved', 'rejected'],
+        enum: ['draft', 'published', 'archived', 'approved', 'rejected', 'completed'],
         default: 'draft'
     },
     // Note: tenantId is removed here as it is implicit in the tenant-specific database

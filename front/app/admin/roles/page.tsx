@@ -50,8 +50,9 @@ interface Permission {
   category: string;
 }
 
-const PERMISSION_ORDER = ['PROJECT', 'WORKFLOW', 'DOMAIN', 'MODULE', 'FORM', 'CHECKLIST', 'KANBAN'];
+const PERMISSION_ORDER = ['PROJECT', 'WORKFLOW', 'DOMAIN', 'MODULE', 'FORM', 'CHECKLIST'];
 const WIZARD_CATEGORIES = ['PROJECT', 'DOMAIN', 'MODULE', 'FORM', 'KANBAN', 'TASK'];
+const TASK_ACTION_SCOPE_CATEGORIES = ['TASK_ACTION_SCOPE'];
 
 export default function RolesPage() {
   const [roles, setRoles] = useState<Role[]>([]);
@@ -83,6 +84,10 @@ export default function RolesPage() {
   // Wizard State
   const [isWizardActive, setIsWizardActive] = useState(false);
   const [wizardStep, setWizardStep] = useState(0); // Index of WIZARD_CATEGORIES
+
+  // Task Action Scope State
+  const [isTaskActionScopeActive, setIsTaskActionScopeActive] = useState(false);
+  const [taskActionScopeStep, setTaskActionScopeStep] = useState(0);
   
   // User Assignment State
   const [users, setUsers] = useState<any[]>([]);
@@ -171,6 +176,8 @@ export default function RolesPage() {
         name: newRoleName.trim(),
         description: newRoleDescription,
         permissions: selectedPermissions,
+        domainId: selectedDomainId || null,
+        moduleId: selectedModuleId || null
       };
 
       const response = editingRoleId
@@ -250,9 +257,14 @@ export default function RolesPage() {
     );
 
     // Contextual Wizard Trigger
-    if (isAdding && (permName === 'WORKFLOW_CREATE' || permName === 'WORKFLOW_EDIT')) {
-      setWizardStep(0);
-      setIsWizardActive(true);
+    if (isAdding) {
+      if (permName === 'WORKFLOW_CREATE' || permName === 'WORKFLOW_EDIT') {
+        setWizardStep(0);
+        setIsWizardActive(true);
+      } else if (permName === 'TASK_ACTION') {
+        setTaskActionScopeStep(0);
+        setIsTaskActionScopeActive(true);
+      }
     }
   };
 
@@ -285,6 +297,7 @@ export default function RolesPage() {
       case 'TASK': return <AlertCircle size={20} />;
       case 'KANBAN': return <Trello size={20} />;
       case 'SYSTEM': return <Lock size={20} />;
+      case 'TASK_ACTION_SCOPE': return <Activity size={20} />;
       default: return <Shield size={20} />;
     }
   };
@@ -457,6 +470,37 @@ export default function RolesPage() {
                     <p className="text-sm font-medium text-slate-500 leading-relaxed mt-4">
                       {selectedRole.description || 'This authority node defines a specific perimeter of rights and responsibilities within the organizational lattice.'}
                     </p>
+
+                    {((selectedRole as any).domainId || (selectedRole as any).moduleId) && (
+                      <div className="flex flex-wrap gap-4 mt-8">
+                        {(selectedRole as any).domainId && (
+                          <div className="bg-slate-50 px-4 py-3 rounded-2xl border border-slate-100 flex items-center gap-3">
+                            <div className="text-indigo-600">
+                               <Globe size={16} />
+                            </div>
+                            <div>
+                               <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Domain Scope</p>
+                               <p className="text-xs font-black text-slate-700 tracking-tight">
+                                 {domains.find(d => d._id === ((selectedRole as any).domainId?._id || (selectedRole as any).domainId))?.name || 'Assigned Domain'}
+                               </p>
+                            </div>
+                          </div>
+                        )}
+                        {(selectedRole as any).moduleId && (
+                          <div className="bg-slate-50 px-4 py-3 rounded-2xl border border-slate-100 flex items-center gap-3">
+                            <div className="text-indigo-600">
+                               <Package size={16} />
+                            </div>
+                            <div>
+                               <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Module Scope</p>
+                               <p className="text-xs font-black text-slate-700 tracking-tight">
+                                 {modules.find(m => m._id === ((selectedRole as any).moduleId?._id || (selectedRole as any).moduleId))?.name || 'Assigned Module'}
+                               </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-8">
@@ -498,6 +542,25 @@ export default function RolesPage() {
                               ))}
                             </div>
 
+                            {/* Task Action Nested Scope Display */}
+                            {cat === 'TASK' && groupPerms.includes('TASK_ACTION') && (
+                              <div className="mt-4 pt-4 border-t border-slate-100 space-y-3">
+                                <div className="flex items-center gap-2">
+                                  <Activity size={12} className="text-indigo-400" />
+                                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">Appliqué à Action</p>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  {(selectedRole.permissions || [])
+                                    .filter(pName => availablePermissions.find(ap => ap.name === pName)?.category === 'TASK_ACTION_SCOPE')
+                                    .map(p => (
+                                      <span key={p} className="text-[8px] font-bold text-indigo-600 bg-indigo-50/50 px-2 py-1 rounded-md uppercase">
+                                        {p.replace('TASK_ACTION_', '').replace(/_/g, ' ')}
+                                      </span>
+                                    ))}
+                                </div>
+                              </div>
+                            )}
+
                             {/* Nested Scope for Workflow Managers */}
                             {isMainWorkflowCard && (
                               <div className="mt-8 pt-6 border-t border-slate-100 space-y-6">
@@ -522,6 +585,25 @@ export default function RolesPage() {
                                             </span>
                                           ))}
                                         </div>
+
+                                        {/* Nested Task Action Scope Display for Wizard/Scope mode */}
+                                        {scopeCat === 'TASK' && scopePerms.includes('TASK_ACTION') && (
+                                          <div className="mt-3 pt-3 border-t border-slate-100 space-y-2 w-full">
+                                            <div className="flex items-center gap-1.5 px-1">
+                                              <Activity size={10} className="text-indigo-400" />
+                                              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">Attached to action</p>
+                                            </div>
+                                            <div className="flex flex-wrap gap-1 px-1">
+                                              {(selectedRole.permissions || [])
+                                                .filter(pName => availablePermissions.find(ap => ap.name === pName)?.category === 'TASK_ACTION_SCOPE')
+                                                .map(p => (
+                                                  <span key={p} className="text-[7px] font-bold text-slate-500 bg-slate-100/80 px-1.5 py-0.5 rounded uppercase border border-slate-200/50">
+                                                    {p.replace('TASK_ACTION_', '').replace(/_/g, ' ')}
+                                                  </span>
+                                                ))}
+                                            </div>
+                                          </div>
+                                        )}
                                       </div>
                                     );
                                   })}
@@ -552,14 +634,14 @@ export default function RolesPage() {
                   <button
                     onClick={() => {
                         setAssignUserId('');
-                        setAssignDomainId('');
-                        setAssignModuleId('');
+                        setAssignDomainId((selectedRole as any).domainId || '');
+                        setAssignModuleId((selectedRole as any).moduleId || '');
                         setIsAssignModalOpen(true);
                     }}
                     className="flex-[1.5] py-5 bg-emerald-600 text-white rounded-[24px] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-emerald-700 transition-all active:scale-95 shadow-xl shadow-emerald-100"
                   >
-                    <UserPlus size={18} />
-                    Add
+                    <Globe size={18} />
+                    Add 
                   </button>
                   {!(selectedRole.isSystemRole || selectedRole.isDefault) && (
                     <button 
@@ -599,9 +681,9 @@ export default function RolesPage() {
                 <div className="bg-indigo-600 p-10 text-white relative">
                   <div className="flex justify-between items-center">
                     <div>
-                      <h2 className="text-2xl font-black tracking-tight uppercase">Custom Authority Assignment</h2>
+                      <h2 className="text-2xl font-black tracking-tight uppercase">Authority Scope Assignment</h2>
                       <p className="text-indigo-200 text-xs font-bold uppercase tracking-widest mt-1">
-                        Role: {selectedRole.name}
+                        Node: {selectedRole.name}
                       </p>
                     </div>
                     <button onClick={() => setIsAssignModalOpen(false)} className="p-3 hover:bg-indigo-500 rounded-2xl transition-all">
@@ -616,28 +698,15 @@ export default function RolesPage() {
                 <div className="p-10 space-y-8 overflow-y-auto custom-scrollbar max-h-[60vh]">
                   <div className="flex items-center gap-3 border-b border-slate-50 pb-6">
                     <div className="w-12 h-12 bg-indigo-50 rounded-[20px] flex items-center justify-center text-indigo-600">
-                      <UserPlus size={24} />
+                      <Globe size={24} />
                     </div>
                     <div>
-                      <h3 className="text-xl font-black text-slate-800 tracking-tight">Persona Selection</h3>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Select target persona for matrix injection</p>
+                      <h3 className="text-xl font-black text-slate-800 tracking-tight">Scope Configuration</h3>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bind this authority to a matrix coordinate</p>
                     </div>
                   </div>
 
                   <div className="space-y-6">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Target Persona</label>
-                      <select
-                        value={assignUserId}
-                        onChange={(e) => setAssignUserId(e.target.value)}
-                        className="w-full h-14 bg-slate-50 rounded-2xl px-6 font-black text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none text-sm transition-all appearance-none cursor-pointer"
-                      >
-                        <option value="">Select a Persona...</option>
-                        {users.map(u => (
-                          <option key={u._id} value={u._id}>{u.firstName} {u.lastName} ({u.email})</option>
-                        ))}
-                      </select>
-                    </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-1.5">
@@ -687,17 +756,16 @@ export default function RolesPage() {
                   </button>
                   <button
                     onClick={async () => {
-                      if (!assignUserId || !selectedRole) return;
+                      if (!selectedRole) return;
                       try {
                         setIsAssigning(true);
-                        await api.put(`/api/users/${assignUserId}`, {
-                          specificRoleId: selectedRole._id,
-                          specificRole: selectedRole.name,
+                        await api.put(`/api/tenant/roles/${selectedRole._id}`, {
                           domainId: assignDomainId || null,
                           moduleId: assignModuleId || null
                         });
                         setIsAssignModalOpen(false);
-                        loadInitialData();
+                        loadRoles();
+                        setSelectedRole(null); // Close inspector to refresh view if needed
                         // Reset forms
                         setAssignUserId('');
                         setAssignDomainId('');
@@ -709,7 +777,7 @@ export default function RolesPage() {
                         setIsAssigning(false);
                       }
                     }}
-                    disabled={isAssigning || !assignUserId}
+                    disabled={isAssigning}
                     className="px-10 py-5 bg-emerald-600 text-white rounded-[24px] font-black shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all active:scale-95 uppercase text-[10px] tracking-widest disabled:opacity-50 flex items-center justify-center gap-3"
                   >
                     {isAssigning ? 'Updating Matrix...' : 'Commit Node to Matrix'}
@@ -829,40 +897,101 @@ export default function RolesPage() {
                       {availablePermissions
                         .filter(p => p.category === currentCategory)
                         .map(permission => (
-                          <label
-                            key={permission._id}
-                            className={`flex items-center gap-4 p-5 rounded-2xl cursor-pointer transition-all border-2 ${selectedPermissions.includes(permission.name) ? 'bg-indigo-50/50 border-indigo-200' : 'bg-white border-slate-50 hover:border-slate-100 hover:bg-slate-50/30'}`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedPermissions.includes(permission.name)}
-                              onChange={() => togglePermission(permission.name)}
-                              className="hidden"
-                            />
-                            <div className={`w-6 h-6 rounded-lg flex items-center justify-center border-2 transition-all ${selectedPermissions.includes(permission.name) ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-200'}`}>
-                              {selectedPermissions.includes(permission.name) && <CheckCircle2 size={14} className="stroke-[4]" />}
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <p className="text-sm font-black text-slate-700">{permission.name.replace(`${currentCategory}_`, '').replace(/_/g, ' ')}</p>
-                                {(permission.name === 'WORKFLOW_CREATE' || permission.name === 'WORKFLOW_EDIT') && selectedPermissions.includes(permission.name) && (
-                                  <button
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      setWizardStep(0);
-                                      setIsWizardActive(true);
-                                    }}
-                                    className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-all border border-indigo-100"
-                                    title="Configure Scope"
-                                  >
-                                    <Layers size={12} />
-                                  </button>
-                                )}
+                          <div key={permission._id} className="space-y-3">
+                            <label
+                              className={`flex items-center gap-4 p-5 rounded-2xl cursor-pointer transition-all border-2 ${selectedPermissions.includes(permission.name) ? 'bg-indigo-50/50 border-indigo-200' : 'bg-white border-slate-50 hover:border-slate-100 hover:bg-slate-50/30'}`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedPermissions.includes(permission.name)}
+                                onChange={() => togglePermission(permission.name)}
+                                className="hidden"
+                              />
+                              <div className={`w-6 h-6 rounded-lg flex items-center justify-center border-2 transition-all ${selectedPermissions.includes(permission.name) ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-200'}`}>
+                                {selectedPermissions.includes(permission.name) && <CheckCircle2 size={14} className="stroke-[4]" />}
                               </div>
-                              <p className="text-xs text-slate-400 font-medium leading-tight mt-0.5">{permission.description}</p>
-                            </div>
-                          </label>
+                              <div className="flex-grow">
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm font-black text-slate-700">{permission.name.replace(`${currentCategory}_`, '').replace(/_/g, ' ')}</p>
+                                  {(permission.name === 'WORKFLOW_CREATE' || permission.name === 'WORKFLOW_EDIT' || permission.name === 'TASK_ACTION') && selectedPermissions.includes(permission.name) && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        if (permission.name === 'TASK_ACTION') {
+                                          setTaskActionScopeStep(0);
+                                          setIsTaskActionScopeActive(true);
+                                        } else {
+                                          setWizardStep(0);
+                                          setIsWizardActive(true);
+                                        }
+                                      }}
+                                      className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-all border border-indigo-100"
+                                      title="Configure Scope"
+                                    >
+                                      <Layers size={12} />
+                                    </button>
+                                  )}
+                                </div>
+                                <p className="text-xs text-slate-400 font-medium leading-tight mt-0.5">{permission.description}</p>
+                              </div>
+                            </label>
+
+                            {/* Applied to Action Sub-section */}
+                            {permission.name === 'TASK_ACTION' && selectedPermissions.includes(permission.name) && (
+                              <div className="ml-10 p-5 bg-indigo-50/30 border border-indigo-100/50 rounded-2xl space-y-4 animate-in slide-in-from-top-2 duration-300">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <Activity size={14} className="text-indigo-400" />
+                                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Appliqué à Action</p>
+                                  </div>
+                                  <div className="flex items-center gap-3">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); selectAllInCategory('TASK_ACTION_SCOPE'); }}
+                                      className="text-[9px] font-black text-indigo-500 hover:text-indigo-700 transition-all uppercase tracking-widest"
+                                    >
+                                      Select All
+                                    </button>
+                                    <span className="text-slate-300 text-[9px]">|</span>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); deselectAllInCategory('TASK_ACTION_SCOPE'); }}
+                                      className="text-[9px] font-black text-slate-400 hover:text-slate-600 transition-all uppercase tracking-widest"
+                                    >
+                                      Deselect All
+                                    </button>
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                  {availablePermissions
+                                    .filter(p => p.category === 'TASK_ACTION_SCOPE')
+                                    .map(subPerm => (
+                                      <label
+                                        key={subPerm._id}
+                                        className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border ${selectedPermissions.includes(subPerm.name) ? 'bg-white border-indigo-200 shadow-sm' : 'bg-white/50 border-slate-100 hover:border-slate-200'}`}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={selectedPermissions.includes(subPerm.name)}
+                                          onChange={() => togglePermission(subPerm.name)}
+                                          className="hidden"
+                                        />
+                                        <div className={`w-5 h-5 rounded flex items-center justify-center border transition-all ${selectedPermissions.includes(subPerm.name) ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-200'}`}>
+                                          {selectedPermissions.includes(subPerm.name) && <Check size={10} className="stroke-[3]" />}
+                                        </div>
+                                        <div>
+                                          <p className="text-[11px] font-bold text-slate-700 uppercase tracking-tight">
+                                            {subPerm.name.replace('TASK_ACTION_', '').replace(/_/g, ' ')}
+                                          </p>
+                                        </div>
+                                      </label>
+                                    ))
+                                  }
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         ))
                       }
                     </div>
@@ -1118,6 +1247,123 @@ export default function RolesPage() {
           </div>
         )}
       </AnimatePresence>
+ 
+       {/* Task Action Scope Configuration (Nested Popup) */}
+       <AnimatePresence>
+         {isTaskActionScopeActive && (
+           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+             <motion.div
+               initial={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               exit={{ opacity: 0 }}
+               className="absolute inset-0 bg-slate-950/80 backdrop-blur-2xl"
+             />
+             <motion.div
+               initial={{ opacity: 0, scale: 0.9, y: 30 }}
+               animate={{ opacity: 1, scale: 1, y: 0 }}
+               exit={{ opacity: 0, scale: 0.9, y: 30 }}
+               className="bg-white rounded-[32px] shadow-2xl w-full max-w-2xl relative z-10 overflow-hidden border border-white/20 flex flex-col h-[80vh] max-h-[700px]"
+             >
+               {/* Wizard Header */}
+               <div className="bg-indigo-600 p-10 text-white relative shrink-0">
+                 <div className="flex justify-between items-center relative z-10">
+                   <div className="flex items-center gap-4">
+                     <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-md border border-white/20">
+                       <Activity size={24} />
+                     </div>
+                     <div>
+                       <h2 className="text-2xl font-black tracking-tight uppercase">Task Action Configuration</h2>
+                       <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-widest mt-1">
+                         Customizing: Action Matrix Scope
+                       </p>
+                     </div>
+                   </div>
+                   <button onClick={() => setIsTaskActionScopeActive(false)} className="p-3 hover:bg-indigo-500 rounded-2xl transition-all">
+                     <X size={24} />
+                   </button>
+                 </div>
+                 
+                 {/* Progress Bar */}
+                 <div className="absolute bottom-0 left-0 h-2 bg-indigo-700 w-full font-black text-[10px] uppercase tracking-widest">
+                   <div className="h-full bg-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.5)] w-full" />
+                 </div>
+               </div>
+ 
+               {/* Wizard Content */}
+               <div className="flex-grow overflow-y-auto p-10 bg-slate-50/30">
+                 <div className="space-y-6">
+                   <div className="flex items-center justify-between">
+                     <div>
+                       <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">Available Action Matrix Permissions</h4>
+                       <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed mt-1">
+                         Define granular rights for the "Action" node in the task matrix.
+                       </p>
+                     </div>
+                     <div className="bg-white px-4 py-2 rounded-xl text-[10px] font-black text-indigo-600 border border-indigo-50 shadow-sm">
+                       {selectedPermissions.filter(p => availablePermissions.find(ap => ap.name === p)?.category === 'TASK_ACTION_SCOPE').length} Selected
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => selectAllInCategory('TASK_ACTION_SCOPE')}
+                          className="text-[9px] font-black text-indigo-500 hover:text-indigo-700 transition-all uppercase tracking-widest"
+                        >
+                          Select All
+                        </button>
+                        <span className="text-slate-200 text-[9px]">|</span>
+                        <button
+                          type="button"
+                          onClick={() => deselectAllInCategory('TASK_ACTION_SCOPE')}
+                          className="text-[9px] font-black text-slate-400 hover:text-slate-600 transition-all uppercase tracking-widest"
+                        >
+                          Deselect All
+                        </button>
+                     </div>
+                   </div>
+ 
+                   <div className="grid grid-cols-1 gap-3">
+                     {availablePermissions
+                       .filter(p => p.category === 'TASK_ACTION_SCOPE')
+                       .map(permission => (
+                         <label
+                           key={permission._id}
+                           className={`flex items-center gap-4 p-5 rounded-2xl cursor-pointer transition-all border-2 ${selectedPermissions.includes(permission.name) ? 'bg-indigo-50/40 border-indigo-200' : 'bg-white border-slate-100/50 hover:border-indigo-100 shadow-sm'}`}
+                         >
+                           <input
+                             type="checkbox"
+                             checked={selectedPermissions.includes(permission.name)}
+                             onChange={() => togglePermission(permission.name)}
+                             className="hidden"
+                           />
+                           <div className={`w-6 h-6 rounded-lg flex items-center justify-center border-2 transition-all ${selectedPermissions.includes(permission.name) ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-200'}`}>
+                             {selectedPermissions.includes(permission.name) && <Check size={14} className="stroke-[3]" />}
+                           </div>
+                           <div>
+                             <p className="text-sm font-black text-slate-700">{permission.name.replace('TASK_ACTION_', '').replace(/_/g, ' ')}</p>
+                             <p className="text-xs text-slate-400 font-medium leading-tight mt-0.5">{permission.description}</p>
+                           </div>
+                         </label>
+                       ))
+                     }
+                   </div>
+                 </div>
+               </div>
+ 
+               {/* Wizard Footer */}
+               <div className="p-8 border-t border-slate-100 flex gap-4 bg-white shrink-0">
+                 <div className="flex-grow"></div>
+                 <button
+                   onClick={() => setIsTaskActionScopeActive(false)}
+                   className="px-10 py-4 bg-emerald-600 text-white rounded-2xl font-black shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all active:scale-95 uppercase text-[10px] tracking-widest flex items-center justify-center gap-2"
+                 >
+                   <CheckCircle2 size={16} />
+                   Confirm Action Scope
+                 </button>
+               </div>
+             </motion.div>
+           </div>
+         )}
+       </AnimatePresence>
     </div>
   );
 }

@@ -37,10 +37,9 @@ interface Role {
   isDefault: boolean;
   isActive: boolean;
   isSystemRole?: boolean;
-  domainId?: string;
-  moduleId?: string;
   domainPermissions?: string[];
   modulePermissions?: string[];
+  templatePermissions?: string[];
 }
 
 interface Permission {
@@ -53,6 +52,9 @@ interface Permission {
 const PERMISSION_ORDER = ['PROJECT', 'WORKFLOW', 'DOMAIN', 'MODULE', 'FORM', 'CHECKLIST'];
 const WIZARD_CATEGORIES = ['PROJECT', 'DOMAIN', 'MODULE', 'FORM', 'KANBAN', 'TASK'];
 const TASK_ACTION_SCOPE_CATEGORIES = ['TASK_ACTION_SCOPE'];
+const MODULE_PERMISSIONS_OPTIONS = ['edit', 'view', 'add module', 'delete', 'create', 'add template'];
+const WORKFLOW_PERMISSIONS_OPTIONS = ['edit', 'view', 'delete', 'assign', 'add'];
+const TEMPLATE_DETAIL_OPTIONS = ['view', 'edit', 'delete', 'assign'];
 
 export default function RolesPage() {
   const [roles, setRoles] = useState<Role[]>([]);
@@ -80,6 +82,7 @@ export default function RolesPage() {
   const [selectedModuleId, setSelectedModuleId] = useState<string>('');
   const [selectedDomainPermissions, setSelectedDomainPermissions] = useState<string[]>([]);
   const [selectedModulePermissions, setSelectedModulePermissions] = useState<string[]>([]);
+  const [selectedTemplatePermissions, setSelectedTemplatePermissions] = useState<string[]>([]);
   
   // Wizard State
   const [isWizardActive, setIsWizardActive] = useState(false);
@@ -88,6 +91,10 @@ export default function RolesPage() {
   // Task Action Scope State
   const [isTaskActionScopeActive, setIsTaskActionScopeActive] = useState(false);
   const [taskActionScopeStep, setTaskActionScopeStep] = useState(0);
+
+  // Domain Create Wizard State
+  const [isDomainCreateWizardActive, setIsDomainCreateWizardActive] = useState(false);
+  const [domainCreateWizardStep, setDomainCreateWizardStep] = useState(0);
   
   // User Assignment State
   const [users, setUsers] = useState<any[]>([]);
@@ -177,7 +184,10 @@ export default function RolesPage() {
         description: newRoleDescription,
         permissions: selectedPermissions,
         domainId: selectedDomainId || null,
-        moduleId: selectedModuleId || null
+        moduleId: selectedModuleId || null,
+        domainPermissions: selectedDomainPermissions,
+        modulePermissions: selectedModulePermissions,
+        templatePermissions: selectedTemplatePermissions
       };
 
       const response = editingRoleId
@@ -229,6 +239,7 @@ export default function RolesPage() {
     setSelectedModuleId((role as any).moduleId || '');
     setSelectedDomainPermissions((role as any).domainPermissions || []);
     setSelectedModulePermissions((role as any).modulePermissions || []);
+    setSelectedTemplatePermissions((role as any).templatePermissions || []);
     setCurrentStep(0);
     setError('');
     setIsModalOpen(true);
@@ -243,6 +254,7 @@ export default function RolesPage() {
     setSelectedModuleId('');
     setSelectedDomainPermissions([]);
     setSelectedModulePermissions([]);
+    setSelectedTemplatePermissions([]);
     setCurrentStep(0);
     setEditingRoleId(null);
   };
@@ -264,6 +276,9 @@ export default function RolesPage() {
       } else if (permName === 'TASK_ACTION') {
         setTaskActionScopeStep(0);
         setIsTaskActionScopeActive(true);
+      } else if (permName === 'DOMAIN_CREATE') {
+        setDomainCreateWizardStep(0);
+        setIsDomainCreateWizardActive(true);
       }
     }
   };
@@ -541,6 +556,55 @@ export default function RolesPage() {
                                 </span>
                               ))}
                             </div>
+
+                            {/* Nested Scope for Domain Creators */}
+                            {cat === 'DOMAIN' && groupPerms.includes('DOMAIN_CREATE') && (
+                               <div className="mt-4 pt-4 border-t border-slate-100 space-y-4">
+                                 <div className="flex items-center gap-2">
+                                   <Package size={12} className="text-indigo-400" />
+                                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">Module Permissions Matrix</p>
+                                 </div>
+                                 <div className="flex flex-wrap gap-2">
+                                   {((selectedRole as any).domainPermissions || []).map(p => (
+                                     <span key={p} className="text-[8px] font-bold text-indigo-600 bg-indigo-50/50 px-2 py-1 rounded-md uppercase">
+                                       {p}
+                                     </span>
+                                   ))}
+                                 </div>
+                                 
+                                 {((selectedRole as any).domainPermissions || []).includes('add template') && (
+                                    <div className="ml-4 pl-4 border-l-2 border-indigo-50 space-y-3">
+                                      <div className="flex items-center gap-2">
+                                        <Briefcase size={10} className="text-emerald-400" />
+                                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">Template Scope</p>
+                                      </div>
+                                      <div className="flex flex-wrap gap-2">
+                                        {((selectedRole as any).modulePermissions || []).map(p => (
+                                          <span key={p} className="text-[7px] font-bold text-emerald-600 bg-emerald-50/50 px-2 py-1 rounded-md uppercase">
+                                            {p}
+                                          </span>
+                                        ))}
+                                      </div>
+
+                                      {((selectedRole as any).modulePermissions || []).includes('add') && (
+                                        <div className="ml-4 pl-4 border-l-2 border-amber-100/50 space-y-3 mt-3">
+                                          <div className="flex items-center gap-2">
+                                            <Activity size={10} className="text-amber-500" />
+                                            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">Template Detail Scope</p>
+                                          </div>
+                                          <div className="flex flex-wrap gap-2">
+                                            {((selectedRole as any).templatePermissions || []).map(p => (
+                                              <span key={p} className="text-[7px] font-bold text-amber-600 bg-amber-50/50 px-2 py-1 rounded-md uppercase">
+                                                {p}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                               </div>
+                             )}
 
                             {/* Task Action Nested Scope Display */}
                             {cat === 'TASK' && groupPerms.includes('TASK_ACTION') && (
@@ -913,7 +977,7 @@ export default function RolesPage() {
                               <div className="flex-grow">
                                 <div className="flex items-center gap-2">
                                   <p className="text-sm font-black text-slate-700">{permission.name.replace(`${currentCategory}_`, '').replace(/_/g, ' ')}</p>
-                                  {(permission.name === 'WORKFLOW_CREATE' || permission.name === 'WORKFLOW_EDIT' || permission.name === 'TASK_ACTION') && selectedPermissions.includes(permission.name) && (
+                                  {(permission.name === 'WORKFLOW_CREATE' || permission.name === 'WORKFLOW_EDIT' || permission.name === 'TASK_ACTION' || permission.name === 'DOMAIN_CREATE') && selectedPermissions.includes(permission.name) && (
                                     <button
                                       onClick={(e) => {
                                         e.preventDefault();
@@ -921,6 +985,9 @@ export default function RolesPage() {
                                         if (permission.name === 'TASK_ACTION') {
                                           setTaskActionScopeStep(0);
                                           setIsTaskActionScopeActive(true);
+                                        } else if (permission.name === 'DOMAIN_CREATE') {
+                                          setDomainCreateWizardStep(prev => prev - 1);
+                                          setIsDomainCreateWizardActive(true);
                                         } else {
                                           setWizardStep(0);
                                           setIsWizardActive(true);
@@ -1132,7 +1199,7 @@ export default function RolesPage() {
       {/* Workflow Scope Configuration Wizard (Sub-Modal) */}
       <AnimatePresence>
         {isWizardActive && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[900] flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -1251,7 +1318,7 @@ export default function RolesPage() {
        {/* Task Action Scope Configuration (Nested Popup) */}
        <AnimatePresence>
          {isTaskActionScopeActive && (
-           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+           <div className="fixed inset-0 z-[1010] flex items-center justify-center p-4">
              <motion.div
                initial={{ opacity: 0 }}
                animate={{ opacity: 1 }}
@@ -1359,6 +1426,133 @@ export default function RolesPage() {
                    <CheckCircle2 size={16} />
                    Confirm Action Scope
                  </button>
+               </div>
+             </motion.div>
+           </div>
+         )}
+       </AnimatePresence>
+
+       {/* Domain Create Configuration Wizard (Nested Popup) */}
+       <AnimatePresence>
+         {isDomainCreateWizardActive && (
+           <div className="fixed inset-0 z-[1020] flex items-center justify-center p-4">
+             <motion.div
+               initial={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               exit={{ opacity: 0 }}
+               className="absolute inset-0 bg-slate-950/80 backdrop-blur-2xl"
+             />
+             <motion.div
+               initial={{ opacity: 0, scale: 0.9, y: 30 }}
+               animate={{ opacity: 1, scale: 1, y: 0 }}
+               exit={{ opacity: 0, scale: 0.9, y: 30 }}
+               className="bg-white rounded-[40px] shadow-2xl w-full max-w-xl relative z-10 overflow-hidden border border-white/20 flex flex-col"
+             >
+               {/* Wizard Header */}
+               <div className="bg-indigo-600 p-8 text-white relative shrink-0">
+                 <div className="flex justify-between items-center relative z-10">
+                   <div className="flex items-center gap-4">
+                     <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-md border border-white/20">
+                       <Package size={20} />
+                     </div>
+                     <div>
+                       <h2 className="text-xl font-black tracking-tight uppercase">
+                         {domainCreateWizardStep === 0 ? "Module Permissions" : domainCreateWizardStep === 1 ? "Template Scope" : "Add Template Detail Scope"}
+                       </h2>
+                       <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-widest mt-0.5">
+                         {domainCreateWizardStep === 0 ? "Step 1: Module Scope Matrix" : domainCreateWizardStep === 1 ? "Step 2: Template Creation Scope" : "Step 3: Advanced Template Rights"}
+                       </p>
+                     </div>
+                   </div>
+                   <button onClick={() => setIsDomainCreateWizardActive(false)} className="p-2 hover:bg-indigo-500 rounded-xl transition-all">
+                     <X size={20} />
+                   </button>
+                 </div>
+                 
+                 {/* Progress Bar */}
+                 <div className="absolute bottom-0 left-0 h-1.5 bg-indigo-700 w-full">
+                   <motion.div
+                     className="h-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.5)]"
+                     initial={{ width: 0 }}
+                     animate={{ width: domainCreateWizardStep === 0 ? "33%" : domainCreateWizardStep === 1 ? "66%" : "100%" }}
+                   />
+                 </div>
+               </div>
+
+               {/* Wizard Content */}
+               <div className="p-10 bg-slate-50/30 overflow-y-auto max-h-[60vh]">
+                 <div className="space-y-6">
+                   <div className="flex items-center justify-between mb-2">
+                     <div>
+                       <h4 className="text-xs font-black text-slate-800 uppercase tracking-tight">
+                         Available {domainCreateWizardStep === 0 ? "Module" : domainCreateWizardStep === 1 ? "Template" : "Detail"} Actions
+                       </h4>
+                       <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed mt-1">
+                         Define rights for entities created under this domain scope.
+                       </p>
+                     </div>
+                   </div>
+
+                   <div className="grid grid-cols-1 gap-3">
+                     {(domainCreateWizardStep === 0 ? MODULE_PERMISSIONS_OPTIONS : domainCreateWizardStep === 1 ? WORKFLOW_PERMISSIONS_OPTIONS : TEMPLATE_DETAIL_OPTIONS).map(option => {
+                       const isSelected = (domainCreateWizardStep === 0 ? selectedDomainPermissions : domainCreateWizardStep === 1 ? selectedModulePermissions : selectedTemplatePermissions).includes(option);
+                       return (
+                         <label
+                           key={option}
+                           className={`flex items-center gap-4 p-5 rounded-2xl cursor-pointer transition-all border-2 ${isSelected ? 'bg-indigo-50/40 border-indigo-200' : 'bg-white border-slate-100/50 hover:border-indigo-100 shadow-sm'}`}
+                         >
+                           <input
+                             type="checkbox"
+                             checked={isSelected}
+                             onChange={() => {
+                               if (domainCreateWizardStep === 0) { setSelectedDomainPermissions(prev => prev.includes(option) ? prev.filter(o => o !== option) : [...prev, option]); } else if (domainCreateWizardStep === 1) { setSelectedModulePermissions(prev => prev.includes(option) ? prev.filter(o => o !== option) : [...prev, option]); } else { setSelectedTemplatePermissions(prev => prev.includes(option) ? prev.filter(o => o !== option) : [...prev, option]); }
+                             }}
+                             className="hidden"
+                           />
+                           <div className={`w-6 h-6 rounded-lg flex items-center justify-center border-2 transition-all ${isSelected ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-200'}`}>
+                             {isSelected && <Check size={14} className="stroke-[3]" />}
+                           </div>
+                           <div className="flex-grow">
+                             <p className="text-sm font-black text-slate-700 uppercase">{option}</p>
+                             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">
+                               {domainCreateWizardStep === 0 ? `Can ${option} modules in this domain` : domainCreateWizardStep === 1 ? `Can ${option} in this scope` : `Can ${option} template details`}
+                             </p>
+                           </div>
+                         </label>
+                       );
+                     })}
+                   </div>
+                 </div>
+               </div>
+
+               {/* Wizard Footer */}
+               <div className="p-8 border-t border-slate-100 flex gap-4 bg-white shrink-0">
+                 {domainCreateWizardStep > 0 && (
+                   <button
+                     onClick={() => setDomainCreateWizardStep(prev => prev - 1)}
+                     className="px-8 py-4 text-slate-400 font-black hover:text-slate-600 transition-all uppercase text-[10px] tracking-widest"
+                   >
+                     Back Level
+                   </button>
+                 )}
+                 <div className="flex-grow"></div>
+                 {((domainCreateWizardStep === 0 && selectedDomainPermissions.includes('add template')) || (domainCreateWizardStep === 1 && selectedModulePermissions.includes('add'))) ? (
+                   <button
+                     onClick={() => setDomainCreateWizardStep(prev => prev + 1)}
+                     className="px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 uppercase text-[10px] tracking-widest flex items-center gap-2"
+                   >
+                     Next Level
+                     <ChevronRight size={16} />
+                   </button>
+                 ) : (
+                   <button
+                     onClick={() => setIsDomainCreateWizardActive(false)}
+                     className="px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all active:scale-95 uppercase text-[10px] tracking-widest flex items-center justify-center gap-2"
+                   >
+                     <CheckCircle2 size={16} />
+                     Save Scope
+                   </button>
+                 )}
                </div>
              </motion.div>
            </div>

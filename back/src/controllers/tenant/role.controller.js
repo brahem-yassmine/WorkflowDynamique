@@ -19,7 +19,7 @@ class RoleController {
       console.log('📦 Payload:', JSON.stringify(req.body, null, 2));
 
       const Role = RoleController.getModel(req);
-      const { name, description, permissions, isDefault, modulePermissions, domainPermissions } = req.body;
+      const { name, description, permissions, isDefault, modulePermissions, domainPermissions, templatePermissions } = req.body;
       
       if (!name) {
         return res.status(400).json({ success: false, message: 'Role name is required' });
@@ -50,7 +50,8 @@ class RoleController {
         domainId: domainId || undefined,
         moduleId: moduleId || undefined,
         domainPermissions: domainPermissions || [],
-        modulePermissions: modulePermissions || []
+        modulePermissions: modulePermissions || [],
+        templatePermissions: templatePermissions || []
       });
 
       await role.save();
@@ -125,7 +126,7 @@ class RoleController {
     try {
       const Role = RoleController.getModel(req);
       const { id } = req.params;
-      const { name, description, permissions, isDefault, isActive, modulePermissions, domainPermissions } = req.body;
+      const { name, description, permissions, isDefault, isActive, modulePermissions, domainPermissions, templatePermissions } = req.body;
       
       // Clean and validate ObjectIds
       const domainId = req.body.hasOwnProperty('domainId') ? RoleController.normalizeId(req.body.domainId) : undefined;
@@ -161,6 +162,7 @@ class RoleController {
       
       role.domainPermissions = domainPermissions || role.domainPermissions;
       role.modulePermissions = modulePermissions || role.modulePermissions;
+      role.templatePermissions = templatePermissions || role.templatePermissions;
 
       await role.save();
       console.log('✅ [RoleController] Role updated successfully:', role._id);

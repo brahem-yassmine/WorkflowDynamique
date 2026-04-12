@@ -55,6 +55,12 @@ const roleSchema = new mongoose.Schema(
         type: String,
         trim: true
       }
+    ],
+    templatePermissions: [
+      {
+        type: String,
+        trim: true
+      }
     ]
   },
   {

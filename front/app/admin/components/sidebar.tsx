@@ -39,6 +39,7 @@ const menuGroups = [
     icon: LayoutDashboard,
     items: [
       { icon: LayoutGrid, label: "Command Center", href: "/admin" },
+      { icon: Zap, label: "Quick Actions", href: "/admin/quick-actions" },
       { icon: Activity, label: "Live Operations", href: "/admin/operations" },
       { icon: ShieldAlert, label: "Alerts Center", href: "/admin/alerts" },
       { icon: ClipboardList, label: "Global Tasks", href: "/admin/tasks" },

@@ -199,7 +199,7 @@ export default function UserTasksPage() {
                                 : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
                                 }`}
                         >
-                            My Action Center ({activeTasksCount})
+                            Pending Actions ({activeTasksCount})
                         </button>
                         <button
                             onClick={() => setActiveTab('completed')}
@@ -208,7 +208,7 @@ export default function UserTasksPage() {
                                 : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
                                 }`}
                         >
-                            Workflow Registry ({completedTasksCount})
+                            Completed History ({completedTasksCount})
                         </button>
                     </div>
 
@@ -378,9 +378,15 @@ function TaskCard({ task, onClick, isFetching, currentSelected }: { task: Workfl
                             </span>
                         </div>
                         <div className="flex items-center gap-2 text-slate-500">
-                            <Workflow size={14} className={isCompleted && !task.isEditable ? "text-slate-300" : "text-indigo-400"} />
+                            <FolderKanban size={14} className={isCompleted && !task.isEditable ? "text-slate-300" : "text-indigo-400"} />
                             <span className="text-[11px] font-bold uppercase tracking-tight truncate">
-                                Flow: <span className={isCompleted && !task.isEditable ? "text-slate-400" : "text-slate-700"}>{task.workflowName}</span>
+                                Context: <span className={isCompleted && !task.isEditable ? "text-slate-400" : "text-slate-700"}>{task.projectName}</span>
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-slate-500">
+                            <Activity size={14} className={isCompleted && !task.isEditable ? "text-slate-300" : "text-indigo-400"} />
+                            <span className="text-[11px] font-bold uppercase tracking-tight truncate">
+                                Process: <span className={isCompleted && !task.isEditable ? "text-slate-400" : "text-slate-700"}>{task.workflowName}</span>
                             </span>
                         </div>
                     </div>

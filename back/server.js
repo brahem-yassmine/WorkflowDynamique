@@ -227,6 +227,7 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/boards', boardRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/quick-actions', require('./src/routes/quickActionRoutes'));
 
 app.use('/api/tenant/domains', tenantDomainRoutes);
 app.use('/api/modules', moduleRoutes);

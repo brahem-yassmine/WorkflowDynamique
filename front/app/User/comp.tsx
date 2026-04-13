@@ -60,10 +60,10 @@ function UserSidebar() {
 
   const menuItems = [
     { icon: LayoutGrid, label: "Command Center", href: "/User" },
+    { icon: Zap, label: "Smart Actions", href: "/User/quick-actions", color: "text-emerald-400", badge: "NEW" },
     { icon: User, label: "My Profile", href: "/User/prof" },
-    { icon: CheckSquare, label: "My Tasks", href: "/User/tasks", badge: taskCount },
+    { icon: CheckSquare, label: "Action Center", href: "/User/tasks", badge: taskCount },
     { icon: Bell, label: "Alert Inbox", href: "/User/Notifications" },
-    { icon: Workflow, label: "Workflows", href: "/User/Workflows" },
     { icon: ShieldAlert, label: "Critical Requests", href: "/User/requests", color: "text-rose-400" },
     { icon: Users, label: "Team Space", href: "/User/InviteTeam" },
     { icon: Layers, label: "Forms Lab", href: "/User/Allforms" },
@@ -107,7 +107,7 @@ function UserSidebar() {
                 <item.icon className={`h-4.5 w-4.5 transition-transform group-hover:scale-110 ${isActive ? 'text-indigo-600' : (item.color || 'text-indigo-300')} group-hover:text-white`} />
                 <span className="text-xs tracking-tight flex-1">{item.label}</span>
 
-                {item.badge !== null && item.badge !== undefined && item.badge > 0 && (
+                {item.badge !== null && item.badge !== undefined && (typeof item.badge === 'string' || item.badge > 0) && (
                   <span className={`
                     px-2 py-0.5 rounded-full text-[9px] font-black 
                     ${isActive ? 'bg-indigo-600 text-white' : 'bg-rose-500 text-white shadow-lg shadow-rose-500/30 ring-2 ring-indigo-700'}

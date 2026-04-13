@@ -33,7 +33,7 @@ async function safeAiCall(model, prompt, maxRetries = 5) {
 const generateWorkflowFromText = async (description) => {
     if (!genAI) throw new Error("Gemini API Key missing in backend configuration (.env).");
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 
     const prompt = `As a ReactFlow business workflow architect expert.
 Generate a logical and complete workflow for: "${description}"
@@ -70,7 +70,7 @@ RETURN ONLY VALID JSON. NO MARKDOWN, NO TEXT.`;
 const generateFormFromText = async (description) => {
     if (!genAI) throw new Error("Gemini API Key missing in backend configuration (.env).");
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 
     const prompt = `Create a functional form structure for this purpose: "${description}".
 Generate ONLY a JSON array. Each element represents a form field.

@@ -66,7 +66,7 @@ export default function AIGeneratorModal({ type, onGenerate, isTemplate = false 
             </p>
             
             <textarea 
-              className="w-full border border-gray-200 rounded-lg p-3 min-h-[120px] focus:ring-2 focus:ring-purple-500 outline-none text-sm placeholder:text-gray-400 bg-gray-50/50"
+              className="w-full border border-gray-200 rounded-lg p-3 min-h-[120px] focus:ring-2 focus:ring-purple-500 outline-none text-sm placeholder:text-gray-400 bg-gray-50/50 text-gray-800"
               placeholder={type === 'workflow' ? "Ex: I want a leave request process. First the employee submits, then the manager validates, and finally HR is notified." : "Ex: I want a recruitment form with full name, email address, a field to attach a CV, and a dropdown for the experience level."}
               value={prompt}
               onChange={e => setPrompt(e.target.value)}

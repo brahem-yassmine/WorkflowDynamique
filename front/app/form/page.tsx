@@ -17,6 +17,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
+import AIGeneratorModal from '@/components/AIGeneratorModal';
 
 const STEP_STATUSES = [
   { id: 'pending', label: 'Pending', icon: Clock, color: 'text-yellow-500', bg: 'bg-yellow-50', border: 'border-yellow-200' },
@@ -237,6 +238,38 @@ function FormBuilderContent() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const currentStep = steps[currentStepIndex];
 
+  const handleAIGeneratedForm = (data: any) => {
+    if (Array.isArray(data)) {
+      // Handle the array of fields returned by the AI
+      const aiStep = {
+        id: `step-0-${Date.now()}`,
+        title: 'Generated Step',
+        status: 'pending' as any,
+        fields: data.map((field: any, fIdx: number) => ({
+          ...field,
+          id: field.name || `${field.type || 'text'}-${fIdx}-${Date.now()}`,
+          width: field.width || 'half',
+        }))
+      };
+      setSteps([aiStep]);
+    } else if (data.steps && data.steps.length > 0) {
+      // Ensure fields have valid unique IDs if AI doesn't generate proper ones
+      const processedSteps = data.steps.map((step: any, sIdx: number) => ({
+        ...step,
+        id: step.id || `step-${sIdx}-${Date.now()}`,
+        status: step.status || 'pending',
+        fields: (step.fields || []).map((field: any, fIdx: number) => ({
+          ...field,
+          id: field.id || field.name || `${field.type || 'text'}-${fIdx}-${Date.now()}`,
+          width: field.width || 'half',
+        }))
+      }));
+      setSteps(processedSteps);
+      if (data.name) setFormName(data.name);
+      if (data.description) setFormDescription(data.description);
+    }
+  };
+
   useEffect(() => {
     const id = searchParams.get('id');
     if (id) {
@@ -442,6 +475,7 @@ function FormBuilderContent() {
                 Back to Workflow
               </Link>
             )}
+            <AIGeneratorModal type="form" onGenerate={handleAIGeneratedForm} />
             <button 
               onClick={() => handleSave(true)} 
               className="flex items-center gap-2 px-4 py-2 bg-indigo-500 text-white rounded-lg font-semibold hover:bg-indigo-400 transition-all shadow-sm active:scale-95 whitespace-nowrap"

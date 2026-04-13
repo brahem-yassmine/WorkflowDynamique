@@ -40,6 +40,8 @@ interface Persona {
     createdAt?: string;
     specificRole?: string;
     specificRoleId?: string;
+    domainId?: any;
+    moduleId?: any;
 }
 
 interface Role {
@@ -64,6 +66,14 @@ export default function UserManagementPage() {
     const [isEditing, setIsEditing] = useState(false);
     const [hidePasswordInput, setHidePasswordInput] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [modules, setModules] = useState<any[]>([]);
+    
+    // Custom Configuration State
+    const [isCustomPopupOpen, setIsCustomPopupOpen] = useState(false);
+    const [customUser, setCustomUser] = useState<Persona | null>(null);
+    const [selectedAssignDomainId, setSelectedAssignDomainId] = useState('');
+    const [selectedAssignModuleId, setSelectedAssignModuleId] = useState('');
+    const [isAssigning, setIsAssigning] = useState(false);
 
     // Form states
     const [firstName, setFirstName] = useState('');
@@ -74,6 +84,8 @@ export default function UserManagementPage() {
     const [formDomain, setFormDomain] = useState('');
     const [formSpecificRole, setFormSpecificRole] = useState('');
     const [formSpecificRoleId, setFormSpecificRoleId] = useState('');
+    const [formDomainId, setFormDomainId] = useState('');
+    const [formModuleId, setFormModuleId] = useState('');
 
     const fetchData = async () => {
         try {
@@ -101,8 +113,8 @@ export default function UserManagementPage() {
                                 setPassword('');
                                 setFormRole(userToEdit.role);
                                 setFormDomain(userToEdit.domain);
-                                setFormSpecificRole(userToEdit.specificRole || '');
-                                setFormSpecificRoleId(userToEdit.specificRoleId || '');
+                                setFormDomainId(userToEdit.domainId?._id || userToEdit.domainId || '');
+                                setFormModuleId(userToEdit.moduleId?._id || userToEdit.moduleId || '');
                                 setIsModalOpen(true);
                                 // Clean up URL so it doesn't reopen on subsequent fetches
                                 window.history.replaceState({}, '', window.location.pathname);
@@ -113,6 +125,9 @@ export default function UserManagementPage() {
             }
             if (rolesRes.success) setRoles(rolesRes.data);
             if (domainsRes.success) setDomains(domainsRes.data);
+            
+            const modulesRes = await apiService.getModules();
+            if (modulesRes.success) setModules(modulesRes.data);
 
             if (domainsRes.data?.length > 0 && !formDomain) {
                 setFormDomain(domainsRes.data[0].name);
@@ -138,7 +153,9 @@ export default function UserManagementPage() {
                 role: formRole,
                 domain: formDomain || (domains.length > 0 ? domains[0].name : 'Default'),
                 specificRole: formSpecificRole,
-                specificRoleId: formSpecificRoleId || null
+                specificRoleId: formSpecificRoleId || null,
+                domainId: formDomainId || null,
+                moduleId: formModuleId || null
             };
 
             if (isEditing && selectedUser) {
@@ -225,6 +242,8 @@ export default function UserManagementPage() {
         setFormDomain(domains.length > 0 ? domains[0].name : '');
         setFormSpecificRole('');
         setFormSpecificRoleId('');
+        setFormDomainId('');
+        setFormModuleId('');
         setIsEditing(false);
         setHidePasswordInput(false);
     };
@@ -239,6 +258,8 @@ export default function UserManagementPage() {
         setFormDomain(user.domain);
         setFormSpecificRole(user.specificRole || '');
         setFormSpecificRoleId(user.specificRoleId || '');
+        setFormDomainId(user.domainId || '');
+        setFormModuleId(user.moduleId || '');
         setIsModalOpen(true);
     };
 
@@ -352,6 +373,18 @@ export default function UserManagementPage() {
                                                 >
                                                     <Edit3 size={18} />
                                                 </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setCustomUser(user);
+                                                        setSelectedAssignDomainId(user.domainId || '');
+                                                        setSelectedAssignModuleId(user.moduleId || '');
+                                                        setIsCustomPopupOpen(true);
+                                                    }}
+                                                    className="px-3 py-1.5 bg-indigo-50/50 text-indigo-600 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all border border-indigo-100/50"
+                                                >
+                                                    Custom
+                                                </button>
                                                 <ChevronRight size={18} className={`text-slate-300 transition-transform ${selectedUser?._id === user._id ? 'translate-x-1 text-indigo-600' : ''}`} />
                                             </div>
                                         </td>
@@ -403,9 +436,10 @@ export default function UserManagementPage() {
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                                         <div className="p-6 bg-slate-50 rounded-[28px] space-y-4">
                                             <InspectorInfo label="Connectivity" icon={<Mail size={16} />} value={selectedUser.email} />
-                                            <InspectorInfo label="Assignment Domain" icon={<Briefcase size={16} />} value={selectedUser.domain} />
+                                            <InspectorInfo label="Assignment Domain" icon={<Briefcase size={16} />} value={selectedUser.domainId?.name || selectedUser.domain || 'Global'} />
                                         </div>
                                         <div className="p-6 bg-slate-50 rounded-[28px] space-y-4">
+                                            <InspectorInfo label="Assignment Module" icon={<Layers size={16} />} value={selectedUser.moduleId?.name || 'Full Module Access'} />
                                             <InspectorInfo label="Node Integrity" icon={<Activity size={16} />}>
                                                 <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border shadow-sm ${selectedUser.isActive ? 'bg-white text-emerald-600 border-emerald-100' : 'bg-white text-rose-600 border-rose-100'}`}>
                                                     {selectedUser.isActive ? 'Operational' : 'Access Locked'}
@@ -448,6 +482,120 @@ export default function UserManagementPage() {
                     )}
                 </AnimatePresence>
             </div>
+
+            {/* Custom Assignment Modal */}
+            <AnimatePresence>
+                {isCustomPopupOpen && customUser && (
+                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setIsCustomPopupOpen(false)}
+                            className="absolute inset-0 bg-slate-900/60 backdrop-blur-lg"
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl relative z-10 overflow-hidden border border-slate-100 flex flex-col"
+                        >
+                            <div className="bg-indigo-600 p-8 text-white relative">
+                                <div className="flex justify-between items-center">
+                                    <div>
+                                        <h2 className="text-2xl font-black tracking-tight uppercase">Custom Authority Assignment</h2>
+                                        <p className="text-indigo-200 text-xs font-bold uppercase tracking-widest mt-1">
+                                            Role: {customUser.specificRole || customUser.role} | Persona: {customUser.firstName}
+                                        </p>
+                                    </div>
+                                    <button onClick={() => setIsCustomPopupOpen(false)} className="p-2 hover:bg-indigo-500 rounded-xl transition-all">
+                                        <X size={24} />
+                                    </button>
+                                </div>
+                                <div className="absolute bottom-0 left-0 h-1.5 bg-indigo-500 w-full">
+                                    <div className="h-full bg-white w-full shadow-[0_0_10px_white]" />
+                                </div>
+                            </div>
+
+                            <div className="p-10 space-y-8">
+                                <div className="flex items-center gap-3 border-b border-slate-50 pb-6">
+                                    <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
+                                        <Layers size={20} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-black text-slate-800 tracking-tight">Organization Assignment</h3>
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Assign this persona to a specific Domain & Module</p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Target Domain</label>
+                                        <select
+                                            value={selectedAssignDomainId}
+                                            onChange={(e) => {
+                                                setSelectedAssignDomainId(e.target.value);
+                                                setSelectedAssignModuleId('');
+                                            }}
+                                            className="w-full h-14 bg-slate-50 rounded-2xl px-6 font-black text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none text-sm transition-all appearance-none cursor-pointer"
+                                        >
+                                            <option value="">Select an Authority Domain...</option>
+                                            {domains.map(d => (
+                                                <option key={d._id} value={d._id}>{d.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Specific Module</label>
+                                        <select
+                                            value={selectedAssignModuleId}
+                                            onChange={(e) => setSelectedAssignModuleId(e.target.value)}
+                                            disabled={!selectedAssignDomainId}
+                                            className="w-full h-14 bg-slate-50 rounded-2xl px-6 font-black text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none text-sm transition-all appearance-none cursor-pointer disabled:opacity-50"
+                                        >
+                                            <option value="">Select a Functional Module...</option>
+                                            {modules
+                                                .filter(m => (m.domainId?._id || m.domainId) === selectedAssignDomainId)
+                                                .map(m => (
+                                                    <option key={m._id} value={m._id}>{m.name}</option>
+                                                ))
+                                            }
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="p-8 border-t border-slate-50 bg-slate-50/30 flex justify-end">
+                                <button
+                                    onClick={async () => {
+                                        if (!customUser) return;
+                                        try {
+                                            setIsAssigning(true);
+                                            await apiService.updateUser(customUser._id, {
+                                                domainId: selectedAssignDomainId || null,
+                                                moduleId: selectedAssignModuleId || null
+                                            });
+                                            toast.success('Authority matrix updated for this persona');
+                                            setIsCustomPopupOpen(false);
+                                            fetchData();
+                                        } catch (error: any) {
+                                            toast.error(error.message || 'Injection failure');
+                                        } finally {
+                                            setIsAssigning(false);
+                                        }
+                                    }}
+                                    disabled={isAssigning}
+                                    className="px-10 py-4 bg-emerald-600 text-white rounded-2xl font-black shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all active:scale-95 uppercase text-[10px] tracking-widest disabled:opacity-50 flex items-center justify-center gap-2"
+                                >
+                                    {isAssigning ? 'Updating Matrix...' : 'Commit Node to Matrix'}
+                                    <Shield size={16} />
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
 
             {/* Auth Modal */}
             <AnimatePresence>
@@ -538,14 +686,43 @@ export default function UserManagementPage() {
                                     </div>
                                 </div>
 
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Target Domain</label>
-                                    <select value={formDomain} onChange={(e) => setFormDomain(e.target.value)} className="w-full h-11 bg-slate-50 rounded-xl px-4 font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none transition-all">
-                                        <option value="">Select Domain...</option>
-                                        {domains.map(d => (
-                                            <option key={d._id} value={d.name}>{d.name}</option>
-                                        ))}
-                                    </select>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Target Domain</label>
+                                        <select 
+                                            value={formDomainId} 
+                                            onChange={(e) => {
+                                                const dId = e.target.value;
+                                                setFormDomainId(dId);
+                                                const dName = domains.find(d => d._id === dId)?.name || '';
+                                                setFormDomain(dName);
+                                                setFormModuleId('');
+                                            }} 
+                                            className="w-full h-11 bg-slate-50 rounded-xl px-4 font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none transition-all"
+                                        >
+                                            <option value="">Select Domain...</option>
+                                            {domains.map(d => (
+                                                <option key={d._id} value={d._id}>{d.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Specific Module</label>
+                                        <select 
+                                            value={formModuleId} 
+                                            onChange={(e) => setFormModuleId(e.target.value)}
+                                            disabled={!formDomainId}
+                                            className="w-full h-11 bg-slate-50 rounded-xl px-4 font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none transition-all disabled:opacity-50"
+                                        >
+                                            <option value="">Select Module...</option>
+                                            {modules
+                                                .filter(m => (m.domainId?._id || m.domainId) === formDomainId)
+                                                .map(m => (
+                                                    <option key={m._id} value={m._id}>{m.name}</option>
+                                                ))
+                                            }
+                                        </select>
+                                    </div>
                                 </div>
                                 <div className="flex gap-4 pt-6">
                                     <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 text-slate-400 font-bold hover:text-slate-600 transition-all uppercase text-xs tracking-widest">Discard</button>

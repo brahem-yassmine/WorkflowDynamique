@@ -20,12 +20,13 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast, Toaster } from 'sonner';
 import { apiService } from '@/service/api.service';
+import useUser from '@/hooks/useUser';
 
 interface Form {
   _id: string;
   name: string;
   description: string;
-  status: 'draft' | 'published' | 'approved' | 'rejected';
+  status: 'draft' | 'published' | 'approved' | 'rejected' | 'completed' | 'archived';
   submissionCount: number;
   workflowId?: any;
   createdAt: string;
@@ -36,6 +37,7 @@ export default function AllFormsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const router = useRouter();
+  const { btnDisabledClass } = useUser();
 
   const fetchForms = async () => {
     try {
@@ -66,6 +68,18 @@ export default function AllFormsPage() {
       }
     } catch (error: any) {
       toast.error("Failed to clone form: " + error.message);
+    }
+  };
+
+  const handleStatusUpdate = async (id: string, newStatus: string) => {
+    try {
+      const response = await apiService.updateFormStatus(id, newStatus);
+      if (response.success) {
+        toast.success(`Status updated to ${newStatus}`);
+        setForms(forms.map(f => f._id === id ? { ...f, status: newStatus as any } : f));
+      }
+    } catch (error: any) {
+      toast.error("Failed to update status: " + error.message);
     }
   };
 
@@ -146,10 +160,10 @@ export default function AllFormsPage() {
                   onChange={(e) => setSearch(e.target.value)}
                 />
               </div>
-              <Link
-                href="/form"
-                className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg shadow-indigo-100 group whitespace-nowrap"
-              >
+                <Link
+                  href="/form"
+                  className={`flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg shadow-indigo-100 group whitespace-nowrap ${btnDisabledClass('FORM_CREATE')}`}
+                >
                 <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
                 Create Form
               </Link>
@@ -174,7 +188,7 @@ export default function AllFormsPage() {
             <h2 className="text-xl font-bold text-gray-800">No forms found</h2>
             <p className="text-gray-500 mt-2 max-w-sm mb-8">Start by creating your first dynamic form to automate your workflow.</p>
             <Link
-              href="/admin/form"
+              href="/form"
               className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 flex items-center gap-2"
             >
               <Plus className="w-5 h-5" /> Start Building
@@ -218,20 +232,43 @@ export default function AllFormsPage() {
 
                               {/* Status Badge */}
                               <div className="flex items-center justify-between mb-4">
-                                <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${form.status === 'published' || form.status === 'approved'
-                                    ? 'bg-emerald-50 text-emerald-600'
-                                    : form.status === 'rejected'
-                                      ? 'bg-rose-50 text-rose-600'
-                                      : 'bg-indigo-50 text-indigo-600'
-                                  }`}>
-                                  {form.status === 'published' || form.status === 'approved' ? (
-                                    <CheckCircle2 className="w-3 h-3" />
-                                  ) : form.status === 'rejected' ? (
-                                    <Clock className="w-3 h-3" />
-                                  ) : (
-                                    <Clock className="w-3 h-3" />
-                                  )}
-                                  {form.status || 'Draft'}
+                                <div className="relative group/status">
+                                  <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all hover:ring-2 hover:ring-offset-2 ${
+                                    form.status === 'published' || form.status === 'approved' || form.status === 'completed'
+                                      ? 'bg-emerald-50 text-emerald-600 hover:ring-emerald-100'
+                                      : form.status === 'rejected'
+                                        ? 'bg-rose-50 text-rose-600 hover:ring-rose-100'
+                                        : 'bg-indigo-50 text-indigo-600 hover:ring-indigo-100'
+                                    }`}>
+                                    {form.status === 'published' || form.status === 'approved' || form.status === 'completed' ? (
+                                      <CheckCircle2 className="w-3 h-3" />
+                                    ) : (
+                                      <Clock className="w-3 h-3" />
+                                    )}
+                                    {form.status || 'Draft'}
+                                  </div>
+                                  
+                                  {/* Status Dropdown Menu */}
+                                  <div className="absolute top-full left-0 mt-2 w-32 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 z-50 opacity-0 invisible group-hover/status:opacity-100 group-hover/status:visible transition-all transform origin-top-left -translate-y-2 group-hover/status:translate-y-0">
+                                    <button 
+                                      onClick={(e) => { e.stopPropagation(); handleStatusUpdate(form._id, 'draft'); }}
+                                      className="w-full text-left px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-500 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                                    >
+                                      Draft
+                                    </button>
+                                    <button 
+                                      onClick={(e) => { e.stopPropagation(); handleStatusUpdate(form._id, 'completed'); }}
+                                      className="w-full text-left px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-500 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
+                                    >
+                                      Completed
+                                    </button>
+                                    <button 
+                                      onClick={(e) => { e.stopPropagation(); handleStatusUpdate(form._id, 'archived'); }}
+                                      className="w-full text-left px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-500 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+                                    >
+                                      Archived
+                                    </button>
+                                  </div>
                                 </div>
                                 <div className="text-[10px] font-bold text-gray-400 flex items-center gap-1">
                                   <Calendar className="w-3 h-3" />
@@ -255,21 +292,21 @@ export default function AllFormsPage() {
                                 <div className="flex items-center gap-1">
                                   <button
                                     onClick={(e) => { e.stopPropagation(); handleClone(form._id); }}
-                                    className="p-2.5 text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                                    className={`p-2.5 text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all ${btnDisabledClass('FORM_CLONE')}`}
                                     title="Clone Form"
                                   >
                                     <Copy className="w-4.5 h-4.5" />
                                   </button>
                                   <button
                                     onClick={(e) => { e.stopPropagation(); router.push(`/form?id=${form._id}`); }}
-                                    className="p-2.5 text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                                    className={`p-2.5 text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all ${btnDisabledClass('FORM_EDIT')}`}
                                     title="Edit Form"
                                   >
                                     <Edit3 className="w-4.5 h-4.5" />
                                   </button>
                                   <button
                                     onClick={(e) => { e.stopPropagation(); handleDelete(form._id); }}
-                                    className="p-2.5 text-gray-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                                    className={`p-2.5 text-gray-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all ${btnDisabledClass('FORM_DELETE')}`}
                                     title="Delete Form"
                                   >
                                     <Trash2 className="w-4.5 h-4.5" />
@@ -319,20 +356,43 @@ export default function AllFormsPage() {
                       <div className="absolute top-0 left-0 w-1.5 h-full bg-gray-400 opacity-0 group-hover:opacity-100 transition-opacity"></div>
 
                       <div className="flex items-center justify-between mb-4">
-                        <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${form.status === 'published' || form.status === 'approved'
-                            ? 'bg-emerald-50 text-emerald-600'
-                            : form.status === 'rejected'
-                              ? 'bg-rose-50 text-rose-600'
-                              : 'bg-gray-100 text-gray-500'
-                          }`}>
-                          {form.status === 'published' || form.status === 'approved' ? (
-                            <CheckCircle2 className="w-3 h-3" />
-                          ) : form.status === 'rejected' ? (
-                            <Clock className="w-3 h-3" />
-                          ) : (
-                            <Clock className="w-3 h-3" />
-                          )}
-                          {form.status || 'Draft'}
+                        <div className="relative group/status">
+                          <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all hover:ring-2 hover:ring-offset-2 ${
+                            form.status === 'published' || form.status === 'approved' || form.status === 'completed'
+                              ? 'bg-emerald-50 text-emerald-600 hover:ring-emerald-100'
+                              : form.status === 'rejected'
+                                ? 'bg-rose-50 text-rose-600 hover:ring-rose-100'
+                                : 'bg-gray-100 text-gray-500 hover:ring-gray-200'
+                            }`}>
+                            {form.status === 'published' || form.status === 'approved' || form.status === 'completed' ? (
+                              <CheckCircle2 className="w-3 h-3" />
+                            ) : (
+                              <Clock className="w-3 h-3" />
+                            )}
+                            {form.status || 'Draft'}
+                          </div>
+
+                          {/* Status Dropdown Menu */}
+                          <div className="absolute top-full left-0 mt-2 w-32 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 z-50 opacity-0 invisible group-hover/status:opacity-100 group-hover/status:visible transition-all transform origin-top-left -translate-y-2 group-hover/status:translate-y-0">
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); handleStatusUpdate(form._id, 'draft'); }}
+                              className="w-full text-left px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-500 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                            >
+                              Draft
+                            </button>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); handleStatusUpdate(form._id, 'completed'); }}
+                              className="w-full text-left px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-500 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
+                            >
+                              Completed
+                            </button>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); handleStatusUpdate(form._id, 'archived'); }}
+                              className="w-full text-left px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-500 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+                            >
+                              Archived
+                            </button>
+                          </div>
                         </div>
                         <div className="text-[10px] font-bold text-gray-400 flex items-center gap-1">
                           <Calendar className="w-3 h-3" />

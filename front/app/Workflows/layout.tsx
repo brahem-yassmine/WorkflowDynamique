@@ -86,7 +86,7 @@ export default function AuthLayout({
               onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
             />
           ) : (
-            <UserHeader toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
+            <UserHeader onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
           )}
         </div>
 

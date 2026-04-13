@@ -66,7 +66,7 @@ const SaveButton = ({
 
   // Fetch modules when domain changes
   useEffect(() => {
-    if (domainId) {
+    if (domainId && domainId !== 'standard') {
       fetchModules(domainId);
     } else {
       setModules([]);
@@ -135,7 +135,7 @@ const SaveButton = ({
       <button
         onClick={() => setShowModal(true)}
         disabled={isSaving}
-        className={`flex items-center gap-2 px-6 py-2.5 ${isTemplate ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100'} text-white rounded-xl font-bold shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100`}
+        className={`flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100 text-white rounded-xl font-bold shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100`}
       >
         <Save size={18} />
         {isSaving ? 'Saving...' : (isTemplate ? 'Save Template' : 'Save Workflow')}
@@ -157,7 +157,7 @@ const SaveButton = ({
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="bg-white rounded-[32px] shadow-2xl w-full max-w-lg relative z-10 overflow-hidden border border-slate-100"
             >
-              <div className={`${isTemplate ? 'bg-indigo-600' : 'bg-emerald-600'} p-8 text-white relative overflow-hidden transition-colors duration-500`}>
+              <div className="bg-indigo-600 p-8 text-white relative overflow-hidden transition-colors duration-500">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
                 <h3 className="text-2xl font-black tracking-tight relative z-10">{isTemplate ? 'Create Template' : 'Create Workflow'}</h3>
                 <p className="text-white/80 text-[10px] font-bold uppercase tracking-widest mt-1 relative z-10">
@@ -188,7 +188,7 @@ const SaveButton = ({
                         <select
                             value={projectId}
                             onChange={(e) => setProjectId(e.target.value)}
-                            className="w-full h-12 px-4 bg-slate-50 border-none rounded-2xl font-bold text-slate-700 outline-none focus:ring-4 focus:ring-emerald-100 transition-all appearance-none cursor-pointer text-sm"
+                            className="w-full h-12 px-4 bg-slate-50 border-none rounded-2xl font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-100 transition-all appearance-none cursor-pointer text-sm"
                         >
                             <option value="" disabled>-- Select Project --</option>
                             {projects.map(p => (
@@ -203,9 +203,10 @@ const SaveButton = ({
                           <select
                               value={domainId}
                               onChange={(e) => setDomainId(e.target.value)}
-                              className="w-full h-12 px-4 bg-slate-50 border-none rounded-2xl font-bold text-slate-700 outline-none focus:ring-4 focus:ring-emerald-100 transition-all appearance-none cursor-pointer text-sm"
+                              className="w-full h-12 px-4 bg-slate-50 border-none rounded-2xl font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-100 transition-all appearance-none cursor-pointer text-sm"
                           >
                               <option value="" disabled>-- Select Domain --</option>
+                              <option value="">-- Domain --</option>
                               {domains.map(d => (
                                   <option key={d._id} value={d._id}>{d.name}</option>
                               ))}
@@ -216,7 +217,7 @@ const SaveButton = ({
                           <select
                               value={status}
                               onChange={(e) => setStatus(e.target.value as any)}
-                              className="w-full h-12 px-4 bg-slate-50 border-none rounded-2xl font-bold text-slate-700 outline-none focus:ring-4 focus:ring-emerald-100 transition-all appearance-none cursor-pointer text-sm"
+                              className="w-full h-12 px-4 bg-slate-50 border-none rounded-2xl font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-100 transition-all appearance-none cursor-pointer text-sm"
                           >
                               <option value="active">Active</option>
                               <option value="planning">Draft</option>
@@ -235,6 +236,7 @@ const SaveButton = ({
                             className="w-full h-12 px-4 bg-slate-50 border-none rounded-2xl font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-100 transition-all appearance-none cursor-pointer text-sm"
                         >
                             <option value="" disabled>-- Select Domain --</option>
+                            <option value="">-- Select Domain --</option>
                             {domains.map(d => (
                                 <option key={d._id} value={d._id}>{d.name}</option>
                             ))}
@@ -271,7 +273,7 @@ const SaveButton = ({
                   <button
                     onClick={handleSave}
                     disabled={isSaving}
-                    className={`flex-[2] py-4 ${isTemplate ? 'bg-indigo-600 shadow-indigo-100 hover:bg-indigo-700' : 'bg-emerald-600 shadow-emerald-100 hover:bg-emerald-700'} text-white rounded-2xl font-black shadow-xl transition-all active:scale-95 disabled:opacity-50 uppercase text-[10px] tracking-[0.2em] flex items-center justify-center gap-2`}
+                    className={`flex-[2] py-4 bg-indigo-600 shadow-indigo-100 hover:bg-indigo-700 text-white rounded-2xl font-black shadow-xl transition-all active:scale-95 disabled:opacity-50 uppercase text-[10px] tracking-[0.2em] flex items-center justify-center gap-2`}
                   >
                     {isSaving ? 'Processing...' : (
                         <>

@@ -38,6 +38,16 @@ const userSchema = new mongoose.Schema({
     type: String,
   },
 
+  domainId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Domain'
+  },
+
+  moduleId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Module'
+  },
+
   firstName: String,
   lastName: String,
 

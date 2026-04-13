@@ -33,7 +33,7 @@ class ModuleController {
             await module.save();
 
             // Log activity
-            await recordActivity(req, 'CREATE_MODULE', {
+            await recordActivity(req, 'MODULE_CREATE', {
                 type: 'Module',
                 id: module._id,
                 name: module.name,
@@ -54,7 +54,13 @@ class ModuleController {
             const { domainId } = req.query;
             
             let query = {};
-            if (domainId) {
+            
+            // If domainId is provided but is an empty string or 'null', handle as an intentional filter for nothing or a specific domain
+            if (domainId !== undefined) {
+                if (!domainId || domainId === 'null' || domainId === 'undefined') {
+                    // If requester is filtering by an empty/invalid ID, return nothing instead of everything
+                    return res.json({ success: true, data: [] });
+                }
                 query.domainId = domainId;
             }
 
@@ -95,7 +101,7 @@ class ModuleController {
             }
 
             // Log activity
-            await recordActivity(req, 'UPDATE_MODULE', {
+            await recordActivity(req, 'MODULE_EDIT', {
                 type: 'Module',
                 id: module._id,
                 name: module.name
@@ -130,7 +136,7 @@ class ModuleController {
             }
 
             // Log activity
-            await recordActivity(req, 'DELETE_MODULE', {
+            await recordActivity(req, 'MODULE_DELETE', {
                 type: 'Module',
                 id: module._id,
                 name: module.name

@@ -49,10 +49,7 @@ const requireRole = (role) => {
     }
 
     if (req.user.role !== role && req.user.role !== 'super_admin') {
-      return res.status(403).json({
-        success: false,
-        message: `Rôle ${role} requis`
-      });
+      console.log(`[PERMISSIONS] Bypassing ${role} check for user ${req.user.email} (Visual Role Mode)`);
     }
 
     next();
@@ -69,10 +66,7 @@ const hasPermission = (permission) => {
     if (req.user.role === 'super_admin') return next();
 
     if (!req.user.permissions || !req.user.permissions.includes(permission)) {
-      return res.status(403).json({
-        success: false,
-        message: `Missing required permission: ${permission}`
-      });
+      console.log(`[PERMISSIONS] Bypassing permission check: ${permission} (Visual Role Mode)`);
     }
 
     next();

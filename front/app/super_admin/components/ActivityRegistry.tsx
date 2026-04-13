@@ -153,7 +153,12 @@ export default function ActivityRegistry({
             return 'AUDIT';
         }
         if (['LOGIN_SUCCESS', 'LOGIN_FAILED', 'LOGOUT', 'ERROR', 'SIGN_IN', 'SIGN_OUT'].includes(action)) return 'LOG';
-        if (['CREATE', 'DELETE', 'STATUS_CHANGE', 'SUBSCRIPTION_RENEWAL', 'SUBSCRIPTION_EXPIRATION', 'CREATE_FORM', 'DELETE_FORM', 'CREATE_USER', 'DELETE_USER', 'CREATE_WORKFLOW', 'DELETE_WORKFLOW', 'CREATE_TASK', 'DELETE_TASK', 'CREATE_PROJECT', 'DELETE_PROJECT'].includes(action)) return 'HISTORY';
+        if (['CREATE', 'DELETE', 'STATUS_CHANGE', 'SUBSCRIPTION_RENEWAL', 'SUBSCRIPTION_EXPIRATION', 
+            'FORM_CREATE', 'FORM_DELETE', 'USER_CREATE', 'USER_DELETE', 
+            'WORKFLOW_CREATE', 'WORKFLOW_DELETE', 'TASK_CREATE', 'TASK_DELETE', 
+            'PROJECT_CREATE', 'PROJECT_DELETE',
+            'PROJECT_EDIT', 'WORKFLOW_EDIT', 'FORM_EDIT'
+        ].includes(action)) return 'HISTORY';
         return 'AUDIT';
     };
 

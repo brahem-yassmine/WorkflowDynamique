@@ -148,7 +148,7 @@ exports.updateFormStatus = async (req, res) => {
         const { status } = req.body;
         const DynamicForm = req.tenantConn.model('DynamicForm');
 
-        if (!['approved', 'rejected', 'pending'].includes(status)) {
+        if (!['approved', 'rejected', 'pending', 'draft', 'completed', 'published'].includes(status)) {
             return res.status(400).json({ success: false, message: 'Statut invalide' });
         }
 

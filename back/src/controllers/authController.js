@@ -311,7 +311,8 @@ const login = async (req, res) => {
                   subscriptionExpired,
                   warningSoon,
                   daysLeft: Math.max(0, daysLeft),
-                  currentPlan
+                  currentPlan,
+                  permissions: permissions || []
                 },
                 tenantId: tenantId
               }
@@ -337,7 +338,8 @@ const login = async (req, res) => {
           domain: user.domain || 'HR',
           subscriptionExpired,
           daysLeft,
-          currentPlan
+          currentPlan,
+          permissions: permissions || []
         },
         tenantId: tenantId
       }
@@ -712,7 +714,8 @@ const getProfile = async (req, res) => {
       data: {
         ...user.toObject(),
         role: role,
-        tenantId: tenantId
+        tenantId: tenantId,
+        permissions: (user.role && typeof user.role === 'object' && user.role.permissions) ? user.role.permissions : []
       }
     });
   } catch (error) {

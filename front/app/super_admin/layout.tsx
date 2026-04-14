@@ -48,7 +48,7 @@ export default function SuperAdminLayout({
       {/* Sidebar with responsive behavior */}
       <div className={`
         fixed inset-y-0 left-0 z-50 bg-indigo-700 transition-all duration-300 ease-in-out lg:relative flex-none
-        ${isSidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0 lg:-ml-64 w-64'}
+        ${isSidebarOpen ? 'translate-x-0 w-80' : '-translate-x-full lg:translate-x-0 lg:-ml-80 w-80'}
       `}>
         <Sidebar isOpen={isSidebarOpen} toggle={toggleSidebar} />
         {/* Mobile Close Button Overlay */}

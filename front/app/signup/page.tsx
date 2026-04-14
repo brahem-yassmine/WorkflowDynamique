@@ -190,8 +190,18 @@ export default function SignupPage() {
     if (name === "expiryDate") {
       const cleaned = value.replace(/\D/g, "");
       if (cleaned.length <= 4) {
-        if (cleaned.length > 2) {
-          setPaymentDetails(prev => ({ ...prev, [name]: `${cleaned.slice(0, 2)}/${cleaned.slice(2)}` }));
+        if (cleaned.length >= 2) {
+          const month = parseInt(cleaned.slice(0, 2));
+          if (month > 12) {
+             // If month > 12, just take the first digit if it's 0 or 1, or cap it
+             setPaymentDetails(prev => ({ ...prev, [name]: '12/' }));
+             return;
+          }
+          if (cleaned.length > 2) {
+            setPaymentDetails(prev => ({ ...prev, [name]: `${cleaned.slice(0, 2)}/${cleaned.slice(2)}` }));
+          } else {
+            setPaymentDetails(prev => ({ ...prev, [name]: `${cleaned.slice(0, 2)}/` }));
+          }
         } else {
           setPaymentDetails(prev => ({ ...prev, [name]: cleaned }));
         }
@@ -277,6 +287,21 @@ export default function SignupPage() {
     const expiryClean = paymentDetails.expiryDate.replace("/", "");
     if (expiryClean.length !== 4) {
       setError("Please enter a valid expiry date (MM/YY)");
+      return;
+    }
+
+    const m = parseInt(expiryClean.slice(0, 2));
+    const y = parseInt(expiryClean.slice(2)) + 2000;
+    const now = new Date();
+    const expiry = new Date(y, m - 1, 1);
+    
+    if (m < 1 || m > 12) {
+      setError("Invalid month (01-12)");
+      return;
+    }
+
+    if (expiry < new Date(now.getFullYear(), now.getMonth(), 1)) {
+      setError("This card has expired");
       return;
     }
 
@@ -689,12 +714,12 @@ export default function SignupPage() {
                         {[1,2,3].map(i => <div key={i} className="h-16 flex-1 bg-slate-100 animate-pulse rounded-xl" />)}
                       </div>
                     ) : (
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                         {plans.map((plan) => (
                           <label
                             key={plan._id}
                             onClick={() => handlePlanSelection(plan._id)}
-                            className={`block p-3 border-2 rounded-xl cursor-pointer transition-all text-center group ${formData.planId === plan._id
+                            className={`block p-3 border-2 rounded-xl cursor-pointer transition-all flex flex-col items-center group relative overflow-hidden ${formData.planId === plan._id
                                 ? 'border-indigo-600 bg-indigo-50 ring-1 ring-indigo-600'
                                 : 'border-slate-100 hover:border-slate-200 bg-slate-50/50'
                               }`}
@@ -710,7 +735,7 @@ export default function SignupPage() {
                             <p className={`text-[10px] font-black uppercase truncate duration-200 ${formData.planId === plan._id ? 'text-indigo-700' : 'text-slate-500'}`}>
                               {plan.name}
                             </p>
-                            <p className={`text-[11px] font-black mt-1 ${formData.planId === plan._id ? 'text-indigo-900' : 'text-slate-900'}`}>
+                            <p className={`text-[13px] font-black mt-1 ${formData.planId === plan._id ? 'text-indigo-900' : 'text-slate-900'}`}>
                               {plan.price === 0 ? 'FREE' : `${plan.price}${plan.currency || 'D'}`}
                             </p>
                           </label>

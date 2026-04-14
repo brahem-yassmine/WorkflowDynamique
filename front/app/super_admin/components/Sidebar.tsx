@@ -66,7 +66,7 @@ export default function Sidebar({ isOpen, toggle }: SidebarProps) {
         className={`
           fixed top-0 left-0 z-50 h-screen bg-indigo-700 text-white 
           transition-all duration-300 ease-in-out shadow-2xl
-          w-64 lg:translate-x-0 
+          w-80 lg:translate-x-0 
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
       >

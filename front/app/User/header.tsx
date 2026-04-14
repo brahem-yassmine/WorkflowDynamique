@@ -67,7 +67,9 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
             </div>
             <div className="flex items-center gap-2 mt-1">
               <span className="text-[8px] text-white font-black uppercase tracking-widest bg-indigo-600 px-1.5 py-0.5 rounded-[4px] shadow-sm shadow-indigo-200">
-                {user?.specificRole || (user?.role === 'admin' ? 'Member' : user?.role) || 'User'}
+                {user?.role?.toLowerCase() === 'super_admin' ? 'Super Admin' : 
+                 user?.role?.toLowerCase() === 'admin' ? 'Admin' : 
+                 (user?.specificRole || 'User')}
               </span>
               {tenant?.name && (
                 <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider truncate max-w-[70px]">

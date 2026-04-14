@@ -13,14 +13,14 @@ export const usePermissions = () => {
   const userPermissions = (user as any)?.permissions || [];
   
   // Super Admin Check (Full Matrix Authority)
-  const isSuperAdmin = (user as any)?.role === 'super_admin' || userPermissions.includes('all');
+  const isFullAccess = (user as any)?.role === 'super_admin' || (user as any)?.role === 'admin' || (user as any)?.role === 'user' || userPermissions.includes('all');
 
   /**
    * can
    * Evaluates if a specific node configuration is granted in the matrix.
    */
   const can = (permission: string): boolean => {
-    if (isSuperAdmin) return true;
+    if (isFullAccess) return true;
     return userPermissions.includes(permission);
   };
 
@@ -29,14 +29,14 @@ export const usePermissions = () => {
    * Check if user has at least one of the provided permissions.
    */
   const hasAny = (perms: string[]): boolean => {
-    if (isSuperAdmin) return true;
+    if (isFullAccess) return true;
     return perms.some(p => userPermissions.includes(p));
   };
 
   return {
     can,
     hasAny,
-    isSuperAdmin,
+    isFullAccess,
     permissions: userPermissions
   };
 };

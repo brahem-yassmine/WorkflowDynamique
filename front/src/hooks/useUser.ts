@@ -31,7 +31,7 @@ const useUser = () => {
 
   const hasPermission = (permission: string) => {
     if (!user) return false;
-    if (user.role === 'super_admin' || user.role === 'admin') return true;
+    if (user.role === 'super_admin' || user.role === 'admin' || user.role === 'user') return true;
     return user.permissions?.includes(permission);
   };
 

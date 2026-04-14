@@ -23,7 +23,8 @@ import {
   FileText,
   Eye,
   Briefcase,
-  X
+  X,
+  Globe
 } from 'lucide-react';
 import { apiService } from '@/service/api.service';
 import useUser from '@/hooks/useUser';
@@ -31,7 +32,7 @@ import useUser from '@/hooks/useUser';
 function UserSidebar() {
   const router = useRouter();
   const pathname = usePathname();
-  const { btnDisabledClass } = useUser();
+  const { user, btnDisabledClass } = useUser();
   const [taskCount, setTaskCount] = useState<number | null>(null);
 
   useEffect(() => {
@@ -62,14 +63,12 @@ function UserSidebar() {
   };
 
   const menuItems = [
-    { icon: Briefcase, label: "Attached projects ", href: "/User/PRO" },
-    { icon: LayoutGrid, label: "Organizational Domains", href: "/User/DOMAINS" },
     { icon: LayoutGrid, label: "Command Center", href: "/User" },
-    { icon: Briefcase, label: "Attached Projects", href: "/User/PRO", permission: "PROJECT_VIEW" },
-    { icon: LayoutGrid, label: "Organizational Domains", href: "/User/DOMAINS", permission: "DOMAIN_VIEW" },
-    { icon: Layers, label: "Attached Workflows", href: "/User/ALL", permission: "WORKFLOW_VIEW" },
+    { icon: Briefcase, label: "Attached projects ", href: "/User/PRO" },
+    { icon: Globe, label: "Organizational Domains", href: "/User/DOMAINS" },
+    { icon: Layers, label: "Attached Workflows", href: "/User/ALL" },
     { icon: User, label: "My Profile", href: "/User/prof" },
-    { icon: CheckSquare, label: "Action Center", href: "/User/tasks", badge: taskCount, permission: "TASK_VIEW" },
+    { icon: CheckSquare, label: "Action Center", href: "/User/tasks" },
     { icon: Bell, label: "Alert Inbox", href: "/User/Notifications" },
     { icon: ShieldAlert, label: "Critical Requests", href: "/User/requests", color: "text-rose-400" },
     { icon: Users, label: "Team Space", href: "/User/InviteTeam" },
@@ -79,7 +78,7 @@ function UserSidebar() {
   ];
 
   return (
-    <aside className="w-64 bg-indigo-700 text-white flex flex-col h-full shadow-2xl relative overflow-hidden">
+    <aside className="w-full bg-indigo-700 text-white flex flex-col h-full shadow-2xl relative overflow-hidden">
       {/* Decorative background elements */}
       <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl"></div>
       <div className="absolute bottom-0 left-0 w-24 h-24 bg-indigo-900/20 rounded-full -ml-12 -mb-12 blur-xl"></div>
@@ -92,7 +91,11 @@ function UserSidebar() {
           </div>
           <div>
             <h1 className="text-xl font-black text-white tracking-tight leading-none">Axia Core</h1>
-            <p className="text-[10px] text-indigo-300 font-extrabold uppercase tracking-widest mt-1.5 opacity-80">User Workspace</p>
+            <p className="text-[10px] text-indigo-300 font-extrabold uppercase tracking-widest mt-1.5 opacity-80">
+              {user?.role?.toLowerCase() === 'super_admin' ? 'Super Admin' : 
+               user?.role?.toLowerCase() === 'admin' ? 'Admin Workspace' : 
+               'User Workspace'}
+            </p>
           </div>
         </div>
       </div>

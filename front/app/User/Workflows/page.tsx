@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   Workflow,
   Search,
@@ -27,6 +28,7 @@ import { toast, Toaster } from 'sonner';
 import { apiService } from '@/service/api.service';
 import Link from 'next/link';
 import { showAlert, showConfirm } from '@/lib/alerts';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface Workflow {
   _id: string;
@@ -58,6 +60,7 @@ interface WorkflowInstance {
 }
 
 export default function UserWorkflowsPage() {
+  const { can } = usePermissions();
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [instances, setInstances] = useState<WorkflowInstance[]>([]);
@@ -68,11 +71,16 @@ export default function UserWorkflowsPage() {
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
   const [isChecklistModalOpen, setIsChecklistModalOpen] = useState(false);
   
-  const searchParamsSource = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-  const mode = searchParamsSource?.get('mode') || 'operations';
-  const initialTab = searchParamsSource?.get('tab') === 'registry' ? 'registry' : 'tasks';
+  const searchParams = useSearchParams();
+  const projectIdParam = searchParams.get('projectId');
+  const mode = searchParams.get('mode') || 'operations';
+  const initialTab = searchParams.get('tab') === 'registry' ? 'registry' : 'tasks';
   const [activeTab, setActiveTab] = useState<'tasks' | 'registry'>(initialTab);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+  
+  // Project context
+  const [currentProject, setCurrentProject] = useState<Project | null>(null);
+
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -96,7 +104,13 @@ export default function UserWorkflowsPage() {
       ]);
 
       if (workflowRes.success) setWorkflows(workflowRes.data);
-      if (projectRes.success) setProjects(projectRes.data);
+      if (projectRes.success) {
+        setProjects(projectRes.data);
+        if (projectIdParam) {
+          const project = projectRes.data.find((p: Project) => p._id === projectIdParam);
+          setCurrentProject(project || null);
+        }
+      }
 
       const combinedInstances = [...(userInstances.data || [])];
       if (domainInstances.data) {
@@ -109,7 +123,7 @@ export default function UserWorkflowsPage() {
       setInstances(combinedInstances);
 
       // Auto-switch tab if no specific param
-      if (!searchParamsSource?.get('tab') && mode !== 'design') {
+      if (!searchParams.get('tab') && mode !== 'design') {
         if (combinedInstances.length > 0) setActiveTab('tasks');
         else setActiveTab('registry');
       } else if (mode === 'design') {
@@ -170,8 +184,11 @@ export default function UserWorkflowsPage() {
     
     const matchesStatusFilter = statusFilter === 'all' || w.status === statusFilter;
     const matchesModeStatus = mode === 'design' ? true : (w.status === 'active' || w.status === 'draft');
+    
+    // Project filter
+    const matchesProject = !projectIdParam || (typeof w.projectId === 'string' ? w.projectId === projectIdParam : w.projectId?._id === projectIdParam);
 
-    return matchesSearch && matchesStatusFilter && matchesModeStatus;
+    return matchesSearch && matchesStatusFilter && matchesModeStatus && matchesProject;
   });
 
   const ChecklistPreviewModal = ({ workflow, isOpen, onClose }: { workflow: Workflow | null, isOpen: boolean, onClose: () => void }) => {
@@ -258,14 +275,27 @@ export default function UserWorkflowsPage() {
           <div className="space-y-2">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-white/10 rounded-xl backdrop-blur-md">
-                <Workflow size={24} />
+                {currentProject ? <Briefcase size={24} /> : <Workflow size={24} />}
               </div>
-              <h1 className="text-3xl font-black tracking-tight">Workflow Hub</h1>
+              <h1 className="text-3xl font-black tracking-tight">
+                {currentProject ? `Project: ${currentProject.name}` : 'Workflow Hub'}
+              </h1>
             </div>
             <p className="text-indigo-100/70 font-medium max-w-md">
-              Access and manage localized operational protocols for <span className="text-white font-bold">{user?.domain || 'Organization'}</span>.
+              {currentProject 
+                ? `Managing tactical implementations for the strategic layer: ${currentProject.name}`
+                : `Access and manage localized operational protocols for ${user?.domain || 'Organization'}.`
+              }
             </p>
           </div>
+
+          {projectIdParam && (
+             <Link href="/User/PRO">
+                <button className="px-6 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all">
+                   Back to Portfolios
+                </button>
+             </Link>
+          )}
           <div className="flex items-center gap-4 bg-white/10 p-4 rounded-3xl backdrop-blur-md border border-white/10">
             <div className="text-right">
               <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Action Readiness</p>
@@ -357,9 +387,15 @@ export default function UserWorkflowsPage() {
               </div>
               <div className="flex gap-2">
                 {mode === 'design' && (
-                  <Link href="/User/create_workflows">
+                  <Link href={can('WORKFLOW_CREATE') ? `/User/create${projectIdParam ? `?projectId=${projectIdParam}` : ''}` : '#'}>
                     <button 
-                      className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-100 transition-all hover:bg-indigo-700"
+                      disabled={!can('WORKFLOW_CREATE')}
+                      title={!can('WORKFLOW_CREATE') ? "Matrix Restricted" : "Initialize New Architecture"}
+                      className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg transition-all ${
+                        can('WORKFLOW_CREATE')
+                        ? 'bg-indigo-600 text-white shadow-indigo-100 hover:bg-indigo-700'
+                        : 'bg-slate-100 text-slate-300 grayscale opacity-30 blur-[1px] cursor-not-allowed border border-slate-200 shadow-none'
+                      }`}
                     >
                       <Plus size={16} /> New Design
                     </button>
@@ -404,18 +440,27 @@ export default function UserWorkflowsPage() {
                           </button>
                           {mode === 'design' && isOwner && (
                             <>
-                              <Link href={`/User/create_workflows?id=${workflow._id}`}>
-                                <button 
-                                  className="p-2 bg-slate-50 rounded-xl transition-all text-slate-400 hover:text-indigo-600"
-                                  title="Edit Design"
-                                >
-                                  <Edit3 size={16} />
-                                </button>
-                              </Link>
                               <button 
-                                onClick={(e) => handleDeleteWorkflow(e, workflow._id)} 
-                                className="p-2 bg-rose-50 rounded-xl transition-all text-rose-400 hover:bg-rose-500 hover:text-white"
-                                title="Delete Design"
+                                onClick={() => can('WORKFLOW_EDIT') && router.push(`/User/create_workflows?id=${workflow._id}`)}
+                                disabled={!can('WORKFLOW_EDIT')}
+                                className={`p-2 rounded-xl transition-all ${
+                                  can('WORKFLOW_EDIT')
+                                  ? 'bg-slate-50 text-slate-400 hover:text-indigo-600'
+                                  : 'bg-slate-50/50 text-slate-200 grayscale opacity-40 blur-[0.6px] cursor-not-allowed'
+                                }`}
+                                title={!can('WORKFLOW_EDIT') ? "Matrix Restricted" : "Edit Design"}
+                              >
+                                <Edit3 size={16} />
+                              </button>
+                              <button 
+                                onClick={(e) => can('WORKFLOW_DELETE') && handleDeleteWorkflow(e, workflow._id)} 
+                                disabled={!can('WORKFLOW_DELETE')}
+                                className={`p-2 rounded-xl transition-all ${
+                                  can('WORKFLOW_DELETE')
+                                  ? 'bg-rose-50 text-rose-400 hover:bg-rose-500 hover:text-white'
+                                  : 'bg-slate-50/50 text-slate-200 grayscale opacity-40 blur-[0.6px] cursor-not-allowed'
+                                }`}
+                                title={!can('WORKFLOW_DELETE') ? "Matrix Restricted" : "Delete Design"}
                               >
                                 <Trash2 size={16} />
                               </button>
@@ -445,14 +490,18 @@ export default function UserWorkflowsPage() {
                       </div>
 
                       <div className="flex gap-2">
-                        <Link href={`/Workflows/instances/new?workflowId=${workflow._id}`} className="flex-1">
-                          <button 
-                            className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg hover:bg-indigo-600"
-                            title="Initialize Workflow"
-                          >
-                            <Play size={14} fill="currentColor" /> Initialize
-                          </button>
-                        </Link>
+                        <button 
+                          onClick={() => can('WORKFLOW_CREATE') && router.push(`/Workflows/instances/new?workflowId=${workflow._id}`)}
+                          disabled={!can('WORKFLOW_CREATE')}
+                          className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg transition-all ${
+                            can('WORKFLOW_CREATE')
+                            ? 'bg-slate-900 text-white hover:bg-indigo-600'
+                            : 'bg-slate-100 text-slate-300 grayscale opacity-30 blur-[0.8px] cursor-not-allowed'
+                          }`}
+                          title={!can('WORKFLOW_CREATE') ? "Matrix Restricted" : "Initialize Workflow"}
+                        >
+                          <Play size={14} fill="currentColor" /> Initialize
+                        </button>
                         {mode === 'design' && (
                           <button 
                             onClick={() => handleDuplicate(workflow._id)} 

@@ -453,57 +453,45 @@ function WorkflowEditorContent({ onSaveSuccess }: { onSaveSuccess?: () => void }
                     ? (meta.isTemplate ? 'Template updated!' : 'Workflow updated!') 
                     : (meta.isTemplate ? 'Template created!' : 'Workflow created!')
                 );
-                toast.success(currentWorkflowId ? 'Workflow updated!' : 'Workflow created!');
 
-                // EXIT logic: trigger callback if provided, otherwise perform internal redirect
+                const savedId = currentWorkflowId || response?.data?._id;
+                if (savedId) setCurrentWorkflowId(savedId);
+
+                // REDIRECTION LOGIC
                 if (onSaveSuccess) {
+                    // Call the provided success handler (e.g. from User workspace PRO context)
                     setTimeout(() => {
                         onSaveSuccess();
                     }, 1000);
-                } else {
-                    // Internal context-aware redirection
-                    const isUserContext = typeof window !== 'undefined' && window.location.pathname.startsWith('/User');
-                    
-                    setTimeout(() => {
-                        const moduleQuery = meta.moduleId ? `?moduleId=${meta.moduleId}` : '';
-                        if (isUserContext) {
-                            if (meta.domainId) {
-                                router.push(`/User/MODULES?domainId=${meta.domainId}${meta.moduleId ? `&moduleId=${meta.moduleId}` : ''}`);
-                            } else {
-                                router.push('/User/ALL');
-                            }
-                        } else {
-                            // Admin redirection
-                            if (meta.domainId) {
-                                router.push(`/admin/domains/${meta.domainId}/modules${moduleQuery}`);
-                            } else {
-                                router.push('/admin/workflows');
-                            }
-                        }
-                    }, 1500);
+                    return;
                 }
+
+                // Fallback internal context-aware redirection
+                const isUserContext = typeof window !== 'undefined' && window.location.pathname.startsWith('/User');
+                
+                setTimeout(() => {
+                    const moduleQuery = meta.moduleId ? `?moduleId=${meta.moduleId}` : '';
+                    if (isUserContext) {
+                        if (meta.domainId) {
+                            router.push(`/User/MODULES?domainId=${meta.domainId}${meta.moduleId ? `&moduleId=${meta.moduleId}` : ''}`);
+                        } else {
+                            router.push('/User/ALL');
+                        }
+                    } else {
+                        // Admin redirection
+                        if (savedId) {
+                            router.push(`/admin/workflows/${savedId}`);
+                        } else {
+                            router.push('/admin/workflows');
+                        }
+                    }
+                }, 1500);
 
                 setWorkflowName(meta.name);
                 setWorkflowDomainId(meta.domainId);
                 setWorkflowModuleId(meta.moduleId || '');
                 setWorkflowProjectId(meta.projectId || '');
                 setWorkflowIsTemplate(meta.isTemplate);
-                
-                // SUCCESS: Remove current draft
-                localStorage.removeItem(draftKey);
-                // Also remove generic draft if it was a new creation that just got an ID
-                if (!workflowId) localStorage.removeItem('workflow_draft_new');
-
-                const savedId = currentWorkflowId || response?.data?._id;
-
-                // Redirect to the workflow dashboard space to see the dashboard and other information
-                setTimeout(() => {
-                    if (savedId) {
-                        router.push(`/admin/workflows/${savedId}`);
-                    } else {
-                        router.push('/admin/workflows');
-                    }
-                }, 1500);
             } else {
                 toast.error('Save error: ' + (response.message || 'Unknown error'));
             }

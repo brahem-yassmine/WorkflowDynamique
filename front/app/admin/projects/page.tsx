@@ -20,6 +20,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
 import { apiService } from '@/service/api.service';
 import Link from 'next/link';
+import { showConfirm } from '@/lib/alerts';
 
 interface Project {
     _id: string;
@@ -128,15 +129,24 @@ export default function ProjectsPage() {
     };
 
   const handleDelete = async (id: string) => {
-    try {
-      const response = await apiService.deleteProject(id);
-      if (response.success) {
-        toast.success('Project deleted successfully');
-        setProjects(prev => prev.filter(p => p._id !== id));
-        if (selectedProject?._id === id) setSelectedProject(null);
+    const confirmed = await showConfirm({
+      title: 'DANGER: Strategic Dismantling',
+      text: 'This action is PERMANENT. Deleting this project will automatically TERMINATE all associated workflows and operational modules. This data cannot be recovered.',
+      danger: true,
+      confirmButtonText: 'Delete Project & All Data'
+    });
+
+    if (confirmed) {
+      try {
+        const response = await apiService.deleteProject(id);
+        if (response.success) {
+          toast.success('Project portfolio dismantled successfully');
+          setProjects(prev => prev.filter(p => p._id !== id));
+          if (selectedProject?._id === id) setSelectedProject(null);
+        }
+      } catch (error: any) {
+        toast.error('Dismantling protocol failed: ' + error.message);
       }
-    } catch (error: any) {
-      toast.error('Error during deletion: ' + error.message);
     }
   };
 
@@ -230,12 +240,16 @@ export default function ProjectsPage() {
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-8">
                             {filteredProjects.map(project => (
-                                <ProjectCard
-                                    key={project._id}
-                                    project={project}
-                                    isSelected={selectedProject?._id === project._id}
-                                    onClick={() => router.push(`/admin/projects/${project._id}`)}
-                                />
+                                    <ProjectCard
+                                        key={project._id}
+                                        project={project}
+                                        isSelected={selectedProject?._id === project._id}
+                                        onClick={() => router.push(`/admin/projects/${project._id}`)}
+                                        onDelete={(e) => {
+                                            e.stopPropagation();
+                                            handleDelete(project._id);
+                                        }}
+                                    />
                             ))}
                         </div>
                     )}
@@ -467,7 +481,17 @@ export default function ProjectsPage() {
     );
 }
 
-function ProjectCard({ project, isSelected, onClick }: { project: Project; isSelected: boolean; onClick: () => void }) {
+function ProjectCard({ 
+    project, 
+    isSelected, 
+    onClick,
+    onDelete
+}: { 
+    project: Project; 
+    isSelected: boolean; 
+    onClick: () => void;
+    onDelete: (e: React.MouseEvent) => void;
+}) {
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'active': return 'bg-emerald-500';
@@ -496,7 +520,16 @@ function ProjectCard({ project, isSelected, onClick }: { project: Project; isSel
                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{project.status}</p>
                     </div>
                 </div>
-                <div className={`w-2.5 h-2.5 rounded-full ${getStatusColor(project.status)} animate-pulse`}></div>
+                <div className="flex items-center gap-2">
+                    <button 
+                        onClick={onDelete}
+                        className="p-2 bg-rose-50 text-rose-400 rounded-xl hover:bg-rose-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 shadow-sm border border-rose-100"
+                        title="Dismantle Project"
+                    >
+                        <Trash2 size={14} />
+                    </button>
+                    <div className={`w-2.5 h-2.5 rounded-full ${getStatusColor(project.status)} animate-pulse`}></div>
+                </div>
             </div>
 
             <div className="flex items-center justify-between mt-8 pt-6 border-t border-slate-50">

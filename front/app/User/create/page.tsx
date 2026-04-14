@@ -33,9 +33,16 @@ const WorkflowArchitectContent = () => {
     const handleBack = () => {
         const domainId = searchParams.get('domainId');
         const moduleId = searchParams.get('moduleId');
+        const projectId = searchParams.get('projectId');
         const referrer = typeof document !== 'undefined' ? document.referrer : null;
 
-        // Priority 1: Operational Context (Module/Domain)
+        // Priority 1: Project Context (Strategic Portfolio)
+        if (projectId) {
+            router.push(`/User/PRO/${projectId}`);
+            return;
+        }
+
+        // Priority 2: Operational Context (Module/Domain)
         if (domainId && moduleId) {
             router.push(`/User/MODULES?domainId=${domainId}&moduleId=${moduleId}`);
             return;

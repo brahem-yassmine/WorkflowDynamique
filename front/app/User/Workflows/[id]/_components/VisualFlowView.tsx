@@ -15,7 +15,6 @@ import {
 import '@xyflow/react/dist/style.css';
 import { GitBranch, Layers, Maximize2, CheckCircle2, Clock, XCircle, Users, Activity } from 'lucide-react';
 import { apiService } from '@/service/api.service';
-import { usePathname } from 'next/navigation';
 
 const CustomNode = ({ data, selected }: any) => {
   const stats = data.stats || { completed: 0, pending: 0, rejected: 0, working: 0 };
@@ -88,8 +87,6 @@ const CustomNode = ({ data, selected }: any) => {
 export default function VisualFlowView({ workflowId, workflow }: { workflowId: string, workflow: any }) {
   const [instances, setInstances] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const pathname = usePathname();
-  const isUserSpace = pathname.startsWith('/User');
 
   const nodeTypes = useMemo(() => ({
     start: CustomNode,
@@ -203,7 +200,7 @@ export default function VisualFlowView({ workflowId, workflow }: { workflowId: s
                </div>
             </div>
             <button 
-              onClick={() => window.open(`/create-workflow?id=${workflowId}`, '_blank')}
+              onClick={() => window.open(`/User/create?id=${workflowId}`, '_blank')}
               className="flex items-center gap-2 px-8 py-3.5 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95"
             >
               <Maximize2 size={16} />

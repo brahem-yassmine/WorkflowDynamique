@@ -14,13 +14,15 @@ import {
     Sparkles,
     Zap,
     ChevronRight,
-    Bell
+    Bell,
+    User
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiService } from '@/service/api.service';
 import { toast } from 'sonner';
 import { showConfirm } from '@/lib/alerts';
 import { Toaster } from 'sonner';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface Domain {
     _id: string;
@@ -44,6 +46,7 @@ const COLORS = [
 
 function DomainsPageContent() {
     const router = useRouter();
+    const { can } = usePermissions();
     const searchParams = useSearchParams();
     const [domains, setDomains] = useState<Domain[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
@@ -173,117 +176,107 @@ function DomainsPageContent() {
         >
             <Toaster position="top-right" richColors />
 
-            {/* Premium Header Hero */}
-            <section className="relative overflow-hidden bg-slate-900 rounded-[3rem] p-10 text-white shadow-2xl">
-                <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-indigo-500/20 to-transparent"></div>
-                <div className="absolute -right-20 -bottom-20 w-80 h-80 bg-indigo-600/10 rounded-full blur-[100px]"></div>
-                
-                <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
-                    <div>
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_12px_rgba(52,211,153,0.8)]"></div>
-                            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-300">Structural Matrix Active</span>
-                        </div>
-                        <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-2 uppercase italic leading-none">
-                           All Operational <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 to-white">Domains</span>
-                        </h1>
-                        <p className="text-slate-400 font-medium text-lg max-w-xl">
-                            Categorize your workflows and personnel into strategic business sectors within the matrix.
-                        </p>
+            {/* Workarea Start */}
+
+            {/* Organization Domains Header - MINIMIZED SCALE */}
+            <div className="max-w-7xl mx-auto w-full px-12 md:px-16 py-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="space-y-1">
+                    <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tighter">Organization Domains</h1>
+                    <p className="text-sm font-bold text-slate-400 max-w-xl leading-tight tracking-tight">
+                        Categorize your workflows and personnel into strategic business sectors.
+                    </p>
+                </div>
+                <button
+                    onClick={() => can('DOMAIN_CREATE') && (resetForm(), setIsModalOpen(true))}
+                    disabled={!can('DOMAIN_CREATE')}
+                    title={!can('DOMAIN_CREATE') ? "Matrix Restricted" : ""}
+                    className={`px-6 py-3 rounded-2xl font-black text-[11px] transition-all shadow-lg flex items-center gap-2.5 active:scale-95 ${
+                        can('DOMAIN_CREATE')
+                        ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100'
+                        : 'bg-slate-100 text-slate-300 grayscale opacity-30 blur-[1px] cursor-not-allowed border border-slate-200 shadow-none'
+                    }`}
+                >
+                    <Plus size={16} className="stroke-[4]" />
+                    New Domain
+                </button>
+            </div>
+
+            <div className="max-w-7xl mx-auto px-8 md:px-16 space-y-8">
+                {/* Search Bar Section - COMPACTED */}
+                <div className="px-5">
+                    <div className="bg-white border border-slate-100 rounded-2xl px-6 py-4 flex items-center gap-3 shadow-[0_5px_20px_-10px_rgba(0,0,0,0.05)] focus-within:ring-4 focus-within:ring-indigo-50 transition-all group">
+                        <Search size={18} className="text-slate-300 group-focus-within:text-indigo-400 transition-colors" />
+                        <input
+                            type="text"
+                            placeholder="Search sectors by name or mission..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="bg-transparent text-sm font-bold text-slate-700 outline-none w-full placeholder:text-slate-300 placeholder:font-bold"
+                        />
                     </div>
                 </div>
-            </section>
 
-            <div className="max-w-7xl mx-auto px-4 space-y-8">
-                {/* Title and Action Section */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                    <div>
-                        <h2 className="text-3xl font-black text-slate-800 tracking-tight leading-none mb-2">Organization Domains</h2>
-                        <p className="text-sm font-medium text-slate-400">Categorize your workflows and personnel into strategic business sectors.</p>
-                    </div>
-                    
-                    <button
-                        onClick={() => { resetForm(); setIsModalOpen(true); }}
-                        className="px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 flex items-center gap-3 group"
-                    >
-                        <Plus size={18} className="group-hover:rotate-90 transition-transform" />
-                        New Domain
-                    </button>
-                </div>
-
-                {/* Search Bar */}
-                <div className="relative group">
-                    <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-500 transition-colors" size={20} />
-                    <input
-                        type="text"
-                        placeholder="Search sectors by name or mission..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-16 pr-6 py-5 bg-white border border-slate-200 rounded-2xl shadow-sm focus:outline-none focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 placeholder:text-slate-300"
-                    />
-                </div>
-
-                {/* Sector Grid (Matching Reference) */}
-                <div className="grid grid-cols-1 gap-6">
+                {/* Sector Grid - COMPACT CARDS */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {isLoading ? (
                         Array(3).fill(0).map((_, i) => (
-                            <div key={i} className="h-32 bg-white rounded-3xl border border-slate-100 animate-pulse shadow-sm"></div>
+                            <div key={i} className="h-48 bg-white rounded-3xl border border-slate-100 animate-pulse shadow-sm"></div>
                         ))
                     ) : filteredDomains.length > 0 ? (
-                        filteredDomains.map((domain) => (
+                        filteredDomains.map((domain, idx) => (
                             <motion.div
                                 layoutId={domain._id}
                                 key={domain._id}
-                                whileHover={{ scale: 1.01 }}
+                                initial={{ opacity: 0, y: 15 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: idx * 0.05 }}
                                 onClick={() => router.push(`/User/MODULES?domainId=${domain._id}`)}
-                                className="group bg-white rounded-3xl border border-slate-200 p-8 shadow-sm hover:shadow-xl hover:border-indigo-100 transition-all cursor-pointer relative overflow-hidden"
+                                className="group relative bg-white rounded-3xl border-y border-l border-slate-100 border-r-4 border-r-indigo-600 p-8 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.03)] hover:shadow-xl hover:shadow-indigo-500/10 transition-all cursor-pointer overflow-hidden flex flex-col"
                             >
-                                {/* Left Color Accent */}
-                                <div className="absolute top-0 left-0 w-1.5 h-full" style={{ backgroundColor: domain.color || COLORS[0] }}></div>
-                                
-                                <div className="flex justify-between items-start">
-                                    <div className="flex gap-8">
-                                        <div className="w-14 h-14 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center text-slate-400 group-hover:text-indigo-600 transition-colors">
-                                            <Briefcase size={24} />
-                                        </div>
-                                        <div>
-                                            <h3 className="text-xl font-black text-slate-800 tracking-tight leading-none mb-2 uppercase">
-                                                {domain.name}
-                                            </h3>
-                                            <p className="text-sm font-medium text-slate-400 leading-relaxed uppercase tracking-tighter">
-                                                {domain.description}
-                                            </p>
-                                        </div>
+                                {/* Top area with Icon and Badge */}
+                                <div className="flex justify-between items-start mb-6">
+                                    <div className="w-12 h-12 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-500 shadow-inner">
+                                        <Briefcase size={22} />
                                     </div>
+                                    <div className="px-3 py-1 bg-slate-50 rounded-lg border border-slate-100">
+                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Active</span>
+                                    </div>
+                                </div>
 
-                                    <div className="flex items-center gap-4">
-                                        <div className="px-3 py-1 bg-slate-50 border border-slate-100 rounded-lg text-[9px] font-black uppercase tracking-widest text-slate-400">
-                                            {domain.isActive !== false ? 'Active' : 'Inactive'}
-                                        </div>
-                                        
-                                        {/* Options Buttons */}
-                                        <div className="flex gap-2">
-                                            <button 
-                                                onClick={(e) => { e.stopPropagation(); router.push(`/User/DOMAINS/MODULES?domainId=${domain._id}&action=create`); }}
-                                                className="p-2 bg-slate-50 text-slate-400 hover:text-emerald-600 rounded-lg border border-slate-100"
-                                                title="Quick Deploy Module"
-                                            >
-                                                <Plus size={14} />
-                                            </button>
-                                            <button 
-                                                onClick={(e) => { e.stopPropagation(); handleEdit(domain); }}
-                                                className="p-2 bg-slate-50 text-slate-400 hover:text-indigo-600 rounded-lg border border-slate-100"
-                                            >
-                                                <Edit size={14} />
-                                            </button>
-                                            <button 
-                                                onClick={(e) => { e.stopPropagation(); handleDelete(domain._id); }}
-                                                className="p-2 bg-slate-50 text-slate-400 hover:text-rose-600 rounded-lg border border-slate-100"
-                                            >
-                                                <Trash2 size={14} />
-                                            </button>
-                                        </div>
-                                    </div>
+                                {/* Content area */}
+                                <div className="space-y-2">
+                                    <h3 className="text-lg font-black text-slate-800 tracking-tight leading-none group-hover:text-indigo-600 transition-colors capitalize">
+                                        {domain.name}
+                                    </h3>
+                                    <p className="text-[11px] font-bold text-slate-400 leading-relaxed uppercase tracking-widest line-clamp-2">
+                                        {domain.description}
+                                    </p>
+                                </div>
+
+                                {/* Hidden Actions (Shows on Hover) */}
+                                <div className="absolute bottom-4 right-6 flex gap-2 opacity-0 group-hover:opacity-100 translate-y-3 group-hover:translate-y-0 transition-all duration-500">
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); can('DOMAIN_EDIT') && handleEdit(domain); }}
+                                        title={!can('DOMAIN_EDIT') ? "Matrix Restricted" : "Refine Sector"}
+                                        className={`p-2.5 rounded-lg hover:shadow-md transition-all ${
+                                            can('DOMAIN_EDIT')
+                                            ? 'bg-white border border-slate-100 text-slate-400 hover:text-indigo-600'
+                                            : 'bg-slate-50 border border-slate-50 text-slate-200 grayscale opacity-40 blur-[0.6px] cursor-not-allowed pointer-events-none'
+                                        }`}
+                                    >
+                                        <Edit size={14} />
+                                    </button>
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); can('DOMAIN_DELETE') && handleDelete(domain._id); }}
+                                        title={!can('DOMAIN_DELETE') ? "Matrix Restricted" : "Fragment Sector"}
+                                        className={`p-2.5 rounded-lg hover:shadow-md transition-all ${
+                                            can('DOMAIN_DELETE')
+                                            ? 'bg-white border border-slate-100 text-slate-400 hover:text-rose-600'
+                                            : 'bg-slate-50 border border-slate-50 text-slate-200 grayscale opacity-40 blur-[0.6px] cursor-not-allowed pointer-events-none'
+                                        }`}
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
                                 </div>
                             </motion.div>
                         ))

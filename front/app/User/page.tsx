@@ -110,38 +110,43 @@ export default function UserDashboard() {
       variants={containerVariants}
       className="space-y-10 pb-12"
     >
-      {/* Welcome Hero Section */}
+      {/* Welcome Matrix Header */}
       <motion.section 
         variants={itemVariants}
-        className="relative overflow-hidden bg-slate-900 rounded-[3rem] p-10 text-white shadow-2xl"
+        className="relative group perspective"
       >
-        <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-indigo-500/20 to-transparent"></div>
-        <div className="absolute -right-20 -bottom-20 w-80 h-80 bg-indigo-600/10 rounded-full blur-[100px]"></div>
-        
-        <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
-          <div>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_12px_rgba(52,211,153,0.8)]"></div>
-              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-300">Operational Matrix Active</span>
+        <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-blue-600 rounded-[44px] blur opacity-10 group-hover:opacity-20 transition duration-1000"></div>
+        <div className="relative flex flex-col md:flex-row justify-between items-center bg-white p-10 md:p-12 rounded-[40px] border border-indigo-50/50 shadow-xl shadow-indigo-500/5 overflow-hidden">
+          {/* Abstract decorative elements */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-indigo-500/10 to-transparent rounded-full -mr-48 -mt-48 blur-3xl"></div>
+          
+          <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
+            <div className="w-20 h-20 bg-indigo-600 rounded-3xl flex items-center justify-center text-white shadow-2xl shadow-indigo-200 rotate-3 transition-transform">
+              <Zap size={36} fill="white" />
             </div>
-            <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-2">
-              Welcome Back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 to-white">{profile?.firstName || 'User'}</span>
-            </h1>
-            <p className="text-slate-400 font-medium text-lg max-w-xl">
-              Your system node is verified and synchronized. You have <span className="text-indigo-300 font-bold">{stats.activeTasks} active operations</span> requiring your attention today.
-            </p>
+            <div>
+              <div className="flex items-center gap-3">
+                <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter uppercase italic leading-none">
+                  Functional <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-500">Matrix</span>
+                </h1>
+                <div className="px-3 py-1 bg-emerald-50 rounded-full border border-emerald-100 hidden sm:block">
+                  <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest leading-none animate-pulse">Operational Node Active</span>
+                </div>
+              </div>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mt-4 flex items-center gap-3">
+                <span className="w-8 h-[2px] bg-indigo-600/20 rounded-full" />
+                Welcome Back, {profile?.firstName || 'User'}
+              </p>
+            </div>
           </div>
           
-          <div className="flex gap-4">
+          <div className="flex gap-4 relative z-10 mt-8 md:mt-0">
             <Link 
               href="/User/prof"
-              className="px-8 py-4 bg-white/10 backdrop-blur-md rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-white/20 transition-all border border-white/10"
+              className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-indigo-600 transition-all shadow-xl shadow-slate-200 active:scale-95"
             >
               System Profile
             </Link>
-            <button className="p-4 bg-indigo-600 rounded-2xl hover:bg-indigo-500 transition-all shadow-xl shadow-indigo-900/40 active:scale-95">
-              <Zap size={20} className="fill-white" />
-            </button>
           </div>
         </div>
       </motion.section>
@@ -314,10 +319,10 @@ function MetricCard({ icon, label, value, subValue, color }: any) {
 
   return (
     <motion.div 
-      whileHover={{ y: -5 }}
-      className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-100/30 flex flex-col justify-between"
+      whileHover={{ y: -5, shadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
+      className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-xl shadow-slate-200/50 flex flex-col justify-between"
     >
-      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-6 border ${colors[color as keyof typeof colors]}`}>
+      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-8 border ${colors[color as keyof typeof colors]}`}>
         {icon}
       </div>
       <div>

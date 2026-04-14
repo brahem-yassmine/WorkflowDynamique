@@ -15,7 +15,7 @@ export default function UserLayout({
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const pathname = usePathname();
 
-  const isFullscreenPage = pathname.includes('/User/create_workflows') || pathname.startsWith('/User/MODULES') || pathname.startsWith('/User/create');
+  const isFullscreenPage = pathname.includes('/User/create_workflows') || pathname.startsWith('/User/MODULES') || pathname.startsWith('/User/create') || pathname.startsWith('/User/Workflows/');
 
   useEffect(() => {
     const handleResize = () => {

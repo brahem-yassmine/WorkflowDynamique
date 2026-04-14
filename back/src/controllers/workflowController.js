@@ -108,7 +108,23 @@ exports.getWorkflowById = async (req, res) => {
 exports.createWorkflow = async (req, res) => {
   try {
     const { name, description, domain, domainId, nodes, edges, projectId, moduleId, status, isTemplate } = req.body;
+    
+    if (!req.tenantConn) {
+        return res.status(400).json({ success: false, message: 'Tenant environment not resolved' });
+    }
+
     const Workflow = req.tenantConn.model('Workflow');
+
+    // ID Validation
+    if (domainId && !mongoose.Types.ObjectId.isValid(domainId)) {
+        return res.status(400).json({ success: false, message: 'Invalid Domain ID format' });
+    }
+    if (projectId && !mongoose.Types.ObjectId.isValid(projectId)) {
+        return res.status(400).json({ success: false, message: 'Invalid Project ID format' });
+    }
+    if (moduleId && !mongoose.Types.ObjectId.isValid(moduleId)) {
+        return res.status(400).json({ success: false, message: 'Invalid Module ID format' });
+    }
 
     if (!name) {
       return res.status(400).json({
@@ -261,6 +277,15 @@ exports.createWorkflow = async (req, res) => {
 
   } catch (error) {
     console.error('❌ createWorkflow Error:', error);
+    if (error.name === 'ValidationError') {
+        return res.status(400).json({ 
+            success: false, 
+            message: 'Validation failed: ' + Object.values(error.errors).map((e) => e.message).join(', ') 
+        });
+    }
+    if (error.name === 'CastError') {
+        return res.status(400).json({ success: false, message: `Data mapping error: Invalid ${error.path}` });
+    }
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
@@ -272,7 +297,15 @@ exports.updateWorkflow = async (req, res) => {
   try {
     const { workflowId } = req.params;
     const updates = req.body;
-    const currentUserId = req.user.id || req.user.userId || req.user._id;
+
+    if (!req.tenantConn) {
+        return res.status(400).json({ success: false, message: 'Tenant environment not resolved' });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(workflowId)) {
+        return res.status(400).json({ success: false, message: 'Invalid Workflow ID format' });
+    }
+
     const Workflow = req.tenantConn.model('Workflow');
     const workflow = await Workflow.findById(workflowId);
 
@@ -384,6 +417,15 @@ exports.updateWorkflow = async (req, res) => {
 
   } catch (error) {
     console.error('❌ updateWorkflow Error:', error);
+    if (error.name === 'ValidationError') {
+        return res.status(400).json({ 
+            success: false, 
+            message: 'Validation failed: ' + Object.values(error.errors).map((e) => e.message).join(', ') 
+        });
+    }
+    if (error.name === 'CastError') {
+        return res.status(400).json({ success: false, message: `Data mapping error: Invalid ${error.path}` });
+    }
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };

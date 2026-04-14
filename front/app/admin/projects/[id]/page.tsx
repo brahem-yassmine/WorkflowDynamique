@@ -86,8 +86,13 @@ export default function ProjectWorkflowsPage() {
       if (projRes.success) setProject(projRes.data);
       if (actualWfRes.success) setWorkflows(actualWfRes.data);
       if (modulesRes.success) setModules(modulesRes.data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching data:', error);
+      toast.error(error.message || 'Strategic synchronization failed');
+      // If critical error (like project not found), redirect after a delay
+      if (error.message?.includes('not found') || error.message?.includes('format')) {
+          setTimeout(() => router.push('/admin/projects'), 2000);
+      }
     } finally {
       setLoading(false);
     }

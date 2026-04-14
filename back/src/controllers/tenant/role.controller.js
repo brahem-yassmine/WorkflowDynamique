@@ -1,5 +1,6 @@
 // back/src/controllers/tenant/role.controller.js
 const mongoose = require('mongoose');
+const { resolveDependencies } = require('../../utils/permission.utils');
 
 class RoleController {
 
@@ -19,10 +20,26 @@ class RoleController {
       console.log('📦 Payload:', JSON.stringify(req.body, null, 2));
 
       const Role = RoleController.getModel(req);
-      const { name, description, permissions, isDefault, modulePermissions, domainPermissions, templatePermissions } = req.body;
+      const { name, description, permissions, isDefault } = req.body;
       
       if (!name) {
         return res.status(400).json({ success: false, message: 'Role name is required' });
+      }
+
+      // Validate dependencies
+      if (permissions && Array.isArray(permissions)) {
+        const uniquePerms = Array.from(new Set(permissions));
+        const expectedResolved = resolveDependencies(uniquePerms);
+        
+        if (expectedResolved.length !== uniquePerms.length) {
+          return res.status(400).json({
+            success: false,
+            message: "Missing required permission dependencies. Data might be corrupted or manually altered.",
+            expectedCount: expectedResolved.length,
+            providedCount: uniquePerms.length,
+            expectedPayload: expectedResolved
+          });
+        }
       }
 
       // Clean and validate ObjectIds
@@ -48,10 +65,7 @@ class RoleController {
         isDefault: isDefault || false,
         isActive: true,
         domainId: domainId || undefined,
-        moduleId: moduleId || undefined,
-        domainPermissions: domainPermissions || [],
-        modulePermissions: modulePermissions || [],
-        templatePermissions: templatePermissions || []
+        moduleId: moduleId || undefined
       });
 
       await role.save();
@@ -126,11 +140,27 @@ class RoleController {
     try {
       const Role = RoleController.getModel(req);
       const { id } = req.params;
-      const { name, description, permissions, isDefault, isActive, modulePermissions, domainPermissions, templatePermissions } = req.body;
+      const { name, description, permissions, isDefault, isActive } = req.body;
       
       // Clean and validate ObjectIds
       const domainId = req.body.hasOwnProperty('domainId') ? RoleController.normalizeId(req.body.domainId) : undefined;
       const moduleId = req.body.hasOwnProperty('moduleId') ? RoleController.normalizeId(req.body.moduleId) : undefined;
+
+      // Validate dependencies
+      if (permissions && Array.isArray(permissions)) {
+        const uniquePerms = Array.from(new Set(permissions));
+        const expectedResolved = resolveDependencies(uniquePerms);
+        
+        if (expectedResolved.length !== uniquePerms.length) {
+          return res.status(400).json({
+            success: false,
+            message: "Missing required permission dependencies. Data might be corrupted or manually altered.",
+            expectedCount: expectedResolved.length,
+            providedCount: uniquePerms.length,
+            expectedPayload: expectedResolved
+          });
+        }
+      }
 
       console.log('📦 Update Payload (Normalized):', { name, permissionsCount: permissions?.length, domainId, moduleId });
 
@@ -159,10 +189,6 @@ class RoleController {
       // Explicitly allow clearing by setting to null
       if (domainId !== undefined) role.domainId = domainId;
       if (moduleId !== undefined) role.moduleId = moduleId;
-      
-      role.domainPermissions = domainPermissions || role.domainPermissions;
-      role.modulePermissions = modulePermissions || role.modulePermissions;
-      role.templatePermissions = templatePermissions || role.templatePermissions;
 
       await role.save();
       console.log('✅ [RoleController] Role updated successfully:', role._id);

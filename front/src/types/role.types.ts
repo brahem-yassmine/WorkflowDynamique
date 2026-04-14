@@ -13,4 +13,6 @@ export interface RoleFormData {
   name: string;
   description: string;
   permissions: string[];
+  domainId?: string | null;
+  moduleId?: string | null;
 }

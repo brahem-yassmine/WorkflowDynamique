@@ -5,67 +5,88 @@ const apiKey = process.env.GEMINI_API_KEY;
 const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
 /**
- * Génère un workflow ReactFlow (nodes, edges) structuré en JSON 
- * à partir d'une description textuelle.
+ * Wrapper for AI calls with Exponential Backoff
+ */
+async function safeAiCall(model, prompt, maxRetries = 5) {
+    let delay = 1000; // Start with 1 second
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            return await model.generateContent(prompt);
+        } catch (error) {
+            const isRetryable = error.message.includes('503') || error.message.includes('429');
+            if (isRetryable && i < maxRetries - 1) {
+                console.warn(`[AI SERVICE] Service busy/limit reached. Retrying in ${delay}ms... (Attempt ${i + 1}/${maxRetries})`);
+                await new Promise(res => setTimeout(res, delay));
+                delay *= 2; // Double the wait time
+                continue;
+            }
+            console.error('[AI SERVICE] Terminal Error:', error.message);
+            throw error;
+        }
+    }
+}
+
+/**
+ * Generates a structured ReactFlow workflow (nodes, edges) JSON 
+ * based on a textural description.
  */
 const generateWorkflowFromText = async (description) => {
-    if (!genAI) throw new Error("Clé API Gemini manquante dans le backend (.env).");
+    if (!genAI) throw new Error("Gemini API Key missing in backend configuration (.env).");
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 
-    const prompt = `En tant qu'expert en conception de Workflow métier pour la bibliothèque ReactFlow.
-Conçois un workflow complet et logique pour la description suivante : "${description}"
-Génère une structure VALIDE JSON contenant un tableau 'nodes' et 'edges'.
+    const prompt = `As a ReactFlow business workflow architect expert.
+Generate a logical and complete workflow for: "${description}"
+Output a VALID JSON structure containing 'nodes' and 'edges'.
 
-Règles TRÈS STRICTES pour les noeuds :
-1. LE TOUT PREMIER NOEUD DOIT ÊTRE EXACTEMENT : { "id": "1", "type": "start", "position": { "x": 250, "y": 5 }, "data": { "label": "Start" } }.
-2. Pour les autres noeuds, le champ "type" DOIT ÊTRE CHOISI PARMI CETTE LISTE EXACTE : "action" (tâche), "condition" (choix), "parallel_split" (départ parallèle), "parallel_join" (fusion parallèle), ou "end" (fin). N'utilise JAMAIS "default".
-3. Le champ "data" doit prendre la forme { "label": "Nom de l'action" }.
-4. Calcule le "position" { "x": ..., "y": ... } logiquement (les noeuds descendent de 100 ou 150 en 'y' à chaque étape, et s'éloignent en 'x' s'ils sont parallèles).
+STRICT NODE RULES:
+1. THE FIRST NODE MUST BE EXACTLY: { "id": "1", "type": "start", "position": { "x": 250, "y": 5 }, "data": { "label": "Start" } }.
+2. Types MUST be: "action", "condition", "parallel_split", "parallel_join", or "end".
+3. "data" must be { "label": "Action Name" }.
+4. Calculate positions logically (Y increases by 150 each step).
 
-Règles pour les connexions ('edges') :
-- ex: { "id": "edge_1_2", "source": "1", "target": "2" }
-- Si le noeud source a le type "condition", l'edge DOIT inclure obligatoirement "sourceHandle": "yes" ou "sourceHandle": "no".
+EDGES RULES:
+- If source node is "condition", edge must have "sourceHandle": "yes" or "no".
 
-Ne renvoie AUCUN texte autour, STRICTEMENT LE JSON VALIDE.`;
+RETURN ONLY VALID JSON. NO MARKDOWN, NO TEXT.`;
 
-    const result = await model.generateContent(prompt);
+    const result = await safeAiCall(model, prompt);
     const responseText = result.response.text();
     
-    // Nettoyage de la réponse si l'IA ajoute des blocs markdown ```json ... ```
+    // Clean response from markdown blocks
     let cleanJson = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
 
     try {
         return JSON.parse(cleanJson);
     } catch (e) {
-        console.error("JSON Error:", cleanJson);
-        throw new Error("L'IA n'a pas retourné une structure JSON lisible pour le Workflow.");
+        console.error("[AI SERVICE] JSON Parsing Error:", cleanJson);
+        throw new Error("The AI provided an invalid JSON structure for the Workflow.");
     }
 };
 
 /**
- * Génère un formulaire JSON structuré depuis un texte.
+ * Generates a structured JSON form from a text description.
  */
 const generateFormFromText = async (description) => {
-    if (!genAI) throw new Error("Clé API Gemini manquante dans le backend (.env).");
+    if (!genAI) throw new Error("Gemini API Key missing in backend configuration (.env).");
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 
-    const prompt = `Crée une structure de formulaire informatique pour cet objectif : "${description}".
-Génère UNIQUEMENT un tableau JSON. Chaque élément est un champ de formulaire.
+    const prompt = `Create a functional form structure for this purpose: "${description}".
+Generate ONLY a JSON array. Each element represents a form field.
 
-Structure requise par champ :
+Required structure per field:
 {
-  "name": "identifiant_unique_du_champ_sans_espace",
-  "label": "Titre Propre du Champ",
-  "type": "text|email|number|date|select|textarea|tel",
-  "required": true ou false,
-  "options": ["Choix 1", "Choix 2"] (Laisser vide si ce n'est pas un 'select')
+  "name": "snake_case_id",
+  "label": "Human Readable Title",
+  "type": "text|email|number|date|select|textarea|file",
+  "required": true,
+  "options": ["Op 1", "Op 2"] (Only if type is select)
 }
 
-Ne renvoie STRICTEMENT QUE le tableau JSON valide, sans introduction ni conclusion.`;
+RETURN ONLY VALID JSON.`;
 
-    const result = await model.generateContent(prompt);
+    const result = await safeAiCall(model, prompt);
     const responseText = result.response.text();
     
     let cleanJson = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
@@ -73,8 +94,8 @@ Ne renvoie STRICTEMENT QUE le tableau JSON valide, sans introduction ni conclusi
     try {
         return JSON.parse(cleanJson);
     } catch (e) {
-        console.error("JSON Error:", cleanJson);
-        throw new Error("L'IA n'a pas retourné une structure JSON lisible pour le Formulaire.");
+        console.error("[AI SERVICE] JSON Parsing Error:", cleanJson);
+        throw new Error("The AI provided an invalid JSON structure for the Form.");
     }
 };
 

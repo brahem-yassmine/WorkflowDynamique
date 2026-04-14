@@ -26,10 +26,12 @@ import {
   X
 } from 'lucide-react';
 import { apiService } from '@/service/api.service';
+import useUser from '@/hooks/useUser';
 
 function UserSidebar() {
   const router = useRouter();
   const pathname = usePathname();
+  const { btnDisabledClass } = useUser();
   const [taskCount, setTaskCount] = useState<number | null>(null);
 
   useEffect(() => {
@@ -62,14 +64,18 @@ function UserSidebar() {
   const menuItems = [
     { icon: Briefcase, label: "Attached projects ", href: "/User/PRO" },
     { icon: LayoutGrid, label: "Organizational Domains", href: "/User/DOMAINS" },
-    { icon: Layers, label: "Attached Workflows", href: "/User/ALL" },
+    { icon: LayoutGrid, label: "Command Center", href: "/User" },
+    { icon: Zap, label: "Smart Actions", href: "/User/quick-actions", color: "text-emerald-400", badge: "NEW" },
+    { icon: Briefcase, label: "Attached Projects", href: "/User/PRO", permission: "PROJECT_VIEW" },
+    { icon: LayoutGrid, label: "Organizational Domains", href: "/User/DOMAINS", permission: "DOMAIN_VIEW" },
+    { icon: Layers, label: "Attached Workflows", href: "/User/ALL", permission: "WORKFLOW_VIEW" },
     { icon: User, label: "My Profile", href: "/User/prof" },
-    { icon: CheckSquare, label: "My Tasks", href: "/User/tasks", badge: taskCount },
+    { icon: CheckSquare, label: "Action Center", href: "/User/tasks", badge: taskCount, permission: "TASK_VIEW" },
     { icon: Bell, label: "Alert Inbox", href: "/User/Notifications" },
     { icon: ShieldAlert, label: "Critical Requests", href: "/User/requests", color: "text-rose-400" },
     { icon: Users, label: "Team Space", href: "/User/InviteTeam" },
-    { icon: Layers, label: "Forms Lab", href: "/User/Allforms" },
-    { icon: ListTodo, label: "Checks Matrix", href: "/User/Allchecks" },
+    { icon: Layers, label: "Forms Lab", href: "/User/Allforms", permission: "FORM_VIEW" },
+    { icon: ListTodo, label: "Checks Matrix", href: "/User/Allchecks", permission: "CHECKLIST_VIEW" },
     { icon: Zap, label: "AI Co-pilot", href: "/User/AIGenerate", color: "text-amber-400" },
   ];
 
@@ -96,6 +102,10 @@ function UserSidebar() {
         <div className="space-y-1">
           {menuItems.map((item, idx) => {
             const isActive = pathname === item.href;
+            
+            // Apply Permission Gating (Grayed and Blurred if unauthorized)
+            const permissionClass = item.permission ? btnDisabledClass(item.permission) : "";
+
             return (
               <Link
                 key={idx}
@@ -105,12 +115,14 @@ function UserSidebar() {
                   ${isActive
                     ? 'bg-white text-indigo-700 shadow-xl shadow-indigo-900/20 font-black'
                     : 'text-indigo-100 hover:bg-white/10 hover:text-white font-bold'}
+                  ${permissionClass}
                 `}
+                title={item.permission && permissionClass ? "Matrix Restricted" : ""}
               >
                 <item.icon className={`h-4.5 w-4.5 transition-transform group-hover:scale-110 ${isActive ? 'text-indigo-600' : (item.color || 'text-indigo-300')} group-hover:text-white`} />
                 <span className="text-xs tracking-tight flex-1">{item.label}</span>
 
-                {item.badge !== null && item.badge !== undefined && item.badge > 0 && (
+                {item.badge !== null && item.badge !== undefined && (typeof item.badge === 'string' || item.badge > 0) && (
                   <span className={`
                     px-2 py-0.5 rounded-full text-[9px] font-black 
                     ${isActive ? 'bg-indigo-600 text-white' : 'bg-rose-500 text-white shadow-lg shadow-rose-500/30 ring-2 ring-indigo-700'}

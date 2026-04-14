@@ -65,7 +65,6 @@ function UserSidebar() {
     { icon: Briefcase, label: "Attached projects ", href: "/User/PRO" },
     { icon: LayoutGrid, label: "Organizational Domains", href: "/User/DOMAINS" },
     { icon: LayoutGrid, label: "Command Center", href: "/User" },
-    { icon: Zap, label: "Smart Actions", href: "/User/quick-actions", color: "text-emerald-400", badge: "NEW" },
     { icon: Briefcase, label: "Attached Projects", href: "/User/PRO", permission: "PROJECT_VIEW" },
     { icon: LayoutGrid, label: "Organizational Domains", href: "/User/DOMAINS", permission: "DOMAIN_VIEW" },
     { icon: Layers, label: "Attached Workflows", href: "/User/ALL", permission: "WORKFLOW_VIEW" },

@@ -1,5 +1,6 @@
 // back/src/controllers/tenant/role.controller.js
 const mongoose = require('mongoose');
+const { resolveDependencies } = require('../../utils/permission.utils');
 
 class RoleController {
 
@@ -19,10 +20,26 @@ class RoleController {
       console.log('📦 Payload:', JSON.stringify(req.body, null, 2));
 
       const Role = RoleController.getModel(req);
-      const { name, description, permissions, isDefault, modulePermissions, domainPermissions, templatePermissions } = req.body;
+      const { name, description, permissions, isDefault } = req.body;
       
       if (!name) {
         return res.status(400).json({ success: false, message: 'Role name is required' });
+      }
+
+      // Validate dependencies
+      if (permissions && Array.isArray(permissions)) {
+        const uniquePerms = Array.from(new Set(permissions));
+        const expectedResolved = resolveDependencies(uniquePerms);
+        
+        if (expectedResolved.length !== uniquePerms.length) {
+          return res.status(400).json({
+            success: false,
+            message: "Missing required permission dependencies. Data might be corrupted or manually altered.",
+            expectedCount: expectedResolved.length,
+            providedCount: uniquePerms.length,
+            expectedPayload: expectedResolved
+          });
+        }
       }
 
       // Clean and validate ObjectIds
@@ -48,10 +65,7 @@ class RoleController {
         isDefault: isDefault || false,
         isActive: true,
         domainId: domainId || undefined,
-        moduleId: moduleId || undefined,
-        domainPermissions: domainPermissions || [],
-        modulePermissions: modulePermissions || [],
-        templatePermissions: templatePermissions || []
+        moduleId: moduleId || undefined
       });
 
       await role.save();
@@ -126,11 +140,27 @@ class RoleController {
     try {
       const Role = RoleController.getModel(req);
       const { id } = req.params;
-      const { name, description, permissions, isDefault, isActive, modulePermissions, domainPermissions, templatePermissions } = req.body;
+      const { name, description, permissions, isDefault, isActive } = req.body;
       
       // Clean and validate ObjectIds
       const domainId = req.body.hasOwnProperty('domainId') ? RoleController.normalizeId(req.body.domainId) : undefined;
       const moduleId = req.body.hasOwnProperty('moduleId') ? RoleController.normalizeId(req.body.moduleId) : undefined;
+
+      // Validate dependencies
+      if (permissions && Array.isArray(permissions)) {
+        const uniquePerms = Array.from(new Set(permissions));
+        const expectedResolved = resolveDependencies(uniquePerms);
+        
+        if (expectedResolved.length !== uniquePerms.length) {
+          return res.status(400).json({
+            success: false,
+            message: "Missing required permission dependencies. Data might be corrupted or manually altered.",
+            expectedCount: expectedResolved.length,
+            providedCount: uniquePerms.length,
+            expectedPayload: expectedResolved
+          });
+        }
+      }
 
       console.log('📦 Update Payload (Normalized):', { name, permissionsCount: permissions?.length, domainId, moduleId });
 
@@ -159,10 +189,6 @@ class RoleController {
       // Explicitly allow clearing by setting to null
       if (domainId !== undefined) role.domainId = domainId;
       if (moduleId !== undefined) role.moduleId = moduleId;
-      
-      role.domainPermissions = domainPermissions || role.domainPermissions;
-      role.modulePermissions = modulePermissions || role.modulePermissions;
-      role.templatePermissions = templatePermissions || role.templatePermissions;
 
       await role.save();
       console.log('✅ [RoleController] Role updated successfully:', role._id);
@@ -199,7 +225,11 @@ class RoleController {
   static async delete(req, res) {
     try {
       const Role = RoleController.getModel(req);
+      const User = req.tenantConn.model('User');
       const { id } = req.params;
+      // Because DELETE requests sometimes shouldn't have body in certain older proxies,
+      // it's also common to put it in query, but we'll check both.
+      const replacementRoleId = req.body?.replacementRoleId || req.query?.replacementRoleId;
 
       const role = await Role.findById(id);
       if (!role) {
@@ -213,8 +243,37 @@ class RoleController {
         });
       }
 
+      // Check if users depend on this role
+      const usersWithRole = await User.countDocuments({ specificRoleId: id });
+
+      if (usersWithRole > 0) {
+        if (!replacementRoleId) {
+          return res.status(400).json({ 
+            success: false, 
+            requiresReplacement: true,
+            usersCount: usersWithRole,
+            message: `This authority node is explicitly bound to ${usersWithRole} user(s). You must select a fallback role to take over.`,
+            errorType: 'REQUIRES_REPLACEMENT'
+          });
+        }
+        
+        // Ensure replacement role exists
+        const replacementRole = await Role.findById(replacementRoleId);
+        if (!replacementRole) {
+          return res.status(404).json({ success: false, message: 'Fallback role not found in the matrix' });
+        }
+
+        // Reassign users
+        await User.updateMany({ specificRoleId: id }, { specificRoleId: replacementRoleId });
+        console.log(`[RoleController] Reassigned ${usersWithRole} user(s) to role ${replacementRoleId}`);
+      }
+
       await Role.findByIdAndDelete(id);
-      res.json({ success: true, message: 'Role deleted successfully' });
+      res.json({ 
+        success: true, 
+        message: 'Role deleted successfully', 
+        reassignedCount: usersWithRole 
+      });
 
     } catch (error) {
       console.error('deleteRole Error:', error);

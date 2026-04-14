@@ -43,25 +43,7 @@ const roleSchema = new mongoose.Schema(
     moduleId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Module"
-    },
-    domainPermissions: [
-      {
-        type: String,
-        trim: true
-      }
-    ],
-    modulePermissions: [
-      {
-        type: String,
-        trim: true
-      }
-    ],
-    templatePermissions: [
-      {
-        type: String,
-        trim: true
-      }
-    ]
+    }
   },
   {
     timestamps: true

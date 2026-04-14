@@ -53,7 +53,7 @@ interface Permission {
   description: string;
   category: string;
 }
-const PERMISSION_ORDER = ['Domain', 'Module', 'Project', 'Workflow', 'Template', 'Form', 'Checklist'];
+const PERMISSION_ORDER = ['Domain', 'Module', 'Project', 'Workflow', 'Kanban', 'Template', 'Form', 'Checklist'];
 
 export default function RolesPage() {
   const [roles, setRoles] = useState<Role[]>([]);
@@ -64,6 +64,9 @@ export default function RolesPage() {
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [roleToDelete, setRoleToDelete] = useState<string | null>(null);
+  const [replacementRoleId, setReplacementRoleId] = useState<string>('');
+  const [deleteRequiresReplacement, setDeleteRequiresReplacement] = useState(false);
+  const [usersCountToReassign, setUsersCountToReassign] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const router = useRouter();
@@ -196,17 +199,27 @@ export default function RolesPage() {
     if (!roleToDelete) return;
 
     try {
-      const response = await api.delete(`/api/tenant/roles/${roleToDelete}`);
+      const response = await api.delete(`/api/tenant/roles/${roleToDelete}`, {
+        data: { replacementRoleId: replacementRoleId || undefined }
+      });
       if (response.data.success) {
         setShowDeleteConfirm(false);
         setRoleToDelete(null);
         setSelectedRole(null);
+        setReplacementRoleId('');
+        setDeleteRequiresReplacement(false);
         loadRoles();
       }
     } catch (err: any) {
       console.error('❌ Error purging role:', err);
-      setError(err.response?.data?.message || 'Failed to purge the authority node.');
-      setShowDeleteConfirm(false);
+      if (err.response?.data?.errorType === 'REQUIRES_REPLACEMENT') {
+        setDeleteRequiresReplacement(true);
+        setUsersCountToReassign(err.response.data.usersCount);
+        setError('');
+      } else {
+        setError(err.response?.data?.message || 'Failed to purge the authority node.');
+        setShowDeleteConfirm(false);
+      }
     }
   };
 
@@ -899,30 +912,64 @@ export default function RolesPage() {
               </div>
 
               <div className="p-10 space-y-6">
-                <div className="w-20 h-20 bg-rose-50 rounded-[32px] flex items-center justify-center text-rose-500 shadow-inner mx-auto mb-4">
-                  <Trash2 size={32} />
+                <div className={`w-20 h-20 rounded-[32px] flex items-center justify-center shadow-inner mx-auto mb-4 ${deleteRequiresReplacement ? 'bg-amber-50 text-amber-500' : 'bg-rose-50 text-rose-500'}`}>
+                  {deleteRequiresReplacement ? <Shield size={32} /> : <Trash2 size={32} />}
                 </div>
                 
                 <div className="space-y-3 text-center">
-                  <h3 className="text-xl font-black text-slate-800 tracking-tight">Purge Authority Node?</h3>
-                  <p className="text-sm font-medium text-slate-500 leading-relaxed">
-                    You are about to permanently delete this authority node from the matrix. This action will revoke all associated permissions across the organization and cannot be undone.
-                  </p>
+                  <h3 className="text-xl font-black text-slate-800 tracking-tight">
+                    {deleteRequiresReplacement ? 'Action Required' : 'Purge Authority Node?'}
+                  </h3>
+                  
+                  {deleteRequiresReplacement ? (
+                    <div className="space-y-6 text-left">
+                      <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm font-medium p-4 rounded-2xl">
+                        This role is currently assigned to <strong className="font-black text-amber-900">{usersCountToReassign} user(s)</strong>. You must select a fallback role to reassign these users before the deletion can proceed.
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="text-xs font-black uppercase text-slate-400 tracking-widest pl-2">Fallback Role</label>
+                        <select
+                          value={replacementRoleId}
+                          onChange={(e) => setReplacementRoleId(e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-2xl p-4 text-sm font-medium text-slate-700 shadow-sm focus:outline-none focus:ring-4 focus:ring-amber-50 focus:border-amber-400 transition-all"
+                        >
+                          <option value="">Select a role...</option>
+                          {roles
+                            .filter((r) => r.isActive && r._id !== roleToDelete)
+                            .map((r) => (
+                              <option key={r._id} value={r._id}>
+                                {r.name}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm font-medium text-slate-500 leading-relaxed">
+                      You are about to permanently delete this authority node from the matrix. This action will revoke all associated permissions across the organization and cannot be undone.
+                    </p>
+                  )}
                 </div>
               </div>
 
               <div className="p-8 border-t border-slate-50 bg-slate-50/30 flex gap-4">
                 <button
-                  onClick={() => setShowDeleteConfirm(false)}
+                  onClick={() => {
+                     setShowDeleteConfirm(false);
+                     setDeleteRequiresReplacement(false);
+                     setReplacementRoleId('');
+                  }}
                   className="flex-1 py-4 bg-white text-slate-400 font-black hover:text-slate-600 transition-all uppercase text-[10px] tracking-widest border border-slate-100 rounded-2xl"
                 >
                   Abort Action
                 </button>
                 <button
                   onClick={handleDeleteRole}
-                  className="flex-1 py-4 bg-rose-600 text-white rounded-2xl font-black shadow-lg shadow-rose-100 hover:bg-rose-700 transition-all active:scale-95 uppercase text-[10px] tracking-widest flex items-center justify-center gap-2"
+                  disabled={deleteRequiresReplacement && !replacementRoleId}
+                  className={`flex-1 py-4 text-white rounded-2xl font-black shadow-lg transition-all active:scale-95 uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${deleteRequiresReplacement ? 'bg-amber-500 shadow-amber-100 hover:bg-amber-600' : 'bg-rose-600 shadow-rose-100 hover:bg-rose-700'}`}
                 >
-                  Confirm Purge
+                  {deleteRequiresReplacement ? 'Reassign & Purge' : 'Confirm Purge'}
                 </button>
               </div>
             </motion.div>

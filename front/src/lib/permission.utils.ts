@@ -38,7 +38,13 @@ export const PERMISSION_DEPENDENCIES: Record<string, string[]> = {
 
 
   // Checklist rules
-  'Checklist.COMPLETE_ITEM': ['Checklist.VIEW']
+  'Checklist.COMPLETE_ITEM': ['Checklist.VIEW'],
+
+  // Kanban rules
+  'Kanban.VIEW': ['Project.VIEW'],
+  'Kanban.CREATE': ['Kanban.VIEW', 'Project.VIEW'],
+  'Kanban.UPDATE': ['Kanban.VIEW', 'Project.VIEW'],
+  'Kanban.DELETE': ['Kanban.VIEW', 'Project.VIEW'],
 };
 
 /**
@@ -80,7 +86,8 @@ export const UI_GROUPS = {
   Workflow: { icon: '🔁', label: 'Workflow', actions: ["VIEW", "CREATE", "UPDATE", "DELETE", "EXECUTE"] },
   Template: { icon: '📄', label: 'Template', actions: ["VIEW", "CREATE", "UPDATE", "DELETE", "CLONE_TEMPLATE"] },
   Form: { icon: '📝', label: 'Form', actions: ["VIEW", "CREATE", "UPDATE", "DELETE"] },
-  Checklist: { icon: '✅', label: 'Checklist', actions: ["VIEW", "COMPLETE_ITEM"] }
+  Checklist: { icon: '✅', label: 'Checklist', actions: ["VIEW", "COMPLETE_ITEM"] },
+  Kanban: { icon: '🗂️', label: 'Kanban', actions: ["VIEW", "CREATE", "UPDATE", "DELETE"] },
 };
 
 export const ACTION_TOOLTIPS: Record<string, string> = {

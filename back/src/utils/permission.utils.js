@@ -31,12 +31,14 @@ const PERMISSION_DEPENDENCIES = {
   'Form.UPDATE': ['Form.VIEW'],
   'Form.DELETE': ['Form.VIEW'],
 
-  // Task rules
-  'Task.ASSIGN': ['Task.VIEW'],
-  'Task.COMPLETE': ['Task.VIEW'],
-
   // Checklist rules
-  'Checklist.COMPLETE_ITEM': ['Checklist.VIEW']
+  'Checklist.COMPLETE_ITEM': ['Checklist.VIEW'],
+
+  // Kanban rules
+  'Kanban.VIEW': ['Project.VIEW'],
+  'Kanban.CREATE': ['Kanban.VIEW', 'Project.VIEW'],
+  'Kanban.UPDATE': ['Kanban.VIEW', 'Project.VIEW'],
+  'Kanban.DELETE': ['Kanban.VIEW', 'Project.VIEW'],
 };
 
 /**

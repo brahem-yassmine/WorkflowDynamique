@@ -201,7 +201,7 @@ export default function AdminLayout({
                             {isSidebarOpen && (
                                 <motion.div
                                     initial={{ width: 0, opacity: 0 }}
-                                    animate={{ width: 288, opacity: 1 }}
+                                    animate={{ width: 320, opacity: 1 }}
                                     exit={{ width: 0, opacity: 0 }}
                                     transition={{ duration: 0.3, ease: "circOut" }}
                                     className={`fixed inset-y-0 left-0 z-40 lg:relative ${pathname.startsWith('/admin/domains/') && pathname !== '/admin/domains' ? 'bg-indigo-800' : 'bg-indigo-700'} shadow-2xl overflow-hidden flex-shrink-0`}

@@ -291,13 +291,15 @@ export default function WorkflowChecklist() {
         
         if (source === 'workflow_details' && workflowDetailsId) {
           router.push(`/admin/workflows/${workflowDetailsId}`);
-        } else if (source === 'allchecks') {
-          router.push('/admin/AllCheck');
-        } else if (designerWorkflowId || fromWorkflow) {
-          const basePath = userRole.toLowerCase().includes('admin') ? '/admin' : '/User';
-          router.push(`${basePath}/create_workflows?id=${designerWorkflowId}`);
         } else {
-          router.push(`/admin/AllCheck`);
+          const basePath = userRole.toLowerCase().includes('admin') ? '/admin' : '/User';
+          const allCheckPath = userRole.toLowerCase().includes('admin') ? 'AllCheck' : 'Allchecks';
+          
+          if (designerWorkflowId || fromWorkflow) {
+            router.push(`${basePath}/create_workflows?id=${designerWorkflowId}`);
+          } else {
+            router.push(`${basePath}/${allCheckPath}`);
+          }
         }
       } else {
         toast.error(response.message || 'Synchronization failed');
@@ -394,16 +396,18 @@ export default function WorkflowChecklist() {
             <button 
               onClick={() => {
                 const basePath = userRole.toLowerCase().includes('admin') ? '/admin' : '/User';
+                const allCheckPath = userRole.toLowerCase().includes('admin') ? 'AllCheck' : 'Allchecks';
+
                 if (instanceId) {
                   router.push(`/Workflows/instances/${instanceId}`);
                 } else if (source === 'workflow_details' && workflowDetailsId) {
                   router.push(`/admin/workflows/${workflowDetailsId}`);
                 } else if (source === 'allchecks') {
-                  router.push(`${basePath}/AllCheck`);
+                  router.push(`${basePath}/${allCheckPath}`);
                 } else if (designerWorkflowId || fromWorkflow) {
-                  router.push(`${basePath}/Create_workflows?id=${designerWorkflowId}`);
+                  router.push(`${basePath}/create_workflows?id=${designerWorkflowId}`);
                 } else {
-                  router.push(`${basePath}/AllCheck`);
+                  router.push(`${basePath}/${allCheckPath}`);
                 }
               }}
               className="p-2.5 bg-slate-50 text-slate-400 hover:text-indigo-600 rounded-xl hover:bg-indigo-50 transition-all border border-transparent hover:border-indigo-100 shrink-0"

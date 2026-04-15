@@ -290,9 +290,17 @@ class ApiService {
     });
   }
 
+  updateFormStatus(id: string, status: string) {
+    return this.request(`/forms/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+  }
+
   // Checklist Management
-  getChecklists() {
-    return this.request('/checklists');
+  getChecklists(params?: any) {
+    const query = params ? `?${new URLSearchParams(params).toString()}` : '';
+    return this.request(`/checklists${query}`);
   }
 
   toggleTaskStatus(id: string, taskId: string) {

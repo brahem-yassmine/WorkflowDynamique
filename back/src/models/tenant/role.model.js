@@ -37,6 +37,14 @@ const roleSchema = new mongoose.Schema(
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User"
+    },
+    domainId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Domain"
+    },
+    moduleId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Module"
     }
   },
   {

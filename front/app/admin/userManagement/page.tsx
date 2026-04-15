@@ -19,7 +19,8 @@ import {
     X,
     CheckCircle2,
     AlertCircle,
-    Lock
+    Lock,
+    Layers
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiService } from '@/service/api.service';
@@ -40,6 +41,8 @@ interface Persona {
     createdAt?: string;
     specificRole?: string;
     specificRoleId?: string;
+    domainId?: any;
+    moduleId?: any;
 }
 
 interface Role {
@@ -64,7 +67,8 @@ export default function UserManagementPage() {
     const [isEditing, setIsEditing] = useState(false);
     const [hidePasswordInput, setHidePasswordInput] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
-
+    const [modules, setModules] = useState<any[]>([]);
+    
     // Form states
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
@@ -74,6 +78,8 @@ export default function UserManagementPage() {
     const [formDomain, setFormDomain] = useState('');
     const [formSpecificRole, setFormSpecificRole] = useState('');
     const [formSpecificRoleId, setFormSpecificRoleId] = useState('');
+    const [formDomainId, setFormDomainId] = useState('');
+    const [formModuleId, setFormModuleId] = useState('');
 
     const fetchData = async () => {
         try {
@@ -101,8 +107,8 @@ export default function UserManagementPage() {
                                 setPassword('');
                                 setFormRole(userToEdit.role);
                                 setFormDomain(userToEdit.domain);
-                                setFormSpecificRole(userToEdit.specificRole || '');
-                                setFormSpecificRoleId(userToEdit.specificRoleId || '');
+                                setFormDomainId(userToEdit.domainId?._id || userToEdit.domainId || '');
+                                setFormModuleId(userToEdit.moduleId?._id || userToEdit.moduleId || '');
                                 setIsModalOpen(true);
                                 // Clean up URL so it doesn't reopen on subsequent fetches
                                 window.history.replaceState({}, '', window.location.pathname);
@@ -113,6 +119,9 @@ export default function UserManagementPage() {
             }
             if (rolesRes.success) setRoles(rolesRes.data);
             if (domainsRes.success) setDomains(domainsRes.data);
+            
+            const modulesRes = await apiService.getModules();
+            if (modulesRes.success) setModules(modulesRes.data);
 
             if (domainsRes.data?.length > 0 && !formDomain) {
                 setFormDomain(domainsRes.data[0].name);
@@ -138,7 +147,9 @@ export default function UserManagementPage() {
                 role: formRole,
                 domain: formDomain || (domains.length > 0 ? domains[0].name : 'Default'),
                 specificRole: formSpecificRole,
-                specificRoleId: formSpecificRoleId || null
+                specificRoleId: formSpecificRoleId || null,
+                domainId: formDomainId || null,
+                moduleId: formModuleId || null
             };
 
             if (isEditing && selectedUser) {
@@ -225,11 +236,14 @@ export default function UserManagementPage() {
         setFormDomain(domains.length > 0 ? domains[0].name : '');
         setFormSpecificRole('');
         setFormSpecificRoleId('');
+        setFormDomainId('');
+        setFormModuleId('');
         setIsEditing(false);
         setHidePasswordInput(false);
     };
 
     const handleEdit = (user: Persona) => {
+        setSelectedUser(user);
         setIsEditing(true);
         setFirstName(user.firstName || '');
         setLastName(user.lastName || '');
@@ -239,6 +253,8 @@ export default function UserManagementPage() {
         setFormDomain(user.domain);
         setFormSpecificRole(user.specificRole || '');
         setFormSpecificRoleId(user.specificRoleId || '');
+        setFormDomainId(user.domainId?._id || user.domainId || '');
+        setFormModuleId(user.moduleId?._id || user.moduleId || '');
         setIsModalOpen(true);
     };
 
@@ -272,7 +288,7 @@ export default function UserManagementPage() {
                 </div>
                 <div className="flex items-center gap-3">
                     <button
-                        onClick={() => { resetForm(); setIsModalOpen(true); }}
+                        onClick={() => { resetForm(); setSelectedUser(null); setIsModalOpen(true); }}
                         className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95"
                     >
                         <UserPlus size={18} />
@@ -352,6 +368,15 @@ export default function UserManagementPage() {
                                                 >
                                                     <Edit3 size={18} />
                                                 </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleEdit(user);
+                                                    }}
+                                                    className="px-3 py-1.5 bg-indigo-50/50 text-indigo-600 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all border border-indigo-100/50"
+                                                >
+                                                    Custom
+                                                </button>
                                                 <ChevronRight size={18} className={`text-slate-300 transition-transform ${selectedUser?._id === user._id ? 'translate-x-1 text-indigo-600' : ''}`} />
                                             </div>
                                         </td>
@@ -403,9 +428,10 @@ export default function UserManagementPage() {
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                                         <div className="p-6 bg-slate-50 rounded-[28px] space-y-4">
                                             <InspectorInfo label="Connectivity" icon={<Mail size={16} />} value={selectedUser.email} />
-                                            <InspectorInfo label="Assignment Domain" icon={<Briefcase size={16} />} value={selectedUser.domain} />
+                                            <InspectorInfo label="Assignment Domain" icon={<Briefcase size={16} />} value={selectedUser.domainId?.name || selectedUser.domain || 'Global'} />
                                         </div>
                                         <div className="p-6 bg-slate-50 rounded-[28px] space-y-4">
+                                            <InspectorInfo label="Assignment Module" icon={<Layers size={16} />} value={selectedUser.moduleId?.name || 'Full Module Access'} />
                                             <InspectorInfo label="Node Integrity" icon={<Activity size={16} />}>
                                                 <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border shadow-sm ${selectedUser.isActive ? 'bg-white text-emerald-600 border-emerald-100' : 'bg-white text-rose-600 border-rose-100'}`}>
                                                     {selectedUser.isActive ? 'Operational' : 'Access Locked'}
@@ -538,14 +564,43 @@ export default function UserManagementPage() {
                                     </div>
                                 </div>
 
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Target Domain</label>
-                                    <select value={formDomain} onChange={(e) => setFormDomain(e.target.value)} className="w-full h-11 bg-slate-50 rounded-xl px-4 font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none transition-all">
-                                        <option value="">Select Domain...</option>
-                                        {domains.map(d => (
-                                            <option key={d._id} value={d.name}>{d.name}</option>
-                                        ))}
-                                    </select>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Target Domain</label>
+                                        <select 
+                                            value={formDomainId} 
+                                            onChange={(e) => {
+                                                const dId = e.target.value;
+                                                setFormDomainId(dId);
+                                                const dName = domains.find(d => d._id === dId)?.name || '';
+                                                setFormDomain(dName);
+                                                setFormModuleId('');
+                                            }} 
+                                            className="w-full h-11 bg-slate-50 rounded-xl px-4 font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none transition-all"
+                                        >
+                                            <option value="">Select Domain...</option>
+                                            {domains.map(d => (
+                                                <option key={d._id} value={d._id}>{d.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Specific Module</label>
+                                        <select 
+                                            value={formModuleId} 
+                                            onChange={(e) => setFormModuleId(e.target.value)}
+                                            disabled={!formDomainId}
+                                            className="w-full h-11 bg-slate-50 rounded-xl px-4 font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none transition-all disabled:opacity-50"
+                                        >
+                                            <option value="">Select Module...</option>
+                                            {modules
+                                                .filter(m => (m.domainId?._id || m.domainId) === formDomainId)
+                                                .map(m => (
+                                                    <option key={m._id} value={m._id}>{m.name}</option>
+                                                ))
+                                            }
+                                        </select>
+                                    </div>
                                 </div>
                                 <div className="flex gap-4 pt-6">
                                     <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 text-slate-400 font-bold hover:text-slate-600 transition-all uppercase text-xs tracking-widest">Discard</button>

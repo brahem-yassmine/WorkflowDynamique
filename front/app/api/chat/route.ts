@@ -35,7 +35,24 @@ Example: "To get started, navigate to [Projects](/admin/projects)."` }]
     }));
 
     const chat = model.startChat({ history: [...history, ...userHistory] });
-    const resultStream = await chat.sendMessageStream(lastMessage);
+    let resultStream;
+    let retries = 3;
+    while (retries > 0) {
+      try {
+        resultStream = await chat.sendMessageStream(lastMessage);
+        break;
+      } catch (e: any) {
+        if (e.message.includes('503') && retries > 1) {
+          retries--;
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          continue;
+        }
+        throw e;
+      }
+    }
+    
+    if (!resultStream) throw new Error("Failed to start AI stream after retries.");
+
     
     const readableStream = new ReadableStream({
       async start(controller) {

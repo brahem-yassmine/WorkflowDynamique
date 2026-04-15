@@ -10,15 +10,15 @@ const {
     deleteProject
 } = require('../controllers/projectController');
 
-const { auth, requireRole } = require('../middleware/auth');
+const { auth, hasPermission } = require('../middleware/auth');
 const { checkTenantActive } = require('../middleware/tenantMiddleware');
 
 router.use(auth, checkTenantActive);
 
-router.get('/', getProjects);
-router.get('/:projectId', getProjectById);
-router.post('/', requireRole('admin'), createProject);
-router.put('/:projectId', requireRole('admin'), updateProject);
-router.delete('/:projectId', requireRole('admin'), deleteProject);
+router.get('/', hasPermission('PROJECT_VIEW'), getProjects);
+router.get('/:projectId', hasPermission('PROJECT_VIEW'), getProjectById);
+router.post('/', hasPermission('PROJECT_CREATE'), createProject);
+router.put('/:projectId', hasPermission('PROJECT_EDIT'), updateProject);
+router.delete('/:projectId', hasPermission('PROJECT_DELETE'), deleteProject);
 
 module.exports = router;

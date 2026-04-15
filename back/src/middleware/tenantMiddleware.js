@@ -54,7 +54,7 @@ const tenantResolver = async (req, res, next) => {
         const tenantConn = await getTenantConnection(tenant.domain, tenant.databaseName);
         req.tenantConn = tenantConn;
       } catch (connErr) {
-        console.error(`❌ [TenantResolver] Failed to connect to tenant DB:`, connErr.message);
+        console.error(`❌ [TenantResolver] Failed to connect to tenant DB for "${tenant.name}" (${tenant.domain}):`, connErr.message);
         return res.status(503).json({ success: false, message: 'Erreur de connexion à la base du tenant' });
       }
     }
@@ -109,7 +109,7 @@ const checkPlanLimits = (resourceType) => {
           // Ne pas compter les administrateurs
           const count = await User.countDocuments({ role: { $nin: ['admin', 'super_admin'] } });
           const maxUsers = limits.maxUsers || defaultLimits.maxUsers;
-          if (count >= maxUsers) {
+          if (maxUsers !== 0 && maxUsers !== 999999 && count >= maxUsers) {
             let nextPlan = maxUsers <= 5 ? 'Starter' : 'Pro';
             let currentPlan = maxUsers <= 5 ? 'Demo' : 'Starter';
             return res.status(403).json({ 
@@ -125,7 +125,7 @@ const checkPlanLimits = (resourceType) => {
         if (Workflow) {
           const count = await Workflow.countDocuments();
           const maxWorkflows = limits.maxWorkflows || defaultLimits.maxWorkflows;
-          if (count >= maxWorkflows) {
+          if (maxWorkflows !== 0 && maxWorkflows !== 999999 && count >= maxWorkflows) {
             return res.status(403).json({ success: false, message: `Limite de ${maxWorkflows} workflows atteinte` });
           }
         }
@@ -145,7 +145,7 @@ const checkPlanLimits = (resourceType) => {
           const incomingNodesCount = req.body.nodes?.length || 0;
           const totalAfterOperation = currentTotalNodes + incomingNodesCount;
 
-          const maxNodes = limits.maxNodes || 20; // Default fallback
+          const maxNodes = limits.maxNodes || 999999; // Default to unlimited if not specified
 
           // If maxNodes is 0 or 999999, it means unlimited
           if (maxNodes !== 0 && maxNodes !== 999999 && totalAfterOperation > maxNodes) {

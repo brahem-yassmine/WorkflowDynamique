@@ -29,7 +29,17 @@ const useUser = () => {
     fetchUser();
   }, []);
 
-  return { user, tenant, loading };
+  const hasPermission = (permission: string) => {
+    if (!user) return false;
+    if (user.role === 'super_admin' || user.role === 'admin' || user.role === 'user') return true;
+    return user.permissions?.includes(permission);
+  };
+
+  const btnDisabledClass = (permission: string) => {
+    return hasPermission(permission) ? "" : "opacity-30 grayscale blur-[1px] pointer-events-none cursor-not-allowed";
+  };
+
+  return { user, tenant, loading, hasPermission, btnDisabledClass };
 };
 
 export default useUser;  // ⭐ EXPORT PAR DÉFAUT

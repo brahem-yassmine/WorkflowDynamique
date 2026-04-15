@@ -43,6 +43,7 @@ const tenantRoleRoutes = require('./src/routes/tenant/role.routes');
 const tenantDomainRoutes = require('./src/routes/tenant/domain.routes');
 const reportRoutes = require('./src/routes/reportRoutes');
 const moduleRoutes = require('./src/routes/tenant/module.routes');
+const seedPermissions = require('./src/seeds/seedPermissions');
 
 const app = express();
 
@@ -113,6 +114,9 @@ masterConnection.once('connected', () => {
     require('./src/models/master/PlatformSettings')(masterConnection);
 
     console.log('📦 Modèles master chargés:', Object.keys(masterConnection.models).join(', '));
+
+    // Run permission seeding
+    seedPermissions(masterConnection);
 
     // Rendre la connexion master accessible globalement
     app.locals.masterDb = masterConnection;
@@ -227,6 +231,7 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/boards', boardRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/quick-actions', require('./src/routes/quickActionRoutes'));
 
 app.use('/api/tenant/domains', tenantDomainRoutes);
 app.use('/api/modules', moduleRoutes);

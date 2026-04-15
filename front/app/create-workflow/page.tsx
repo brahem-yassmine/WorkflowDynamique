@@ -23,10 +23,10 @@ const WorkflowArchitectContent = () => {
             toast.success(notif);
             
             // Clean up the URL
-            const url = new URL(window.location.href);
-            url.searchParams.delete('notif');
-            url.searchParams.delete('newBoardId');
-            router.replace(url.pathname + url.search);
+            const newParams = new URLSearchParams(searchParams.toString());
+            newParams.delete('notif');
+            newParams.delete('newBoardId');
+            router.replace(`${window.location.pathname}?${newParams.toString()}`);
         }
     }, [searchParams, router]);
     const isTemplate = searchParams.get('isTemplate') === 'true';
@@ -39,25 +39,41 @@ const WorkflowArchitectContent = () => {
         const moduleId = searchParams.get('moduleId');
         const returnUrl = searchParams.get('returnUrl');
 
+        // Priority 0: Explicit Return URL
         if (returnUrl) {
-            window.location.href = returnUrl;
-        } else if (flowId) {
-            window.location.href = `/admin/workflows/${flowId}?tab=visual`;
-        } else if (projectId) {
-            window.location.href = `/admin/projects/${projectId}`;
-        } else if (domainId && moduleId) {
-            window.location.href = `/admin/domains/${domainId}/modules?moduleId=${moduleId}`;
-        } else {
-            window.location.href = '/admin/workflows' + (isTemplate ? '?isTemplate=true' : '');
+            router.push(returnUrl);
+            return;
         }
+
+        // Priority 1: Specific Workflow Context (Admin)
+        if (flowId) {
+            router.push(`/admin/workflows/${flowId}?tab=visual`);
+            return;
+        }
+
+        // Priority 2: Project Context (Admin)
+        if (projectId) {
+            router.push(`/admin/projects/${projectId}`);
+            return;
+        }
+
+        // Priority 3: Operational Context (Module/Domain)
+        if (domainId && moduleId) {
+            router.push(`/admin/domains/${domainId}/modules?moduleId=${moduleId}`);
+            return;
+        }
+
+        // Priority 4: Default Admin Fallback
+        router.push('/admin/workflows' + (isTemplate ? '?isTemplate=true' : ''));
     };
+
 
     return (
         <div className="flex flex-col h-screen w-full bg-[#fdfdfd] overflow-hidden isolate">
             {/* Top Navigation Bar - Contextual Theme */}
-            <div className={`bg-[#1e1b4b] px-10 py-5 flex items-center justify-between shadow-[0_10px_50px_rgba(0,0,0,0.3)] z-[99999] relative border-b ${isTemplate ? 'border-indigo-500/20' : 'border-emerald-500/20'}`}>
+            <div className="bg-[#1e1b4b] px-10 py-5 flex items-center justify-between shadow-[0_10px_50px_rgba(0,0,0,0.3)] z-[99999] relative border-b border-indigo-500/20">
                 {/* Visual Glow Ornament */}
-                <div className={`absolute top-0 left-1/4 w-96 h-1 bg-gradient-to-r from-transparent ${isTemplate ? 'via-indigo-500' : 'via-emerald-500'} to-transparent opacity-50 pointer-events-none`}></div>
+                <div className="absolute top-0 left-1/4 w-96 h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-50 pointer-events-none"></div>
                 
                 <div className="flex items-center gap-10">
                     <button
@@ -85,11 +101,11 @@ const WorkflowArchitectContent = () => {
                 </div>
 
                 <div className="flex items-center gap-6">
-                    <div className={`flex items-center gap-3 px-5 py-3 ${isTemplate ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'} rounded-2xl text-[9px] font-black uppercase tracking-[0.15em] shadow-inner`}>
-                        <div className={`w-2 h-2 ${isTemplate ? 'bg-emerald-500' : 'bg-emerald-500'} rounded-full animate-ping`}></div>
+                    <div className="flex items-center gap-3 px-5 py-3 bg-indigo-500/10 border-indigo-500/20 text-indigo-400 rounded-2xl text-[9px] font-black uppercase tracking-[0.15em] shadow-inner">
+                        <div className="w-2 h-2 bg-indigo-500 rounded-full animate-ping"></div>
                         Lattice Protocol Online
                     </div>
-                    <div className={`flex items-center gap-3 px-5 py-3 ${isTemplate ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'} rounded-2xl text-[9px] font-black uppercase tracking-[0.15em]`}>
+                    <div className="flex items-center gap-3 px-5 py-3 bg-indigo-500/10 border-indigo-500/20 text-indigo-300 rounded-2xl text-[9px] font-black uppercase tracking-[0.15em]">
                         <Activity size={16} />
                         Engine v2.4
                     </div>
@@ -99,7 +115,7 @@ const WorkflowArchitectContent = () => {
 
             {/* Editor Canvas Container - NOW FULL SCREEN */}
             <div className="flex-grow overflow-hidden relative">
-                <WorkflowEditor />
+                <WorkflowEditor onSaveSuccess={handleBack} />
             </div>
 
             {/* Subtle Footer Bar */}
@@ -107,8 +123,8 @@ const WorkflowArchitectContent = () => {
                 <span>Lattice Engine v2.4</span>
                 <div className="flex items-center gap-3">
                     <div className="flex items-center gap-1">
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                        <span className="text-emerald-500/50">System Nominal</span>
+                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
+                        <span className="text-indigo-500/50">System Nominal</span>
                     </div>
                     <div className="h-3 w-px bg-slate-100"></div>
                     <span>Schema Sync: 100%</span>

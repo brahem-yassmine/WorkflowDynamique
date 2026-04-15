@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 
 // Connection cache
 const connections = {};
-const connectionPromises = {};
+const pendingConnections = {}; // Cache to track in-flight connection attempts
 
 /**
  * Get or create a connection for a specific tenant
@@ -17,13 +17,13 @@ async function getTenantConnection(domain, dbName) {
   }
 
   // 2. If a connection is currently being established, wait for it
-  if (connectionPromises[domain]) {
+  if (pendingConnections[domain]) {
     console.log(`⏳ [TenantConn] Waiting for ongoing connection for: ${domain}`);
-    return connectionPromises[domain];
+    return pendingConnections[domain];
   }
 
   // 3. Start a new connection process
-  connectionPromises[domain] = (async () => {
+  pendingConnections[domain] = (async () => {
     try {
       // Check cache again
       if (connections[domain]) {
@@ -33,12 +33,21 @@ async function getTenantConnection(domain, dbName) {
         }
       }
 
-      const baseUri = process.env.MONGO_URI || 'mongodb://localhost:27017';
+      // 3.1 Robust URI resolution: Use MONGO_URI, or derive from MASTER_DB_URI, or default to localhost
+      let baseUri = process.env.MONGO_URI;
+      if (!baseUri && process.env.MASTER_DB_URI) {
+        // Strip the database name from the end of MASTER_DB_URI
+        baseUri = process.env.MASTER_DB_URI.substring(0, process.env.MASTER_DB_URI.lastIndexOf('/'));
+      }
+      if (!baseUri) baseUri = 'mongodb://localhost:27017';
+
       const uri = `${baseUri}/${dbName}`;
-      console.log(`🔌 [TenantConn] Opening connection to: ${uri}`);
+      console.log(`🔌 [TenantConn] Attempting connection to: ${uri.replace(/\/\/.*@/, '//****:****@')}`); // Shield sensitive info
 
       const conn = mongoose.createConnection(uri, {
-        serverSelectionTimeoutMS: 10000,
+        serverSelectionTimeoutMS: 15000,
+        connectTimeoutMS: 15000,
+        heartbeatFrequencyMS: 10000,
       });
 
       connections[domain] = conn;
@@ -78,20 +87,26 @@ async function getTenantConnection(domain, dbName) {
       require('../models/tenant/TaskReport')(conn);
       require('../models/tenant/MessageTemplate')(conn);
       require('../models/tenant/module.model')(conn);
+      require('../models/tenant/QuickAction')(conn);
 
       console.log(`📦 [TenantConn] Models loaded for: ${dbName}`);
 
       return conn;
     } catch (error) {
-      console.error(`❌ [TenantConn] Critical error for ${domain}:`, error.message);
+      console.error(`❌ [TenantConn] Critical connection failure for tenant domain "${domain}":`);
+      console.error(`   - Target DB: ${dbName}`);
+      console.error(`   - Error Name: ${error.name}`);
+      console.error(`   - Error Message: ${error.message}`);
+      if (error.reason) console.error(`   - Reason:`, error.reason);
+      
       delete connections[domain];
       throw error;
     } finally {
-      delete connectionPromises[domain];
+      delete pendingConnections[domain];
     }
   })();
 
-  return connectionPromises[domain];
+  return pendingConnections[domain];
 }
 
 /**

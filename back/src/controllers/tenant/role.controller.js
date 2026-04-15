@@ -1,5 +1,6 @@
 // back/src/controllers/tenant/role.controller.js
 const mongoose = require('mongoose');
+const { resolveDependencies } = require('../../utils/permission.utils');
 
 class RoleController {
 
@@ -20,13 +21,40 @@ class RoleController {
 
       const Role = RoleController.getModel(req);
       const { name, description, permissions, isDefault } = req.body;
-      console.log('📦 Create Payload:', { name, permissionsCount: permissions?.length });
+      
+      if (!name) {
+        return res.status(400).json({ success: false, message: 'Role name is required' });
+      }
 
-      const existingRole = await Role.findOne({ name });
+      // Validate dependencies
+      if (permissions && Array.isArray(permissions)) {
+        const uniquePerms = Array.from(new Set(permissions));
+        const expectedResolved = resolveDependencies(uniquePerms);
+        
+        if (expectedResolved.length !== uniquePerms.length) {
+          return res.status(400).json({
+            success: false,
+            message: "Missing required permission dependencies. Data might be corrupted or manually altered.",
+            expectedCount: expectedResolved.length,
+            providedCount: uniquePerms.length,
+            expectedPayload: expectedResolved
+          });
+        }
+      }
+
+      // Clean and validate ObjectIds
+      const domainId = RoleController.normalizeId(req.body.domainId);
+      const moduleId = RoleController.normalizeId(req.body.moduleId);
+
+      console.log('📦 Create Payload (Normalized):', { name, permissionsCount: permissions?.length, domainId, moduleId });
+
+      // Case-insensitive check with escaped name
+      const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const existingRole = await Role.findOne({ name: { $regex: new RegExp(`^${escapedName}$`, 'i') } });
       if (existingRole) {
         return res.status(400).json({
           success: false,
-          message: 'A role with this name already exists'
+          message: `The role name "${name}" is already taken.`
         });
       }
 
@@ -35,16 +63,29 @@ class RoleController {
         description,
         permissions: permissions || [],
         isDefault: isDefault || false,
-        isActive: true
+        isActive: true,
+        domainId: domainId || undefined,
+        moduleId: moduleId || undefined
       });
 
       await role.save();
-      console.log('✅ Role created successfully:', role._id);
+      console.log('✅ [RoleController] Role created successfully:', role._id);
       res.status(201).json({ success: true, data: role });
 
     } catch (error) {
-      console.error('Role creation Error:', error);
-      res.status(500).json({ success: false, message: error.message });
+      console.error('❌ [RoleController] Role creation Error:', error);
+      
+      // Handle Mongoose duplicate key error (if findOne missed it)
+      if (error.code === 11000) {
+        return res.status(400).json({ success: false, message: 'A role with this name already exists (unique constraint)' });
+      }
+
+      res.status(500).json({ 
+        success: false, 
+        message: 'Internal Server Error during Role Creation',
+        details: error.message,
+        stack: error.stack
+      });
     }
   }
 
@@ -104,19 +145,41 @@ class RoleController {
       const Role = RoleController.getModel(req);
       const { id } = req.params;
       const { name, description, permissions, isDefault, isActive } = req.body;
-      console.log('📦 Update Payload:', { name, permissionsCount: permissions?.length });
+      
+      // Clean and validate ObjectIds
+      const domainId = req.body.hasOwnProperty('domainId') ? RoleController.normalizeId(req.body.domainId) : undefined;
+      const moduleId = req.body.hasOwnProperty('moduleId') ? RoleController.normalizeId(req.body.moduleId) : undefined;
+
+      // Validate dependencies
+      if (permissions && Array.isArray(permissions)) {
+        const uniquePerms = Array.from(new Set(permissions));
+        const expectedResolved = resolveDependencies(uniquePerms);
+        
+        if (expectedResolved.length !== uniquePerms.length) {
+          return res.status(400).json({
+            success: false,
+            message: "Missing required permission dependencies. Data might be corrupted or manually altered.",
+            expectedCount: expectedResolved.length,
+            providedCount: uniquePerms.length,
+            expectedPayload: expectedResolved
+          });
+        }
+      }
+
+      console.log('📦 Update Payload (Normalized):', { name, permissionsCount: permissions?.length, domainId, moduleId });
 
       const role = await Role.findById(id);
       if (!role) {
         return res.status(404).json({ success: false, message: 'Role not found' });
       }
 
-      if (name && name !== role.name) {
-        const existingRole = await Role.findOne({ name });
+      if (name && name.toLowerCase() !== role.name.toLowerCase()) {
+        const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const existingRole = await Role.findOne({ name: { $regex: new RegExp(`^${escapedName}$`, 'i') } });
         if (existingRole) {
           return res.status(400).json({
             success: false,
-            message: 'A role with this name already exists'
+            message: `The role name "${name}" is already taken by another role.`
           });
         }
       }
@@ -126,26 +189,51 @@ class RoleController {
       role.permissions = permissions || role.permissions;
       if (isDefault !== undefined) role.isDefault = isDefault;
       if (isActive !== undefined) role.isActive = isActive;
+      
+      // Explicitly allow clearing by setting to null
+      if (domainId !== undefined) role.domainId = domainId;
+      if (moduleId !== undefined) role.moduleId = moduleId;
 
       await role.save();
-      console.log('✅ Role updated successfully:', role._id);
+      console.log('✅ [RoleController] Role updated successfully:', role._id);
       res.json({ success: true, data: role });
 
     } catch (error) {
-      console.error('❌ [RoleController] Update Error:', error);
+      console.error('❌ [RoleController] Role Update Error:', error);
+      
+      if (error.code === 11000) {
+        return res.status(400).json({ success: false, message: 'This role name is already in use.' });
+      }
+
       res.status(500).json({ 
         success: false, 
         message: 'Internal Server Error during Role Update',
-        details: error.message 
+        details: error.message,
+        stack: error.stack
       });
     }
+  }
+
+  // Helper to normalize IDs
+  static normalizeId(id) {
+    if (!id || id === '' || id === 'null' || id === 'undefined') return null;
+    if (typeof id === 'string' && id.length === 24 && /^[0-9a-fA-F]{24}$/.test(id)) {
+      return id;
+    }
+    // If it's already an ObjectId
+    if (id instanceof mongoose.Types.ObjectId) return id;
+    return null;
   }
 
   // Delete a role
   static async delete(req, res) {
     try {
       const Role = RoleController.getModel(req);
+      const User = req.tenantConn.model('User');
       const { id } = req.params;
+      // Because DELETE requests sometimes shouldn't have body in certain older proxies,
+      // it's also common to put it in query, but we'll check both.
+      const replacementRoleId = req.body?.replacementRoleId || req.query?.replacementRoleId;
 
       const role = await Role.findById(id);
       if (!role) {
@@ -159,8 +247,37 @@ class RoleController {
         });
       }
 
+      // Check if users depend on this role
+      const usersWithRole = await User.countDocuments({ specificRoleId: id });
+
+      if (usersWithRole > 0) {
+        if (!replacementRoleId) {
+          return res.status(400).json({ 
+            success: false, 
+            requiresReplacement: true,
+            usersCount: usersWithRole,
+            message: `This authority node is explicitly bound to ${usersWithRole} user(s). You must select a fallback role to take over.`,
+            errorType: 'REQUIRES_REPLACEMENT'
+          });
+        }
+        
+        // Ensure replacement role exists
+        const replacementRole = await Role.findById(replacementRoleId);
+        if (!replacementRole) {
+          return res.status(404).json({ success: false, message: 'Fallback role not found in the matrix' });
+        }
+
+        // Reassign users
+        await User.updateMany({ specificRoleId: id }, { specificRoleId: replacementRoleId });
+        console.log(`[RoleController] Reassigned ${usersWithRole} user(s) to role ${replacementRoleId}`);
+      }
+
       await Role.findByIdAndDelete(id);
-      res.json({ success: true, message: 'Role deleted successfully' });
+      res.json({ 
+        success: true, 
+        message: 'Role deleted successfully', 
+        reassignedCount: usersWithRole 
+      });
 
     } catch (error) {
       console.error('deleteRole Error:', error);

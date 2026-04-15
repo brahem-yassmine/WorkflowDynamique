@@ -18,13 +18,15 @@ const permissionSchema = new mongoose.Schema(
     category: {
       type: String,
       enum: [
-        "USER",
-        "ROLE",
-        "DEPARTMENT",
+        "DOMAIN",
+        "MODULE",
         "WORKFLOW",
         "PROJECT",
+        "KANBAN",
+        "FORM",
+        "CHECKLIST",
         "TASK",
-        "SYSTEM"
+        "TASK_ACTION_SCOPE",
       ],
       required: true
     }

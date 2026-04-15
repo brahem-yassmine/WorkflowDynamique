@@ -6,19 +6,19 @@ import useUser from '@/hooks/useUser';
 import NotificationBell from '@/components/NotificationBell';
 
 interface HeaderProps {
-  toggleSidebar?: () => void;
+  onToggleSidebar?: () => void;
 }
 
-export default function Header({ toggleSidebar }: HeaderProps) {
+export default function Header({ onToggleSidebar }: HeaderProps) {
   const { user, tenant } = useUser();
 
   return (
     <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-100 px-8 flex items-center justify-between sticky top-0 z-[100] transition-all duration-300">
       <div className="flex items-center gap-6">
         {/* Hamburger - Squared & Premium */}
-        {toggleSidebar && (
+        {onToggleSidebar && (
           <button
-            onClick={toggleSidebar}
+            onClick={onToggleSidebar}
             className="w-12 h-12 bg-white border border-slate-100 flex items-center justify-center rounded-2xl text-slate-400 hover:text-indigo-600 hover:border-indigo-100 hover:shadow-xl hover:shadow-indigo-500/5 transition-all active:scale-95 group"
             aria-label="Toggle Menu"
           >
@@ -67,7 +67,9 @@ export default function Header({ toggleSidebar }: HeaderProps) {
             </div>
             <div className="flex items-center gap-2 mt-1">
               <span className="text-[8px] text-white font-black uppercase tracking-widest bg-indigo-600 px-1.5 py-0.5 rounded-[4px] shadow-sm shadow-indigo-200">
-                {user?.role || 'User'}
+                {user?.role?.toLowerCase() === 'super_admin' ? 'Super Admin' : 
+                 user?.role?.toLowerCase() === 'admin' ? 'Admin' : 
+                 (user?.specificRole || 'User')}
               </span>
               {tenant?.name && (
                 <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider truncate max-w-[70px]">

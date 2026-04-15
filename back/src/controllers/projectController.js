@@ -1,4 +1,5 @@
 // back/src/controllers/projectController.js
+const mongoose = require('mongoose');
 const { recordActivity } = require('../services/auditLogger');
 
 // ============================================
@@ -49,6 +50,15 @@ exports.getProjects = async (req, res) => {
 exports.getProjectById = async (req, res) => {
     try {
         const { projectId } = req.params;
+        
+        if (!mongoose.Types.ObjectId.isValid(projectId)) {
+            return res.status(400).json({ success: false, message: 'Invalid Project ID format' });
+        }
+
+        if (!req.tenantConn) {
+            return res.status(400).json({ success: false, message: 'Tenant environment not resolved' });
+        }
+
         const Project = req.tenantConn.model('Project');
         const project = await Project.findById(projectId);
 
@@ -99,7 +109,7 @@ exports.createProject = async (req, res) => {
         await project.save();
 
         // Log the activity
-        await recordActivity(req, 'CREATE_PROJECT', {
+        await recordActivity(req, 'PROJECT_CREATE', {
             type: 'Project',
             id: project._id,
             name: project.name
@@ -135,13 +145,21 @@ exports.updateProject = async (req, res) => {
     try {
         const { projectId } = req.params;
         const updates = req.body;
-        const Project = req.tenantConn.model('Project');
 
+        if (!mongoose.Types.ObjectId.isValid(projectId)) {
+            return res.status(400).json({ success: false, message: 'Invalid Project ID format' });
+        }
+
+        if (!req.tenantConn) {
+            return res.status(400).json({ success: false, message: 'Tenant environment not resolved' });
+        }
+
+        const Project = req.tenantConn.model('Project');
         const project = await Project.findByIdAndUpdate(projectId, updates, { new: true });
 
         if (project) {
             // Log the activity
-            await recordActivity(req, 'UPDATE_PROJECT', {
+            await recordActivity(req, 'PROJECT_EDIT', {
                 type: 'Project',
                 id: project._id,
                 name: project.name
@@ -175,35 +193,30 @@ exports.updateProject = async (req, res) => {
 exports.deleteProject = async (req, res) => {
     try {
         const { projectId } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(projectId)) {
+            return res.status(400).json({ success: false, message: 'Invalid Project ID format' });
+        }
+
+        if (!req.tenantConn) {
+            return res.status(400).json({ success: false, message: 'Tenant environment not resolved' });
+        }
+
         const Project = req.tenantConn.model('Project');
         const Workflow = req.tenantConn.model('Workflow');
         const Module = req.tenantConn.model('Module');
 
-        // Check if there are linked workflows
-        const workflowsCount = await Workflow.countDocuments({ projectId });
-
-        if (workflowsCount > 0) {
-            return res.status(400).json({
-                success: false,
-                message: `Deletion impossible: ${workflowsCount} workflow(s) are linked to this project.`
-            });
-        }
-
-        // Check if there are linked modules
-        const modulesCount = await Module.countDocuments({ projectId });
-
-        if (modulesCount > 0) {
-            return res.status(400).json({
-                success: false,
-                message: `Deletion impossible: ${modulesCount} module(s) are linked to this project.`
-            });
-        }
+        // Cascading deletion: remove all linked workflows and modules
+        await Promise.all([
+            Workflow.deleteMany({ projectId }),
+            Module.deleteMany({ projectId })
+        ]);
 
         const project = await Project.findByIdAndDelete(projectId);
 
         if (project) {
             // Log the activity
-            await recordActivity(req, 'DELETE_PROJECT', {
+            await recordActivity(req, 'PROJECT_DELETE', {
                 type: 'Project',
                 id: project._id,
                 name: project.name

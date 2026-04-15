@@ -58,7 +58,9 @@ export default function AuthLayout({
           <div className={`
             fixed inset-y-0 left-0 z-50 bg-white transition-all duration-300 ease-in-out lg:relative flex-none shadow-2xl lg:shadow-none
             ${role === 'admin' || role === 'super_admin' ? 'border-r-0' : 'border-r border-slate-200'}
-            ${isSidebarOpen ? 'translate-x-0 w-72' : '-translate-x-full lg:translate-x-0 lg:-ml-72 w-72'}
+            ${isSidebarOpen 
+              ? 'translate-x-0 w-80' 
+              : '-translate-x-full lg:translate-x-0 lg:-ml-80 w-80'}
           `}>
             <div className={`h-full ${role === 'admin' || role === 'super_admin' ? '' : 'bg-white'}`}>
               {isAdmin ? <AdminSidebar /> : <UserSidebar />}
@@ -86,7 +88,7 @@ export default function AuthLayout({
               onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
             />
           ) : (
-            <UserHeader toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
+            <UserHeader onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
           )}
         </div>
 

@@ -67,25 +67,21 @@ interface PaymentDetails {
     cvv: string;
 }
 
-type PlanType = 'demo' | 'starter' | 'pro';
-
-const PLANS: { id: PlanType; name: string; price: string; features: string[] }[] = [
-    { id: 'demo', name: 'Demo Plan', price: 'Free', features: ['Up to 5 staff', 'Basic Orchestration', 'Standard Support'] },
-    { id: 'starter', name: 'Starter Plan', price: '79D/month', features: ['Up to 10 staff', 'Enhanced Throughput', 'Priority Uplink'] },
-    { id: 'pro', name: 'Pro Plan', price: '299/month', features: ['Unlimited staff', 'Full Enterprise Access', '24/7 Forensic Support'] },
-];
+// Dynamic plans will be loaded from DB
+type PlanType = string;
 
 const fmtDate = (date: Date | null) =>
   date ? date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
 
 const FISCAL_DATA = [
-    { month: 'Oct', amount: 4500 },
-    { month: 'Nov', amount: 5200 },
-    { month: 'Dec', amount: 4800 },
-    { month: 'Jan', amount: 6100 },
-    { month: 'Feb', amount: 5900 },
-    { month: 'Mar', amount: 7200 },
+     { month: 'Oct', amount: 4500 },
+     { month: 'Nov', amount: 5200 },
+     { month: 'Dec', amount: 4800 },
+     { month: 'Jan', amount: 6100 },
+     { month: 'Feb', amount: 5900 },
+     { month: 'Mar', amount: 7200 },
 ];
+
 
 function BillingPageContent() {
     const router = useRouter();
@@ -112,7 +108,9 @@ function BillingPageContent() {
     const [usageData, setUsageData] = useState<any[]>([]);
     const [tenantCreatedAt, setTenantCreatedAt] = useState<Date | null>(null);
 
-    const isExpired = isAuthExpired || days >= (plan === 'demo' ? 7 : 30);
+    const activeDbPlan = dbPlans.find(p => p.code.toLowerCase() === plan.toLowerCase());
+    const currentLimit = activeDbPlan?.trialDays || 15;
+    const isExpired = isAuthExpired || days >= currentLimit;
 
     const handleDownloadManifest = () => {
         if (history.length === 0) {
@@ -181,18 +179,14 @@ function BillingPageContent() {
                         const sub = currentRes.data.data.subscription || currentRes.data.data.tenantSubscription;
                         const backendPlan = (sub.planCode || sub.planName || '').toLowerCase();
                         
-                        let mappedPlan: PlanType = 'demo';
-                        if (backendPlan.includes('starter')) mappedPlan = 'starter';
-                        else if (backendPlan.includes('pro')) mappedPlan = 'pro';
-
-                        setPlan(mappedPlan);
+                        setPlan(backendPlan);
                         const sDateStr = sub.currentPeriodStart || sub.trialStartDate || sub.startDate || sub.createdAt;
                         if (sDateStr) {
                             const sDate = new Date(sDateStr);
                             setStart(sDate);
                             setDays(Math.ceil(Math.abs(Date.now() - sDate.getTime()) / 86400000));
                             
-                            localStorage.setItem('selectedPlan', mappedPlan);
+                            localStorage.setItem('selectedPlan', backendPlan);
                             localStorage.setItem('planStartDate', sDate.toISOString());
                         }
 
@@ -227,9 +221,9 @@ function BillingPageContent() {
         };
 
         const loadFromLocalStorage = () => {
-            const saved = localStorage.getItem('selectedPlan') as PlanType;
+            const saved = localStorage.getItem('selectedPlan');
             const savedDate = localStorage.getItem('planStartDate');
-            if (saved && PLANS.find(p => p.id === saved)) setPlan(saved);
+            if (saved) setPlan(saved);
             const date = savedDate ? new Date(savedDate) : new Date();
             if (!savedDate) localStorage.setItem('planStartDate', date.toISOString());
             setStart(date);
@@ -240,7 +234,7 @@ function BillingPageContent() {
     }, []);
 
     useEffect(() => {
-        if (upgradeRequest && PLANS.find(p => p.id === upgradeRequest) && !loading) {
+        if (upgradeRequest && !loading) {
             setPendingPlan(upgradeRequest);
             setShowPaymentModal(true);
         }
@@ -248,7 +242,8 @@ function BillingPageContent() {
 
     useEffect(() => {
         if (!loading && plan) {
-            const isNowExpired = days >= (plan === 'demo' ? 7 : 30);
+            const currentLimit = plan === 'demo' ? 7 : (plan === 'starter' ? 30 : 999999);
+            const isNowExpired = days >= currentLimit;
             
             if (isNowExpired) {
                 setTimeout(() => {
@@ -305,12 +300,14 @@ function BillingPageContent() {
     const changePlan = async (next: PlanType) => {
         if (next === plan) return;
         
-        if (next === 'demo' && plan !== 'demo') {
+        const nextPlanObj = dbPlans.find(p => p.code.toLowerCase() === next.toLowerCase());
+        
+        if (nextPlanObj && nextPlanObj.price === 0 && activeDbPlan && activeDbPlan.price > 0) {
             setConfirm(true);
             return;
         }
 
-        if (next !== 'demo' && plan === 'demo') {
+        if (nextPlanObj && nextPlanObj.price > 0 && (!activeDbPlan || activeDbPlan.price === 0)) {
             setPendingPlan(next);
             setShowPaymentModal(true);
             return;
@@ -416,7 +413,7 @@ function BillingPageContent() {
         </div>
     );
 
-    const idx = PLANS.findIndex(p => p.id === plan);
+    const idx = dbPlans.findIndex(p => p.code.toLowerCase() === plan.toLowerCase());
 
     return (
         <div className="p-8 max-w-7xl mx-auto space-y-12 bg-slate-50/30 min-h-screen">
@@ -498,10 +495,10 @@ function BillingPageContent() {
                         />
                         <StatsLedger 
                             label="Renewal Window" 
-                            value={isExpired ? "0 Days" : `${Math.max(0, (plan === 'demo' ? 7 : 30) - days)} Days`} 
-                            trend={isExpired ? "TERMINAL" : "Approaching"} 
+                            value={plan === 'pro' ? "Indefinite" : (isExpired ? "0 Days" : `${Math.max(0, (plan === 'demo' ? 7 : 30) - days)} Days`)} 
+                            trend={isExpired ? "TERMINAL" : (plan === 'pro' ? "Optimal" : "Approaching")} 
                             icon={<Clock size={24} />} 
-                            color={isExpired ? "text-rose-600" : (Math.max(0, (plan === 'demo' ? 7 : 30) - days) <= 3 ? "text-rose-500" : "text-amber-500")} 
+                            color={isExpired ? "text-rose-600" : (plan === 'pro' ? "text-emerald-500" : (Math.max(0, (plan === 'demo' ? 7 : 30) - days) <= 3 ? "text-rose-500" : "text-amber-500"))} 
                         />
                     </div>
                     
@@ -519,9 +516,7 @@ function BillingPageContent() {
                         <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-200">Current Authorization</h3>
                         <h2 className="text-3xl font-black tracking-tight mt-2">{plan.toUpperCase()} Plan</h2>
                         <p className="text-indigo-100 text-sm font-medium mt-4 leading-relaxed opacity-80">
-                            {plan === 'demo' ? 'Basic orchestration nodes with fundamental support protocols.' : 
-                             plan === 'starter' ? 'Enhanced lattice throughput with priority uplink and API access.' : 
-                             'Full enterprise-grade orchestration with 24/7 forensics and advanced analytics.'}
+                            {activeDbPlan?.description || "Un accès complet aux protocoles d'orchestration avec support avancé."}
                         </p>
                     </div>
 
@@ -533,20 +528,6 @@ function BillingPageContent() {
                             >
                                 <p className="text-[10px] font-black uppercase tracking-widest text-indigo-300">Sync Date</p>
                                 <p className="text-sm font-black mt-1">{fmtDate(start)}</p>
-                                {showDebug && (
-                                    <input 
-                                        type="date" 
-                                        className="mt-2 bg-indigo-900 border border-indigo-400 rounded px-2 py-1 text-[10px] text-white w-full"
-                                        onChange={(e) => {
-                                            const d = new Date(e.target.value);
-                                            if (!isNaN(d.getTime())) {
-                                                setStart(d);
-                                                localStorage.setItem('planStartDate', d.toISOString());
-                                                setDays(Math.ceil(Math.abs(Date.now() - d.getTime()) / 86400000));
-                                            }
-                                        }}
-                                    />
-                                )}
                             </div>
                             <div>
                                 <p className="text-[10px] font-black uppercase tracking-widest text-indigo-300">Active Time</p>
@@ -554,21 +535,46 @@ function BillingPageContent() {
                             </div>
                         </div>
 
-                        <div className="flex justify-between items-center mb-2">
-                            <span className="text-indigo-200 text-[10px] font-black uppercase tracking-widest">Cycle Progress</span>
-                            <span className="text-white text-[10px] font-black tracking-widest">
-                                {Math.min(100, Math.round((days / (plan === 'demo' ? 7 : 30)) * 100))}%
-                            </span>
+                        {/* Plan Limits - Requested by user */}
+                        <div className="grid grid-cols-2 gap-4 mb-8 pt-4 border-t border-white/10 mt-4">
+                           <div className="flex flex-col">
+                               <div className="flex items-center gap-1.5 mb-1 text-indigo-300">
+                                   <User size={10} />
+                                   <p className="text-[10px] font-black uppercase tracking-widest leading-none">User Capacity</p>
+                               </div>
+                               <p className="text-sm font-black">
+                                   {activeDbPlan?.features?.maxUsers || '...'} 
+                                   <span className="text-[10px] ml-1 opacity-50">Slots</span>
+                               </p>
+                           </div>
+                           <div className="flex flex-col">
+                               <div className="flex items-center gap-1.5 mb-1 text-indigo-300">
+                                   <Zap size={10} />
+                                   <p className="text-[10px] font-black uppercase tracking-widest leading-none">Workflow Threads</p>
+                               </div>
+                               <p className="text-sm font-black">
+                                   {activeDbPlan?.features?.maxWorkflows || '...'} 
+                                   <span className="text-[10px] ml-1 opacity-50">Allowed</span>
+                               </p>
+                           </div>
                         </div>
-                        <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
-                            <div className="h-full bg-white rounded-full transition-all duration-1000" style={{ width: `${Math.min(100, (days / (plan === 'demo' ? 7 : 30)) * 100)}%` }}></div>
-                        </div>
-                        <button 
-                            disabled={true}
-                            className="w-full mt-10 py-4 bg-white/10 text-white/40 rounded-2xl font-black text-xs uppercase tracking-widest cursor-not-allowed border border-white/10"
-                        >
-                            Session Termination Locked
-                        </button>
+
+
+                         <div className="flex justify-between items-center mb-2">
+                             <span className="text-indigo-200 text-[10px] font-black uppercase tracking-widest">Cycle Progress</span>
+                             <span className="text-white text-[10px] font-black tracking-widest">
+                                 {activeDbPlan && activeDbPlan.price > 0 ? `${Math.min(100, Math.round((days / currentLimit) * 100))}%` : '0%'}
+                             </span>
+                         </div>
+                         <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+                             <div className="h-full bg-white rounded-full transition-all duration-1000" style={{ width: `${activeDbPlan && activeDbPlan.price > 0 ? Math.min(100, (days / currentLimit) * 100) : 0}%` }}></div>
+                         </div>
+                         <button 
+                             disabled={true}
+                             className="w-full mt-10 py-4 bg-white/10 text-white/40 rounded-2xl font-black text-xs uppercase tracking-widest cursor-not-allowed border border-white/10"
+                         >
+                             Session Termination Locked
+                         </button>
                     </div>
                 </div>
             </div>
@@ -583,13 +589,13 @@ function BillingPageContent() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {PLANS.map((p) => {
-                        const isCurrent = p.id === plan;
-                        const isDemo = p.id === 'demo';
-                        const isRestricted = isDemo && plan !== 'demo';
+                    {dbPlans.filter(p => p.isActive !== false).map((p) => {
+                        const isCurrent = p.code.toLowerCase() === plan.toLowerCase();
+                        const isFree = p.price === 0;
+                        const isRestricted = isFree && !isCurrent && activeDbPlan && activeDbPlan.price > 0;
 
                         return (
-                            <div key={p.id} className={`rounded-[32px] border-2 p-8 transition-all relative overflow-hidden group ${
+                            <div key={p._id} className={`rounded-[32px] border-2 p-8 transition-all relative overflow-hidden group ${
                                 isCurrent ? 'border-indigo-600 bg-indigo-50/50' : 'border-slate-50 bg-white hover:border-slate-200'
                             }`}>
                                 {isCurrent && (
@@ -597,11 +603,25 @@ function BillingPageContent() {
                                         <CheckCircle2 size={12} />
                                     </div>
                                 )}
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{p.price}</p>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                                  {p.price === 0 ? 'Free' : `${p.price}${p.currency || 'D'}/${p.interval || 'month'}`}
+                                </p>
                                 <h4 className="text-xl font-black text-slate-800 tracking-tight mb-6">{p.name}</h4>
+                                
+                                <div className="space-y-3 mb-8 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">User Capacity</span>
+                                        <span className="text-xs font-black text-slate-700">{p.features?.maxUsers || p.maxUsers || 1}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Workflows</span>
+                                        <span className="text-xs font-black text-slate-700">{p.features?.maxWorkflows || p.maxWorkflows || 1}</span>
+                                    </div>
+                                </div>
+
                                 <ul className="space-y-4 mb-10">
-                                    {p.features.map(f => (
-                                        <li key={f} className="text-xs text-slate-500 font-bold flex gap-3 items-center">
+                                    {(p.description || "Indigent resource allocation.").split('.').filter(s => s.trim()).map((f, i) => (
+                                        <li key={i} className="text-xs text-slate-500 font-bold flex gap-3 items-center">
                                             <div className={`p-1 rounded-md ${isCurrent ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
                                                 <CheckCircle2 size={10} />
                                             </div>
@@ -610,9 +630,9 @@ function BillingPageContent() {
                                     ))}
                                 </ul>
                                 <button
-                                    onClick={() => changePlan(p.id)}
+                                    onClick={() => changePlan(p.code)}
                                     disabled={isCurrent || loading || isRestricted}
-                                    className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 ${
+                                    className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-[0.98] ${
                                         isCurrent 
                                         ? 'bg-slate-100 text-slate-400 cursor-default' 
                                         : isRestricted
@@ -629,16 +649,16 @@ function BillingPageContent() {
 
                 <div className="mt-10 flex gap-4">
                     <button
-                        onClick={() => idx > 0 && changePlan(PLANS[idx - 1].id)}
-                        disabled={idx === 0 || loading || (idx === 1 && plan !== 'demo')}
+                        onClick={() => idx > 0 && changePlan(dbPlans[idx - 1].code)}
+                        disabled={idx <= 0 || loading || (dbPlans[idx-1].price === 0 && activeDbPlan && activeDbPlan.price > 0)}
                         className="flex-1 py-4 px-6 bg-slate-50 text-slate-600 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-100 transition-all disabled:opacity-50"
                     >
                         <ChevronDown size={14} />
-                        {idx === 1 && plan !== 'demo' ? 'Downgrade Restricted' : 'Downgrade Protocol'}
+                        {(dbPlans[idx-1]?.price === 0 && activeDbPlan && activeDbPlan.price > 0) ? 'Downgrade Restricted' : 'Downgrade Protocol'}
                     </button>
                     <button
-                        onClick={() => idx < PLANS.length - 1 && changePlan(PLANS[idx + 1].id)}
-                        disabled={idx === PLANS.length - 1 || loading}
+                        onClick={() => idx < dbPlans.length - 1 && changePlan(dbPlans[idx + 1].code)}
+                        disabled={idx >= dbPlans.length - 1 || idx === -1 || loading}
                         className="flex-1 py-4 px-6 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50"
                     >
                         <ChevronUp size={14} />
@@ -687,7 +707,7 @@ function BillingPageContent() {
                                     <td className="px-10 py-6 text-center">
                                         <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${inv.status === 'active' || inv.status === 'trial' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>
                                             {inv.status === 'active' || inv.status === 'trial' ? <CheckCircle2 size={10} /> : <Clock size={10} />}
-                                            {inv.status === 'canceled' ? 'finished' : inv.status}
+                                            {inv.status === 'canceled' ? 'finished' : (inv.status === 'trial' ? 'active' : inv.status)}
                                         </span>
                                     </td>
                                 </tr>
@@ -785,7 +805,8 @@ function UsageChart({ plan, usageData, tenantCreatedAt }: { plan: string, usageD
         });
     }
     
-    const limitStatus = plan === 'pro' ? 'Unlimited Usage' : (plan === 'starter' ? 'Optimal Load' : 'Approaching Limit');
+    const activePlan = (window as any).dbPlans?.find((p: any) => p.code.toLowerCase() === plan.toLowerCase());
+    const limitStatus = activePlan?.price > 100 ? 'Unlimited Usage' : (activePlan?.price > 0 ? 'Optimal Load' : 'Approaching Limit');
 
     return (
         <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-100 h-[400px] relative overflow-hidden group transition-all duration-500 hover:shadow-xl hover:shadow-indigo-500/5">

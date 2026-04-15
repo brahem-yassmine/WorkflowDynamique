@@ -28,9 +28,6 @@ api.interceptors.request.use((config) => {
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-      console.log('✅ Token added to header');
-    } else {
-      console.error('❌ Token missing in localStorage!');
     }
 
     if (tenantId) {
@@ -38,9 +35,11 @@ api.interceptors.request.use((config) => {
     }
   }
   return config;
+}, (error) => {
+  return Promise.reject(error);
 });
 
-// Log errors
+// Response Interceptor
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -68,11 +67,9 @@ api.interceptors.response.use(
     console.groupEnd();
 
     if (error.response) {
-      // The request was made and the server responded with a status code
-      // that falls out of the range of 2xx
-      console.error('❌ API Error Detail:', {
+      console.error('❌ API Response Error:', {
         status: error.response.status,
-        message: error.response.data?.message || error.message,
+        message: error.response.data?.message || error.response.data?.error || error.message,
         data: error.response.data,
         url: error.config?.url,
         method: error.config?.method?.toUpperCase(),
@@ -80,13 +77,9 @@ api.interceptors.response.use(
 
       // Handle 401 Unauthorized globally
       if (error.response.status === 401 && typeof window !== 'undefined') {
-        console.warn('⚡ [SessionShield] Session expired or unauthorized. Redirecting to signin...');
+        console.warn('⚡ [SessionShield] Session expired. Redirecting to signin...');
         localStorage.removeItem('token');
         localStorage.removeItem('auth_token');
-        localStorage.removeItem('user');
-        localStorage.removeItem('tenantId');
-        
-        // Use window.location for hard redirect to ensure state is cleared
         if (!window.location.pathname.includes('/signin')) {
           window.location.href = '/signin?error=session_expired';
         }
@@ -98,9 +91,9 @@ api.interceptors.response.use(
         url: error.config?.url,
         method: error.config?.method?.toUpperCase(),
       });
+      console.error('❌ API Network Error:', error.message);
     } else {
-      // Something happened in setting up the request that triggered an Error
-      console.error('❌ API Request setup error:', error.message);
+      console.error('❌ API Request Error:', error.message);
     }
     // Determine the nature of the error
     const isNetworkError = !error.response && error.request;
@@ -124,6 +117,7 @@ api.interceptors.response.use(
       console.error('Tip: Check CORS settings or if the backend is running correctly.');
     }
     console.groupEnd();
+
 
     return Promise.reject(error);
   }

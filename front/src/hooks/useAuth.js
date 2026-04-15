@@ -25,7 +25,10 @@ export const useAuth = () => {
     try {
       const plan = (localStorage.getItem('selectedPlan') || 'demo').toLowerCase();
       const startDateStr = localStorage.getItem('planStartDate') || userData.createdAt;
-      const limit = 7; // Re-applied 7-day limit for all protocols (Refaire)
+      
+      let limit = 7; 
+      if (plan.includes('pro')) limit = 999999;
+      else if (plan.includes('starter')) limit = 30;
 
       if (startDateStr) {
         const start = new Date(startDateStr);

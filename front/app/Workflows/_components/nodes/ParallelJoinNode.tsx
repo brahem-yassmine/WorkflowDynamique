@@ -4,35 +4,29 @@ import { Merge } from 'lucide-react';
 
 const ParallelJoinNode = ({ data }: any) => {
     return (
-        <div className="px-4 py-3 shadow-lg rounded-[24px] bg-violet-50 border-2 border-violet-100 min-w-[130px] hover:border-violet-300 transition-all group overflow-visible relative">
-            {/* 🎯 TARGET HANDLE (LEFT) */}
+        <div className="px-4 py-3 shadow-sm rounded-md bg-white border border-slate-200 min-w-[130px]">
             <Handle
                 type="target"
                 position={Position.Left}
-                className="!w-1.5 !h-10 !bg-violet-300 !border-none !rounded-full -left-0.5"
-                style={{ top: '50%', transform: 'translateY(-50%)', zIndex: 1000 }}
-                isConnectable={true}
+                className="!bg-slate-400"
             />
 
-            <div className="flex flex-col items-center gap-2 relative z-10">
-                <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-violet-500 border border-violet-100 group-hover:scale-110 transition-transform shadow-sm">
+            <div className="flex flex-col items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center text-violet-600 border border-violet-200">
                     <Merge size={16} />
                 </div>
                 <div className="text-center">
-                    <div className="text-[10px] font-black text-violet-900 uppercase tracking-widest leading-none">{data.label || 'Sync'}</div>
-                    <div className="text-[6px] text-violet-400 font-bold uppercase tracking-tight mt-1 px-3 py-0.5 bg-white rounded-full border border-violet-50">
+                    <div className="text-[10px] font-bold text-slate-700 uppercase">{data.label || 'Sync'}</div>
+                    <div className="text-[8px] text-slate-400 uppercase font-medium mt-1">
                         Join
                     </div>
                 </div>
             </div>
 
-            {/* 🚀 SOURCE HANDLE (RIGHT) */}
             <Handle
                 type="source"
                 position={Position.Right}
-                className="!w-2.5 !h-2.5 !bg-violet-400 !border-none !rounded-full -right-1"
-                style={{ top: '50%', transform: 'translateY(-50%)', zIndex: 1000 }}
-                isConnectable={true}
+                className="!bg-slate-400"
             />
         </div>
     );

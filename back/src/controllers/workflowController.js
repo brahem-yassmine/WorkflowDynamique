@@ -19,22 +19,21 @@ exports.getWorkflows = async (req, res) => {
 
     // 1. Visibility for non-admin users (usually they only see ACTIVE project workflows or generic templates)
     if (user.role !== 'admin' && user.role !== 'super_admin') {
-      // Non-admin can see workflows in their domain or assigned projects
+      // Non-admin can only see things in their domain or assigned projects
       query.$or = [
         { domainId: user.domainId },
-        { projectId: { $exists: true, $ne: null } } // Later add specific project assignment if needed
+        { projectId: { $exists: true, $ne: null } },
+        { createdBy: user.id }
       ];
-      
-      if (status) query.status = status;
-      else query.status = 'active'; 
-    } else {
-      // Admins can filter by everything
-      if (projectId) query.projectId = projectId;
-      if (moduleId) query.moduleId = moduleId;
-      if (domainId) query.domainId = domainId;
-      if (isTemplate !== undefined) query.isTemplate = isTemplate === 'true';
-      if (status) query.status = status;
     }
+
+    // Apply specific filters if provided (Admins can filter by any, Users filter within their scope)
+    if (projectId) query.projectId = projectId;
+    if (moduleId) query.moduleId = moduleId;
+    if (domainId) query.domainId = domainId;
+    if (isTemplate !== undefined) query.isTemplate = isTemplate === 'true';
+    if (status) query.status = status;
+    else if (user.role !== 'admin' && user.role !== 'super_admin') query.status = 'active';
 
     console.log('🔍 [WorkflowCtrl] Querying workflows with:', query);
 
@@ -109,7 +108,23 @@ exports.getWorkflowById = async (req, res) => {
 exports.createWorkflow = async (req, res) => {
   try {
     const { name, description, domain, domainId, nodes, edges, projectId, moduleId, status, isTemplate } = req.body;
+    
+    if (!req.tenantConn) {
+        return res.status(400).json({ success: false, message: 'Tenant environment not resolved' });
+    }
+
     const Workflow = req.tenantConn.model('Workflow');
+
+    // ID Validation
+    if (domainId && !mongoose.Types.ObjectId.isValid(domainId)) {
+        return res.status(400).json({ success: false, message: 'Invalid Domain ID format' });
+    }
+    if (projectId && !mongoose.Types.ObjectId.isValid(projectId)) {
+        return res.status(400).json({ success: false, message: 'Invalid Project ID format' });
+    }
+    if (moduleId && !mongoose.Types.ObjectId.isValid(moduleId)) {
+        return res.status(400).json({ success: false, message: 'Invalid Module ID format' });
+    }
 
     if (!name) {
       return res.status(400).json({
@@ -132,7 +147,8 @@ exports.createWorkflow = async (req, res) => {
       });
     }
 
-    const workflowDomain = domain || req.user.domain;
+    const currentUserId = req.user.id || req.user.userId || req.user._id;
+    const workflowDomain = domain || req.user.domain || "General";
     let workflowNodes = nodes || [];
     let workflowEdges = edges || [];
 
@@ -182,7 +198,7 @@ exports.createWorkflow = async (req, res) => {
       isTemplate: isTemplate || false,
       projectId: projectId || null,
       moduleId: moduleId || null,
-      createdBy: req.user.id || req.user.userId || req.user._id
+      createdBy: currentUserId
     });
 
     await workflow.save();
@@ -203,41 +219,51 @@ exports.createWorkflow = async (req, res) => {
     // 🚀 AUTOMATIC CHECKLIST GENERATION
     await _triggerAutomaticChecklist(req, workflow);
 
-    // Trigger Notification for Admins
-    const UserModel = req.tenantConn.model('User');
-    const admins = await UserModel.find({ role: 'admin' });
-    for (const admin of admins) {
-      await notificationController.createInternalNotification(req.tenantConn, {
-        recipient: admin._id,
-        title: 'New Workflow Created',
-        message: `A new workflow "${name}" has been drafted in domain ${workflowDomain}.`,
-        type: 'workflow_created',
-        link: `/admin/workflows?id=${workflow._id}`
-      });
+    // Notifications Guard
+    try {
+        // Trigger Notification for Admins
+        const UserModel = req.tenantConn.model('User');
+        const admins = await UserModel.find({ role: 'admin' });
+        for (const admin of admins) {
+            const adminId = admin._id.toString();
+            if (adminId === currentUserId?.toString()) continue;
+            
+            await notificationController.createInternalNotification(req.tenantConn, {
+                recipient: admin._id,
+                title: 'New Workflow Created',
+                message: `A new workflow "${name}" has been drafted in domain ${workflowDomain}.`,
+                type: 'workflow_created',
+                link: `/admin/workflows?id=${workflow._id}`
+            });
+        }
+
+        // Trigger Notification for Users in the same domain
+        const searchDomains = [workflowDomain];
+        if (workflowDomain === 'HR' || workflowDomain === 'RH') {
+            searchDomains.push(workflowDomain === 'HR' ? 'RH' : 'HR');
+        }
+        const domainUsers = await UserModel.find({
+            domain: { $in: searchDomains },
+            role: { $ne: 'admin' }
+        });
+
+        for (const user of domainUsers) {
+            const uId = user._id.toString();
+            if (uId === currentUserId?.toString()) continue;
+            
+            await notificationController.createInternalNotification(req.tenantConn, {
+                recipient: user._id,
+                title: 'New Workflow Template',
+                message: `A new template "${name}" is available in the ${workflowDomain} department.`,
+                type: 'workflow_created',
+                link: `/User/Workflows`
+            });
+        }
+    } catch (notifErr) {
+        console.warn('⚠️ [WorkflowCtrl] Notification failure (ignored):', notifErr.message);
     }
 
-    // Trigger Notification for Users in the same domain
-    const searchDomains = [workflowDomain];
-    if (workflowDomain === 'HR' || workflowDomain === 'RH') {
-      searchDomains.push(workflowDomain === 'HR' ? 'RH' : 'HR');
-    }
-    const domainUsers = await UserModel.find({
-      domain: { $in: searchDomains },
-      role: { $ne: 'admin' }
-    });
-
-    for (const user of domainUsers) {
-      if (user._id.toString() === req.user.id.toString()) continue;
-      await notificationController.createInternalNotification(req.tenantConn, {
-        recipient: user._id,
-        title: 'New Workflow Template',
-        message: `A new template "${name}" is available in the ${workflowDomain} department.`,
-        type: 'workflow_created',
-        link: `/User/Workflows`
-      });
-    }
-
-    await recordActivity(req, 'CREATE_WORKFLOW', {
+    await recordActivity(req, 'WORKFLOW_CREATE', {
       type: 'Workflow',
       id: workflow._id,
       name: workflow.name
@@ -251,6 +277,15 @@ exports.createWorkflow = async (req, res) => {
 
   } catch (error) {
     console.error('❌ createWorkflow Error:', error);
+    if (error.name === 'ValidationError') {
+        return res.status(400).json({ 
+            success: false, 
+            message: 'Validation failed: ' + Object.values(error.errors).map((e) => e.message).join(', ') 
+        });
+    }
+    if (error.name === 'CastError') {
+        return res.status(400).json({ success: false, message: `Data mapping error: Invalid ${error.path}` });
+    }
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
@@ -262,6 +297,15 @@ exports.updateWorkflow = async (req, res) => {
   try {
     const { workflowId } = req.params;
     const updates = req.body;
+
+    if (!req.tenantConn) {
+        return res.status(400).json({ success: false, message: 'Tenant environment not resolved' });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(workflowId)) {
+        return res.status(400).json({ success: false, message: 'Invalid Workflow ID format' });
+    }
+
     const Workflow = req.tenantConn.model('Workflow');
     const workflow = await Workflow.findById(workflowId);
 
@@ -328,7 +372,7 @@ exports.updateWorkflow = async (req, res) => {
     // 🚀 AUTOMATIC CHECKLIST SYNC
     await _triggerAutomaticChecklist(req, workflow);
 
-    await recordActivity(req, 'UPDATE_WORKFLOW', {
+    await recordActivity(req, 'WORKFLOW_EDIT', {
       type: 'Workflow',
       id: workflow._id,
       name: workflow.name
@@ -340,7 +384,8 @@ exports.updateWorkflow = async (req, res) => {
       const workflowDomain = workflow.domain;
       const admins = await UserModel.find({ role: 'admin' });
       for (const admin of admins) {
-        if (admin._id.toString() === req.user.id.toString()) continue;
+        const adminId = admin._id.toString();
+        if (adminId === currentUserId?.toString()) continue;
         await notificationController.createInternalNotification(req.tenantConn, {
           recipient: admin._id,
           title: 'Workflow Configuration Updated',
@@ -354,7 +399,8 @@ exports.updateWorkflow = async (req, res) => {
       if (workflowDomain === 'HR' || workflowDomain === 'RH') searchDomains.push(workflowDomain === 'HR' ? 'RH' : 'HR');
       const domainUsers = await UserModel.find({ domain: { $in: searchDomains }, role: { $ne: 'admin' } });
       for (const user of domainUsers) {
-        if (user._id.toString() === req.user.id.toString()) continue;
+        const uId = user._id.toString();
+        if (uId === currentUserId?.toString()) continue;
         await notificationController.createInternalNotification(req.tenantConn, {
           recipient: user._id,
           title: 'Workflow Template Updated',
@@ -371,6 +417,15 @@ exports.updateWorkflow = async (req, res) => {
 
   } catch (error) {
     console.error('❌ updateWorkflow Error:', error);
+    if (error.name === 'ValidationError') {
+        return res.status(400).json({ 
+            success: false, 
+            message: 'Validation failed: ' + Object.values(error.errors).map((e) => e.message).join(', ') 
+        });
+    }
+    if (error.name === 'CastError') {
+        return res.status(400).json({ success: false, message: `Data mapping error: Invalid ${error.path}` });
+    }
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
@@ -391,7 +446,7 @@ exports.deleteWorkflow = async (req, res) => {
     const workflow = await Workflow.findByIdAndDelete(workflowId);
 
     if (workflow) {
-      await recordActivity(req, 'DELETE_WORKFLOW', {
+      await recordActivity(req, 'WORKFLOW_DELETE', {
         type: 'Workflow',
         id: workflow._id,
         name: workflow.name

@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Settings,
   Shield,
+  ShieldCheck,
   Smartphone,
   Globe,
   Mail,
@@ -34,7 +35,7 @@ import { Separator } from "@/components/ui/separator";
 
 const initialPlans = [
   { id: 1, name: "Starter Lattice", price: 19, maxUsers: 10, maxWorkflows: 20, storage: "10GB", active: true },
-  { id: 2, name: "Pro Cluster", price: 49, maxUsers: 50, maxWorkflows: 100, storage: "100GB", active: true },
+  { id: 2, name: "Pro Cluster", price: 49, maxUsers: 999999, maxWorkflows: 999999, storage: "100GB", active: true },
   { id: 3, name: "Enterprise Node", price: 199, maxUsers: 1000, maxWorkflows: 5000, storage: "10TB", active: false },
 ];
 
@@ -50,6 +51,7 @@ export default function PlatformSettingsPage() {
   const [stats, setStats] = useState<any>(null);
 
   const [savingSettings, setSavingSettings] = useState(false);
+  const [isCommitting, setIsCommitting] = useState(false);
   const [activeSection, setActiveSection] = useState('general');
 
   const [showLocModal, setShowLocModal] = useState(false);
@@ -153,6 +155,7 @@ export default function PlatformSettingsPage() {
     const newPlan = { 
       localId: `temp-${Date.now()}`, 
       name: "New Tier", 
+      code: "NEW_TIER",
       price: 0, 
       features: { maxUsers: 10, maxWorkflows: 5 }, 
       interval: "month",
@@ -190,6 +193,7 @@ export default function PlatformSettingsPage() {
   };
 
   const commitChanges = async () => {
+    setIsCommitting(true);
     const toastId = toast.loading("Committing changes to master database...");
     let successCount = 0;
     let errorCount = 0;
@@ -219,11 +223,13 @@ export default function PlatformSettingsPage() {
           // Map frontend structure to backend structure
           const payload = {
             name: plan.name,
+            code: plan.code || plan.name.toUpperCase().replace(/\s+/g, '_'),
             price: plan.price,
             interval: plan.interval || 'month',
-            currency: plan.currency || 'tnd',
+            currency: plan.currency || 'D',
             isActive: plan.isActive !== undefined ? plan.isActive : plan.active,
             features: {
+              ...plan.features,
               maxUsers: plan.features?.maxUsers || plan.maxUsers || 1,
               maxWorkflows: plan.features?.maxWorkflows || plan.maxWorkflows || 1,
             }
@@ -261,6 +267,8 @@ export default function PlatformSettingsPage() {
       }
     } catch (err) {
       toast.error("Critical error while committing changes.", { id: toastId });
+    } finally {
+      setIsCommitting(false);
     }
   };
 
@@ -513,44 +521,107 @@ export default function PlatformSettingsPage() {
                   
                   return (
                     <div key={id} className="p-6 bg-slate-50 border border-slate-100 rounded-2xl group hover:border-indigo-100 transition-all">
-                      <div className="flex flex-col sm:flex-row gap-4 items-center">
-                        <Input
-                          className="sm:w-1/3 h-10 bg-white border-slate-100 rounded-lg font-bold"
-                          value={p.name}
-                          onChange={(e) => handlePlanChange(id, "name", e.target.value)}
-                        />
-                        <div className="flex flex-1 items-center gap-2">
-                          <div className="flex-1 space-y-1">
-                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-tighter block">Price (DT)</label>
-                            <Input type="number" className="h-9 font-bold bg-white" value={p.price} onChange={(e) => handlePlanChange(id, "price", Number(e.target.value))} />
+                      <div className="flex flex-col gap-6">
+                        {/* Top Row: Name and Actions */}
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                          <div className="flex-1 w-full space-y-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Plan Identity & Signature</label>
+                            <div className="flex gap-3">
+                              <Input
+                                className="flex-1 h-12 bg-white border-slate-200 rounded-xl font-black text-slate-800"
+                                value={p.name}
+                                placeholder="Name"
+                                onChange={(e) => {
+                                  const newName = e.target.value;
+                                  const newCode = newName.toUpperCase().replace(/\s+/g, '_');
+                                  setPlans(prev => prev.map(pl => (pl._id === id || pl.localId === id) ? { ...pl, name: newName, code: p.isNew ? newCode : pl.code, isDirty: true } : pl));
+                                }}
+                              />
+                              <Input
+                                className="w-1/3 h-12 text-[10px] bg-slate-100 border-none rounded-xl font-mono font-black text-slate-500 uppercase flex items-center justify-center text-center"
+                                value={p.code}
+                                placeholder="CODE"
+                                onChange={(e) => handlePlanChange(id, "code", e.target.value.toUpperCase().replace(/\s+/g, '_'))}
+                              />
+                            </div>
                           </div>
-                          <div className="flex-1 space-y-1">
-                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-tighter block">Users</label>
-                            <Input type="number" className="h-9 font-bold bg-white" value={maxU} onChange={(e) => handlePlanChange(id, "features", { ...p.features, maxUsers: Number(e.target.value) })} />
-                          </div>
-                          <div className="flex-1 space-y-1">
-                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-tighter block">Workflows</label>
-                            <Input type="number" className="h-9 font-bold bg-white text-xs" value={maxW} onChange={(e) => handlePlanChange(id, "features", { ...p.features, maxWorkflows: Number(e.target.value) })} />
+                          
+                          <div className="flex items-center gap-3 bg-white p-2 rounded-2xl border border-slate-100 self-end sm:self-center">
+                            <Badge className={isActive ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-100 text-slate-400'}>
+                              {isActive ? 'Live' : 'Hidden'}
+                            </Badge>
+                            <Switch checked={isActive} onCheckedChange={(v) => handlePlanChange(id, "isActive", v)} />
+                            <div className="w-[1px] h-4 bg-slate-100 mx-1" />
+                            <button 
+                              onClick={() => deletePlan(id, !!p.isNew)}
+                              className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                              title="Delete Plan"
+                            >
+                              <Trash2 size={18} />
+                            </button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3 pl-4">
-                          <Badge className={isActive ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-100 text-slate-400'}>
-                            {isActive ? 'Active' : 'Disabled'}
-                          </Badge>
-                          <Switch checked={isActive} onCheckedChange={(v) => handlePlanChange(id, "isActive", v)} />
-                          <button 
-                            onClick={() => deletePlan(id, !!p.isNew)}
-                            className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors ml-2"
-                            title="Delete Plan"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+
+                        {/* Bottom Row: Numerical Metrics (Maximized Width) */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-6 border-t border-slate-100 border-dashed">
+                          <div className="space-y-3">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block text-center">Service Price (DT)</label>
+                            <Input 
+                              type="number" 
+                              className="h-20 text-3xl font-black bg-white border-slate-200 rounded-2xl text-center focus:ring-2 focus:ring-indigo-600 transition-all shadow-sm" 
+                              value={p.price} 
+                              onChange={(e) => handlePlanChange(id, "price", Number(e.target.value))} 
+                            />
+                          </div>
+                          <div className="space-y-3">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block text-center">User Capacity</label>
+                            <Input 
+                              type="number" 
+                              className="h-20 text-3xl font-black bg-white border-slate-200 rounded-2xl text-center focus:ring-2 focus:ring-indigo-600 transition-all shadow-sm" 
+                              value={maxU} 
+                              onChange={(e) => handlePlanChange(id, "features", { ...p.features, maxUsers: Number(e.target.value) })} 
+                            />
+                          </div>
+                          <div className="space-y-3">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block text-center">Workflow Threads</label>
+                            <Input 
+                              type="number" 
+                              className="h-20 text-3xl font-black bg-white border-slate-200 rounded-2xl text-center focus:ring-2 focus:ring-indigo-600 transition-all shadow-sm" 
+                              value={maxW} 
+                              onChange={(e) => handlePlanChange(id, "features", { ...p.features, maxWorkflows: Number(e.target.value) })} 
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
                   );
                 })
               )}
+            </div>
+
+            {/* Save Button for Plans */}
+            <div className="mt-8 pt-6 border-t border-slate-100 flex justify-end">
+              <button 
+                onClick={commitChanges}
+                disabled={isCommitting || !plans.some(p => p.isDirty || p.isDeleted)}
+                className={`px-8 py-4 rounded-2xl shadow-xl font-black text-xs uppercase tracking-[0.2em] transition-all flex items-center gap-3 active:scale-95 ${
+                  plans.some(p => p.isDirty || p.isDeleted) 
+                  ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-200 cursor-pointer' 
+                  : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                }`}
+              >
+                {isCommitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                    Deploying...
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck size={18} />
+                    Save & Declare in Signup
+                  </>
+                )}
+              </button>
             </div>
           </section>
 

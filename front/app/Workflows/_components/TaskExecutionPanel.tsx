@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface TaskExecutionPanelProps {
     instance: any;
@@ -20,6 +21,7 @@ interface TaskExecutionPanelProps {
 
 const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: TaskExecutionPanelProps) => {
     const router = useRouter();
+    const { can } = usePermissions();
     const searchParams = useSearchParams();
     const [comment, setComment] = useState('');
     const [loading, setLoading] = useState(false);
@@ -195,6 +197,12 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
 
     const handleDeleteAttachment = async (attachmentId: string) => {
         if (!attachmentId || !instance?._id) return;
+        
+        // Authorization check for TASK_EDIT
+        if (!can('TASK_EDIT')) {
+            toast.error('Matrix Restricted: Task edit authority required');
+            return;
+        }
         
         try {
             const res = await apiService.request(`/workflow-instances/${instance._id}/attachments/${attachmentId}`, {
@@ -464,28 +472,48 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                       String(taskContent || '').toLowerCase().includes('form') ||
                                       String(taskContent || '').toLowerCase().includes('checklist') ||
                                       String(taskContent || '').toLowerCase().includes('kanban')) ? (
-                                        <Link
-                                            href={
-                                                (data.taskType === 'form' || !!data.formId || String(userAction || '').toLowerCase().includes('form')) 
+                                        <button
+                                            onClick={() => {
+                                                const isChecklist = (data.taskType === 'checklist' || String(userAction || '').toLowerCase().includes('checklist'));
+                                                const isForm = (data.taskType === 'form' || !!data.formId || String(userAction || '').toLowerCase().includes('form'));
+                                                
+                                                // Permission checks
+                                                if (isChecklist && !can('CHECKLIST_VIEW')) return;
+                                                if (isForm && !can('FORM_VIEW')) return;
+
+                                                const url = (data.taskType === 'form' || !!data.formId || String(userAction || '').toLowerCase().includes('form')) 
                                                     ? `/form/form2?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}${data.linkedObjectId ? `&formId=${data.linkedObjectId}` : ''}&from=${typeof window !== 'undefined' ? window.location.pathname : ''}${isValidator ? '&consult=true' : ''}` :
                                                 (data.taskType === 'checklist' || String(userAction || '').toLowerCase().includes('checklist')) 
                                                     ? `/checklist/designer?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}${data.linkedObjectId ? `&id=${data.linkedObjectId}` : ''}&from=${typeof window !== 'undefined' ? window.location.pathname : ''}${isValidator ? '&consult=true' : ''}` :
                                                 data.taskType === 'kanban' 
                                                     ? `/kanban?boardId=${data.linkedObjectId}&instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}&from=${typeof window !== 'undefined' ? window.location.pathname : ''}${isValidator ? '&consult=true' : ''}` :
-                                                `/${data.taskType || 'task'}/${data.linkedObjectId}?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}&from=${typeof window !== 'undefined' ? window.location.pathname : ''}${isValidator ? '&consult=true' : ''}`
-                                            }
-                                            onClick={() => {
+                                                `/${data.taskType || 'task'}/${data.linkedObjectId}?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}&from=${typeof window !== 'undefined' ? window.location.pathname : ''}${isValidator ? '&consult=true' : ''}`;
+                                                
                                                 if (!data.taskType?.includes('form')) setIsExecuted(true);
+                                                router.push(url);
                                                 handleClose();
                                             }}
-                                            className={`w-full h-14 rounded-[22px] flex items-center justify-center gap-3 text-xs font-black uppercase tracking-[0.15em] transition-all ${isExecuted || isValidator
-                                                ? 'bg-indigo-900 text-white hover:bg-slate-800 shadow-lg'
-                                                : canPerform ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-xl shadow-indigo-100' : 'bg-slate-100 text-slate-400 cursor-not-allowed hidden'
-                                                }`}
+                                            disabled={
+                                                ((data.taskType === 'checklist' || String(userAction || '').toLowerCase().includes('checklist')) && !can('CHECKLIST_VIEW')) ||
+                                                ((data.taskType === 'form' || !!data.formId || String(userAction || '').toLowerCase().includes('form')) && !can('FORM_VIEW'))
+                                            }
+                                            title={
+                                                ((data.taskType === 'checklist' || String(userAction || '').toLowerCase().includes('checklist')) && !can('CHECKLIST_VIEW')) ? "Matrix Restricted: Checklist View authority required" :
+                                                ((data.taskType === 'form' || !!data.formId || String(userAction || '').toLowerCase().includes('form')) && !can('FORM_VIEW')) ? "Matrix Restricted: Form View authority required" :
+                                                "Access Process Module"
+                                            }
+                                            className={`w-full h-14 rounded-[22px] flex items-center justify-center gap-3 text-xs font-black uppercase tracking-[0.15em] transition-all ${
+                                                ((data.taskType === 'checklist' || String(userAction || '').toLowerCase().includes('checklist')) && !can('CHECKLIST_VIEW')) ||
+                                                ((data.taskType === 'form' || !!data.formId || String(userAction || '').toLowerCase().includes('form')) && !can('FORM_VIEW'))
+                                                ? 'bg-slate-100 text-slate-300 grayscale opacity-30 blur-[1px] cursor-not-allowed border border-slate-200' 
+                                                : isExecuted || isValidator
+                                                    ? 'bg-indigo-900 text-white hover:bg-slate-800 shadow-lg'
+                                                    : canPerform ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-xl shadow-indigo-100' : 'bg-slate-100 text-slate-400 cursor-not-allowed hidden'
+                                            }`}
                                         >
                                             {isValidator ? 'Consult Record / Operator Data' : isExecuted ? 'Modify My Submission' : 'Complete Required Action'} 
                                             {isExecuted || isValidator ? <CheckCircle2 size={18} /> : <ExternalLink size={18} />}
-                                        </Link>
+                                        </button>
                                     ) : (
                                         null
                                     )}
@@ -568,9 +596,14 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                             </p>
                                         </div>
                                         <Button
-                                            onClick={() => document.getElementById('exec-panel-upload')?.click()}
-                                            disabled={isUploading}
-                                            className={`h-12 px-8 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all ${localAttachments.length > 0 ? 'bg-slate-900 text-white' : 'bg-indigo-600 text-white'}`}
+                                            onClick={() => can('TASK_EDIT') && document.getElementById('exec-panel-upload')?.click()}
+                                            disabled={isUploading || !can('TASK_EDIT')}
+                                            title={!can('TASK_EDIT') ? "Matrix Restricted: Task edit authority required" : "Upload Assets"}
+                                            className={`h-12 px-8 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all ${
+                                                !can('TASK_EDIT')
+                                                ? 'bg-slate-100 text-slate-300 grayscale opacity-30 blur-[0.6px] cursor-not-allowed'
+                                                : localAttachments.length > 0 ? 'bg-slate-900 text-white' : 'bg-indigo-600 text-white'
+                                            }`}
                                         >
                                             {localAttachments.length > 0 ? "Add More Items" : 
                                               (String(userAction).includes('Image') && String(userAction).includes('File'))
@@ -598,9 +631,14 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                                     </div>
                                                     <div className="flex items-center gap-2">
                                                         <button 
-                                                            onClick={() => handleDeleteAttachment(att._id)}
-                                                            className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg opacity-0 group-hover/att:opacity-100 transition-all"
-                                                            title="Supprimer"
+                                                            onClick={() => can('TASK_EDIT') && handleDeleteAttachment(att._id)}
+                                                            disabled={!can('TASK_EDIT')}
+                                                            className={`p-1.5 rounded-lg transition-all ${
+                                                                can('TASK_EDIT')
+                                                                ? 'text-rose-500 hover:bg-rose-50 opacity-0 group-hover/att:opacity-100'
+                                                                : 'text-slate-200 grayscale opacity-30 blur-[0.6px] cursor-not-allowed'
+                                                            }`}
+                                                            title={!can('TASK_EDIT') ? "Matrix Restricted" : "Supprimer"}
                                                         >
                                                             <Trash2 size={12} />
                                                         </button>
@@ -752,8 +790,13 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
 
                                 <Button
                                     onClick={handleApprove}
-                                    disabled={loading || !canValidate}
-                                    className="h-16 flex-[1.5] bg-emerald-600 hover:bg-emerald-700 text-white shadow-xl shadow-emerald-100 rounded-[24px] font-black uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-3 transition-all active:scale-95"
+                                    disabled={loading || !canValidate || !can('CHECKLIST_MANAGE_STATUS')}
+                                    title={!can('CHECKLIST_MANAGE_STATUS') ? "Matrix Restricted: Checklist Manage Status authority required" : "Finalize Process Stage"}
+                                    className={`h-16 flex-[1.5] shadow-xl rounded-[24px] font-black uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-3 transition-all active:scale-95 ${
+                                        !can('CHECKLIST_MANAGE_STATUS')
+                                        ? 'bg-slate-100 text-slate-300 grayscale opacity-30 blur-[1px] cursor-not-allowed border border-slate-200 shadow-none'
+                                        : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-100'
+                                    }`}
                                 >
                                     <CheckCircle2 size={20} /> Validate Step
                                 </Button>
@@ -772,19 +815,23 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                 disabled={
                                     loading || 
                                     !canPerform || 
+                                    !can('TASK_EDIT') ||
                                     !!(data.linkedObjectId && !isExecuted && !String(userAction).match(/file|image/i)) || 
                                     (Boolean(String(userAction).match(/file|image/i)) && localAttachments.length === 0) ||
                                     (Boolean(String(userAction).match(/report|text|writing/i)) && comment.trim().length < 10)
                                 }
-                                className={`h-16 w-full ${(
-                                    loading || 
-                                    !canPerform || 
-                                    !!(data.linkedObjectId && !isExecuted && !String(userAction).match(/file|image/i)) || 
-                                    (Boolean(String(userAction).match(/file|image/i)) && localAttachments.length === 0) ||
-                                    (Boolean(String(userAction).match(/report|text|writing/i)) && comment.trim().length < 10)
-                                ) 
-                                    ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-70' 
-                                    : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xl shadow-indigo-100 transition-transform active:scale-95'
+                                title={!can('TASK_EDIT') ? "Matrix Restricted: Task Edit authority required" : isExecuted ? "Update submission" : "Complete Task"}
+                                className={`h-16 w-full ${(!can('TASK_EDIT'))
+                                    ? 'bg-slate-100 text-slate-300 grayscale opacity-40 blur-[1.2px] cursor-not-allowed border border-slate-200'
+                                    : (
+                                        loading || 
+                                        !canPerform || 
+                                        !!(data.linkedObjectId && !isExecuted && !String(userAction).match(/file|image/i)) || 
+                                        (Boolean(String(userAction).match(/file|image/i)) && localAttachments.length === 0) ||
+                                        (Boolean(String(userAction).match(/report|text|writing/i)) && comment.trim().length < 10)
+                                    ) 
+                                        ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-70' 
+                                        : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xl shadow-indigo-100 transition-transform active:scale-95'
                                 } rounded-[24px] font-black uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-3`}
                             >
                                 {loading ? <Clock size={20} className="animate-spin" /> : isExecuted ? <CheckCircle2 size={20} /> : <Send size={18} />}

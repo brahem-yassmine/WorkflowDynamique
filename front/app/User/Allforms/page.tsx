@@ -34,6 +34,7 @@ interface Form {
 
 export default function UserAllFormsPage() {
   const [forms, setForms] = useState<Form[]>([]);
+  const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const router = useRouter();
@@ -53,8 +54,14 @@ export default function UserAllFormsPage() {
   };
 
   useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
     fetchForms();
   }, []);
+
+
 
   const handleClone = async (id: string) => {
     try {
@@ -146,7 +153,7 @@ export default function UserAllFormsPage() {
               </div>
               <Link
                 href="/form?from=user"
-                className="flex items-center justify-center gap-3 bg-slate-900 hover:bg-indigo-600 text-white px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 group whitespace-nowrap"
+                className="flex items-center justify-center gap-3 bg-slate-900 text-white px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 group支撑 whitespace-nowrap hover:bg-indigo-600"
               >
                 <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
                 Initialize Form
@@ -173,7 +180,7 @@ export default function UserAllFormsPage() {
             <p className="text-slate-500 mt-3 font-medium max-w-sm mb-10 leading-relaxed text-sm">No protocols have been committed to this sector. Start by creating a dynamic interactive form.</p>
             <Link
               href="/User/form"
-              className="bg-indigo-600 text-white px-10 py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 flex items-center gap-3 active:scale-95"
+              className="bg-indigo-600 text-white px-10 py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-xl shadow-indigo-100 flex items-center gap-3 active:scale-95 hover:bg-indigo-700"
             >
               <Plus className="w-5 h-5" /> Start Ledger Creation
             </Link>
@@ -254,29 +261,28 @@ export default function UserAllFormsPage() {
                                 <div className="flex items-center gap-2">
                                   <button
                                     onClick={(e) => { e.stopPropagation(); handleClone(form._id); }}
-                                    className="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all"
+                                    className="p-3 transition-all rounded-2xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
                                     title="Duplicate Unit"
                                   >
                                     <Copy className="w-5 h-5" />
                                   </button>
                                   <button
                                     onClick={(e) => { e.stopPropagation(); router.push(`/form?id=${form._id}&from=user`); }}
-                                    className="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all"
+                                    className="p-3 transition-all rounded-2xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
                                     title="Reconfigure"
                                   >
                                     <Edit3 className="w-5 h-5" />
                                   </button>
                                   <button
                                     onClick={(e) => { e.stopPropagation(); handleDelete(form._id); }}
-                                    className="p-3 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-2xl transition-all"
+                                    className="p-3 transition-all rounded-2xl text-slate-400 hover:text-rose-600 hover:bg-rose-50"
                                     title="Decommission"
                                   >
                                     <Trash2 className="w-5 h-5" />
                                   </button>
                                   <Link
                                     href={`/form/form3?id=${form._id}&from=user`}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="ml-2 w-12 h-12 bg-slate-50 text-slate-400 group-hover:bg-indigo-600 group-hover:text-white rounded-2xl flex items-center justify-center transition-all shadow-sm active:scale-90"
+                                    className="ml-2 w-12 h-12 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center transition-all shadow-sm active:scale-90 group-hover:bg-indigo-600 group-hover:text-white"
                                     title="Run Interactive"
                                   >
                                     <ArrowRight className="w-5 h-5" />

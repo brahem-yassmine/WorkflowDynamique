@@ -203,7 +203,19 @@ const login = async (req, res) => {
         if (tenant) {
           const conn = mongoose.createConnection(tenant.databaseUri);
           const Role = getRoleModel(conn);
-          const userRole = await Role.findOne({ name: role });
+          
+          // CRITICAL: Check if user has a specific identity node (Specific Role)
+          // We prioritize specificRoleId from the user document
+          let userRole = null;
+          if (user.specificRoleId) {
+            userRole = await Role.findById(user.specificRoleId);
+          }
+          
+          // Fallback to generic role name if no specific role or not found
+          if (!userRole) {
+            userRole = await Role.findOne({ name: role });
+          }
+
           if (userRole) {
             permissions = userRole.permissions || [];
           }
@@ -311,7 +323,8 @@ const login = async (req, res) => {
                   subscriptionExpired,
                   warningSoon,
                   daysLeft: Math.max(0, daysLeft),
-                  currentPlan
+                  currentPlan,
+                  permissions: permissions || []
                 },
                 tenantId: tenantId
               }
@@ -337,7 +350,8 @@ const login = async (req, res) => {
           domain: user.domain || 'HR',
           subscriptionExpired,
           daysLeft,
-          currentPlan
+          currentPlan,
+          permissions: permissions || []
         },
         tenantId: tenantId
       }
@@ -707,12 +721,44 @@ const getProfile = async (req, res) => {
       });
     }
 
+    // CRITICAL: Recalculate permissions based on current assignment
+    let permissions = [];
+    if (role === 'super_admin') {
+      permissions = ['all'];
+    } else if (tenantId) {
+      try {
+        const TenantModel = getTenantModel(req);
+        const tenant = await TenantModel.findById(tenantId);
+        if (tenant) {
+          const conn = mongoose.createConnection(tenant.databaseUri);
+          const Role = getRoleModel(conn);
+          
+          let userRoleNode = null;
+          if (user.specificRoleId) {
+            userRoleNode = await Role.findById(user.specificRoleId);
+          }
+          
+          if (!userRoleNode) {
+            userRoleNode = await Role.findOne({ name: role });
+          }
+
+          if (userRoleNode) {
+            permissions = userRoleNode.permissions || [];
+          }
+          await conn.close();
+        }
+      } catch (err) {
+        console.error('Error refreshing permissions:', err.message);
+      }
+    }
+
     res.json({
       success: true,
       data: {
         ...user.toObject(),
         role: role,
-        tenantId: tenantId
+        tenantId: tenantId,
+        permissions: permissions
       }
     });
   } catch (error) {
@@ -802,7 +848,37 @@ module.exports = {
         });
       }
 
-      // 3. Generate Token (Replicating login's token generation)
+      // 3. Fetch Matrix Permissions
+      let permissions = [];
+      if (role === 'super_admin') {
+        permissions = ['all'];
+      } else if (tenantId) {
+        try {
+          const TenantModel = getTenantModel(req);
+          const tenant = await TenantModel.findById(tenantId);
+          if (tenant) {
+            const conn = mongoose.createConnection(tenant.databaseUri);
+            const Role = getRoleModel(conn);
+            
+            let userRole = null;
+            if (user.specificRoleId) {
+              userRole = await Role.findById(user.specificRoleId);
+            }
+            if (!userRole) {
+              userRole = await Role.findOne({ name: role });
+            }
+
+            if (userRole) {
+              permissions = userRole.permissions || [];
+            }
+            await conn.close();
+          }
+        } catch (err) {
+          console.error('Google login permission fetch error:', err.message);
+        }
+      }
+
+      // 4. Generate Token
       const token = jwt.sign(
         {
           id: user._id,
@@ -812,7 +888,9 @@ module.exports = {
           role: role,
           tenantId: tenantId,
           domain: user.domain || 'HR',
-          permissions: role === 'super_admin' ? ['all'] : [] // Ideally fetch permissions here too
+          specificRole: user.specificRole || '',
+          specificRoleId: user.specificRoleId || null,
+          permissions: permissions
         },
         process.env.JWT_SECRET || 'your_jwt_secret',
         { expiresIn: '30d' }

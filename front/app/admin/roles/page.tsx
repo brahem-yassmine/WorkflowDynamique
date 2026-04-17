@@ -444,7 +444,7 @@ export default function RolesPage() {
                     className="flex items-center gap-2 px-4 py-2 bg-slate-50 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-all shadow-sm border border-slate-200 font-bold text-xs uppercase tracking-widest"
                   >
                     <ChevronRight className="rotate-180" size={16} />
-                    Retour à la liste
+                    Back to list
                   </button>
                 </div>
 
@@ -560,7 +560,6 @@ export default function RolesPage() {
                   </button>
                   <button
                     onClick={() => {
-                        setAssignUserId('');
                         setAssignDomainId((selectedRole as any).domainId || '');
                         setAssignModuleId((selectedRole as any).moduleId || '');
                         setIsAssignModalOpen(true);
@@ -633,7 +632,6 @@ export default function RolesPage() {
                   </div>
 
                   <div className="space-y-6">
-
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Target Domain</label>
@@ -685,15 +683,17 @@ export default function RolesPage() {
                       if (!selectedRole) return;
                       try {
                         setIsAssigning(true);
+                        
+                        // Update the role's default scope
                         await api.put(`/api/tenant/roles/${selectedRole._id}`, {
                           domainId: assignDomainId || null,
                           moduleId: assignModuleId || null
                         });
+
                         setIsAssignModalOpen(false);
                         loadRoles();
-                        setSelectedRole(null); // Close inspector to refresh view if needed
+                        setSelectedRole(null); // Close inspector to refresh view
                         // Reset forms
-                        setAssignUserId('');
                         setAssignDomainId('');
                         setAssignModuleId('');
                       } catch (err: any) {
@@ -735,7 +735,7 @@ export default function RolesPage() {
                     className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold transition-all text-xs uppercase tracking-widest"
                   >
                     <ChevronRight className="rotate-180" size={16} />
-                    Retour
+                    Back
                   </button>
                 </div>
               </div>

@@ -316,21 +316,26 @@ export default function RolesPage() {
       {!isModalOpen && !selectedRole && (
         <div className="space-y-8">
       {/* Header section */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-slate-800 tracking-tight">Organization Authority & Roles</h1>
-          <p className="text-slate-500 text-sm font-medium">Define and manage custom security perimeters for your current organization. These roles are isolated and specific to this tenant.</p>
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8 lg:gap-16">
+        <div className="flex-1 pr-4 lg:pr-12">
+          <h1 className="text-4xl font-black text-slate-800 tracking-tight mb-3">Organization Authority & Roles</h1>
+          <p className="text-slate-500 text-sm font-medium max-w-3xl leading-relaxed">
+            Define and manage custom security perimeters for your current organization. These roles are isolated and specific to this tenant.
+          </p>
         </div>
         <button
           onClick={() => {
             resetForm();
             setIsModalOpen(true);
           }}
-          className="group relative flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 hover:shadow-xl hover:shadow-indigo-300 hover:-translate-y-0.5 transition-all active:scale-95 overflow-hidden"
+          className="shrink-0 group relative flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-indigo-500 to-violet-600 text-white rounded-[24px] font-black text-[11px] uppercase tracking-[0.2em] shadow-[0_8px_30px_rgb(99,102,241,0.4)] hover:shadow-[0_8px_30px_rgb(99,102,241,0.6)] hover:-translate-y-1 transition-all duration-300 active:scale-95 overflow-hidden border border-indigo-400/50"
         >
-          <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out" />
-          <Plus size={18} className="relative z-10" />
-          <span className="relative z-10">Create New Role</span>
+          <div className="absolute inset-0 -translate-x-[150%] bg-gradient-to-r from-transparent via-white/30 to-transparent group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out" />
+          
+          <div className="w-8 h-8 rounded-full bg-white/20 shadow-inner flex items-center justify-center backdrop-blur-md relative z-10 transition-transform duration-500 group-hover:rotate-180">
+            <Plus size={16} className="text-white stroke-[3]" />
+          </div>
+          <span className="relative z-10 drop-shadow-md">Create New Role</span>
         </button>
       </div>
 

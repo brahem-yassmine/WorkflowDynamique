@@ -27,7 +27,7 @@ const HelpPage = () => {
           <input 
             type="text" 
             placeholder="Search for tutorials, rules, or step configurations..." 
-            className="w-full pl-12 pr-4 py-4 rounded-2xl bg-white/10 border border-white/20 backdrop-blur-md placeholder:text-indigo-100 outline-none focus:bg-white focus:text-slate-900 transition-all shadow-inner"
+            className="w-full pl-12 pr-4 py-4 rounded-2xl bg-white/10 border border-white/20 placeholder:text-indigo-100 outline-none focus:bg-white focus:text-slate-900 transition-all shadow-inner"
           />
         </div>
       </section>
@@ -76,7 +76,7 @@ const HelpPage = () => {
             <Video size={18} className="text-slate-400" /> Video Tutorials
           </h2>
           <div className="aspect-video bg-slate-900 rounded-xl flex items-center justify-center relative group overflow-hidden">
-             <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm group-hover:scale-110 transition-transform">
+             <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
                <div className="w-0 h-0 border-t-10 border-t-transparent border-l-18 border-l-white border-b-10 border-b-transparent ml-1"></div>
              </div>
              <p className="absolute bottom-4 left-4 text-white text-xs font-medium">Introduction to AI Workflow Generation [cite: 41]</p>

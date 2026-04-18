@@ -187,13 +187,11 @@ function DomainsPageContent() {
                     </p>
                 </div>
                 <button
-                    onClick={() => can('DOMAIN_CREATE') && (resetForm(), setIsModalOpen(true))}
-                    disabled={!can('DOMAIN_CREATE')}
-                    title={!can('DOMAIN_CREATE') ? "Matrix Restricted" : ""}
+                    onClick={() => can('Domain.CREATE') && (resetForm(), setIsModalOpen(true))}
+                    disabled={!can('Domain.CREATE')}
+                    title={!can('Domain.CREATE') ? "Matrix Restricted" : ""}
                     className={`px-6 py-3 rounded-2xl font-black text-[11px] transition-all shadow-lg flex items-center gap-2.5 active:scale-95 ${
-                        can('DOMAIN_CREATE')
-                        ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100'
-                        : 'bg-slate-100 text-slate-300 grayscale opacity-30 blur-[1px] cursor-not-allowed border border-slate-200 shadow-none'
+                        btnDisabledClass('Domain.CREATE') || 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100'
                     }`}
                 >
                     <Plus size={16} className="stroke-[4]" />
@@ -231,7 +229,7 @@ function DomainsPageContent() {
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: idx * 0.05 }}
                                 onClick={() => router.push(`/User/MODULES?domainId=${domain._id}`)}
-                                className="group relative bg-white rounded-3xl border-y border-l border-slate-100 border-r-4 border-r-indigo-600 p-8 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.03)] hover:shadow-xl hover:shadow-indigo-500/10 transition-all cursor-pointer overflow-hidden flex flex-col"
+                                className={`group relative bg-white rounded-3xl border-y border-l border-slate-100 border-r-4 border-r-indigo-600 p-8 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.03)] hover:shadow-xl hover:shadow-indigo-500/10 transition-all cursor-pointer overflow-hidden flex flex-col ${permissionDisabledClass('Domain.VIEW')}`}
                             >
                                 {/* Top area with Icon and Badge */}
                                 <div className="flex justify-between items-start mb-6">
@@ -256,23 +254,19 @@ function DomainsPageContent() {
                                 {/* Hidden Actions (Shows on Hover) */}
                                 <div className="absolute bottom-4 right-6 flex gap-2 opacity-0 group-hover:opacity-100 translate-y-3 group-hover:translate-y-0 transition-all duration-500">
                                     <button 
-                                        onClick={(e) => { e.stopPropagation(); can('DOMAIN_EDIT') && handleEdit(domain); }}
-                                        title={!can('DOMAIN_EDIT') ? "Matrix Restricted" : "Refine Sector"}
+                                        onClick={(e) => { e.stopPropagation(); can('Domain.UPDATE') && handleEdit(domain); }}
+                                        title={!can('Domain.UPDATE') ? "Matrix Restricted" : "Refine Sector"}
                                         className={`p-2.5 rounded-lg hover:shadow-md transition-all ${
-                                            can('DOMAIN_EDIT')
-                                            ? 'bg-white border border-slate-100 text-slate-400 hover:text-indigo-600'
-                                            : 'bg-slate-50 border border-slate-50 text-slate-200 grayscale opacity-40 blur-[0.6px] cursor-not-allowed pointer-events-none'
+                                            btnDisabledClass('Domain.UPDATE') || 'bg-white border border-slate-100 text-slate-400 hover:text-indigo-600'
                                         }`}
                                     >
                                         <Edit size={14} />
                                     </button>
                                     <button 
-                                        onClick={(e) => { e.stopPropagation(); can('DOMAIN_DELETE') && handleDelete(domain._id); }}
-                                        title={!can('DOMAIN_DELETE') ? "Matrix Restricted" : "Fragment Sector"}
+                                        onClick={(e) => { e.stopPropagation(); can('Domain.DELETE') && handleDelete(domain._id); }}
+                                        title={!can('Domain.DELETE') ? "Matrix Restricted" : "Fragment Sector"}
                                         className={`p-2.5 rounded-lg hover:shadow-md transition-all ${
-                                            can('DOMAIN_DELETE')
-                                            ? 'bg-white border border-slate-100 text-slate-400 hover:text-rose-600'
-                                            : 'bg-slate-50 border border-slate-50 text-slate-200 grayscale opacity-40 blur-[0.6px] cursor-not-allowed pointer-events-none'
+                                            btnDisabledClass('Domain.DELETE') || 'bg-white border border-slate-100 text-slate-400 hover:text-rose-600'
                                         }`}
                                     >
                                         <Trash2 size={14} />
@@ -300,7 +294,7 @@ function DomainsPageContent() {
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={() => setIsModalOpen(false)}
-                            className="absolute inset-0 bg-slate-900/60 backdrop-blur-lg"
+                            className="absolute inset-0 bg-slate-900/60"
                         />
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -309,7 +303,7 @@ function DomainsPageContent() {
                             className="bg-white rounded-[3rem] shadow-2xl w-full max-w-md relative z-10 overflow-hidden border border-slate-100"
                         >
                             <div className="bg-slate-900 p-8 text-white flex justify-between items-center relative overflow-hidden">
-                                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/20 rounded-full blur-3xl -mr-16 -mt-16"></div>
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/20 rounded-full -mr-16 -mt-16"></div>
                                 <div className="relative z-10">
                                     <h2 className="text-2xl font-black tracking-tight">{isEditing ? 'Refine Sector' : 'Establish Sector'}</h2>
                                     <div className="flex items-center gap-2 mt-1">

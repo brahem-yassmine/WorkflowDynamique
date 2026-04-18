@@ -60,7 +60,7 @@ interface WorkflowInstance {
 }
 
 export default function UserWorkflowsPage() {
-  const { can } = usePermissions();
+  const { can, permissionDisabledClass } = usePermissions();
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [instances, setInstances] = useState<WorkflowInstance[]>([]);
@@ -209,7 +209,7 @@ export default function UserWorkflowsPage() {
       }));
 
     return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40">
         <motion.div 
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -270,11 +270,11 @@ export default function UserWorkflowsPage() {
       
       {/* Header */}
       <div className="bg-indigo-700 rounded-[2.5rem] p-8 md:p-12 text-white relative overflow-hidden shadow-2xl">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20"></div>
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-white/10 rounded-xl backdrop-blur-md">
+              <div className="p-2 bg-white/10 rounded-xl">
                 {currentProject ? <Briefcase size={24} /> : <Workflow size={24} />}
               </div>
               <h1 className="text-3xl font-black tracking-tight">
@@ -296,12 +296,12 @@ export default function UserWorkflowsPage() {
                 </button>
              </Link>
           )}
-          <div className="flex items-center gap-4 bg-white/10 p-4 rounded-3xl backdrop-blur-md border border-white/10">
+          <div className="flex items-center gap-4 bg-white/10 p-4 rounded-3xl border border-white/10">
             <div className="text-right">
               <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Action Readiness</p>
               <p className="text-sm font-black">{instances.length} Active Tasks</p>
             </div>
-            <div className="w-10 h-10 bg-emerald-400 rounded-full blur-[2px] animate-pulse"></div>
+            <div className="w-10 h-10 bg-emerald-400 rounded-full animate-pulse"></div>
           </div>
         </div>
       </div>
@@ -373,7 +373,7 @@ export default function UserWorkflowsPage() {
             )}
           </motion.div>
         ) : (
-          <motion.div key="registry" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6">
+          <motion.div key="registry" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className={`space-y-6 ${permissionDisabledClass('Workflow.VIEW')}`}>
             <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
               <div className="relative w-full md:max-w-md">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -387,14 +387,12 @@ export default function UserWorkflowsPage() {
               </div>
               <div className="flex gap-2">
                 {mode === 'design' && (
-                  <Link href={can('WORKFLOW_CREATE') ? `/User/create${projectIdParam ? `?projectId=${projectIdParam}` : ''}` : '#'}>
+                  <Link href={`/User/create${projectIdParam ? `?projectId=${projectIdParam}` : ''}`}>
                     <button 
-                      disabled={!can('WORKFLOW_CREATE')}
-                      title={!can('WORKFLOW_CREATE') ? "Matrix Restricted" : "Initialize New Architecture"}
+                      disabled={!can('Workflow.CREATE')}
+                      title={!can('Workflow.CREATE') ? "Matrix Restricted" : "Initialize New Architecture"}
                       className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg transition-all ${
-                        can('WORKFLOW_CREATE')
-                        ? 'bg-indigo-600 text-white shadow-indigo-100 hover:bg-indigo-700'
-                        : 'bg-slate-100 text-slate-300 grayscale opacity-30 blur-[1px] cursor-not-allowed border border-slate-200 shadow-none'
+                        btnDisabledClass('Workflow.CREATE') || 'bg-indigo-600 text-white shadow-indigo-100 hover:bg-indigo-700'
                       }`}
                     >
                       <Plus size={16} /> New Design
@@ -421,7 +419,7 @@ export default function UserWorkflowsPage() {
                 <p className="font-black text-xs uppercase tracking-widest">No matching designs</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ${permissionDisabledClass('Workflow.VIEW')}`}>
                 {filteredWorkflows.map((workflow) => {
                   const isOwner = workflow.userId === (user?._id || user?.id);
                   return (
@@ -440,30 +438,26 @@ export default function UserWorkflowsPage() {
                           </button>
                           {mode === 'design' && isOwner && (
                             <>
-                              <button 
-                                onClick={() => can('WORKFLOW_EDIT') && router.push(`/User/create_workflows?id=${workflow._id}`)}
-                                disabled={!can('WORKFLOW_EDIT')}
-                                className={`p-2 rounded-xl transition-all ${
-                                  can('WORKFLOW_EDIT')
-                                  ? 'bg-slate-50 text-slate-400 hover:text-indigo-600'
-                                  : 'bg-slate-50/50 text-slate-200 grayscale opacity-40 blur-[0.6px] cursor-not-allowed'
-                                }`}
-                                title={!can('WORKFLOW_EDIT') ? "Matrix Restricted" : "Edit Design"}
-                              >
-                                <Edit3 size={16} />
-                              </button>
-                              <button 
-                                onClick={(e) => can('WORKFLOW_DELETE') && handleDeleteWorkflow(e, workflow._id)} 
-                                disabled={!can('WORKFLOW_DELETE')}
-                                className={`p-2 rounded-xl transition-all ${
-                                  can('WORKFLOW_DELETE')
-                                  ? 'bg-rose-50 text-rose-400 hover:bg-rose-500 hover:text-white'
-                                  : 'bg-slate-50/50 text-slate-200 grayscale opacity-40 blur-[0.6px] cursor-not-allowed'
-                                }`}
-                                title={!can('WORKFLOW_DELETE') ? "Matrix Restricted" : "Delete Design"}
-                              >
-                                <Trash2 size={16} />
-                              </button>
+                                <button 
+                                  onClick={() => can('Workflow.UPDATE') && router.push(`/User/create_workflows?id=${workflow._id}`)}
+                                  disabled={!can('Workflow.UPDATE')}
+                                  className={`p-2 rounded-xl transition-all ${
+                                    btnDisabledClass('Workflow.UPDATE') || 'bg-slate-50 text-slate-400 hover:text-indigo-600'
+                                  }`}
+                                  title={!can('Workflow.UPDATE') ? "Matrix Restricted" : "Edit Design"}
+                                >
+                                  <Edit3 size={16} />
+                                </button>
+                                <button 
+                                  onClick={(e) => can('Workflow.DELETE') && handleDeleteWorkflow(e, workflow._id)} 
+                                  disabled={!can('Workflow.DELETE')}
+                                  className={`p-2 rounded-xl transition-all ${
+                                    btnDisabledClass('Workflow.DELETE') || 'bg-rose-50 text-rose-400 hover:bg-rose-500 hover:text-white'
+                                  }`}
+                                  title={!can('Workflow.DELETE') ? "Matrix Restricted" : "Delete Design"}
+                                >
+                                  <Trash2 size={16} />
+                                </button>
                             </>
                           )}
                         </div>
@@ -491,14 +485,12 @@ export default function UserWorkflowsPage() {
 
                       <div className="flex gap-2">
                         <button 
-                          onClick={() => can('WORKFLOW_CREATE') && router.push(`/Workflows/instances/new?workflowId=${workflow._id}`)}
-                          disabled={!can('WORKFLOW_CREATE')}
+                          onClick={() => can('Workflow.CREATE') && router.push(`/Workflows/instances/new?workflowId=${workflow._id}`)}
+                          disabled={!can('Workflow.CREATE')}
                           className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg transition-all ${
-                            can('WORKFLOW_CREATE')
-                            ? 'bg-slate-900 text-white hover:bg-indigo-600'
-                            : 'bg-slate-100 text-slate-300 grayscale opacity-30 blur-[0.8px] cursor-not-allowed'
+                            btnDisabledClass('Workflow.CREATE') || 'bg-slate-900 text-white hover:bg-indigo-600'
                           }`}
-                          title={!can('WORKFLOW_CREATE') ? "Matrix Restricted" : "Initialize Workflow"}
+                          title={!can('Workflow.CREATE') ? "Matrix Restricted" : "Initialize Workflow"}
                         >
                           <Play size={14} fill="currentColor" /> Initialize
                         </button>
@@ -517,7 +509,6 @@ export default function UserWorkflowsPage() {
                   );
                 })}
               </div>
-            )}
           </motion.div>
         )}
       </AnimatePresence>

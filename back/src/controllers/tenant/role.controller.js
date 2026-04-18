@@ -26,27 +26,17 @@ class RoleController {
         return res.status(400).json({ success: false, message: 'Role name is required' });
       }
 
-      // Validate dependencies
+      // Resolve dependencies automatically for system integrity
+      let finalPermissions = permissions || [];
       if (permissions && Array.isArray(permissions)) {
-        const uniquePerms = Array.from(new Set(permissions));
-        const expectedResolved = resolveDependencies(uniquePerms);
-        
-        if (expectedResolved.length !== uniquePerms.length) {
-          return res.status(400).json({
-            success: false,
-            message: "Missing required permission dependencies. Data might be corrupted or manually altered.",
-            expectedCount: expectedResolved.length,
-            providedCount: uniquePerms.length,
-            expectedPayload: expectedResolved
-          });
-        }
+        finalPermissions = resolveDependencies(Array.from(new Set(permissions)));
       }
 
       // Clean and validate ObjectIds
       const domainId = RoleController.normalizeId(req.body.domainId);
       const moduleId = RoleController.normalizeId(req.body.moduleId);
 
-      console.log('📦 Create Payload (Normalized):', { name, permissionsCount: permissions?.length, domainId, moduleId });
+      console.log('📦 Create Payload (Normalized):', { name, permissionsCount: finalPermissions?.length, domainId, moduleId });
 
       // Case-insensitive check with escaped name
       const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -61,7 +51,7 @@ class RoleController {
       const role = new Role({
         name,
         description,
-        permissions: permissions || [],
+        permissions: finalPermissions || [],
         isDefault: isDefault || false,
         isActive: true,
         domainId: domainId || undefined,
@@ -102,7 +92,6 @@ class RoleController {
     }
   }
 
-  // ✅ ADD THIS METHOD
   // Get active roles
   static async getActiveRoles(req, res) {
     try {
@@ -146,28 +135,18 @@ class RoleController {
       const domainId = req.body.hasOwnProperty('domainId') ? RoleController.normalizeId(req.body.domainId) : undefined;
       const moduleId = req.body.hasOwnProperty('moduleId') ? RoleController.normalizeId(req.body.moduleId) : undefined;
 
-      // Validate dependencies
-      if (permissions && Array.isArray(permissions)) {
-        const uniquePerms = Array.from(new Set(permissions));
-        const expectedResolved = resolveDependencies(uniquePerms);
-        
-        if (expectedResolved.length !== uniquePerms.length) {
-          return res.status(400).json({
-            success: false,
-            message: "Missing required permission dependencies. Data might be corrupted or manually altered.",
-            expectedCount: expectedResolved.length,
-            providedCount: uniquePerms.length,
-            expectedPayload: expectedResolved
-          });
-        }
-      }
-
-      console.log('📦 Update Payload (Normalized):', { name, permissionsCount: permissions?.length, domainId, moduleId });
-
       const role = await Role.findById(id);
       if (!role) {
         return res.status(404).json({ success: false, message: 'Role not found' });
       }
+
+      // Resolve dependencies automatically for system integrity
+      let finalPermissions = permissions || role.permissions;
+      if (permissions && Array.isArray(permissions)) {
+        finalPermissions = resolveDependencies(Array.from(new Set(permissions)));
+      }
+
+      console.log('📦 Update Payload (Normalized):', { name, permissionsCount: finalPermissions?.length, domainId, moduleId });
 
       if (name && name.toLowerCase() !== role.name.toLowerCase()) {
         const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -182,7 +161,7 @@ class RoleController {
 
       role.name = name || role.name;
       role.description = description !== undefined ? description : role.description;
-      role.permissions = permissions || role.permissions;
+      role.permissions = finalPermissions;
       if (isDefault !== undefined) role.isDefault = isDefault;
       if (isActive !== undefined) role.isActive = isActive;
       
@@ -227,8 +206,6 @@ class RoleController {
       const Role = RoleController.getModel(req);
       const User = req.tenantConn.model('User');
       const { id } = req.params;
-      // Because DELETE requests sometimes shouldn't have body in certain older proxies,
-      // it's also common to put it in query, but we'll check both.
       const replacementRoleId = req.body?.replacementRoleId || req.query?.replacementRoleId;
 
       const role = await Role.findById(id);
@@ -243,7 +220,6 @@ class RoleController {
         });
       }
 
-      // Check if users depend on this role
       const usersWithRole = await User.countDocuments({ specificRoleId: id });
 
       if (usersWithRole > 0) {
@@ -257,13 +233,11 @@ class RoleController {
           });
         }
         
-        // Ensure replacement role exists
         const replacementRole = await Role.findById(replacementRoleId);
         if (!replacementRole) {
           return res.status(404).json({ success: false, message: 'Fallback role not found in the matrix' });
         }
 
-        // Reassign users
         await User.updateMany({ specificRoleId: id }, { specificRoleId: replacementRoleId });
         console.log(`[RoleController] Reassigned ${usersWithRole} user(s) to role ${replacementRoleId}`);
       }
@@ -281,8 +255,6 @@ class RoleController {
     }
   }
 
-  // ✅ ADD THIS METHOD
-  // Add permissions
   static async addPermissions(req, res) {
     try {
       const Role = RoleController.getModel(req);
@@ -306,8 +278,6 @@ class RoleController {
     }
   }
 
-  // ✅ ADD THIS METHOD
-  // Remove permissions
   static async removePermissions(req, res) {
     try {
       const Role = RoleController.getModel(req);
@@ -329,8 +299,7 @@ class RoleController {
       res.status(500).json({ success: false, message: error.message });
     }
   }
-  // ✅ ADD THIS METHOD
-  // Get global list of available permissions
+
   static async getAvailablePermissions(req, res) {
     try {
       if (!req.masterDb) {

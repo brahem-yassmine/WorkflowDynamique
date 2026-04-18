@@ -35,16 +35,19 @@ export const PERMISSION_DEPENDENCIES: Record<string, string[]> = {
   'Form.CREATE': ['Form.VIEW'],
   'Form.UPDATE': ['Form.VIEW'],
   'Form.DELETE': ['Form.VIEW'],
+  'Form.CLONE': ['Form.VIEW'],
 
 
   // Checklist rules
+  'Checklist.VIEW': ['Workflow.VIEW'],
+  'Checklist.CREATE': ['Checklist.VIEW', 'Workflow.CREATE'],
+  'Checklist.UPDATE': ['Checklist.VIEW'],
+  'Checklist.DELETE': ['Checklist.VIEW'],
   'Checklist.COMPLETE_ITEM': ['Checklist.VIEW'],
 
   // Kanban rules
   'Kanban.VIEW': ['Project.VIEW'],
-  'Kanban.CREATE': ['Kanban.VIEW', 'Project.VIEW'],
-  'Kanban.UPDATE': ['Kanban.VIEW', 'Project.VIEW'],
-  'Kanban.DELETE': ['Kanban.VIEW', 'Project.VIEW'],
+  'Kanban.CREATE': ['Kanban.VIEW', 'Project.VIEW', 'Project.CREATE', 'Domain.VIEW', 'Domain.CREATE', 'Workflow.VIEW', 'Workflow.CREATE', 'Module.VIEW', 'Module.CREATE'],
 };
 
 /**
@@ -85,9 +88,9 @@ export const UI_GROUPS = {
   Project: { icon: '📁', label: 'Project', actions: ["VIEW", "CREATE", "UPDATE", "DELETE"] },
   Workflow: { icon: '🔁', label: 'Workflow', actions: ["VIEW", "CREATE", "UPDATE", "DELETE", "EXECUTE"] },
   Template: { icon: '📄', label: 'Template', actions: ["VIEW", "CREATE", "UPDATE", "DELETE", "CLONE_TEMPLATE"] },
-  Form: { icon: '📝', label: 'Form', actions: ["VIEW", "CREATE", "UPDATE", "DELETE"] },
+  Form: { icon: '📝', label: 'Form', actions: ["VIEW", "CREATE", "UPDATE", "DELETE", "CLONE"] },
   Checklist: { icon: '✅', label: 'Checklist', actions: ["VIEW", "COMPLETE_ITEM"] },
-  Kanban: { icon: '🗂️', label: 'Kanban', actions: ["VIEW", "CREATE", "UPDATE", "DELETE"] },
+  Kanban: { icon: '🗂️', label: 'Kanban', actions: ["VIEW", "CREATE"] },
 };
 
 export const ACTION_TOOLTIPS: Record<string, string> = {
@@ -95,6 +98,7 @@ export const ACTION_TOOLTIPS: Record<string, string> = {
   "UPDATE": "Can edit existing items",
   "DELETE": "Can remove items",
   "VIEW": "Can view items",
+  "CLONE": "Can duplicate this item",
   "EXECUTE": "Can launch and use workflows",
   "CLONE_TEMPLATE": "Can duplicate template to a project",
   "ASSIGN": "Can assign tasks to other users",

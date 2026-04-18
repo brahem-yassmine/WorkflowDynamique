@@ -122,7 +122,7 @@ export default function ProjectDashboardPage() {
       <Toaster position="top-right" richColors />
       
       {/* Background Ornament */}
-      <div className="absolute top-0 right-0 w-1/2 h-1/2 bg-indigo-50/50 blur-[120px] rounded-full -mr-32 -mt-32 pointer-events-none"></div>
+      <div className="absolute top-0 right-0 w-1/2 h-1/2 bg-indigo-50/50 rounded-full -mr-32 -mt-32 pointer-events-none"></div>
 
       <div className="max-w-7xl mx-auto space-y-12 relative z-10">
         {/* Navigation & Header */}
@@ -166,7 +166,7 @@ export default function ProjectDashboardPage() {
         {/* Dash Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {stats.map((stat, idx) => (
-            <div key={idx} className="bg-white/80 backdrop-blur-md p-8 rounded-[36px] border border-white shadow-sm hover:shadow-md transition-all group overflow-hidden relative">
+            <div key={idx} className="bg-white/80 p-8 rounded-[36px] border border-white shadow-sm hover:shadow-md transition-all group overflow-hidden relative">
               <div className="flex items-center gap-6">
                 <div className={`w-16 h-16 ${stat.bg} ${stat.color} rounded-[24px] flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform`}>
                   <stat.icon size={28} />

@@ -291,6 +291,10 @@ export default function WorkflowChecklist() {
         
         if (source === 'workflow_details' && workflowDetailsId) {
           router.push(`/admin/workflows/${workflowDetailsId}`);
+        } else if (source === 'allchecks') {
+          const basePath = userRole.toLowerCase().includes('admin') ? '/admin' : '/User';
+          const allCheckPath = userRole.toLowerCase().includes('admin') ? 'AllCheck' : 'Allchecks';
+          router.push(`${basePath}/${allCheckPath}`);
         } else {
           const basePath = userRole.toLowerCase().includes('admin') ? '/admin' : '/User';
           const allCheckPath = userRole.toLowerCase().includes('admin') ? 'AllCheck' : 'Allchecks';
@@ -398,12 +402,12 @@ export default function WorkflowChecklist() {
                 const basePath = userRole.toLowerCase().includes('admin') ? '/admin' : '/User';
                 const allCheckPath = userRole.toLowerCase().includes('admin') ? 'AllCheck' : 'Allchecks';
 
-                if (instanceId) {
+                if (source === 'allchecks') {
+                  router.push(`${basePath}/${allCheckPath}`);
+                } else if (instanceId) {
                   router.push(`/Workflows/instances/${instanceId}`);
                 } else if (source === 'workflow_details' && workflowDetailsId) {
                   router.push(`/admin/workflows/${workflowDetailsId}`);
-                } else if (source === 'allchecks') {
-                  router.push(`${basePath}/${allCheckPath}`);
                 } else if (designerWorkflowId || fromWorkflow) {
                   router.push(`${basePath}/create_workflows?id=${designerWorkflowId}`);
                 } else {
@@ -448,7 +452,15 @@ export default function WorkflowChecklist() {
             )}
             {isConsult ? (
               <button 
-                onClick={() => router.back()} 
+                onClick={() => {
+                  if (source === 'allchecks') {
+                    const basePath = userRole.toLowerCase().includes('admin') ? '/admin' : '/User';
+                    const allCheckPath = userRole.toLowerCase().includes('admin') ? 'AllCheck' : 'Allchecks';
+                    router.push(`${basePath}/${allCheckPath}`);
+                  } else {
+                    router.back();
+                  }
+                }}
                 className="flex items-center gap-3 px-6 sm:px-8 py-2.5 sm:py-3 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-slate-700 active:scale-95 transition-all shadow-xl shadow-slate-100 whitespace-nowrap"
               >
                 <ChevronLeft size={18} />
@@ -570,7 +582,15 @@ export default function WorkflowChecklist() {
                    </div>
                  </div>
                  <button 
-                  onClick={() => router.back()}
+                  onClick={() => {
+                    if (source === 'allchecks') {
+                      const basePath = userRole.toLowerCase().includes('admin') ? '/admin' : '/User';
+                      const allCheckPath = userRole.toLowerCase().includes('admin') ? 'AllCheck' : 'Allchecks';
+                      router.push(`${basePath}/${allCheckPath}`);
+                    } else {
+                      router.back();
+                    }
+                  }}
                   className="w-full max-w-sm py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-700 transition-all shadow-xl shadow-slate-100 active:scale-95"
                  >
                    Return to Instance

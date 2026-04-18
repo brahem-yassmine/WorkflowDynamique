@@ -640,8 +640,31 @@ async function _internalStartInstance(tenantConn, workflow, user, options = {}) 
     status: (finalInitialNodes.length === 0 && nodesToActivate.some(n => n.type === 'end')) ? 'completed' : 'in_progress',
     priority: options.priority || 'medium',
     dueDate: options.dueDate || null,
-    timeStarted: new Date()
   });
+  
+  // Automatically Create Checklist for the instance
+  const Checklist = tenantConn.model('Checklist');
+  const checklistTasks = workflow.nodes
+    .filter(node => node.type === 'action' || node.type === 'condition' || node.type === 'task')
+    .map(node => ({
+      id: node.id,
+      title: node.data?.label || (node.type === 'action' ? 'Task' : node.type === 'condition' ? 'Condition' : 'Step'),
+      completed: false,
+      priority: node.data?.priority || 'medium'
+    }));
+
+  const checklist = new Checklist({
+    name: `Checklist: ${options.title || `Instance: ${workflow.name}`}`,
+    description: `Auto-generated for workflow instance: ${options.title || `Instance: ${workflow.name}`}`,
+    tasks: checklistTasks,
+    createdBy: user.id || user.userId || user._id,
+    status: 'draft',
+    instanceId: instance._id,
+    workflowId: workflow._id
+  });
+
+  await checklist.save();
+  instance.checklistId = checklist._id;
 
   await instance.save();
 
@@ -985,8 +1008,7 @@ async function _syncActiveInstances(tenantConn, workflow) {
  */
 async function _triggerAutomaticChecklist(req, workflow) {
   try {
-    // We only automate for admins creating templates
-    if (req.user?.role !== 'admin' && req.user?.role !== 'super_admin') return;
+    // Automated checklist for all users creating templates
 
     // Include actions and conditions as checklist items
     const nodesToInclude = (workflow.nodes || []).filter(n =>

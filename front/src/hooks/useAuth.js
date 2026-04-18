@@ -83,6 +83,10 @@ export const useAuth = () => {
         if (response.data.success) {
           const userData = response.data.data;
           setUser(userData);
+          
+          // CRITICAL SYNC: Persist refreshed permissions/profile to localStorage
+          localStorage.setItem('user', JSON.stringify(userData));
+          
           // Sync with local storage expiry state
           syncSubscription();
         } else {

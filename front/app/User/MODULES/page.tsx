@@ -24,7 +24,9 @@ import {
     Eye,
     Bell,
     User,
-    Sparkles
+    Sparkles,
+    Workflow,
+    Copy
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiService } from '@/service/api.service';
@@ -59,7 +61,7 @@ interface Project {
 
 function DomainModulesContent() {
     const router = useRouter();
-    const { can } = usePermissions();
+    const { can, permissionDisabledClass } = usePermissions();
     const searchParams = useSearchParams();
     const domainId = searchParams.get('domainId');
     const selectedModuleId = searchParams.get('moduleId');
@@ -195,6 +197,18 @@ function DomainModulesContent() {
         }
     };
 
+    const handleDuplicateTemplate = async (id: string) => {
+        try {
+            const res = await apiService.duplicateWorkflow(id);
+            if (res.success) {
+                toast.success('Protocol duplicated');
+                if (selectedModuleId) fetchTemplates(selectedModuleId);
+            }
+        } catch (error: any) {
+            toast.error(error.message || 'Error duplicating protocol');
+        }
+    };
+
     const handleAssignTemplate = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!templateToAssign || !selectedProjectId) return;
@@ -234,7 +248,7 @@ function DomainModulesContent() {
 
             {/* Local Module Sidebar */}
             <aside className="w-80 bg-indigo-700 text-white flex flex-col h-full shadow-2xl relative overflow-hidden flex-none">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl"></div>
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16"></div>
                 
                 {/* Back Link */}
                 <div className="p-6">
@@ -248,9 +262,8 @@ function DomainModulesContent() {
                 </div>
 
                 {/* Domain Identity */}
-                <div className="px-8 py-6 border-b border-white/10">
                     <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/10 shadow-lg relative overflow-hidden group">
+                        <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center border border-white/10 shadow-lg relative overflow-hidden group">
                             <div className="absolute inset-0 bg-gradient-to-br from-indigo-400 to-transparent opacity-20"></div>
                             <Box size={28} className="text-white relative z-10" />
                         </div>
@@ -262,7 +275,6 @@ function DomainModulesContent() {
                             </div>
                         </div>
                     </div>
-                </div>
 
                 {/* Sidebar Nav */}
                 <nav className="flex-1 overflow-y-auto py-8 px-4 space-y-8 scrollbar-hide">
@@ -305,7 +317,7 @@ function DomainModulesContent() {
                 </nav>
 
                 <div className="p-8 mt-auto">
-                    <div className="bg-white/5 backdrop-blur-md rounded-3xl p-5 border border-white/5">
+                    <div className="bg-white/5 rounded-3xl p-5 border border-white/5">
                         <div className="flex items-center gap-2 mb-2">
                             <div className="w-2 h-2 bg-emerald-400 rounded-full"></div>
                             <span className="text-[8px] font-black text-indigo-300 uppercase tracking-widest leading-none">Matrix Node</span>
@@ -321,10 +333,10 @@ function DomainModulesContent() {
                     
                     {/* Functional Matrix Hero (Pixel Perfect to Screenshot) */}
                     <section className="relative group perspective">
-                        <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/10 to-blue-600/10 rounded-[60px] blur transition duration-1000 group-hover:opacity-100"></div>
+                        <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/10 to-blue-600/10 rounded-[60px] transition duration-1000 group-hover:opacity-100"></div>
                         <div className="relative bg-white p-12 lg:p-14 rounded-[60px] border border-slate-100/50 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.05)] overflow-hidden flex items-center justify-between gap-12">
                             {/* Decorative Glow */}
-                            <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-gradient-to-br from-indigo-500/5 to-transparent rounded-full -mr-48 -mt-48 blur-3xl"></div>
+                            <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-gradient-to-br from-indigo-500/5 to-transparent rounded-full -mr-48 -mt-48"></div>
                             
                             <div className="flex items-center gap-10 relative z-10 flex-1">
                                 <div className="w-24 h-24 bg-indigo-600 rounded-[32px] flex items-center justify-center text-white shadow-2xl flex-none">
@@ -350,13 +362,13 @@ function DomainModulesContent() {
                             <div className="relative z-10 flex flex-col gap-3 flex-none pr-4">
                                 {!selectedModuleId ? (
                                     <button 
-                                        onClick={() => can('MODULE_CREATE') && openModuleModal()}
-                                        disabled={!can('MODULE_CREATE')}
-                                        title={!can('MODULE_CREATE') ? "Matrix Restricted" : "Initialize New Unit"}
+                                        onClick={() => can('Module.CREATE') && openModuleModal()}
+                                        disabled={!can('Module.CREATE')}
+                                        title={!can('Module.CREATE') ? "Matrix Restricted" : "Initialize New Unit"}
                                         className={`group/btn relative px-10 py-5 rounded-full overflow-hidden shadow-2xl transition-all active:scale-95 flex items-center justify-center gap-3 ${
-                                            can('MODULE_CREATE')
+                                            can('Module.CREATE')
                                             ? 'bg-[#0F172A] text-white'
-                                            : 'bg-slate-100 text-slate-300 grayscale opacity-30 blur-[1px]'
+                                            : 'bg-slate-100 text-slate-300 grayscale opacity-30'
                                         }`}
                                     >
                                         <Plus size={18} className="group-hover/btn:rotate-90 transition-transform stroke-[3]" />
@@ -364,13 +376,11 @@ function DomainModulesContent() {
                                     </button>
                                 ) : (
                                     <button 
-                                        onClick={() => can('WORKFLOW_CREATE') && router.push(`/User/create?domainId=${domainId}&moduleId=${selectedModuleId}&isTemplate=true&fresh=true`)}
-                                        disabled={!can('WORKFLOW_CREATE')}
-                                        title={!can('WORKFLOW_CREATE') ? "Matrix Restricted" : "Establish New Protocol"}
+                                        onClick={() => can('Workflow.CREATE') && router.push(`/User/create?domainId=${domainId}&moduleId=${selectedModuleId}&isTemplate=true&fresh=true`)}
+                                        disabled={!can('Workflow.CREATE')}
+                                        title={!can('Workflow.CREATE') ? "Matrix Restricted" : "Establish New Protocol"}
                                         className={`group/btn relative px-10 py-5 rounded-full overflow-hidden shadow-2xl transition-all active:scale-95 flex items-center justify-center gap-3 ${
-                                            can('WORKFLOW_CREATE')
-                                            ? 'bg-indigo-600 text-white'
-                                            : 'bg-slate-100 text-slate-300 grayscale opacity-30 blur-[1px]'
+                                            permissionDisabledClass('Workflow.CREATE') || 'bg-indigo-600 text-white'
                                         }`}
                                     >
                                         <Zap size={18} className="relative z-10 transition-transform group-hover/btn:scale-110 stroke-[3]" />
@@ -416,147 +426,172 @@ function DomainModulesContent() {
                             </div>
                         </div>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 pb-20">
+                        <div className={`pb-20`}>
                             <AnimatePresence mode="wait">
                                 {!selectedModuleId ? (
-                                    <>
-                                        {isLoading ? (
-                                            Array(4).fill(0).map((_, i) => <div key={i} className="h-96 bg-white rounded-[60px] animate-pulse border border-slate-100 shadow-sm" />)
-                                        ) : filteredModules.length > 0 ? (
-                                            filteredModules.map((mod, idx) => (
+                                    <motion.div 
+                                        key="modules"
+                                        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                                        className="space-y-4"
+                                    >
+                                        {filteredModules.length > 0 ? (
+                                            <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ${permissionDisabledClass('Module.VIEW')}`}>
+                                                {filteredModules.map((mod, idx) => (
                                                 <motion.div 
                                                     key={mod._id} 
                                                     initial={{ opacity: 0, scale: 0.95 }}
                                                     animate={{ opacity: 1, scale: 1 }}
-                                                    transition={{ delay: idx * 0.05 }}
+                                                    transition={{ delay: idx * 0.03 }}
                                                     whileHover={{ y: -5 }}
-                                                    className="bg-white border border-slate-100 p-12 rounded-[80px] flex flex-col items-center text-center hover:border-indigo-100/50 hover:shadow-[0_45px_90px_-25px_rgba(99,102,241,0.1)] transition-all group cursor-pointer relative overflow-hidden"
+                                                    onClick={() => router.push(`/User/MODULES?domainId=${domainId}&moduleId=${mod._id}`)}
+                                                    className="bg-white border border-slate-100 p-8 rounded-[40px] flex flex-col items-center text-center hover:border-indigo-100 hover:shadow-2xl hover:shadow-indigo-500/5 transition-all group cursor-pointer relative overflow-hidden"
                                                 >
-                                                    {/* Top Right Decorative Arc (from Image 1) */}
-                                                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/60 rounded-bl-[100px] transition-colors group-hover:bg-indigo-100/40" />
-                                                    
-                                                    <div className="w-24 h-24 bg-indigo-600 rounded-[32px] flex items-center justify-center text-white mb-10 shadow-xl shadow-indigo-100 group-hover:rotate-6 transition-transform duration-500 relative z-10">
-                                                        <LayoutGrid size={40} />
-                                                    </div>
-                                                    
-                                                    <div className="space-y-4 mb-10 flex-grow relative z-10">
-                                                        <h3 className="font-black text-indigo-600 tracking-tight uppercase text-3xl leading-none">{mod.name}</h3>
-                                                        <div className="px-6 py-2.5 bg-[#F8FAFC] border border-slate-100 rounded-2xl inline-block shadow-sm">
-                                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none">Operational Unit</span>
-                                                        </div>
-                                                    </div>
-                                                    
-                                                    <div className="w-full h-px bg-slate-50 mb-8" />
-                                                    
-                                                    <div className="w-full flex items-center gap-4 relative z-10">
+                                                            <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50/50 rounded-full -mr-12 -mt-12 group-hover:bg-indigo-100 transition-colors" />
+                                                            
+                                                            <div className="w-20 h-20 bg-indigo-50 rounded-3xl flex items-center justify-center text-indigo-600 mb-6 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-500 shadow-sm group-hover:shadow-indigo-200 group-hover:rotate-6">
+                                                                <LayoutGrid size={32} />
+                                                            </div>
+                                                            
+                                                            <div className="space-y-2 mb-8 flex-grow">
+                                                                <h3 className="font-black text-slate-800 tracking-tight uppercase text-lg group-hover:text-indigo-600 transition-colors leading-tight">{mod.name}</h3>
+                                                                <div className="px-3 py-1 bg-slate-50 rounded-lg inline-block border border-slate-100">
+                                                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Operational Unit</span>
+                                                                </div>
+                                                            </div>
+                                                        
+                                                    <div className="w-full h-px bg-slate-50 mb-6" />
+                                                
+                                                    <div className="w-full flex items-center gap-2 relative z-10">
                                                         <button 
-                                                            onClick={(e) => { e.stopPropagation(); can('MODULE_EDIT') && router.push(`/User/MODULES?domainId=${domainId}&moduleId=${mod._id}`); }} 
-                                                            disabled={!can('MODULE_EDIT')}
-                                                            title={!can('MODULE_EDIT') ? "Matrix Restricted" : "Update Unit Configuration"}
-                                                            className={`flex-1 py-5 border text-[11px] font-black uppercase tracking-[0.3em] transition-all rounded-full active:scale-95 shadow-sm ${
-                                                                can('MODULE_EDIT')
-                                                                ? 'bg-white border-slate-100 text-slate-400 hover:border-indigo-100 hover:text-indigo-600 hover:shadow-lg'
-                                                                : 'bg-slate-50 border-slate-50 text-slate-200 grayscale opacity-40 blur-[0.6px]'
+                                                            onClick={(e) => { e.stopPropagation(); can('Module.UPDATE') && openModuleModal(mod); }} 
+                                                            title={!can('Module.UPDATE') ? "Matrix Restricted" : "Update Unit Configuration"}
+                                                            className={`flex-1 py-3 border rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all ${
+                                                                btnDisabledClass('Module.UPDATE') || 'bg-white border-slate-100 hover:border-indigo-100 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600'
                                                             }`}
                                                         >
                                                             Refine
                                                         </button>
                                                         <button 
-                                                            onClick={(e) => { e.stopPropagation(); can('MODULE_DELETE') && handleModuleDelete(mod._id); }} 
-                                                            disabled={!can('MODULE_DELETE')}
-                                                            title={!can('MODULE_DELETE') ? "Matrix Restricted" : "Terminate Unit"}
-                                                            className={`w-16 h-16 border rounded-full transition-all flex items-center justify-center active:scale-95 shadow-sm shrink-0 ${
-                                                                can('MODULE_DELETE')
-                                                                ? 'bg-white border-slate-100 text-slate-200 hover:border-rose-100 hover:text-rose-500 hover:shadow-lg'
-                                                                : 'bg-slate-50 border-slate-50 text-slate-100 grayscale opacity-40 blur-[0.8px]'
+                                                            onClick={(e) => { e.stopPropagation(); can('Module.DELETE') && handleModuleDelete(mod._id); }} 
+                                                            title={!can('Module.DELETE') ? "Matrix Restricted" : "Terminate Unit"}
+                                                            className={`p-3 border rounded-2xl transition-all ${
+                                                                btnDisabledClass('Module.DELETE') || 'bg-white border-slate-100 hover:border-rose-100 hover:bg-rose-50 text-slate-300 hover:text-rose-500'
                                                             }`}
                                                         >
-                                                            <Trash2 size={20} />
+                                                            <Trash2 size={16} />
                                                         </button>
                                                     </div>
                                                 </motion.div>
-                                            ))
+                                                ))}
+                                            </div>
                                         ) : (
-                                            <div className="col-span-full py-32 text-center text-slate-300">
+                                            <div className="col-span-full py-20 flex flex-col items-center justify-center text-center space-y-6 text-slate-300">
                                                 <LayoutGrid size={48} className="mx-auto mb-4 opacity-20" />
                                                 <p className="font-black uppercase tracking-[0.3em] text-[10px]">No operational units detected</p>
                                             </div>
                                         )}
-                                    </>
-                                ) : (
-                                    <>
-                                        {templates.map((tpl, idx) => (
-                                            <motion.div 
-                                                key={tpl._id} 
-                                                initial={{ opacity: 0, scale: 0.95 }}
-                                                animate={{ opacity: 1, scale: 1 }}
-                                                transition={{ delay: idx * 0.1 }}
-                                                className="group bg-white p-12 rounded-[80px] border border-slate-50/50 shadow-sm hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.02)] transition-all flex flex-col relative overflow-hidden"
-                                            >
-                                                {/* Top Left Icon (Image 2 Style) */}
-                                                <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 mb-8 border border-indigo-100/50">
-                                                    <Workflow size={24} />
-                                                </div>
-
-                                                <div className="space-y-4 mb-10 flex-grow">
-                                                    <h3 className="font-black text-[#1E293B] tracking-tighter uppercase text-2xl leading-none">{tpl.name || 'New Protocol'}</h3>
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="px-4 py-2 bg-[#F8FAFC] rounded-xl border border-slate-100 shadow-sm">
-                                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Protocol Unit</span>
+                                </motion.div>
+                            ) : (
+                                    <motion.div 
+                                        key="templates"
+                                        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                                        className="space-y-4"
+                                    >
+                                        <div className={`space-y-4 ${permissionDisabledClass('Workflow.VIEW')}`}>
+                                            {templates.length > 0 ? (
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                    {templates.map((tpl, idx) => (
+                                                <motion.div 
+                                                    key={tpl._id} 
+                                                    initial={{ opacity: 0, y: 20 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    transition={{ delay: idx * 0.05 }}
+                                                    className="group relative bg-white p-8 rounded-[40px] border border-slate-100 hover:border-indigo-200 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-500"
+                                                >
+                                                    <div className="absolute top-0 left-0 w-2 h-full bg-indigo-600 rounded-l-full scale-y-0 group-hover:scale-y-100 transition-transform origin-top duration-500" />
+                                                    
+                                                    <div className="flex justify-between items-start mb-8">
+                                                        <div className="w-14 h-14 bg-indigo-50 rounded-[22px] flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white group-hover:rotate-[15deg] transition-all duration-500 shadow-sm group-hover:shadow-indigo-200">
+                                                            <Workflow size={24} />
                                                         </div>
-                                                        <div className="flex items-center gap-2 px-4 py-2 bg-indigo-50 rounded-xl border border-indigo-100 shadow-sm">
-                                                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-300" />
-                                                            <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest leading-none">
-                                                                {tpl.nodes?.length || 1} Nodes
-                                                            </span>
+                                                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-500">
+                                                            <button 
+                                                                onClick={(e) => { e.stopPropagation(); can('Workflow.CREATE') && handleDuplicateTemplate(tpl._id); }}
+                                                                title={!can('Workflow.CREATE') ? "Matrix Restricted" : "Clone Template"}
+                                                                className={`p-3 rounded-xl transition-colors ${
+                                                                    can('Workflow.CREATE')
+                                                                    ? 'bg-indigo-50 text-indigo-500 hover:bg-indigo-500 hover:text-white'
+                                                                    : 'bg-slate-50 text-slate-200 cursor-not-allowed pointer-events-none'
+                                                                }`}
+                                                            >
+                                                                <Copy size={16} />
+                                                            </button>
+                                                            <button 
+                                                                onClick={(e) => { e.stopPropagation(); can('Workflow.DELETE') && handleTemplateDelete(tpl._id); }}
+                                                                title={!can('Workflow.DELETE') ? "Matrix Restricted" : "Delete Template"}
+                                                                className={`p-3 rounded-xl transition-colors ${
+                                                                    can('Workflow.DELETE') 
+                                                                    ? 'bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white'
+                                                                    : 'bg-slate-50 text-slate-200 cursor-not-allowed pointer-events-none'
+                                                                }`}
+                                                            >
+                                                                <Trash2 size={16} />
+                                                            </button>
                                                         </div>
                                                     </div>
+    
+                                                    <div className="space-y-2 mb-8 flex-grow">
+                                                        <h3 className="font-black text-slate-800 tracking-tight uppercase text-lg group-hover:text-indigo-600 transition-colors leading-tight">{tpl.name || 'New Protocol'}</h3>
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="px-2.5 py-1 bg-slate-50 rounded-lg border border-slate-100">
+                                                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Protocol Unit</span>
+                                                            </div>
+                                                            <div className="w-1 h-1 rounded-full bg-slate-200" />
+                                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{tpl.nodes?.length || 0} Nodes</span>
+                                                        </div>
+                                                    </div>
+    
+                                                    <div className="flex items-center gap-3 pt-6 border-t border-slate-50">
+                                                            <button 
+                                                                onClick={() => { can('Workflow.CREATE') && (setTemplateToAssign(tpl), setIsAssignModalOpen(true)); }}
+                                                                title={!can('Workflow.CREATE') ? "Matrix Restricted" : "Assign to Project"}
+                                                                className={`flex-1 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95 ${
+                                                                    can('Workflow.CREATE')
+                                                                    ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100/50'
+                                                                    : 'bg-slate-100 text-slate-300 grayscale opacity-30 cursor-not-allowed pointer-events-none'
+                                                                }`}
+                                                            >
+                                                                <Plus size={14} className="stroke-[3]" />
+                                                                Assign
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => router.push(`/User/create?id=${tpl._id}&moduleId=${selectedModuleId}&domainId=${domainId}&isTemplate=true`)}
+                                                                className={`flex-1 py-3.5 bg-slate-50 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all flex items-center justify-center gap-2 active:scale-95`}
+                                                            >
+                                                                <Eye size={16} className="text-slate-400" />
+                                                                View
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => { can('Workflow.UPDATE') && router.push(`/User/create?id=${tpl._id}&moduleId=${selectedModuleId}&domainId=${domainId}&isTemplate=true`); }}
+                                                                title={!can('Workflow.UPDATE') ? "Matrix Restricted" : "Refine Protocol"}
+                                                                className={`p-3.5 border rounded-2xl transition-all flex items-center justify-center active:scale-95 shadow-sm shrink-0 bg-white border-slate-100 text-slate-400 hover:text-indigo-600 ${
+                                                                    can('Workflow.UPDATE') ? '' : 'bg-slate-50 border-slate-50 text-slate-200 grayscale opacity-40 cursor-not-allowed pointer-events-none'
+                                                                }`}
+                                                            >
+                                                                <Edit size={16} />
+                                                            </button>
+                                                    </div>
+                                                </motion.div>
+                                                    ))}
                                                 </div>
-
-                                                {/* Three-Action Bar (Image 2 Architecture) */}
-                                                <div className="w-full flex items-center gap-3 relative z-10 pt-4 border-t border-slate-50/80">
-                                                    <button 
-                                                        onClick={() => can('WORKFLOW_CREATE') && (setTemplateToAssign(tpl), setIsAssignModalOpen(true))}
-                                                        disabled={!can('WORKFLOW_CREATE')}
-                                                        title={!can('WORKFLOW_CREATE') ? "Matrix Restricted" : "Initialize in Workspace"}
-                                                        className={`flex-1 py-5 rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-xl flex items-center justify-center gap-2 active:scale-95 ${
-                                                            can('WORKFLOW_CREATE')
-                                                            ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100'
-                                                            : 'bg-slate-100 text-slate-300 grayscale opacity-30 blur-[0.8px]'
-                                                        }`}
-                                                    >
-                                                        <Plus size={14} className="stroke-[3]" />
-                                                        Assign
-                                                    </button>
-                                                    <button 
-                                                        onClick={() => router.push(`/User/create?id=${tpl._id}&moduleId=${selectedModuleId}&domainId=${domainId}&isTemplate=true`)}
-                                                        className="flex-1 py-5 bg-[#F8FAFC] text-slate-900 rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.2em] border border-slate-100 hover:bg-slate-100 transition-all flex items-center justify-center gap-2 active:scale-95"
-                                                    >
-                                                        <Eye size={16} className="text-slate-400" />
-                                                        View
-                                                    </button>
-                                                    <button 
-                                                        onClick={() => can('WORKFLOW_EDIT') && router.push(`/User/create?id=${tpl._id}&moduleId=${selectedModuleId}&domainId=${domainId}&isTemplate=true`)}
-                                                        disabled={!can('WORKFLOW_EDIT')}
-                                                        title={!can('WORKFLOW_EDIT') ? "Matrix Restricted" : "Refine Protocol"}
-                                                        className={`w-16 h-16 border rounded-full transition-all flex items-center justify-center active:scale-95 shadow-sm shrink-0 ${
-                                                            can('WORKFLOW_EDIT')
-                                                            ? 'bg-white border-slate-100 text-slate-300 hover:text-indigo-600'
-                                                            : 'bg-slate-50 border-slate-50 text-slate-100 grayscale opacity-40 blur-[0.8px]'
-                                                        }`}
-                                                    >
-                                                        <Edit size={18} />
-                                                    </button>
+                                            ) : (
+                                                <div className="col-span-full py-32 text-center text-slate-300">
+                                                    <Zap size={48} className="mx-auto mb-4 opacity-20" />
+                                                    <p className="font-black uppercase tracking-[0.3em] text-[10px]">No protocols detected in sector repository</p>
                                                 </div>
-                                            </motion.div>
-                                        ))}
-                                        {templates.length === 0 && (
-                                            <div className="col-span-full py-32 text-center text-slate-300">
-                                                <Zap size={48} className="mx-auto mb-4 opacity-20" />
-                                                <p className="font-black uppercase tracking-[0.3em] text-[10px]">No protocols detected in sector repository</p>
-                                            </div>
-                                        )}
-                                    </>
+                                            )}
+                                        </div>
+                                    </motion.div>
                                 )}
                             </AnimatePresence>
                         </div>
@@ -571,7 +606,7 @@ function DomainModulesContent() {
                         <motion.div
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                             onClick={() => { setIsModuleModalOpen(false); setIsAssignModalOpen(false); }}
-                            className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+                            className="absolute inset-0 bg-slate-900/60"
                         />
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -580,7 +615,7 @@ function DomainModulesContent() {
                             {isModuleModalOpen && (
                                 <>
                                     <div className="bg-slate-900 p-10 text-white flex justify-between items-center relative overflow-hidden">
-                                        <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/20 rounded-full blur-3xl -mr-16 -mt-16"></div>
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/20 rounded-full -mr-16 -mt-16"></div>
                                         <div className="relative z-10">
                                             <h2 className="text-2xl font-black tracking-tight">{currentModule ? 'Refine Unit' : 'Deploy Unit'}</h2>
                                             <p className="text-indigo-300 text-[10px] font-black uppercase tracking-widest mt-1">Manual Unit Integration</p>
@@ -624,7 +659,7 @@ function DomainModulesContent() {
                             {isAssignModalOpen && (
                                 <>
                                     <div className="bg-slate-900 p-10 text-white flex justify-between items-center relative overflow-hidden">
-                                        <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/20 rounded-full blur-3xl -mr-16 -mt-16"></div>
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/20 rounded-full -mr-16 -mt-16"></div>
                                         <div className="relative z-10 text-center w-full">
                                             <div className="flex items-center justify-center gap-3 mb-2">
                                                 <Zap size={20} className="text-indigo-400" />

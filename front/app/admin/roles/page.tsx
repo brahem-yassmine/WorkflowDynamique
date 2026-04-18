@@ -742,6 +742,13 @@ export default function RolesPage() {
 
               <div className="flex-grow overflow-y-auto p-8 bg-slate-50/30 custom-scrollbar">
                 <div className="space-y-10">
+                  {error && (
+                    <div className="bg-rose-50 border border-rose-100 text-rose-600 p-4 rounded-2xl flex items-center gap-3 shadow-md animate-in slide-in-from-top-2 duration-300">
+                      <Shield size={18} />
+                      <span className="text-sm font-bold">{error}</span>
+                    </div>
+                  )}
+
                   {/* Identity Section */}
                   <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 space-y-6">
                     <div className="flex items-center gap-3 border-b border-slate-50 pb-4">

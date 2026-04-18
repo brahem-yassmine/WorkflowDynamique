@@ -68,7 +68,7 @@ const PREVIEWS: Record<string, (f: any) => React.ReactNode> = {
           <p className="text-[10px] text-gray-400 italic font-medium text-center px-4">Signature / Upload</p>
         </div>
         <div className="absolute inset-x-0 bottom-2 flex items-center justify-center translate-y-8 group-hover/sig:translate-y-0 opacity-0 group-hover/sig:opacity-100 transition-all">
-          <div className="px-3 py-1 bg-indigo-600 text-white rounded-lg text-[9px] font-bold uppercase tracking-tight shadow-md flex items-center gap-1.5 backdrop-blur-sm">
+          <div className="px-3 py-1 bg-indigo-600 text-white rounded-lg text-[9px] font-bold uppercase tracking-tight shadow-md flex items-center gap-1.5">
             <Plus className="w-2.5 h-2.5" /> Select Local File
           </div>
         </div>

@@ -48,8 +48,11 @@ const requireRole = (role) => {
       });
     }
 
-    if (req.user.role !== role && req.user.role !== 'super_admin') {
-      console.log(`[PERMISSIONS] Bypassing ${role} check for user ${req.user.email} (Visual Role Mode)`);
+    if (req.user.role !== role && req.user.role !== 'super_admin' && req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: `Forbidden: This action requires the ${role} role.`
+      });
     }
 
     next();
@@ -63,13 +66,19 @@ const hasPermission = (permission) => {
       return res.status(401).json({ success: false, message: 'Not authenticated' });
     }
 
-    if (req.user.role === 'super_admin') return next();
+    // Admin & Super Admin bypass (Total Authority)
+    if (req.user.role === 'super_admin' || req.user.role === 'admin') return next();
 
-    if (!req.user.permissions || !req.user.permissions.includes(permission)) {
-      console.log(`[PERMISSIONS] Bypassing permission check: ${permission} (Visual Role Mode)`);
+    // Check permissions embedded in the identity token
+    if (req.user.permissions && req.user.permissions.includes(permission)) {
+      return next();
     }
 
-    next();
+    // Rejection if the protocol identifier is missing
+    return res.status(403).json({
+      success: false,
+      message: `Forbidden: Matrix restricted identifier [${permission}] is required.`
+    });
   };
 };
 

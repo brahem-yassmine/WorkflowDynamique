@@ -5,9 +5,10 @@ const PERMISSION_DEPENDENCIES = {
   'Domain.DELETE': ['Domain.VIEW'],
   
   // Module rules
-  'Module.CREATE': ['Module.VIEW', 'Domain.VIEW'], // Hierarchy
-  'Module.UPDATE': ['Module.VIEW'],
-  'Module.DELETE': ['Module.VIEW'],
+  'Module.VIEW': ['Domain.VIEW'],
+  'Module.CREATE': ['Module.VIEW', 'Domain.VIEW'], 
+  'Module.UPDATE': ['Module.VIEW', 'Domain.VIEW'],
+  'Module.DELETE': ['Module.VIEW', 'Domain.VIEW'],
 
   // Project rules
   'Project.CREATE': ['Project.VIEW', 'Domain.VIEW'], // Hierarchy
@@ -15,29 +16,35 @@ const PERMISSION_DEPENDENCIES = {
   'Project.DELETE': ['Project.VIEW'],
 
   // Workflow rules
-  'Workflow.CREATE': ['Workflow.VIEW', 'Project.VIEW', 'Form.CREATE'], // Hierarchy + Form
-  'Workflow.UPDATE': ['Workflow.VIEW'],
-  'Workflow.DELETE': ['Workflow.VIEW'],
-  'Workflow.EXECUTE': ['Workflow.VIEW'], // Must view to launch
+  'Workflow.VIEW': ['Project.VIEW'],
+  'Workflow.CREATE': ['Workflow.VIEW', 'Project.VIEW', 'Form.CREATE'], 
+  'Workflow.UPDATE': ['Workflow.VIEW', 'Project.VIEW'],
+  'Workflow.DELETE': ['Workflow.VIEW', 'Project.VIEW'],
+  'Workflow.EXECUTE': ['Workflow.VIEW', 'Project.VIEW'], 
 
   // Template rules
+  'Template.VIEW': ['Module.VIEW', 'Domain.VIEW'],
   'Template.CREATE': ['Template.VIEW', 'Domain.VIEW', 'Module.VIEW'],
-  'Template.UPDATE': ['Template.VIEW'],
-  'Template.DELETE': ['Template.VIEW'],
+  'Template.UPDATE': ['Template.VIEW', 'Module.VIEW', 'Domain.VIEW'],
+  'Template.DELETE': ['Template.VIEW', 'Module.VIEW', 'Domain.VIEW'],
   'Template.CLONE_TEMPLATE': ['Template.VIEW', 'Workflow.CREATE', 'Project.VIEW'],
 
   // Form rules
   'Form.CREATE': ['Form.VIEW'],
   'Form.UPDATE': ['Form.VIEW'],
   'Form.DELETE': ['Form.VIEW'],
+  'Form.CLONE': ['Form.VIEW'],
 
   // Checklist rules
+  'Checklist.VIEW': ['Workflow.VIEW'],
+  'Checklist.CREATE': ['Checklist.VIEW', 'Workflow.CREATE'],
+  'Checklist.UPDATE': ['Checklist.VIEW'],
+  'Checklist.DELETE': ['Checklist.VIEW'],
   'Checklist.COMPLETE_ITEM': ['Checklist.VIEW'],
 
   // Kanban rules
   'Kanban.VIEW': ['Project.VIEW'],
-  'Kanban.CREATE': ['Kanban.VIEW', 'Project.VIEW', 'Workflow.CREATE','Domain.VIEW'],
-  
+  'Kanban.CREATE': ['Kanban.VIEW', 'Project.VIEW', 'Project.CREATE', 'Domain.VIEW', 'Domain.CREATE', 'Workflow.VIEW', 'Workflow.CREATE', 'Module.VIEW', 'Module.CREATE'],
 };
 
 /**

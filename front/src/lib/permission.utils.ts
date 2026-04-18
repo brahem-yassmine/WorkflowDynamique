@@ -22,28 +22,32 @@ export const PERMISSION_DEPENDENCIES: Record<string, string[]> = {
   'Workflow.CREATE': ['Workflow.VIEW', 'Project.VIEW', 'Form.CREATE'], 
   'Workflow.UPDATE': ['Workflow.VIEW', 'Project.VIEW'],
   'Workflow.DELETE': ['Workflow.VIEW', 'Project.VIEW'],
+  'Workflow.EXECUTE': ['Workflow.VIEW', 'Project.VIEW'],
 
   // Template rules
   'Template.VIEW': ['Module.VIEW', 'Domain.VIEW'],
   'Template.CREATE': ['Template.VIEW', 'Domain.VIEW', 'Module.VIEW'],
   'Template.UPDATE': ['Template.VIEW', 'Module.VIEW', 'Domain.VIEW'],
   'Template.DELETE': ['Template.VIEW', 'Module.VIEW', 'Domain.VIEW'],
-  'Template.EXECUTE': ['Template.VIEW', 'Workflow.CREATE', 'Project.VIEW'],
+  'Template.CLONE_TEMPLATE': ['Template.VIEW', 'Workflow.CREATE', 'Project.VIEW'],
 
   // Form rules
   'Form.CREATE': ['Form.VIEW'],
   'Form.UPDATE': ['Form.VIEW'],
   'Form.DELETE': ['Form.VIEW'],
+  'Form.CLONE': ['Form.VIEW'],
 
 
   // Checklist rules
+  'Checklist.VIEW': ['Workflow.VIEW'],
+  'Checklist.CREATE': ['Checklist.VIEW', 'Workflow.CREATE'],
+  'Checklist.UPDATE': ['Checklist.VIEW'],
+  'Checklist.DELETE': ['Checklist.VIEW'],
   'Checklist.COMPLETE_ITEM': ['Checklist.VIEW'],
 
   // Kanban rules
   'Kanban.VIEW': ['Project.VIEW'],
-  'Kanban.CREATE': ['Kanban.VIEW', 'Project.VIEW'],
-  'Kanban.UPDATE': ['Kanban.VIEW', 'Project.VIEW'],
-  'Kanban.DELETE': ['Kanban.VIEW', 'Project.VIEW'],
+  'Kanban.CREATE': ['Kanban.VIEW', 'Project.VIEW', 'Project.CREATE', 'Domain.VIEW', 'Domain.CREATE', 'Workflow.VIEW', 'Workflow.CREATE', 'Module.VIEW', 'Module.CREATE'],
 };
 
 /**
@@ -82,11 +86,11 @@ export const UI_GROUPS = {
   Domain: { icon: '📦', label: 'Domain', actions: ["VIEW", "CREATE", "UPDATE", "DELETE"] },
   Module: { icon: '🧩', label: 'Module', actions: ["VIEW", "CREATE", "UPDATE", "DELETE"] },
   Project: { icon: '📁', label: 'Project', actions: ["VIEW", "CREATE", "UPDATE", "DELETE"] },
-  Workflow: { icon: '🔁', label: 'Workflow', actions: ["VIEW", "CREATE", "UPDATE", "DELETE"] },
-  Template: { icon: '📄', label: 'Template', actions: ["VIEW", "CREATE", "UPDATE", "DELETE", "EXECUTE"] },
-  Form: { icon: '📝', label: 'Form', actions: ["VIEW", "CREATE", "UPDATE", "DELETE"] },
+  Workflow: { icon: '🔁', label: 'Workflow', actions: ["VIEW", "CREATE", "UPDATE", "DELETE", "EXECUTE"] },
+  Template: { icon: '📄', label: 'Template', actions: ["VIEW", "CREATE", "UPDATE", "DELETE", "CLONE_TEMPLATE"] },
+  Form: { icon: '📝', label: 'Form', actions: ["VIEW", "CREATE", "UPDATE", "DELETE", "CLONE"] },
   Checklist: { icon: '✅', label: 'Checklist', actions: ["VIEW", "COMPLETE_ITEM"] },
-  Kanban: { icon: '🗂️', label: 'Kanban', actions: ["VIEW", "CREATE", "UPDATE", "DELETE"] },
+  Kanban: { icon: '🗂️', label: 'Kanban', actions: ["VIEW", "CREATE"] },
 };
 
 export const ACTION_TOOLTIPS: Record<string, string> = {
@@ -94,7 +98,9 @@ export const ACTION_TOOLTIPS: Record<string, string> = {
   "UPDATE": "Can edit existing items",
   "DELETE": "Can remove items",
   "VIEW": "Can view items",
-  "EXECUTE": "Can launch and use workflows from templates",
+  "CLONE": "Can duplicate this item",
+  "EXECUTE": "Can launch and use workflows",
+  "CLONE_TEMPLATE": "Can duplicate template to a project",
   "ASSIGN": "Can assign tasks to other users",
   "COMPLETE": "Can execute and validate tasks",
   "COMPLETE_ITEM": "Can check/uncheck checklist items"

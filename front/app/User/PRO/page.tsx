@@ -123,7 +123,7 @@ export default function ProjectPortfoliosPage() {
           </div>
 
           <div className="flex items-center gap-4">
-             <div className="bg-white/80 backdrop-blur-md px-6 py-3 rounded-2xl border border-white shadow-sm flex items-center gap-3">
+             <div className="bg-white/80 px-6 py-3 rounded-2xl border border-white shadow-sm flex items-center gap-3">
                 <div className="text-right">
                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Global Status</p>
                    <p className="text-xs font-black text-slate-900 uppercase">Verifying Ops</p>
@@ -151,13 +151,13 @@ export default function ProjectPortfoliosPage() {
                <Clock size={20} />
             </button>
             <button 
-              onClick={() => can('PROJECT_CREATE') && setIsModalOpen(true)}
-              disabled={!can('PROJECT_CREATE')}
-              title={!can('PROJECT_CREATE') ? "Matrix Restricted: Contact Authority Architect" : ""}
+              onClick={() => can('Project.CREATE') && setIsModalOpen(true)}
+              disabled={!can('Project.CREATE')}
+              title={!can('Project.CREATE') ? "Matrix Restricted: Contact Authority Architect" : ""}
               className={`flex items-center gap-3 px-8 py-4.5 rounded-[24px] font-black text-xs uppercase tracking-[0.1em] transition-all shadow-xl active:scale-95 ${
-                can('PROJECT_CREATE') 
+                can('Project.CREATE') 
                 ? 'bg-slate-900 text-white shadow-slate-200 hover:bg-indigo-600' 
-                : 'bg-slate-100 text-slate-300 grayscale opacity-30 blur-[1px] cursor-not-allowed border border-slate-200 shadow-none hover:bg-slate-100'
+                : 'bg-slate-100 text-slate-300 grayscale opacity-30 cursor-not-allowed border border-slate-200 shadow-none hover:bg-slate-100'
               }`}
             >
               <Plus size={20} strokeWidth={3} />
@@ -196,12 +196,12 @@ export default function ProjectPortfoliosPage() {
                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{project.status || 'ACTIVE'}</span>
                     </div>
                     <button 
-                      onClick={(e) => can('PROJECT_DELETE') && handleDeleteProject(e, project._id)}
-                      title={!can('PROJECT_DELETE') ? "Matrix Restricted" : "Purge Project"}
+                      onClick={(e) => can('Project.DELETE') && handleDeleteProject(e, project._id)}
+                      title={!can('Project.DELETE') ? "Matrix Restricted" : "Purge Project"}
                       className={`p-2 rounded-xl transition-all md:opacity-0 md:group-hover:opacity-100 ${
-                        can('PROJECT_DELETE')
+                        can('Project.DELETE')
                         ? 'bg-rose-50 text-rose-400 hover:bg-rose-500 hover:text-white'
-                        : 'bg-slate-100 text-slate-300 grayscale opacity-40 blur-[0.6px] cursor-not-allowed pointer-events-none'
+                        : 'bg-slate-100 text-slate-300 grayscale opacity-40 cursor-not-allowed pointer-events-none'
                       }`}
                     >
                       <Trash2 size={14} />
@@ -252,7 +252,7 @@ export default function ProjectPortfoliosPage() {
       {/* Creation Modal */}
       <AnimatePresence>
         {isModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60">
             <motion.div 
               initial={{ opacity: 0, scale: 0.9, y: 40 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}

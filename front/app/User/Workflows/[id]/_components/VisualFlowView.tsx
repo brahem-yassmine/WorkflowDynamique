@@ -230,7 +230,7 @@ export default function VisualFlowView({ workflowId, workflow }: { workflowId: s
               className="!bg-white !border-slate-100 !shadow-2xl !rounded-2xl overflow-hidden !m-6" 
             />
             <MiniMap 
-              className="!bg-white/80 !backdrop-blur-md !border-slate-100 !shadow-2xl !rounded-3xl !m-6" 
+              className="!bg-white !border-slate-100 !shadow-2xl !rounded-3xl !m-6" 
               nodeColor={(n) => {
                 if (n.type === 'start') return '#10b981';
                 if (n.type === 'end') return '#f43f5e';

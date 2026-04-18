@@ -13,7 +13,7 @@ export const usePermissions = () => {
   const userPermissions = (user as any)?.permissions || [];
   
   // Super Admin Check (Full Matrix Authority)
-  const isFullAccess = (user as any)?.role === 'super_admin' || (user as any)?.role === 'admin' || (user as any)?.role === 'user' || userPermissions.includes('all');
+  const isFullAccess = (user as any)?.role === 'super_admin' || (user as any)?.role === 'admin' || userPermissions.includes('all');
 
   /**
    * can
@@ -33,10 +33,28 @@ export const usePermissions = () => {
     return perms.some(p => userPermissions.includes(p));
   };
 
+  /**
+   * permissionDisabledClass
+   * Generates a high-visibility lock for navigation or informational nodes (No Blur).
+   */
+  const permissionDisabledClass = (permission: string) => {
+    return can(permission) ? "" : "pointer-events-none cursor-not-allowed";
+  };
+
+  /**
+   * btnDisabledClass
+   * Generates a high-restriction lock for specific execution buttons (No Blur).
+   */
+  const btnDisabledClass = (permission: string) => {
+    return can(permission) ? "" : "pointer-events-none cursor-not-allowed";
+  };
+
   return {
     can,
     hasAny,
     isFullAccess,
+    permissionDisabledClass,
+    btnDisabledClass,
     permissions: userPermissions
   };
 };

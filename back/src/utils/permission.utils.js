@@ -20,14 +20,13 @@ const PERMISSION_DEPENDENCIES = {
   'Workflow.CREATE': ['Workflow.VIEW', 'Project.VIEW', 'Form.CREATE'], 
   'Workflow.UPDATE': ['Workflow.VIEW', 'Project.VIEW'],
   'Workflow.DELETE': ['Workflow.VIEW', 'Project.VIEW'],
-  'Workflow.EXECUTE': ['Workflow.VIEW', 'Project.VIEW'], 
 
   // Template rules
   'Template.VIEW': ['Module.VIEW', 'Domain.VIEW'],
   'Template.CREATE': ['Template.VIEW', 'Domain.VIEW', 'Module.VIEW'],
   'Template.UPDATE': ['Template.VIEW', 'Module.VIEW', 'Domain.VIEW'],
   'Template.DELETE': ['Template.VIEW', 'Module.VIEW', 'Domain.VIEW'],
-  'Template.CLONE_TEMPLATE': ['Template.VIEW', 'Workflow.CREATE', 'Project.VIEW'],
+  'Template.EXECUTE': ['Template.VIEW', 'Project.VIEW', 'Workflow.VIEW'],
 
   // Form rules
   'Form.CREATE': ['Form.VIEW'],

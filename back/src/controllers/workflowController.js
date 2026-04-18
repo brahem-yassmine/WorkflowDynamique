@@ -888,7 +888,7 @@ exports.duplicateWorkflow = async (req, res) => {
     // Automatically generates/syncs checklist for the new copy
     await _triggerAutomaticChecklist(req, duplicate);
 
-    await recordActivity(req, projectId ? 'CLONE_TEMPLATE_TO_PROJECT' : 'DUPLICATE_WORKFLOW', {
+    await recordActivity(req, projectId ? 'CLONE_WORKFLOW_TO_PROJECT' : 'DUPLICATE_WORKFLOW', {
       type: 'Workflow',
       id: duplicate._id,
       originalId: original._id,

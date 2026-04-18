@@ -390,10 +390,10 @@ export default function UserWorkflowsPage() {
                   <Link href={`/User/create${projectIdParam ? `?projectId=${projectIdParam}` : ''}`}>
                     <button 
                       disabled={!can('Workflow.CREATE')}
-                      title={!can('Workflow.CREATE') ? "Matrix Restricted" : "Initialize New Architecture"}
                       className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg transition-all ${
-                        btnDisabledClass('Workflow.CREATE') || 'bg-indigo-600 text-white shadow-indigo-100 hover:bg-indigo-700'
+                        !can('Workflow.CREATE') ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-indigo-600 text-white shadow-indigo-100 hover:bg-indigo-700'
                       }`}
+                      title={!can('Workflow.CREATE') ? "Matrix Restricted: Workflow.CREATE required" : "Initialize New Architecture"}
                     >
                       <Plus size={16} /> New Design
                     </button>
@@ -485,21 +485,23 @@ export default function UserWorkflowsPage() {
 
                       <div className="flex gap-2">
                         <button 
-                          onClick={() => can('Workflow.CREATE') && router.push(`/Workflows/instances/new?workflowId=${workflow._id}`)}
-                          disabled={!can('Workflow.CREATE')}
+                          onClick={() => can('Template.EXECUTE') && router.push(`/Workflows/instances/new?workflowId=${workflow._id}`)}
+                          disabled={!can('Template.EXECUTE')}
                           className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg transition-all ${
-                            btnDisabledClass('Workflow.CREATE') || 'bg-slate-900 text-white hover:bg-indigo-600'
+                            !can('Template.EXECUTE') ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-slate-900 text-white hover:bg-indigo-600'
                           }`}
-                          title={!can('Workflow.CREATE') ? "Matrix Restricted" : "Initialize Workflow"}
+                          title={!can('Template.EXECUTE') ? "Matrix Restricted: Template.EXECUTE required" : "Initialize Workflow"}
                         >
                           <Play size={14} fill="currentColor" /> Initialize
                         </button>
                         {mode === 'design' && (
                           <button 
-                            onClick={() => handleDuplicate(workflow._id)} 
-                            disabled={!!duplicatingId} 
-                            className="px-4 py-4 bg-white border border-slate-100 rounded-2xl shadow-sm transition-all text-slate-400 hover:text-indigo-600"
-                            title="Clone Design"
+                            onClick={() => can('Workflow.CREATE') && handleDuplicate(workflow._id)} 
+                            disabled={!!duplicatingId || !can('Workflow.CREATE')} 
+                            className={`px-4 py-4 rounded-2xl shadow-sm transition-all ${
+                                !can('Workflow.CREATE') ? 'bg-slate-50 text-slate-200 cursor-not-allowed' : 'bg-white border border-slate-100 text-slate-400 hover:text-indigo-600'
+                            }`}
+                            title={!can('Workflow.CREATE') ? "Matrix Restricted: Workflow.CREATE required" : "Clone Design"}
                           >
                             <Copy size={16} className={duplicatingId === workflow._id ? 'animate-spin' : ''} />
                           </button>

@@ -173,11 +173,13 @@ export default function AdminDashboard() {
           <div className="flex-grow h-[300px] w-full bg-slate-50/50 rounded-2xl p-4">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={stats.performanceData?.length > 0 ? stats.performanceData : [
+                { label: 'Sun', usage: 0 },
                 { label: 'Mon', usage: 0 },
                 { label: 'Tue', usage: 0 },
                 { label: 'Wed', usage: 0 },
                 { label: 'Thu', usage: 0 },
                 { label: 'Fri', usage: 0 },
+                { label: 'Sat', usage: 0 },
               ]}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" />
                 <XAxis 

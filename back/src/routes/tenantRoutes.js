@@ -88,17 +88,18 @@ router.get('/stats', requirePlan, async (req, res) => {
     const performanceData = [];
     const now = new Date();
     
+    const ActivityLog = req.tenantConn.model('ActivityLog');
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(now.getDate() - i);
-      const dateKey = d.toISOString().split('T')[0];
-      const label = d.toLocaleDateString('en-US', { weekday: 'short' });
+      const start = new Date(d.setHours(0, 0, 0, 0));
+      const end = new Date(d.setHours(23, 59, 59, 999));
       
-      const count = await WorkflowInstance.countDocuments({
-        createdAt: {
-          $gte: new Date(d.setHours(0, 0, 0, 0)),
-          $lte: new Date(d.setHours(23, 59, 59, 999))
-        }
+      const label = d.toLocaleDateString('en-US', { weekday: 'short' });
+      const dateKey = d.toISOString().split('T')[0];
+      
+      const count = await ActivityLog.countDocuments({
+        timestamp: { $gte: start, $lte: end }
       });
       
       performanceData.push({ label, dateKey, usage: count });

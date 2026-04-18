@@ -36,9 +36,8 @@ const PERMISSION_DEPENDENCIES = {
 
   // Kanban rules
   'Kanban.VIEW': ['Project.VIEW'],
-  'Kanban.CREATE': ['Kanban.VIEW', 'Project.VIEW'],
-  'Kanban.UPDATE': ['Kanban.VIEW', 'Project.VIEW'],
-  'Kanban.DELETE': ['Kanban.VIEW', 'Project.VIEW'],
+  'Kanban.CREATE': ['Kanban.VIEW', 'Project.VIEW', 'Workflow.CREATE','Domain.VIEW'],
+  
 };
 
 /**

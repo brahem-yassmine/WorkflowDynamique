@@ -70,7 +70,9 @@ const tenantResolver = async (req, res, next) => {
 const checkTenantActive = async (req, res, next) => {
   try {
     if (req.tenant) {
+      console.log(`📡 [checkTenantActive] Checking req.tenant: ${req.tenant.name} (${req.tenant._id}) | Status: ${req.tenant.status}`);
       if (req.tenant.status !== 'active') {
+        console.warn(`🛑 [checkTenantActive] Blocking access: Tenant ${req.tenant._id} is ${req.tenant.status}`);
         return res.status(403).json({ success: false, message: 'Tenant inactif' });
       }
       return next();
@@ -83,8 +85,12 @@ const checkTenantActive = async (req, res, next) => {
     const TenantModel = req.masterDb?.model('Tenant');
     const tenant = await TenantModel.findById(req.user.tenantId);
 
-    if (tenant && tenant.status !== 'active') {
-      return res.status(403).json({ success: false, message: 'Tenant inactif' });
+    if (tenant) {
+      console.log(`📡 [checkTenantActive] Checking DB tenant: ${tenant.name} (${tenant._id}) | Status: ${tenant.status}`);
+      if (tenant.status !== 'active') {
+        console.warn(`🛑 [checkTenantActive] Blocking access: Tenant ${tenant._id} is ${tenant.status}`);
+        return res.status(403).json({ success: false, message: 'Tenant inactif' });
+      }
     }
 
     next();

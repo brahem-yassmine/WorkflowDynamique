@@ -84,26 +84,25 @@ router.get('/stats', requirePlan, async (req, res) => {
       }
     });
 
-    // Generate real daily usage (all instances since account creation)
-    const allInstances = await WorkflowInstance.find({}).select('createdAt status').lean();
-
-    const dailyUsageMap = {};
-    allInstances.forEach(inst => {
-      if (inst.createdAt) {
-          const date = new Date(inst.createdAt);
-          // Use a format that is unique per day/month/year for data mapping
-          const dateKey = date.toISOString().split('T')[0];
-          // Use month/day for display label
-          const label = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-          
-          if (!dailyUsageMap[dateKey]) {
-              dailyUsageMap[dateKey] = { label, dateKey, usage: 0 };
-          }
-          dailyUsageMap[dateKey].usage += 1;
-      }
-    });
-
-    const performanceData = Object.values(dailyUsageMap);
+    // Generate real daily usage (Last 7 days)
+    const performanceData = [];
+    const now = new Date();
+    
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(now.getDate() - i);
+      const dateKey = d.toISOString().split('T')[0];
+      const label = d.toLocaleDateString('en-US', { weekday: 'short' });
+      
+      const count = await WorkflowInstance.countDocuments({
+        createdAt: {
+          $gte: new Date(d.setHours(0, 0, 0, 0)),
+          $lte: new Date(d.setHours(23, 59, 59, 999))
+        }
+      });
+      
+      performanceData.push({ label, dateKey, usage: count });
+    }
 
     const stats = {
       totalWorkflows,

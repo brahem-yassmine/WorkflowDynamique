@@ -24,7 +24,8 @@ import {
   Package,
   UserPlus,
   Activity,
-  Check
+  Check,
+  FileText
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -284,7 +285,8 @@ export default function RolesPage() {
   );
 
   const getCategoryIcon = (category: string) => {
-    switch (category) {
+    const cat = category.toUpperCase();
+    switch (cat) {
       case 'PROJECT': return <Briefcase size={20} />;
       case 'WORKFLOW': return <Layers size={20} />;
       case 'DOMAIN': return <Globe size={20} />;
@@ -292,6 +294,7 @@ export default function RolesPage() {
       case 'FORM': return <Clipboard size={20} />;
       case 'CHECKLIST': return <ListChecks size={20} />;
       case 'KANBAN': return <Trello size={20} />;
+      case 'TEMPLATE': return <FileText size={20} />;
       case 'SYSTEM': return <Lock size={20} />;
       case 'TASK_ACTION_SCOPE': return <Activity size={20} />;
       default: return <Shield size={20} />;

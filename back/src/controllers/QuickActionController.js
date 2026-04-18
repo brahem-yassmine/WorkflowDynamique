@@ -4,6 +4,7 @@ const { cloneAndStartWorkflow } = require('../services/workflowExecutionService'
 // 1. LIST QUICK ACTIONS
 exports.getQuickActions = async (req, res) => {
     try {
+        console.log('🔍 [QuickActionCtrl] Fetching all active quick actions');
         const QuickAction = req.tenantConn.model('QuickAction');
         const actions = await QuickAction.find({ isActive: true })
             .populate('moduleId', 'name')
@@ -27,7 +28,13 @@ exports.executeQuickAction = async (req, res) => {
         const Module = req.tenantConn.model('Module');
 
         if (!actionId) {
+            console.warn('⚠️ [QuickActionCtrl] Missing actionId in request');
             return res.status(400).json({ success: false, message: 'Action identifier is required' });
+        }
+
+        if (!req.tenantConn) {
+            console.error('❌ [QuickActionCtrl] No tenant connection found in request!');
+            return res.status(500).json({ success: false, message: 'Tenant database connection not established' });
         }
 
         // 1. Find Action (by ID or by Key)
@@ -175,8 +182,12 @@ exports.executeQuickAction = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ executeQuickAction Error:', error);
-        res.status(500).json({ success: false, message: error.message || 'Execution error' });
+        console.error('❌ [QuickActionCtrl] Critical Execution Error:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: error.message || 'Execution error',
+            error: process.env.NODE_ENV === 'development' ? error.stack : undefined 
+        });
     }
 };
 

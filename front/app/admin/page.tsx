@@ -60,6 +60,28 @@ export default function AdminDashboard() {
     }
   };
 
+  // Calculate log distribution for the bar chart
+  const getLogDistribution = () => {
+    if (!stats) return [];
+    if (!logs || logs.length === 0) return [
+      { name: 'WORKFLOW', active: stats.totalWorkflows || 0 },
+      { name: 'ACTIVE', active: stats.activeInstances || 0 },
+      { name: 'PENDING', active: stats.totalPendingTasks || 0 },
+      { name: 'USERS', active: stats.totalUsers || 0 },
+    ];
+
+    const counts: Record<string, number> = {};
+    logs.forEach(log => {
+      const action = (log.action || 'PROCESS').split('_').pop() || 'UNIT';
+      counts[action] = (counts[action] || 0) + 1;
+    });
+
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([name, active]) => ({ name, active }));
+  };
+
   if (loading || !stats) {
     return (
       <div className="flex items-center justify-center min-h-[600px]">
@@ -72,6 +94,8 @@ export default function AdminDashboard() {
       </div>
     );
   }
+
+  const logDistribution = getLogDistribution();
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -148,21 +172,19 @@ export default function AdminDashboard() {
           </div>
           <div className="flex-grow h-[300px] w-full bg-slate-50/50 rounded-2xl p-4">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={[
-                { name: 'Mon', active: 4000 },
-                { name: 'Tue', active: 3000 },
-                { name: 'Wed', active: 5000 },
-                { name: 'Thu', active: 2780 },
-                { name: 'Fri', active: 1890 },
-                { name: 'Sat', active: 2390 },
-                { name: 'Sun', active: 3490 },
+              <AreaChart data={stats.performanceData?.length > 0 ? stats.performanceData : [
+                { label: 'Mon', usage: 0 },
+                { label: 'Tue', usage: 0 },
+                { label: 'Wed', usage: 0 },
+                { label: 'Thu', usage: 0 },
+                { label: 'Fri', usage: 0 },
               ]}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" />
                 <XAxis 
-                  dataKey="name" 
+                  dataKey="label" 
                   axisLine={{ stroke: '#1e293b', strokeWidth: 2 }} 
                   tickLine={false} 
-                  tick={{ fontSize: 12, fontWeight: 900, fill: '#1e293b' }} 
+                  tick={{ fontSize: 10, fontWeight: 900, fill: '#1e293b' }} 
                   dy={10} 
                 />
                 <YAxis 
@@ -175,7 +197,7 @@ export default function AdminDashboard() {
                 />
                 <Area 
                   type="monotone" 
-                  dataKey="active" 
+                  dataKey="usage" 
                   stroke="#1e293b" 
                   strokeWidth={6} 
                   fill="#6366f1" 
@@ -195,18 +217,13 @@ export default function AdminDashboard() {
           </div>
           <div className="h-[250px] w-full mb-6 bg-slate-50/50 rounded-2xl p-4">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={[
-                { name: 'A', active: 400 },
-                { name: 'B', active: 300 },
-                { name: 'C', active: 500 },
-                { name: 'D', active: 200 },
-              ]}>
+              <BarChart data={logDistribution}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" />
-                <XAxis dataKey="name" axisLine={{ stroke: '#1e293b' }} tickLine={false} tick={{ fontSize: 10, fontWeight: 900, fill: '#1e293b' }} />
+                <XAxis dataKey="name" axisLine={{ stroke: '#1e293b' }} tickLine={false} tick={{ fontSize: 9, fontWeight: 900, fill: '#1e293b' }} />
                 <YAxis hide />
                 <Tooltip cursor={{ fill: '#f1f5f9' }} />
                 <Bar dataKey="active" fill="#4f46e5" radius={[6, 6, 0, 0]} barSize={40} isAnimationActive={false}>
-                  {[1, 2, 3, 4].map((entry: any, index: number) => (
+                  {logDistribution.map((entry: any, index: number) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Bar>

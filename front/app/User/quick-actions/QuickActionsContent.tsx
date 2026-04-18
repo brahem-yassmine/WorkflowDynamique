@@ -232,55 +232,65 @@ export default function QuickActionsContent() {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-5xl max-h-[90vh] bg-white rounded-[3rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] overflow-hidden text-slate-900 flex flex-col"
+              className="relative w-full max-w-5xl max-h-[90vh] bg-white/95 backdrop-blur-xl rounded-[3rem] shadow-[0_32px_128px_-20px_rgba(0,0,0,0.4)] overflow-hidden text-slate-900 flex flex-col border border-white/20"
             >
-              <div className="p-8 border-b border-slate-100 bg-slate-50/30 flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="p-3 bg-indigo-600 text-white rounded-2xl shadow-lg shadow-indigo-200">
-                    {renderIcon(selectedAction.icon, "w-6 h-6")}
+              <div className="p-8 border-b border-slate-100 bg-gradient-to-b from-slate-50/80 to-transparent flex items-center justify-between">
+                <div className="flex items-center space-x-5">
+                  <div className="p-4 bg-gradient-to-br from-indigo-600 to-indigo-500 text-white rounded-[1.5rem] shadow-2xl shadow-indigo-500/30 relative overflow-hidden group">
+                    <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    {renderIcon(selectedAction.icon, "w-6 h-6 relative z-10")}
                   </div>
                   <div>
-                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">{selectedAction.name}</h2>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Initialize Protocol</p>
+                    <h2 className="text-3xl font-black text-slate-900 tracking-tight">{selectedAction.name}</h2>
+                    <p className="text-[10px] font-black text-indigo-500/60 uppercase tracking-[0.2em] mt-1 flex items-center gap-2">
+                      <span className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
+                      Initialize Protocol
+                    </p>
                   </div>
                 </div>
                 <button 
                   onClick={() => setSelectedAction(null)}
-                  className="p-3 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-600"
+                  className="p-3 hover:bg-rose-50 rounded-full transition-all text-slate-400 hover:text-rose-500 hover:rotate-90 group"
                 >
-                  <Icons.X className="w-6 h-6" />
+                  <Icons.X className="w-6 h-6 group-active:scale-90" />
                 </button>
               </div>
 
               <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
-                <div className="p-8 md:p-10 grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-8 overflow-y-auto custom-scrollbar">
+                <div className="p-8 md:p-12 grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10 overflow-y-auto custom-scrollbar">
                   <div className="space-y-3 md:col-span-2">
-                    <label className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Protocol Reference Title</label>
+                    <label className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 ml-1">Protocol Reference Title</label>
                     <input
                       type="text"
                       required
                       placeholder="Ex: July Office Equipment"
-                      className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border border-slate-100 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all font-semibold"
+                      className="w-full px-6 py-4 rounded-[1.5rem] bg-slate-50/50 border border-slate-100 focus:bg-white focus:ring-[6px] focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all duration-300 font-bold text-slate-800 placeholder:text-slate-300 shadow-sm focus:shadow-indigo-500/5"
                       onChange={(e) => handleInputChange('title', e.target.value)}
                     />
                   </div>
 
-                  {selectedAction.formSchema?.map((field: any) => (
-                    <div key={field.id} className={`space-y-2 ${field.type === 'textarea' || field.id === 'description' ? 'md:col-span-2' : ''}`}>
-                      <label className="text-xs font-black uppercase tracking-widest text-slate-500">
-                        {field.label} {field.required && <span className="text-rose-500">*</span>}
+                  {selectedAction.formSchema?.map((field: any, idx: number) => (
+                    <motion.div 
+                      key={field.id} 
+                      initial={{ opacity: 0, x: -10 }} 
+                      animate={{ opacity: 1, x: 0 }} 
+                      transition={{ delay: 0.1 + (idx * 0.05) }}
+                      className={`space-y-3 ${field.type === 'textarea' || field.id === 'description' ? 'md:col-span-2' : ''}`}
+                    >
+                      <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1 flex items-center gap-2">
+                        {field.label} {field.required && <span className="text-rose-500 text-sm">*</span>}
                       </label>
                       {field.type === 'textarea' ? (
                         <textarea
                           required={field.required}
                           placeholder={field.placeholder}
-                          className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border border-slate-100 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all min-h-[100px] font-semibold"
+                          className="w-full px-6 py-4 rounded-[1.5rem] bg-slate-50/50 border border-slate-100 focus:bg-white focus:ring-[6px] focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all duration-300 min-h-[140px] font-bold text-slate-800 placeholder:text-slate-300 shadow-sm"
                           onChange={(e) => handleInputChange(field.id, e.target.value)}
                         />
                       ) : field.type === 'select' ? (
                         <select
                           required={field.required}
-                          className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border border-slate-100 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all font-semibold appearance-none bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlPSIjOTQ5Nzk2IiBzdHJva2Utd2lkdGg9IjIiPjxwYXRoIGQ9Ik02IDlsNiA2IDYtNiIvPjwvc3ZnPg==')] bg-[length:20px] bg-[right_1.25rem_center] bg-no-repeat"
+                          className="w-full px-6 py-4 rounded-[1.5rem] bg-slate-50/50 border border-slate-100 focus:bg-white focus:ring-[6px] focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all duration-300 font-bold text-slate-800 appearance-none bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlPSIjOTQ5Nzk2IiBzdHJva2Utd2lkdGg9IjIiPjxwYXRoIGQ9Ik02IDlsNiA2IDYtNiIvPjwvc3ZnPg==')] bg-[length:20px] bg-[right_1.5rem_center] bg-no-repeat shadow-sm"
                           onChange={(e) => handleInputChange(field.id, e.target.value)}
                         >
                           <option value="">Choose an option...</option>
@@ -292,7 +302,7 @@ export default function QuickActionsContent() {
                         <div className="relative group">
                           <select
                             required={field.required}
-                            className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border border-slate-100 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all font-semibold appearance-none bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlPSIjOTQ5Nzk2IiBzdHJva2Utd2lkdGg9IjIiPjxwYXRoIGQ9Ik02IDlsNiA2IDYtNiIvPjwvc3ZnPg==')] bg-[length:20px] bg-[right_1.25rem_center] bg-no-repeat"
+                            className="w-full px-6 py-4 rounded-[1.5rem] bg-slate-50/50 border border-slate-100 focus:bg-white focus:ring-[6px] focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all duration-300 font-bold text-slate-800 appearance-none bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlPSIjOTQ5Nzk2IiBzdHJva2Utd2lkdGg9IjIiPjxwYXRoIGQ9Ik02IDlsNiA2IDYtNiIvPjwvc3ZnPg==')] bg-[length:20px] bg-[right_1.5rem_center] bg-no-repeat shadow-sm"
                             onChange={(e) => handleInputChange(field.id, e.target.value)}
                             value={formData[field.id] || ""}
                           >
@@ -303,48 +313,43 @@ export default function QuickActionsContent() {
                               </option>
                             ))}
                           </select>
-                          <div className="absolute left-[-40px] top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                             <div className="bg-slate-800 text-white text-[10px] px-2 py-1 rounded shadow-lg whitespace-nowrap">
-                                Assign to specific operator
-                             </div>
-                          </div>
                         </div>
                       ) : (
                         <input
                           type={field.type === 'file' ? 'text' : (field.type || 'text')} 
                           required={field.required}
                           placeholder={field.placeholder}
-                          className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border border-slate-100 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all font-semibold"
+                          className="w-full px-6 py-4 rounded-[1.5rem] bg-slate-50/50 border border-slate-100 focus:bg-white focus:ring-[6px] focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all duration-300 font-bold text-slate-800 placeholder:text-slate-300 shadow-sm"
                           onChange={(e) => handleInputChange(field.id, e.target.value)}
                           value={formData[field.id] || ""}
                         />
                       )}
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
 
                 {/* Footer Section - Fixed at bottom */}
-                <div className="p-8 bg-slate-50/50 border-t border-slate-100 flex items-center justify-end gap-4 shrink-0">
+                <div className="p-8 md:px-12 bg-white/50 backdrop-blur-md border-t border-slate-100/50 flex items-center justify-end gap-6 shrink-0">
                   <button
                     type="button"
                     onClick={() => setSelectedAction(null)}
-                    className="px-10 py-4 rounded-2xl bg-white border border-slate-200 text-slate-500 font-black uppercase tracking-widest text-[11px] hover:bg-slate-50 transition-all active:scale-95 shadow-sm"
+                    className="px-10 py-5 rounded-2xl bg-white border border-slate-200 text-slate-400 font-black uppercase tracking-[0.2em] text-[10px] hover:text-rose-500 hover:border-rose-100 transition-all active:scale-95 shadow-sm"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="px-10 py-4 rounded-2xl bg-indigo-600 text-white font-black uppercase tracking-widest text-[11px] hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 active:scale-95 disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-3"
+                    className="px-12 py-5 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-indigo-600 bg-[length:200%_100%] hover:bg-[right_center] text-white font-black uppercase tracking-[0.25em] text-[10px] transition-all duration-500 shadow-[0_20px_40px_-10px_rgba(79,70,229,0.3)] hover:shadow-[0_25px_50px_-12px_rgba(79,70,229,0.4)] hover:-translate-y-1 active:scale-95 disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-4 group"
                   >
                     {isSubmitting ? (
                       <>
-                        <Icons.Loader2 className="w-4 h-4 animate-spin" />
+                        <Icons.Loader2 className="w-4 h-4 animate-spin font-black" />
                         <span>Initializing...</span>
                       </>
                     ) : (
                       <>
-                        <Icons.Send className="w-4 h-4" />
+                        <Icons.Send className="w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                         <span>Launch Execution</span>
                       </>
                     )}

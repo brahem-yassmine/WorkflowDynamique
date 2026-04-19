@@ -48,7 +48,8 @@ const requireRole = (role) => {
       });
     }
 
-    if (req.user.role !== role && req.user.role !== 'super_admin' && req.user.role !== 'admin') {
+    const userRole = req.user.role?.toLowerCase();
+    if (userRole !== role.toLowerCase() && userRole !== 'super_admin' && userRole !== 'admin') {
       return res.status(403).json({
         success: false,
         message: `Forbidden: This action requires the ${role} role.`
@@ -61,20 +62,61 @@ const requireRole = (role) => {
 
 // Function to verify permissions
 const hasPermission = (permission) => {
-  return (req, res, next) => {
+  return async (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({ success: false, message: 'Not authenticated' });
     }
 
-    // Admin & Super Admin bypass (Total Authority)
-    if (req.user.role === 'super_admin' || req.user.role === 'admin') return next();
+    const userRole = req.user.role?.toLowerCase();
+    
+    // ✅ SUPER ADMIN & ADMIN bypass for matrix checks
+    if (userRole === 'super_admin' || userRole === 'admin') return next();
 
-    // Check permissions embedded in the identity token
-    if (req.user.permissions && req.user.permissions.includes(permission)) {
+    // 1. JWT TOKEN CHECK (Fast Path - Static Snapshot)
+    const userPerms = req.user.permissions || [];
+    if (userPerms.some(p => p.toLowerCase() === permission.toLowerCase())) {
       return next();
     }
 
-    // Rejection if the protocol identifier is missing
+    // 2. DYNAMIC DATABASE CHECK (Authority Node Synchronization)
+    // If permission is not in token, verify against the live database state.
+    if (req.tenantConn && req.user.id) {
+        try {
+            // Use existing models on the connection to avoid compilation errors
+            const User = req.tenantConn.models.User || require('../models/tenant/User')(req.tenantConn);
+            const Role = req.tenantConn.models.Role || require('../models/tenant/role.model')(req.tenantConn);
+
+            // Fetch the most recent authority mapping for this specific user
+            const dbUser = await User.findById(req.user.id).select('specificRoleId role');
+            
+            if (dbUser) {
+                let targetRoleId = dbUser.specificRoleId;
+
+                // Fallback: If no specific authority node, check the base role (e.g., 'user')
+                if (!targetRoleId && dbUser.role) {
+                    const baseRole = await Role.findOne({ name: dbUser.role });
+                    if (baseRole) targetRoleId = baseRole._id;
+                }
+
+                if (targetRoleId) {
+                    const activeNode = await Role.findById(targetRoleId).select('permissions');
+                    if (activeNode) {
+                        const livePerms = activeNode.permissions || [];
+                        const hasPerm = livePerms.some(p => p.toLowerCase() === permission.toLowerCase());
+                        
+                        if (hasPerm) {
+                            // console.log(`✅ [MatrixSync] Permission [${permission}] verified via live DB check.`);
+                            return next();
+                        }
+                    }
+                }
+            }
+        } catch (dbErr) {
+            console.error('⚠️ [PermissionEngine] Dynamic check failed:', dbErr.message);
+        }
+    }
+
+    // Rejection if the protocol identifier is missing from both token and database
     return res.status(403).json({
       success: false,
       message: `Forbidden: Matrix restricted identifier [${permission}] is required.`

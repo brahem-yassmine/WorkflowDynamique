@@ -8,8 +8,8 @@ router.use(auth);
 
 // Routes
 router.post('/', hasPermission('Module.CREATE'), ModuleController.create);
-router.get('/', hasPermission('Module.VIEW'), ModuleController.getAll);
-router.get('/:id', hasPermission('Module.VIEW'), ModuleController.getById);
+router.get('/', ModuleController.getAll);
+router.get('/:id', ModuleController.getById);
 router.put('/:id', hasPermission('Module.UPDATE'), ModuleController.update);
 router.delete('/:id', hasPermission('Module.DELETE'), ModuleController.delete);
 

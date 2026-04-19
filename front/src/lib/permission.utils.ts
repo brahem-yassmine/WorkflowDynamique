@@ -103,5 +103,5 @@ export const ACTION_TOOLTIPS: Record<string, string> = {
   "CLONE_TEMPLATE": "Can duplicate template to a project",
   "ASSIGN": "Can assign tasks to other users",
   "COMPLETE": "Can execute and validate tasks",
-  "COMPLETE_ITEM": "Can check/uncheck checklist items"
+  "COMPLETE_ITEM": "Can check/uncheck checklist items",
 };

@@ -3,66 +3,48 @@ const mongoose = require('mongoose');
 
 const permissions = [
   // --- PROJECT ---
-  { name: 'PROJECT_CREATE', description: 'Can initialize new projects', category: 'PROJECT' },
-  { name: 'PROJECT_DELETE', description: 'Can permanently remove projects', category: 'PROJECT' },
-  { name: 'PROJECT_EDIT', description: 'Can modify project metadata and settings', category: 'PROJECT' },
-  { name: 'PROJECT_VIEW', description: 'Can view project lists and details', category: 'PROJECT' },
+  { name: 'Project.CREATE', description: 'Can initialize new projects', category: 'PROJECT' },
+  { name: 'Project.DELETE', description: 'Can permanently remove projects', category: 'PROJECT' },
+  { name: 'Project.UPDATE', description: 'Can modify project metadata and settings', category: 'PROJECT' },
+  { name: 'Project.VIEW', description: 'Can view project lists and details', category: 'PROJECT' },
 
   // --- WORKFLOW ---
-  { name: 'WORKFLOW_CREATE', description: 'Can design and create new workflows', category: 'WORKFLOW' },
-  { name: 'WORKFLOW_CLONE', description: 'Can duplicate existing workflow definitions', category: 'WORKFLOW' },
-  { name: 'WORKFLOW_DELETE', description: 'Can remove workflow definitions', category: 'WORKFLOW' },
-  { name: 'WORKFLOW_EDIT', description: 'Can modify existing workflow structures', category: 'WORKFLOW' },
-  { name: 'WORKFLOW_VIEW', description: 'Can view workflow designs', category: 'WORKFLOW' },
+  { name: 'Workflow.CREATE', description: 'Can design and create new workflows', category: 'WORKFLOW' },
+  { name: 'Workflow.CLONE', description: 'Can duplicate existing workflow definitions', category: 'WORKFLOW' },
+  { name: 'Workflow.DELETE', description: 'Can remove workflow definitions', category: 'WORKFLOW' },
+  { name: 'Workflow.UPDATE', description: 'Can modify existing workflow structures', category: 'WORKFLOW' },
+  { name: 'Workflow.VIEW', description: 'Can view workflow designs', category: 'WORKFLOW' },
+  { name: 'Workflow.EXECUTE', description: 'Can launch and use workflows', category: 'WORKFLOW' },
 
   // --- DOMAIN ---
-  { name: 'DOMAIN_ADD', description: 'Can add domains to specific workflows or scopes', category: 'DOMAIN' },
-  { name: 'DOMAIN_CREATE', description: 'Can create new administrative domains', category: 'DOMAIN' },
-  { name: 'DOMAIN_DELETE', description: 'Can remove administrative domains', category: 'DOMAIN' },
-  { name: 'DOMAIN_EDIT', description: 'Can update domain configurations', category: 'DOMAIN' },
-  { name: 'DOMAIN_VIEW', description: 'Can view domain structures', category: 'DOMAIN' },
+  { name: 'Domain.CREATE', description: 'Can create new administrative domains', category: 'DOMAIN' },
+  { name: 'Domain.DELETE', description: 'Can remove administrative domains', category: 'DOMAIN' },
+  { name: 'Domain.UPDATE', description: 'Can update domain configurations', category: 'DOMAIN' },
+  { name: 'Domain.VIEW', description: 'Can view domain structures', category: 'DOMAIN' },
 
   // --- MODULE ---
-  { name: 'MODULE_CREATE', description: 'Can create new operational modules', category: 'MODULE' },
-  { name: 'MODULE_DELETE', description: 'Can remove operational modules', category: 'MODULE' },
-  { name: 'MODULE_EDIT', description: 'Can update module settings', category: 'MODULE' },
-  { name: 'MODULE_VIEW', description: 'Can view module details', category: 'MODULE' },
+  { name: 'Module.CREATE', description: 'Can create new operational modules', category: 'MODULE' },
+  { name: 'Module.DELETE', description: 'Can remove operational modules', category: 'MODULE' },
+  { name: 'Module.UPDATE', description: 'Can update module settings', category: 'MODULE' },
+  { name: 'Module.VIEW', description: 'Can view module details', category: 'MODULE' },
 
   // --- FORM ---
-  { name: 'FORM_ADD', description: 'Can add new forms to the repository', category: 'FORM' },
-  { name: 'FORM_CLONE', description: 'Can duplicate existing form templates', category: 'FORM' },
-  { name: 'FORM_CREATE', description: 'Can design and initialize new forms', category: 'FORM' },
-  { name: 'FORM_DELETE', description: 'Can remove form definitions', category: 'FORM' },
-  { name: 'FORM_EDIT', description: 'Can modify form structures and fields', category: 'FORM' },
-  { name: 'FORM_FILL', description: 'Can fill out and submit form responses', category: 'FORM' },
-  { name: 'FORM_MANAGE_STATUS', description: 'Manage status (pour draft ou active ou approved ou rejeceted)', category: 'FORM' },
-  { name: 'FORM_VIEW', description: 'Can view form definitions and submissions', category: 'FORM' },
+  { name: 'Form.CLONE', description: 'Can duplicate existing form templates', category: 'FORM' },
+  { name: 'Form.CREATE', description: 'Can design and initialize new forms', category: 'FORM' },
+  { name: 'Form.DELETE', description: 'Can remove form definitions', category: 'FORM' },
+  { name: 'Form.UPDATE', description: 'Can modify form structures and fields', category: 'FORM' },
+  { name: 'Form.VIEW', description: 'Can view form definitions and submissions', category: 'FORM' },
 
   // --- CHECKLIST ---
-  { name: 'CHECKLIST_ADD_TASK', description: 'Can add new tasks to existing checklists', category: 'CHECKLIST' },
-  { name: 'CHECKLIST_CLONE', description: 'Can duplicate checklist templates', category: 'CHECKLIST' },
-  { name: 'CHECKLIST_CREATE', description: 'Can initialize new standalone checklists', category: 'CHECKLIST' },
-  { name: 'CHECKLIST_DELETE', description: 'Can remove checklist matrices', category: 'CHECKLIST' },
-  { name: 'CHECKLIST_EDIT', description: 'Can modify checklist tasks and properties', category: 'CHECKLIST' },
-  { name: 'CHECKLIST_VIEW', description: 'Can view checklist outlines and items', category: 'CHECKLIST' },
-  { name: 'CHECKLIST_MANAGE_STATUS', description: 'Manage status (Draft or Completed)', category: 'CHECKLIST' },
 
-  // --- TASK ---
-  { name: 'TASK_ACTION', description: 'Action (importer image/doc/form et ecrire report)', category: 'TASK' },
-  { name: 'TASK_ASSIGN_TO_USER', description: 'Can assign tasks to personas', category: 'TASK' },
-  { name: 'TASK_ASSIGN_KANBAN', description: 'Can assign tasks to kanban boards', category: 'TASK' },
-  { name: 'TASK_EDIT', description: 'Can modify task parameters', category: 'TASK' },
-  { name: 'TASK_VIEW', description: 'Can view task details', category: 'TASK' },
+  { name: 'Checklist.VIEW', description: 'Can view checklist outlines and items', category: 'CHECKLIST' },
+  { name: 'Checklist.COMPLETE_ITEM', description: 'Can check/uncheck checklist items', category: 'CHECKLIST' },
 
-  // --- TASK ACTION SCOPE ---
-  { name: 'TASK_ACTION_WRITE_REPORT', description: 'Can write and submit reports', category: 'TASK_ACTION_SCOPE' },
-  { name: 'TASK_ACTION_IMPORT_IMAGE', description: 'Can upload and attach images', category: 'TASK_ACTION_SCOPE' },
-  { name: 'TASK_ACTION_IMPORT_DOCUMENT', description: 'Can upload and attach documents', category: 'TASK_ACTION_SCOPE' },
-  { name: 'TASK_ACTION_ASSIGN_FORM', description: 'Can assign and link dynamic forms', category: 'TASK_ACTION_SCOPE' },
+
 
   // --- KANBAN ---
-  { name: 'KANBAN_CREATE', description: 'Can create and initialize new kanban boards', category: 'KANBAN' },
-  { name: 'KANBAN_VIEW', description: 'Can view kanban board structures', category: 'KANBAN' }
+  { name: 'Kanban.CREATE', description: 'Can create and initialize new kanban boards', category: 'KANBAN' },
+  { name: 'Kanban.VIEW', description: 'Can view kanban board structures', category: 'KANBAN' }
 ];
 
 async function seedPermissions(masterConnection) {

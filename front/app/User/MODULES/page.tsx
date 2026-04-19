@@ -61,7 +61,7 @@ interface Project {
 
 function DomainModulesContent() {
     const router = useRouter();
-    const { can, permissionDisabledClass } = usePermissions();
+    const { can, btnDisabledClass, permissionDisabledClass } = usePermissions();
     const searchParams = useSearchParams();
     const domainId = searchParams.get('domainId');
     const selectedModuleId = searchParams.get('moduleId');
@@ -363,27 +363,19 @@ function DomainModulesContent() {
                                 {!selectedModuleId ? (
                                     <button 
                                         onClick={() => can('Module.CREATE') && openModuleModal()}
-                                        disabled={!can('Module.CREATE')}
                                         title={!can('Module.CREATE') ? "Matrix Restricted" : "Initialize New Unit"}
-                                        className={`group/btn relative px-10 py-5 rounded-full overflow-hidden shadow-2xl transition-all active:scale-95 flex items-center justify-center gap-3 ${
-                                            can('Module.CREATE')
-                                            ? 'bg-[#0F172A] text-white'
-                                            : 'bg-slate-100 text-slate-300 grayscale opacity-30'
-                                        }`}
+                                        className="group/btn relative px-10 py-5 rounded-full overflow-hidden shadow-2xl transition-all active:scale-95 flex items-center justify-center gap-3 bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-500/20"
                                     >
-                                        <Plus size={18} className="group-hover/btn:rotate-90 transition-transform stroke-[3]" />
+                                        <Plus size={20} className="group-hover/btn:rotate-90 transition-transform stroke-[3]" />
                                         <span className="text-[11px] font-black uppercase tracking-widest">Deploy New Unit</span>
                                     </button>
                                 ) : (
                                     <button 
                                         onClick={() => can('Workflow.CREATE') && router.push(`/User/create?domainId=${domainId}&moduleId=${selectedModuleId}&isTemplate=true&fresh=true`)}
-                                        disabled={!can('Workflow.CREATE')}
                                         title={!can('Workflow.CREATE') ? "Matrix Restricted" : "Establish New Protocol"}
-                                        className={`group/btn relative px-10 py-5 rounded-full overflow-hidden shadow-2xl transition-all active:scale-95 flex items-center justify-center gap-3 ${
-                                            permissionDisabledClass('Workflow.CREATE') || 'bg-indigo-600 text-white'
-                                        }`}
+                                        className="group/btn relative px-10 py-5 rounded-full overflow-hidden shadow-2xl transition-all active:scale-95 flex items-center justify-center gap-3 bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-500/20"
                                     >
-                                        <Zap size={18} className="relative z-10 transition-transform group-hover/btn:scale-110 stroke-[3]" />
+                                        <Zap size={20} className="relative z-10 transition-transform group-hover/btn:scale-110 stroke-[3]" />
                                         <span className="relative z-10 text-[11px] font-black uppercase tracking-widest">Forge Protocol</span>
                                     </button>
                                 )}

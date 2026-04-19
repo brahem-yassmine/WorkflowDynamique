@@ -20,7 +20,13 @@ import {
     CheckCircle2,
     AlertCircle,
     Lock,
-    Layers
+    Layers,
+    Copy,
+    Globe,
+    Package,
+    Clipboard,
+    ListChecks,
+    Trello
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiService } from '@/service/api.service';
@@ -68,6 +74,9 @@ export default function UserManagementPage() {
     const [hidePasswordInput, setHidePasswordInput] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [modules, setModules] = useState<any[]>([]);
+    const [isReassignModalOpen, setIsReassignModalOpen] = useState(false);
+    const [reassignUser, setReassignUser] = useState<Persona | null>(null);
+    const [isReassigning, setIsReassigning] = useState(false);
     
     // Form states
     const [firstName, setFirstName] = useState('');
@@ -168,6 +177,23 @@ export default function UserManagementPage() {
 
             setIsModalOpen(false);
             fetchData();
+            
+            // Sync Persona Inspector in real-time
+            if (selectedUser) {
+                const updatedPersona = { 
+                    ...selectedUser, 
+                    firstName, 
+                    lastName, 
+                    email, 
+                    role: formRole, 
+                    specificRole: formSpecificRole,
+                    specificRoleId: formSpecificRoleId,
+                    domainId: formDomainId,
+                    moduleId: formModuleId
+                };
+                setSelectedUser(updatedPersona);
+            }
+
             resetForm();
         } catch (error: any) {
             const msg = error.message || 'Injection error';
@@ -207,6 +233,27 @@ export default function UserManagementPage() {
             }
         } catch (error: any) {
             toast.error('Status synchronization failed');
+        }
+    };
+    
+    const handleClearAuthorityNode = async (user: Persona) => {
+        try {
+            await apiService.updateUser(user._id, { 
+                specificRoleId: null, 
+                specificRole: null 
+            });
+            toast.success('Authority Node cleared');
+            
+            // Trigger Re-assignment flow
+            setReassignUser(user);
+            setIsReassignModalOpen(true);
+            
+            fetchData();
+            if (selectedUser?._id === user._id) {
+                setSelectedUser({ ...user, specificRoleId: undefined, specificRole: undefined });
+            }
+        } catch (error: any) {
+            toast.error('Failed to fragment authority node');
         }
     };
 
@@ -309,7 +356,8 @@ export default function UserManagementPage() {
                             <thead>
                                 <tr className="bg-slate-50/50">
                                     <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Entity Signature</th>
-                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Access Role</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Node ID</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Access & Authority</th>
                                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">System Status</th>
                                     <th className="px-8 py-4 text-right"></th>
                                 </tr>
@@ -338,16 +386,61 @@ export default function UserManagementPage() {
                                                 </div>
                                             </div>
                                         </td>
+                                        <td className="px-6 py-5 text-center">
+                                            <div 
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    navigator.clipboard.writeText(user._id);
+                                                    toast.success('Node ID copied to clipboard');
+                                                }}
+                                                className="px-3 py-1 bg-slate-50 text-slate-400 text-[10px] font-black rounded-lg border border-slate-100 uppercase tracking-widest hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all cursor-copy inline-block"
+                                                title={`Full ID: ${user._id}`}
+                                            >
+                                                #{user._id.slice(-6).toUpperCase()}
+                                            </div>
+                                        </td>
                                         <td className="px-6 py-5">
-                                            <div className="flex flex-col gap-1">
-                                                <span className="px-2.5 py-1 bg-white border border-indigo-100 text-indigo-600 text-[10px] font-black rounded-lg uppercase tracking-tight w-fit">
-                                                    {user.role}
-                                                </span>
-                                                {user.specificRole && (
-                                                    <span className="px-2.5 py-1 bg-slate-50 border border-slate-100 text-slate-500 text-[9px] font-bold rounded-lg uppercase tracking-tight w-fit">
-                                                        {user.specificRole}
+                                            <div className="flex flex-col gap-2">
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-tight ${user.role === 'admin' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-indigo-50 text-indigo-600 border border-indigo-100'}`}>
+                                                        {user.role}
                                                     </span>
-                                                )}
+                                                    {user.specificRole && (
+                                                        <span className="px-2 py-0.5 bg-slate-100 text-slate-500 border border-slate-200 text-[9px] font-black rounded-lg uppercase tracking-tight flex items-center gap-1.5 shadow-sm group/role relative overflow-hidden">
+                                                            <Shield size={10} className="text-indigo-400" />
+                                                            <span className="truncate max-w-[80px]">{user.specificRole}</span>
+                                                            <button 
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleClearAuthorityNode(user);
+                                                                }}
+                                                                className="ml-1 p-0.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded transition-all opacity-0 group-hover/role:opacity-100"
+                                                                title="Clear Authority Node"
+                                                            >
+                                                                <Trash2 size={9} />
+                                                            </button>
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                
+                                                {/* Permissions Strip */}
+                                                <div className="flex flex-wrap gap-1.5 pt-1">
+                                                    {user.role === 'admin' ? (
+                                                        <span className="text-[8px] font-black text-amber-500 uppercase tracking-widest opacity-60">Full Matrix Access</span>
+                                                    ) : (user as any).permissions?.length > 0 ? (
+                                                        <>
+                                                            {/* Group icons by category found in permissions */}
+                                                            {Array.from(new Set((user as any).permissions.map((p: string) => p.split('.')[0]))).map((cat: any) => (
+                                                                <div key={cat} className="p-1 px-1.5 bg-slate-50 border border-slate-100 rounded-md flex items-center gap-1 opacity-70 hover:opacity-100 transition-opacity" title={`${cat} Authority Active`}>
+                                                                    {getPermIcon(cat)}
+                                                                    <span className="text-[7px] font-black text-slate-400 uppercase">{cat}</span>
+                                                                </div>
+                                                            ))}
+                                                        </>
+                                                    ) : (
+                                                        <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest italic">Zero Authority Perimeter</span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </td>
                                         <td className="px-6 py-5">
@@ -429,6 +522,27 @@ export default function UserManagementPage() {
                                         <div className="p-6 bg-slate-50 rounded-[28px] space-y-4">
                                             <InspectorInfo label="Connectivity" icon={<Mail size={16} />} value={selectedUser.email} />
                                             <InspectorInfo label="Assignment Domain" icon={<Briefcase size={16} />} value={selectedUser.domainId?.name || selectedUser.domain || 'Global'} />
+                                            <InspectorInfo 
+                                                label="Authority Node" 
+                                                icon={<Shield size={16} />} 
+                                                action={selectedUser.specificRole ? (
+                                                    <button 
+                                                        onClick={() => handleClearAuthorityNode(selectedUser)}
+                                                        className="p-1 text-slate-300 hover:text-rose-500 transition-all"
+                                                        title="Fragment Authority Node"
+                                                    >
+                                                        <Trash2 size={12} />
+                                                    </button>
+                                                ) : null}
+                                            >
+                                                {selectedUser.specificRole ? (
+                                                    <div className="bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
+                                                        <span className="text-sm font-black text-slate-700 tracking-tight">{selectedUser.specificRole}</span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-sm font-bold text-slate-300 italic">Standard Node</span>
+                                                )}
+                                            </InspectorInfo>
                                         </div>
                                         <div className="p-6 bg-slate-50 rounded-[28px] space-y-4">
                                             <InspectorInfo label="Assignment Module" icon={<Layers size={16} />} value={selectedUser.moduleId?.name || 'Full Module Access'} />
@@ -551,8 +665,21 @@ export default function UserManagementPage() {
                                             onChange={(e) => {
                                                 const roleId = e.target.value;
                                                 setFormSpecificRoleId(roleId);
-                                                const roleName = roles.find(r => r._id === roleId)?.name || '';
+                                                const role = roles.find(r => r._id === roleId);
+                                                const roleName = role?.name || '';
                                                 setFormSpecificRole(roleName);
+                                                
+                                                // 🎚️ Smart Auto-Fill Scope
+                                                // If the selected Authority Node has a defined context, prioritize it
+                                                if (role?.domainId) {
+                                                    const dId = role.domainId?._id || role.domainId;
+                                                    setFormDomainId(dId);
+                                                    const dName = domains.find(d => d._id === dId)?.name || '';
+                                                    setFormDomain(dName);
+                                                }
+                                                if (role?.moduleId) {
+                                                    setFormModuleId(role.moduleId?._id || role.moduleId);
+                                                }
                                             }} 
                                             className="w-full h-11 bg-slate-50 rounded-xl px-4 font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-50 border-none transition-all"
                                         >
@@ -611,16 +738,146 @@ export default function UserManagementPage() {
                     </div>
                 )}
             </AnimatePresence>
+
+            {/* Authority Re-assignment Modal */}
+            <AnimatePresence>
+                {isReassignModalOpen && reassignUser && (
+                    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setIsReassignModalOpen(false)}
+                            className="absolute inset-0 bg-slate-900/60 backdrop-blur-lg"
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="bg-white rounded-[40px] shadow-[0_32px_128px_-32px_rgba(79,70,229,0.3)] w-full max-w-lg relative z-10 overflow-hidden border border-slate-100 flex flex-col"
+                        >
+                            <div className="bg-rose-500 p-8 text-white relative overflow-hidden">
+                                <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
+                                <div className="flex justify-between items-center relative z-10">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md">
+                                            <AlertCircle size={24} />
+                                        </div>
+                                        <div>
+                                            <h2 className="text-xl font-black tracking-tight uppercase">Authority Fragmented</h2>
+                                            <p className="text-rose-100 text-[10px] font-bold uppercase tracking-widest mt-0.5">Zero-Privilege State Detected</p>
+                                        </div>
+                                    </div>
+                                    <button onClick={() => setIsReassignModalOpen(false)} className="p-2 hover:bg-white/10 rounded-xl transition-all">
+                                        <X size={20} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="p-8 space-y-6">
+                                <div className="p-6 bg-slate-50 rounded-3xl space-y-3">
+                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Target Persona</p>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 font-black shadow-sm border border-slate-100 uppercase">
+                                            {reassignUser.firstName.charAt(0)}
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-black text-slate-800">{reassignUser.firstName} {reassignUser.lastName}</p>
+                                            <p className="text-[10px] font-medium text-slate-400">{reassignUser.email}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">New Authority Perimeter</label>
+                                    <div className="grid grid-cols-1 gap-3 max-h-[30vh] overflow-y-auto custom-scrollbar pr-2">
+                                        {roles.map((role) => (
+                                            <button
+                                                key={role._id}
+                                                onClick={() => {
+                                                    setFormSpecificRoleId(role._id);
+                                                    setFormSpecificRole(role.name);
+                                                }}
+                                                className={`flex items-center justify-between p-4 rounded-2xl border transition-all text-left ${formSpecificRoleId === role._id ? 'bg-indigo-50 border-indigo-200 shadow-sm' : 'bg-white border-slate-100 hover:border-indigo-100'}`}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`p-2 rounded-lg ${formSpecificRoleId === role._id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-slate-50 text-slate-400'}`}>
+                                                        <Shield size={14} />
+                                                    </div>
+                                                    <span className={`text-[11px] font-black uppercase tracking-tight ${formSpecificRoleId === role._id ? 'text-indigo-900' : 'text-slate-600'}`}>{role.name}</span>
+                                                </div>
+                                                {formSpecificRoleId === role._id && <CheckCircle2 size={16} className="text-indigo-600" />}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={async () => {
+                                        if (!formSpecificRoleId) return;
+                                        try {
+                                            setIsReassigning(true);
+                                            await apiService.updateUser(reassignUser._id, {
+                                                specificRoleId: formSpecificRoleId,
+                                                specificRole: formSpecificRole
+                                            });
+                                            toast.success('Matrix synchronization complete');
+                                            setIsReassignModalOpen(false);
+                                            fetchData();
+                                            
+                                            // Sync Persona Inspector with new authority
+                                            const updatedUser = { 
+                                                ...reassignUser, 
+                                                specificRoleId: formSpecificRoleId, 
+                                                specificRole: formSpecificRole 
+                                            };
+                                            setSelectedUser(updatedUser);
+                                            
+                                            resetForm();
+                                        } catch (error) {
+                                            toast.error('Re-assignment failure');
+                                        } finally {
+                                            setIsReassigning(false);
+                                        }
+                                    }}
+                                    disabled={!formSpecificRoleId || isReassigning}
+                                    className="w-full py-5 bg-indigo-600 text-white rounded-[24px] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-indigo-700 transition-all active:scale-95 shadow-xl shadow-indigo-100 disabled:opacity-50 disabled:active:scale-100"
+                                >
+                                    {isReassigning ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Shield size={18} />}
+                                    {isReassigning ? 'Binding Node...' : 'Assign New Authority'}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
 
-function InspectorInfo({ label, icon, value, children }: { label: string; icon: React.ReactNode; value?: string; children?: React.ReactNode }) {
+function getPermIcon(category: string) {
+    switch (category.toUpperCase()) {
+        case 'DOMAIN': return <Globe size={10} className="text-indigo-500" />;
+        case 'MODULE': return <Package size={10} className="text-violet-500" />;
+        case 'PROJECT': return <Briefcase size={10} className="text-amber-500" />;
+        case 'WORKFLOW': return <Layers size={10} className="text-blue-500" />;
+        case 'FORM': return <Clipboard size={10} className="text-rose-500" />;
+        case 'CHECKLIST': return <ListChecks size={10} className="text-emerald-500" />;
+        case 'KANBAN': return <Trello size={10} className="text-orange-500" />;
+        default: return <Shield size={10} className="text-slate-400" />;
+    }
+}
+
+function InspectorInfo({ label, icon, value, children, action }: { label: string; icon: React.ReactNode; value?: string; children?: React.ReactNode; action?: React.ReactNode }) {
+
     return (
         <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 text-slate-400">
                 <div className="p-2 bg-slate-50 rounded-lg">{icon}</div>
-                <span className="text-[10px] font-black uppercase tracking-widest leading-none">{label}</span>
+                <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest leading-none">{label}</span>
+                    {action}
+                </div>
             </div>
             {value ? <span className="text-sm font-bold text-slate-700">{value}</span> : children}
         </div>

@@ -20,6 +20,10 @@ const moduleSchema = new mongoose.Schema({
         type: Boolean,
         default: true
     },
+    color: {
+        type: String,
+        default: '#6366f1'
+    },
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',

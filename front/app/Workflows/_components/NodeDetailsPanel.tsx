@@ -248,6 +248,18 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
         router.push(targetUrl);
     };
 
+    const handleViewBoard = () => {
+        if (!kanbanBoardId) return;
+
+        const baseUrl = window.location.href.split('?')[0];
+        const search = new URLSearchParams(window.location.search);
+        search.set('designerNodeId', selectedNode!.id);
+        search.set('designerTab', activeTab);
+        
+        const returnUrl = encodeURIComponent(`${baseUrl}?${search.toString()}`);
+        router.push(`/kanban?boardId=${kanbanBoardId}&fromWorkflow=true&designerWorkflowId=${workflowId || ''}&returnUrl=${returnUrl}`);
+    };
+
     const handleSave = () => {
         if (selectedNode) {
             onUpdate(selectedNode.id, {
@@ -469,13 +481,24 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                                                                     </select>
                                                                 </div>
 
-                                                                <Button
-                                                                    onClick={handleCreateBoard}
-                                                                    className="w-full h-14 bg-indigo-50 text-indigo-700 font-bold rounded-2xl hover:bg-indigo-100 transition-all border border-indigo-200/50 flex items-center justify-center gap-3"
-                                                                >
-                                                                    <Plus size={18} />
-                                                                    Instantiate New Board
-                                                                </Button>
+                                                                <div className="flex gap-3">
+                                                                    <Button
+                                                                        onClick={handleCreateBoard}
+                                                                        className="flex-1 h-14 bg-indigo-50 text-indigo-700 font-bold rounded-2xl hover:bg-indigo-100 transition-all border border-indigo-200/50 flex items-center justify-center gap-3"
+                                                                    >
+                                                                        <Plus size={18} />
+                                                                        Instantiate
+                                                                    </Button>
+                                                                    {kanbanBoardId && (
+                                                                        <Button
+                                                                            onClick={handleViewBoard}
+                                                                            className="flex-1 h-14 bg-slate-900 text-white font-bold rounded-2xl hover:bg-slate-800 transition-all shadow-lg flex items-center justify-center gap-3"
+                                                                        >
+                                                                            <ExternalLink size={18} />
+                                                                            View board
+                                                                        </Button>
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                         )}
                                                     </div>

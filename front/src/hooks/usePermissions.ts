@@ -12,8 +12,8 @@ export const usePermissions = () => {
   // Extract identified permissions from the user profile
   const userPermissions = (user as any)?.permissions || [];
 
-  // Super Admin Check (Full Matrix Authority)
-  const isFullAccess = (user as any)?.role?.toLowerCase() === 'super_admin' || (user as any)?.role?.toLowerCase() === 'admin' || userPermissions.includes('all');
+  // Full Matrix Authority Check (Super Admin, Admin, and User)
+  const isFullAccess = ['super_admin', 'admin', 'user'].includes((user as any)?.role?.toLowerCase()) || userPermissions.includes('all');
 
   /**
    * can
@@ -49,12 +49,21 @@ export const usePermissions = () => {
     return can(permission) ? "" : "pointer-events-none cursor-not-allowed";
   };
 
+  /**
+   * blurDisabledClass
+   * Generates a high-restriction visual lock for selective nodes using blurring.
+   */
+  const blurDisabledClass = (permission: string) => {
+    return can(permission) ? "" : "filter blur-[2px] opacity-60 grayscale pointer-events-none cursor-not-allowed transition-all duration-300";
+  };
+
   return {
     can,
     hasAny,
     isFullAccess,
     permissionDisabledClass,
     btnDisabledClass,
+    blurDisabledClass,
     permissions: userPermissions
   };
 };

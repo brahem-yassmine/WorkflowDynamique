@@ -56,7 +56,7 @@ function AllWorkflowsContent() {
     const searchParams = useSearchParams();
     const [workflows, setWorkflows] = useState<Workflow[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const { can, btnDisabledClass, permissionDisabledClass } = usePermissions();
+    const { can, btnDisabledClass, permissionDisabledClass, blurDisabledClass } = usePermissions();
     const [searchTerm, setSearchTerm] = useState('');
 
     const fetchWorkflows = async () => {
@@ -174,7 +174,7 @@ function AllWorkflowsContent() {
                     
                     <button
                         onClick={() => can('Workflow.CREATE') && router.push('/User/create?fresh=true')}
-                        className={`px-10 py-5 rounded-[22px] font-black text-[11px] uppercase tracking-[0.2em] transition-all shadow-2xl active:scale-95 flex items-center gap-3 bg-indigo-600 text-white hover:bg-indigo-500 shadow-indigo-900/20`}
+                        className={`px-10 py-5 rounded-[22px] font-black text-[11px] uppercase tracking-[0.2em] transition-all shadow-2xl active:scale-95 flex items-center gap-3 bg-indigo-600 text-white hover:bg-indigo-500 shadow-indigo-900/20 ${blurDisabledClass('Workflow.CREATE')}`}
                         title={!can('Workflow.CREATE') ? "Matrix Restricted" : ""}
                     >
                         <Plus size={20} strokeWidth={3} />
@@ -196,7 +196,7 @@ function AllWorkflowsContent() {
             </div>
 
             {/* Workflows Registry */}
-            <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 ${permissionDisabledClass('Workflow.VIEW')}`}`}>
+            <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8`}>
               {isLoading ? (
                   Array(6).fill(0).map((_, i) => (
                       <div key={i} className="h-64 bg-white rounded-[2.5rem] border border-slate-100 animate-pulse shadow-sm"></div>
@@ -206,7 +206,8 @@ function AllWorkflowsContent() {
                       <motion.div
                           key={workflow._id}
                           whileHover={{ y: -8 }}
-                          className="bg-white rounded-[2.5rem] border border-slate-100 p-8 shadow-xl shadow-slate-100/30 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all relative overflow-hidden group cursor-default"
+                          onClick={() => can('Workflow.VIEW') && router.push(`/User/Workflows/${workflow._id}`)}
+                          className={`bg-white rounded-[2.5rem] border border-slate-100 p-8 shadow-xl shadow-slate-100/30 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all relative overflow-hidden group ${can('Workflow.VIEW') ? 'cursor-pointer' : 'cursor-not-allowed'} ${blurDisabledClass('Workflow.VIEW')}`}
                       >
                           <div className="flex justify-between items-start mb-6">
                               <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-inner">
@@ -238,11 +239,14 @@ function AllWorkflowsContent() {
                                   </div>
                               </div>
 
-                              <div className="flex gap-3">
+                               <div className="flex gap-3">
                                   <button 
-                                      onClick={() => can('Workflow.UPDATE') && router.push(`/User/create?id=${workflow._id}`)}
+                                      onClick={(e) => {
+                                          e.stopPropagation();
+                                          can('Workflow.UPDATE') && router.push(`/User/create?id=${workflow._id}`);
+                                      }}
                                       className={`flex-[3] py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 group/btn ${
-                                          btnDisabledClass('Workflow.UPDATE') || 'bg-slate-900 text-white hover:bg-indigo-600'
+                                          blurDisabledClass('Workflow.UPDATE') || 'bg-slate-900 text-white hover:bg-indigo-600'
                                       }`}
                                       title={!can('Workflow.UPDATE') ? "Matrix Restricted" : "Open Architect"}
                                   >
@@ -250,19 +254,25 @@ function AllWorkflowsContent() {
                                       <ChevronRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
                                   </button>
                                   <button 
-                                      onClick={() => can('Workflow.CREATE') && handleDuplicate(workflow._id)}
+                                      onClick={(e) => {
+                                          e.stopPropagation();
+                                          can('Workflow.CREATE') && handleDuplicate(workflow._id);
+                                      }}
                                       title={!can('Workflow.CREATE') ? "Matrix Restricted" : "Clone Protocol"}
                                       className={`flex-1 py-4 rounded-2xl flex items-center justify-center transition-all ${
-                                          btnDisabledClass('Workflow.CREATE') || 'bg-slate-50 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50'
+                                          blurDisabledClass('Workflow.CREATE') || 'bg-slate-50 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50'
                                       }`}
                                   >
                                       <Copy size={16} />
                                   </button>
                                   <button 
-                                      onClick={() => can('Workflow.DELETE') && handleDelete(workflow._id)}
+                                      onClick={(e) => {
+                                          e.stopPropagation();
+                                          can('Workflow.DELETE') && handleDelete(workflow._id);
+                                      }}
                                       title={!can('Workflow.DELETE') ? "Matrix Restricted" : "Terminate Protocol"}
                                       className={`flex-1 py-4 rounded-2xl flex items-center justify-center transition-all ${
-                                          btnDisabledClass('Workflow.DELETE') || 'bg-slate-50 text-slate-300 hover:text-rose-600 hover:bg-rose-50'
+                                          blurDisabledClass('Workflow.DELETE') || 'bg-slate-50 text-slate-300 hover:text-rose-600 hover:bg-rose-50'
                                       }`}
                                   >
                                       <Trash2 size={16} />

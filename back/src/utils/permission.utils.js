@@ -32,7 +32,6 @@ const PERMISSION_DEPENDENCIES = {
   'Form.CREATE': ['Form.VIEW'],
   'Form.UPDATE': ['Form.VIEW'],
   'Form.DELETE': ['Form.VIEW'],
-  'Form.CLONE': ['Form.VIEW'],
 
   // Checklist rules
   'Checklist.VIEW': ['Workflow.VIEW'],

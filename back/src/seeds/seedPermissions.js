@@ -32,7 +32,6 @@ const permissions = [
 
 
   // --- FORM ---
-  { name: 'Form.CLONE', description: 'Can duplicate existing form templates', category: 'FORM' },
   { name: 'Form.CREATE', description: 'Can design and initialize new forms', category: 'FORM' },
   { name: 'Form.DELETE', description: 'Can remove form definitions', category: 'FORM' },
   { name: 'Form.UPDATE', description: 'Can modify form structures and fields', category: 'FORM' },

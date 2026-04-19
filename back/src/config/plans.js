@@ -11,8 +11,9 @@ module.exports = {
         price: 0,
         features: {
           maxUsers: 5,
-          maxWorkflows: 5,
-          maxNodes: 9999999, // Total organizational nodes across all workflows
+          maxWorkflows: 25, // 5 users * 5 workflows each
+          maxWorkflowsPerUser: 5,
+          maxNodes: 9999999,
           reports: false,
           aiSupport: false
         },
@@ -25,8 +26,9 @@ module.exports = {
         price: 79,
         features: {
           maxUsers: 10,
-          maxWorkflows: 20,
-          maxNodes: 999999, // Unlimited capacity for workflows steps
+          maxWorkflows: 200, // 10 users * 20 workflows each
+          maxWorkflowsPerUser: 20,
+          maxNodes: 999999,
           maxStaff: 10,
           reports: true,
           aiSupport: false
@@ -40,8 +42,9 @@ module.exports = {
         price: 299,
         features: {
           maxUsers: 999999,
-          maxWorkflows: 999,
-          maxNodes: 999999, // Unlimited capacity for complex operations
+          maxWorkflows: 999999,
+          maxWorkflowsPerUser: 999999,
+          maxNodes: 999999,
           maxStaff: 999999,
           reports: true,
           aiSupport: true

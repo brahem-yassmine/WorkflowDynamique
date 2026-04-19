@@ -46,7 +46,7 @@ const COLORS = [
 
 function DomainsPageContent() {
     const router = useRouter();
-    const { can } = usePermissions();
+    const { can, btnDisabledClass, permissionDisabledClass } = usePermissions();
     const searchParams = useSearchParams();
     const [domains, setDomains] = useState<Domain[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
@@ -188,13 +188,10 @@ function DomainsPageContent() {
                 </div>
                 <button
                     onClick={() => can('Domain.CREATE') && (resetForm(), setIsModalOpen(true))}
-                    disabled={!can('Domain.CREATE')}
                     title={!can('Domain.CREATE') ? "Matrix Restricted" : ""}
-                    className={`px-6 py-3 rounded-2xl font-black text-[11px] transition-all shadow-lg flex items-center gap-2.5 active:scale-95 ${
-                        btnDisabledClass('Domain.CREATE') || 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100'
-                    }`}
+                    className="px-10 py-5 rounded-[22px] font-black text-[11px] uppercase tracking-[0.2em] transition-all shadow-2xl bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-500/20 flex items-center gap-3 active:scale-95"
                 >
-                    <Plus size={16} className="stroke-[4]" />
+                    <Plus size={20} strokeWidth={3} />
                     New Domain
                 </button>
             </div>

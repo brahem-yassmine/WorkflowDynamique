@@ -19,8 +19,8 @@ const { checkTenantActive } = require('../middleware/tenantMiddleware');
 // For now, let's keep everything protected as per the existing pattern
 router.use(auth, checkTenantActive);
 
-router.get('/', hasPermission('Form.VIEW'), getForms);
-router.get('/:id', hasPermission('Form.VIEW'), getFormById);
+router.get('/', getForms);
+router.get('/:id', getFormById);
 router.post('/', hasPermission('Form.CREATE'), createForm);
 router.patch('/:id', hasPermission('Form.UPDATE'), updateForm);
 router.delete('/:id', hasPermission('Form.DELETE'), deleteForm);

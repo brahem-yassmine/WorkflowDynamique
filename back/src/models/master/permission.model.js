@@ -25,8 +25,6 @@ const permissionSchema = new mongoose.Schema(
         "KANBAN",
         "FORM",
         "CHECKLIST",
-        "TASK",
-        "TASK_ACTION_SCOPE",
       ],
       required: true
     }

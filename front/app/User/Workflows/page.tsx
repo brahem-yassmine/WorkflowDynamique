@@ -60,7 +60,7 @@ interface WorkflowInstance {
 }
 
 export default function UserWorkflowsPage() {
-  const { can, permissionDisabledClass } = usePermissions();
+  const { can, btnDisabledClass, permissionDisabledClass } = usePermissions();
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [instances, setInstances] = useState<WorkflowInstance[]>([]);
@@ -373,7 +373,7 @@ export default function UserWorkflowsPage() {
             )}
           </motion.div>
         ) : (
-          <motion.div key="registry" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className={`space-y-6 ${permissionDisabledClass('Workflow.VIEW')}`}>
+          <motion.div key="registry" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className={`space-y-6 ${permissionDisabledClass('Workflow.VIEW')}`}`}>
             <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
               <div className="relative w-full md:max-w-md">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -419,7 +419,7 @@ export default function UserWorkflowsPage() {
                 <p className="font-black text-xs uppercase tracking-widest">No matching designs</p>
               </div>
             ) : (
-              <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ${permissionDisabledClass('Workflow.VIEW')}`}>
+              <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ${permissionDisabledClass('Workflow.VIEW')}`}`}>
                 {filteredWorkflows.map((workflow) => {
                   const isOwner = workflow.userId === (user?._id || user?.id);
                   return (

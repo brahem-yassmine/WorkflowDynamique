@@ -11,9 +11,9 @@ export const usePermissions = () => {
 
   // Extract identified permissions from the user profile
   const userPermissions = (user as any)?.permissions || [];
-  
+
   // Super Admin Check (Full Matrix Authority)
-  const isFullAccess = (user as any)?.role === 'super_admin' || (user as any)?.role === 'admin' || userPermissions.includes('all');
+  const isFullAccess = (user as any)?.role?.toLowerCase() === 'super_admin' || (user as any)?.role?.toLowerCase() === 'admin' || userPermissions.includes('all');
 
   /**
    * can
@@ -21,7 +21,7 @@ export const usePermissions = () => {
    */
   const can = (permission: string): boolean => {
     if (isFullAccess) return true;
-    return userPermissions.includes(permission);
+    return userPermissions.some((p: string) => p.toLowerCase() === permission.toLowerCase());
   };
 
   /**
@@ -30,7 +30,7 @@ export const usePermissions = () => {
    */
   const hasAny = (perms: string[]): boolean => {
     if (isFullAccess) return true;
-    return perms.some(p => userPermissions.includes(p));
+    return perms.some(p => userPermissions.some((up: string) => up.toLowerCase() === p.toLowerCase()));
   };
 
   /**

@@ -26,7 +26,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { apiService } from '@/service/api.service';
 import { toast, Toaster } from 'sonner';
 import { showConfirm } from '@/lib/alerts';
-import useUser from '@/hooks/useUser';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface Workflow {
     _id: string;
@@ -56,7 +56,7 @@ function AllWorkflowsContent() {
     const searchParams = useSearchParams();
     const [workflows, setWorkflows] = useState<Workflow[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const { user, btnDisabledClass, hasPermission } = useUser();
+    const { can, btnDisabledClass, permissionDisabledClass } = usePermissions();
     const [searchTerm, setSearchTerm] = useState('');
 
     const fetchWorkflows = async () => {
@@ -74,6 +74,27 @@ function AllWorkflowsContent() {
     };
 
     useEffect(() => {
+        // Refresh profile to sync latest permissions from matrix
+        const syncPermissions = async () => {
+            try {
+                const profileRes = await apiService.request('/auth/profile');
+                if (profileRes.success && profileRes.data) {
+                    // Update local user state
+                    const currentUser = localStorage.getItem('user');
+                    if (currentUser) {
+                        const parsed = JSON.parse(currentUser);
+                        const updated = { ...parsed, permissions: profileRes.data.permissions };
+                        localStorage.setItem('user', JSON.stringify(updated));
+                        // Force a window check or state update if useAuth supports it
+                        // For now, this ensures the next hook call gets fresh data
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to sync permissions:', e);
+            }
+        };
+
+        syncPermissions();
         fetchWorkflows();
     }, []);
 
@@ -152,14 +173,11 @@ function AllWorkflowsContent() {
                     </div>
                     
                     <button
-                        onClick={() => hasPermission('Workflow.CREATE') && router.push('/User/create?fresh=true')}
-                        disabled={!hasPermission('Workflow.CREATE')}
-                        className={`px-10 py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all shadow-xl active:scale-95 flex items-center gap-3 ${
-                            btnDisabledClass('Workflow.CREATE') || 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-indigo-900/40'
-                        }`}
-                        title={!hasPermission('Workflow.CREATE') ? "Matrix Restricted" : ""}
+                        onClick={() => can('Workflow.CREATE') && router.push('/User/create?fresh=true')}
+                        className={`px-10 py-5 rounded-[22px] font-black text-[11px] uppercase tracking-[0.2em] transition-all shadow-2xl active:scale-95 flex items-center gap-3 bg-indigo-600 text-white hover:bg-indigo-500 shadow-indigo-900/20`}
+                        title={!can('Workflow.CREATE') ? "Matrix Restricted" : ""}
                     >
-                        <Plus size={18} />
+                        <Plus size={20} strokeWidth={3} />
                         Create New Workflow
                     </button>
                 </div>
@@ -178,7 +196,7 @@ function AllWorkflowsContent() {
             </div>
 
             {/* Workflows Registry */}
-            <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 ${permissionDisabledClass('Workflow.VIEW')}`}>
+            <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 ${permissionDisabledClass('Workflow.VIEW')}`}`}>
               {isLoading ? (
                   Array(6).fill(0).map((_, i) => (
                       <div key={i} className="h-64 bg-white rounded-[2.5rem] border border-slate-100 animate-pulse shadow-sm"></div>
@@ -222,18 +240,18 @@ function AllWorkflowsContent() {
 
                               <div className="flex gap-3">
                                   <button 
-                                      onClick={() => hasPermission('Workflow.UPDATE') && router.push(`/User/create?id=${workflow._id}`)}
+                                      onClick={() => can('Workflow.UPDATE') && router.push(`/User/create?id=${workflow._id}`)}
                                       className={`flex-[3] py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 group/btn ${
                                           btnDisabledClass('Workflow.UPDATE') || 'bg-slate-900 text-white hover:bg-indigo-600'
                                       }`}
-                                      title={!hasPermission('Workflow.UPDATE') ? "Matrix Restricted" : "Open Architect"}
+                                      title={!can('Workflow.UPDATE') ? "Matrix Restricted" : "Open Architect"}
                                   >
                                       Open Architect
                                       <ChevronRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
                                   </button>
                                   <button 
-                                      onClick={() => hasPermission('Workflow.CREATE') && handleDuplicate(workflow._id)}
-                                      title={!hasPermission('Workflow.CREATE') ? "Matrix Restricted" : "Clone Protocol"}
+                                      onClick={() => can('Workflow.CREATE') && handleDuplicate(workflow._id)}
+                                      title={!can('Workflow.CREATE') ? "Matrix Restricted" : "Clone Protocol"}
                                       className={`flex-1 py-4 rounded-2xl flex items-center justify-center transition-all ${
                                           btnDisabledClass('Workflow.CREATE') || 'bg-slate-50 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50'
                                       }`}
@@ -241,8 +259,8 @@ function AllWorkflowsContent() {
                                       <Copy size={16} />
                                   </button>
                                   <button 
-                                      onClick={() => hasPermission('Workflow.DELETE') && handleDelete(workflow._id)}
-                                      title={!hasPermission('Workflow.DELETE') ? "Matrix Restricted" : "Terminate Protocol"}
+                                      onClick={() => can('Workflow.DELETE') && handleDelete(workflow._id)}
+                                      title={!can('Workflow.DELETE') ? "Matrix Restricted" : "Terminate Protocol"}
                                       className={`flex-1 py-4 rounded-2xl flex items-center justify-center transition-all ${
                                           btnDisabledClass('Workflow.DELETE') || 'bg-slate-50 text-slate-300 hover:text-rose-600 hover:bg-rose-50'
                                       }`}

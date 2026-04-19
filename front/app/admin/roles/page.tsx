@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
 import { 
   resolveDependencies, 
   isRequiredByOthers, 
@@ -90,9 +91,11 @@ export default function RolesPage() {
   const [assignDomainId, setAssignDomainId] = useState('');
   const [assignModuleId, setAssignModuleId] = useState('');
   const [isAssigning, setIsAssigning] = useState(false);
+  const [isUserAssignModalOpen, setIsUserAssignModalOpen] = useState(false);
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
 
   const activeCategories = PERMISSION_ORDER.filter(cat =>
-    availablePermissions.some(p => p.category === cat)
+    availablePermissions.some(p => p.category === cat.toUpperCase())
   );
 
   useEffect(() => {
@@ -142,6 +145,27 @@ export default function RolesPage() {
       if (response.data.success) setRoles(response.data.data);
     } catch (err: any) {
       console.error('❌ Error loading roles:', err);
+    }
+  };
+
+  const handleUpdateScope = async () => {
+    if (!selectedRole) return;
+    try {
+      setIsAssigning(true);
+      await api.put(`/api/tenant/roles/${selectedRole._id}`, {
+        domainId: assignDomainId || null,
+        moduleId: assignModuleId || null
+      });
+      toast.success('Authority perimeter synchronized');
+      setIsAssignModalOpen(false);
+      loadRoles();
+      // Update local selectedRole display
+      const updatedRole = { ...selectedRole, domainId: assignDomainId, moduleId: assignModuleId };
+      setSelectedRole(updatedRole);
+    } catch (err) {
+      toast.error('Failed to bind scope');
+    } finally {
+      setIsAssigning(false);
     }
   };
 
@@ -296,7 +320,6 @@ export default function RolesPage() {
       case 'KANBAN': return <Trello size={20} />;
       case 'TEMPLATE': return <FileText size={20} />;
       case 'SYSTEM': return <Lock size={20} />;
-      case 'TASK_ACTION_SCOPE': return <Activity size={20} />;
       default: return <Shield size={20} />;
     }
   };
@@ -568,14 +591,24 @@ export default function RolesPage() {
                   </button>
                   <button
                     onClick={() => {
-                        setAssignDomainId((selectedRole as any).domainId || '');
-                        setAssignModuleId((selectedRole as any).moduleId || '');
-                        setIsAssignModalOpen(true);
+                        setSelectedUserIds([]);
+                        setIsUserAssignModalOpen(true);
                     }}
                     className="flex-[1.5] py-5 bg-emerald-600 text-white rounded-[24px] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-emerald-700 transition-all active:scale-95 shadow-xl shadow-emerald-100"
                   >
+                    <UserPlus size={18} />
+                    Assign Users
+                  </button>
+                  <button
+                    onClick={() => {
+                      setAssignDomainId(selectedRole.domainId?._id || selectedRole.domainId || '');
+                      setAssignModuleId(selectedRole.moduleId?._id || selectedRole.moduleId || '');
+                      setIsAssignModalOpen(true);
+                    }}
+                    className="flex-1 py-5 bg-emerald-600 text-white rounded-[24px] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-emerald-700 transition-all active:scale-95 shadow-xl shadow-emerald-100"
+                  >
                     <Globe size={18} />
-                    Add 
+                    Add Domain
                   </button>
                   {!(selectedRole.isSystemRole || selectedRole.isDefault) && (
                     <button 
@@ -591,6 +624,119 @@ export default function RolesPage() {
                   )}
                 </div>
               </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Bulk User Assignment Modal */}
+        <AnimatePresence>
+          {isUserAssignModalOpen && selectedRole && (
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setIsUserAssignModalOpen(false)}
+                className="absolute inset-0 bg-slate-900/60 backdrop-blur-lg"
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="bg-white rounded-[40px] shadow-2xl w-full max-w-2xl relative z-10 overflow-hidden border border-slate-100 flex flex-col"
+              >
+                <div className="bg-emerald-600 p-10 text-white relative">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h2 className="text-2xl font-black tracking-tight uppercase">Direct Node Assignment</h2>
+                      <p className="text-emerald-100 text-xs font-bold uppercase tracking-widest mt-1">
+                        Target Node: {selectedRole.name}
+                      </p>
+                    </div>
+                    <button onClick={() => setIsUserAssignModalOpen(false)} className="p-3 hover:bg-emerald-500 rounded-2xl transition-all">
+                      <X size={24} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-10 space-y-6 overflow-y-auto custom-scrollbar max-h-[50vh]">
+                  <div className="flex items-center justify-between border-b border-slate-50 pb-4">
+                      <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Available Entities</h3>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                        {users.filter(u => u.specificRoleId !== selectedRole._id && u.role !== 'admin' && u.role !== 'super_admin').length} Potential Bindings
+                      </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3">
+                    {users.filter(u => u.specificRoleId !== selectedRole._id && u.role !== 'admin' && u.role !== 'super_admin').map((u) => (
+                      <div 
+                        key={u._id} 
+                        onClick={() => {
+                          setSelectedUserIds(prev => 
+                            prev.includes(u._id) ? prev.filter(id => id !== u._id) : [...prev, u._id]
+                          );
+                        }}
+                        className={`flex items-center justify-between p-4 rounded-2xl border transition-all cursor-pointer ${selectedUserIds.includes(u._id) ? 'bg-emerald-50 border-emerald-200 shadow-sm' : 'bg-white border-slate-100 hover:border-emerald-100'}`}
+                      >
+                        <div className="flex items-center gap-4">
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${selectedUserIds.includes(u._id) ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                                {u.firstName?.charAt(0) || u.email?.charAt(0)}
+                            </div>
+                            <div>
+                                <p className="text-sm font-bold text-slate-800">{u.firstName} {u.lastName}</p>
+                                <p className="text-[10px] font-medium text-slate-400">{u.email}</p>
+                            </div>
+                        </div>
+                        <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${selectedUserIds.includes(u._id) ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-slate-100'}`}>
+                            {selectedUserIds.includes(u._id) && <Check size={14} strokeWidth={3} />}
+                        </div>
+                      </div>
+                    ))}
+                    {users.filter(u => u.specificRoleId !== selectedRole._id).length === 0 && (
+                      <div className="text-center py-8 text-slate-400 font-bold uppercase text-[10px] tracking-widest">All current users are already bound to this node identity.</div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="p-8 border-t border-slate-100 bg-slate-50/30 flex justify-end gap-4">
+                  <button
+                    onClick={() => setIsUserAssignModalOpen(false)}
+                    className="px-8 py-4 text-slate-400 font-black hover:text-slate-600 transition-all uppercase text-[10px] tracking-widest"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    disabled={selectedUserIds.length === 0 || isAssigning}
+                    onClick={async () => {
+                      try {
+                        setIsAssigning(true);
+                        // Bulk update users
+                        await Promise.all(selectedUserIds.map(uid => 
+                          api.put(`/api/users/${uid}`, { 
+                            specificRoleId: selectedRole._id,
+                            specificRole: selectedRole.name
+                          })
+                        ));
+                        
+                        toast.success(`${selectedUserIds.length} users bound to '${selectedRole.name}' node`);
+                        setIsUserAssignModalOpen(false);
+                        // Refresh users list
+                        const usersRes = await api.get('/api/users');
+                        if (usersRes.data.success) setUsers(usersRes.data.data);
+                      } catch (err: any) {
+                        console.error('❌ User assignment error:', err);
+                        alert(err.response?.data?.message || 'Matrix assignment failed');
+                      } finally {
+                        setIsAssigning(false);
+                      }
+                    }}
+                    className="px-10 py-5 bg-emerald-600 text-white rounded-[24px] font-black shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all active:scale-95 uppercase text-[10px] tracking-widest disabled:opacity-50 flex items-center justify-center gap-3"
+                  >
+                    {isAssigning ? 'Binding...' : `Bind ${selectedUserIds.length} Persona${selectedUserIds.length !== 1 ? 's' : ''}`}
+                    <UserPlus size={18} />
+                  </button>
+                </div>
+              </motion.div>
+            </div>
           )}
         </AnimatePresence>
 

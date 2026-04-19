@@ -34,7 +34,7 @@ export default function AllChecklistsPage() {
   const [selectedChecklist, setSelectedChecklist] = useState<any>(null);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const router = useRouter();
-  const { can } = usePermissions();
+  const { can, btnDisabledClass, permissionDisabledClass } = usePermissions();
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');

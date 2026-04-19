@@ -25,7 +25,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 
 export default function ProjectPortfoliosPage() {
   const router = useRouter();
-  const { can } = usePermissions();
+  const { can, btnDisabledClass, permissionDisabledClass } = usePermissions();
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -152,13 +152,8 @@ export default function ProjectPortfoliosPage() {
             </button>
             <button 
               onClick={() => can('Project.CREATE') && setIsModalOpen(true)}
-              disabled={!can('Project.CREATE')}
               title={!can('Project.CREATE') ? "Matrix Restricted: Contact Authority Architect" : ""}
-              className={`flex items-center gap-3 px-8 py-4.5 rounded-[24px] font-black text-xs uppercase tracking-[0.1em] transition-all shadow-xl active:scale-95 ${
-                can('Project.CREATE') 
-                ? 'bg-slate-900 text-white shadow-slate-200 hover:bg-indigo-600' 
-                : 'bg-slate-100 text-slate-300 grayscale opacity-30 cursor-not-allowed border border-slate-200 shadow-none hover:bg-slate-100'
-              }`}
+              className="flex items-center gap-3 px-10 py-5 rounded-[24px] font-black text-[11px] uppercase tracking-[0.2em] transition-all shadow-2xl active:scale-95 bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100"
             >
               <Plus size={20} strokeWidth={3} />
               New Project

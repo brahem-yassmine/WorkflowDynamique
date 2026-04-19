@@ -20,14 +20,14 @@ const { checkTenantActive } = require('../middleware/tenantMiddleware');
 router.use(auth, checkTenantActive);
 
 // CRUD de base
-router.get('/', hasPermission('FORM_VIEW'), getForms);
-router.get('/:formId', hasPermission('FORM_VIEW'), getFormById);
-router.post('/', hasPermission('FORM_CREATE'), createForm);
-router.put('/:formId', hasPermission('FORM_EDIT'), updateForm);
-router.patch('/:formId', hasPermission('FORM_EDIT'), updateForm);
-router.delete('/:formId', hasPermission('FORM_DELETE'), deleteForm);
-router.patch('/:formId/status', hasPermission('FORM_MANAGE_STATUS'), updateFormStatus);
-router.post('/:formId/submit', hasPermission('FORM_FILL'), submitForm);
-router.post('/:formId/clone', hasPermission('FORM_CLONE'), cloneForm);
+router.get('/', getForms);
+router.get('/:formId', getFormById);
+router.post('/', hasPermission('Form.CREATE'), createForm);
+router.put('/:formId', hasPermission('Form.UPDATE'), updateForm);
+router.patch('/:formId', hasPermission('Form.UPDATE'), updateForm);
+router.delete('/:formId', hasPermission('Form.DELETE'), deleteForm);
+router.patch('/:formId/status', hasPermission('Form.UPDATE'), updateFormStatus);
+router.post('/:formId/submit', hasPermission('Form.SUBMIT'), submitForm);
+router.post('/:formId/clone', hasPermission('Form.CREATE'), cloneForm);
 
 module.exports = router;

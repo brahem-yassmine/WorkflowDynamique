@@ -27,7 +27,7 @@ const useUser = () => {
 
   useEffect(() => {
     fetchUser();
-    
+
     // Listen for storage changes from other hooks (like useAuth)
     window.addEventListener('storage', fetchUser);
     return () => window.removeEventListener('storage', fetchUser);

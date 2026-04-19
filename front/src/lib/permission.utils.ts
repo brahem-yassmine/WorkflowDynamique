@@ -101,5 +101,5 @@ export const ACTION_TOOLTIPS: Record<string, string> = {
   "EXECUTE": "Can launch and use workflows",
   "ASSIGN": "Can assign tasks to other users",
   "COMPLETE": "Can execute and validate tasks",
-  "COMPLETE_ITEM": "Can check/uncheck checklist items"
+  "COMPLETE_ITEM": "Can check/uncheck checklist items",
 };

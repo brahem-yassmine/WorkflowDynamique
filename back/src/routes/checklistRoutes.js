@@ -7,8 +7,8 @@ const { tenantResolver } = require('../middleware/tenantMiddleware');
 router.use(auth);
 router.use(tenantResolver);
 
-router.get('/', hasPermission('Checklist.VIEW'), checklistController.getChecklists);
-router.get('/:id', hasPermission('Checklist.VIEW'), checklistController.getChecklistById);
+router.get('/', checklistController.getChecklists);
+router.get('/:id', checklistController.getChecklistById);
 router.post('/', hasPermission('Checklist.VIEW'), checklistController.createChecklist); // Usually creation of instance-checklist requires at least view
 router.put('/:id', hasPermission('Checklist.VIEW'), checklistController.updateChecklist);
 router.post('/:id/clone', hasPermission('Checklist.VIEW'), checklistController.cloneChecklist);

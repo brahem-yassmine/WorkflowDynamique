@@ -14,7 +14,8 @@ const permissions = [
   { name: 'Workflow.DELETE', description: 'Can remove workflow definitions', category: 'WORKFLOW' },
   { name: 'Workflow.UPDATE', description: 'Can modify existing workflow structures', category: 'WORKFLOW' },
   { name: 'Workflow.VIEW', description: 'Can view workflow designs', category: 'WORKFLOW' },
-  { name: 'Workflow.EXECUTE', description: 'Can launch and use workflows', category: 'WORKFLOW' },
+  // Execution moved to Template category
+
 
   // --- DOMAIN ---
   { name: 'Domain.CREATE', description: 'Can create new administrative domains', category: 'DOMAIN' },
@@ -22,11 +23,13 @@ const permissions = [
   { name: 'Domain.UPDATE', description: 'Can update domain configurations', category: 'DOMAIN' },
   { name: 'Domain.VIEW', description: 'Can view domain structures', category: 'DOMAIN' },
 
-  // --- MODULE ---
-  { name: 'Module.CREATE', description: 'Can create new operational modules', category: 'MODULE' },
-  { name: 'Module.DELETE', description: 'Can remove operational modules', category: 'MODULE' },
-  { name: 'Module.UPDATE', description: 'Can update module settings', category: 'MODULE' },
-  { name: 'Module.VIEW', description: 'Can view module details', category: 'MODULE' },
+  // --- TEMPLATE ---
+  { name: 'Template.CREATE', description: 'Can create operational templates', category: 'TEMPLATE' },
+  { name: 'Template.DELETE', description: 'Can remove templates', category: 'TEMPLATE' },
+  { name: 'Template.UPDATE', description: 'Can modify templates', category: 'TEMPLATE' },
+  { name: 'Template.VIEW', description: 'Can view template registry', category: 'TEMPLATE' },
+  { name: 'Template.EXECUTE', description: 'Can launch and use workflows based on templates', category: 'TEMPLATE' },
+
 
   // --- FORM ---
   { name: 'Form.CLONE', description: 'Can duplicate existing form templates', category: 'FORM' },

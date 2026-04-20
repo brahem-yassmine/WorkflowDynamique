@@ -75,7 +75,7 @@ const COLORS = [
 
 function DomainModulesContent() {
     const router = useRouter();
-    const { can, btnDisabledClass, permissionDisabledClass } = usePermissions();
+    const { can, btnDisabledClass, permissionDisabledClass, roleScope } = usePermissions();
     const searchParams = useSearchParams();
     const domainId = searchParams.get('domainId');
     const selectedModuleId = searchParams.get('moduleId');
@@ -448,8 +448,8 @@ function DomainModulesContent() {
                                 <div className="relative z-10 flex flex-col gap-3 flex-none pr-4">
                                     {!selectedModuleId ? (
                                         <button 
-                                            onClick={() => can('Module.CREATE') && openModuleModal()}
-                                            title={!can('Module.CREATE') ? "Matrix Restricted" : "Initialize New Unit"}
+                                            onClick={() => can('Module.CREATE', { domainId: domainId || undefined }) && openModuleModal()}
+                                            title={!can('Module.CREATE', { domainId: domainId || undefined }) ? "Matrix Restricted" : "Initialize New Unit"}
                                             className="group/btn relative px-10 py-5 rounded-full overflow-hidden shadow-2xl transition-all active:scale-95 flex items-center justify-center gap-3 bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-500/20"
                                         >
                                             <Plus size={20} className="group-hover/btn:rotate-90 transition-transform stroke-[3]" />
@@ -457,8 +457,8 @@ function DomainModulesContent() {
                                         </button>
                                     ) : (
                                         <button 
-                                            onClick={() => can('Workflow.CREATE') && router.push(`/User/create?domainId=${domainId}&moduleId=${selectedModuleId}&isTemplate=true&fresh=true`)}
-                                            title={!can('Workflow.CREATE') ? "Matrix Restricted" : "Establish New Protocol"}
+                                            onClick={() => can('Template.CREATE', { domainId: domainId || undefined, moduleId: selectedModuleId || undefined }) && router.push(`/User/create?domainId=${domainId}&moduleId=${selectedModuleId}&isTemplate=true&fresh=true`)}
+                                            title={!can('Template.CREATE', { domainId: domainId || undefined, moduleId: selectedModuleId || undefined }) ? "Matrix Restricted" : "Establish New Protocol"}
                                             className="group/btn relative px-10 py-5 rounded-full overflow-hidden shadow-2xl transition-all active:scale-95 flex items-center justify-center gap-3 bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-500/20"
                                         >
                                             <Zap size={20} className="relative z-10 transition-transform group-hover/btn:scale-110 stroke-[3]" />
@@ -516,7 +516,7 @@ function DomainModulesContent() {
                                     >
                                         {!selectedModuleId ? (
                                             filteredModules.length > 0 ? (
-                                                <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ${permissionDisabledClass('Module.VIEW')}`}>
+                                                <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ${permissionDisabledClass('Module.VIEW', { domainId: domainId || undefined })}`}>
                                                     {filteredModules.map((mod, idx) => (
                                                     <motion.div 
                                                         key={mod._id}
@@ -549,7 +549,7 @@ function DomainModulesContent() {
                                                                         e.stopPropagation();
                                                                         openModuleModal(mod);
                                                                     }}
-                                                                    className={`flex-1 py-3 bg-slate-50 text-slate-400 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-50 hover:text-indigo-600 transition-all ${btnDisabledClass('Module.UPDATE')}`}
+                                                                    className={`flex-1 py-3 bg-slate-50 text-slate-400 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-50 hover:text-indigo-600 transition-all ${btnDisabledClass('Module.UPDATE', { domainId: domainId || undefined, moduleId: mod._id })}`}
                                                                 >
                                                                     Refine
                                                                 </button>
@@ -558,7 +558,7 @@ function DomainModulesContent() {
                                                                         e.stopPropagation();
                                                                         handleModuleDelete(mod._id);
                                                                     }}
-                                                                    className={`w-12 h-12 flex items-center justify-center text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-2xl transition-all ${btnDisabledClass('Module.DELETE')}`}
+                                                                    className={`w-12 h-12 flex items-center justify-center text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-2xl transition-all ${btnDisabledClass('Module.DELETE', { domainId: domainId || undefined, moduleId: mod._id })}`}
                                                                 >
                                                                     <Trash2 size={18} />
                                                                 </button>
@@ -576,7 +576,7 @@ function DomainModulesContent() {
                                                 </div>
                                             )
                                         ) : (
-                                        <div className={`space-y-4 ${permissionDisabledClass('Workflow.VIEW')}`}>
+                                        <div className={`space-y-4 ${permissionDisabledClass('Workflow.VIEW', { domainId: domainId || undefined, moduleId: selectedModuleId || undefined })}`}>
                                             {templates.length > 0 ? (
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                     {templates.map((tpl, idx) => (
@@ -595,10 +595,10 @@ function DomainModulesContent() {
                                                         </div>
                                                         <div className="flex gap-2 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-500">
                                                             <button 
-                                                                onClick={(e) => { e.stopPropagation(); can('Workflow.CREATE') && handleDuplicateTemplate(tpl._id); }}
-                                                                title={!can('Workflow.CREATE') ? "Matrix Restricted" : "Clone Template"}
+                                                                onClick={(e) => { e.stopPropagation(); can('Workflow.CREATE', { domainId: domainId || undefined, moduleId: selectedModuleId || undefined }) && handleDuplicateTemplate(tpl._id); }}
+                                                                title={!can('Workflow.CREATE', { domainId: domainId || undefined, moduleId: selectedModuleId || undefined }) ? "Matrix Restricted" : "Clone Template"}
                                                                 className={`p-3 rounded-xl transition-colors ${
-                                                                    can('Workflow.CREATE')
+                                                                    can('Workflow.CREATE', { domainId: domainId || undefined, moduleId: selectedModuleId || undefined })
                                                                     ? 'bg-indigo-50 text-indigo-500 hover:bg-indigo-500 hover:text-white'
                                                                     : 'bg-slate-50 text-slate-200 cursor-not-allowed pointer-events-none'
                                                                 }`}
@@ -606,10 +606,10 @@ function DomainModulesContent() {
                                                                 <Copy size={16} />
                                                             </button>
                                                             <button 
-                                                                onClick={(e) => { e.stopPropagation(); can('Workflow.DELETE') && handleTemplateDelete(tpl._id); }}
-                                                                title={!can('Workflow.DELETE') ? "Matrix Restricted" : "Delete Template"}
+                                                                onClick={(e) => { e.stopPropagation(); can('Workflow.DELETE', { domainId: domainId || undefined, moduleId: selectedModuleId || undefined }) && handleTemplateDelete(tpl._id); }}
+                                                                title={!can('Workflow.DELETE', { domainId: domainId || undefined, moduleId: selectedModuleId || undefined }) ? "Matrix Restricted" : "Delete Template"}
                                                                 className={`p-3 rounded-xl transition-colors ${
-                                                                    can('Workflow.DELETE') 
+                                                                    can('Workflow.DELETE', { domainId: domainId || undefined, moduleId: selectedModuleId || undefined }) 
                                                                     ? 'bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white'
                                                                     : 'bg-slate-50 text-slate-200 cursor-not-allowed pointer-events-none'
                                                                 }`}
@@ -632,10 +632,10 @@ function DomainModulesContent() {
     
                                                     <div className="flex items-center gap-3 pt-6 border-t border-slate-50">
                                                             <button 
-                                                                onClick={() => { can('Workflow.CREATE') && (setTemplateToAssign(tpl), setIsAssignModalOpen(true)); }}
-                                                                title={!can('Workflow.CREATE') ? "Matrix Restricted" : "Assign to Project"}
+                                                                onClick={() => { can('Workflow.CREATE', { domainId: domainId || undefined, moduleId: selectedModuleId || undefined }) && (setTemplateToAssign(tpl), setIsAssignModalOpen(true)); }}
+                                                                title={!can('Workflow.CREATE', { domainId: domainId || undefined, moduleId: selectedModuleId || undefined }) ? "Matrix Restricted" : "Assign to Project"}
                                                                 className={`flex-1 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95 ${
-                                                                    can('Workflow.CREATE')
+                                                                    can('Workflow.CREATE', { domainId: domainId || undefined, moduleId: selectedModuleId || undefined })
                                                                     ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100/50'
                                                                     : 'bg-slate-100 text-slate-300 grayscale opacity-30 cursor-not-allowed pointer-events-none'
                                                                 }`}
@@ -651,10 +651,10 @@ function DomainModulesContent() {
                                                                 View
                                                             </button>
                                                             <button 
-                                                                onClick={() => { can('Workflow.UPDATE') && router.push(`/User/create?id=${tpl._id}&moduleId=${selectedModuleId}&domainId=${domainId}&isTemplate=true`); }}
-                                                                title={!can('Workflow.UPDATE') ? "Matrix Restricted" : "Refine Protocol"}
+                                                                onClick={() => { can('Workflow.UPDATE', { domainId: domainId || undefined, moduleId: selectedModuleId || undefined }) && router.push(`/User/create?id=${tpl._id}&moduleId=${selectedModuleId}&domainId=${domainId}&isTemplate=true`); }}
+                                                                title={!can('Workflow.UPDATE', { domainId: domainId || undefined, moduleId: selectedModuleId || undefined }) ? "Matrix Restricted" : "Refine Protocol"}
                                                                 className={`p-3.5 border rounded-2xl transition-all flex items-center justify-center active:scale-95 shadow-sm shrink-0 bg-white border-slate-100 text-slate-400 hover:text-indigo-600 ${
-                                                                    can('Workflow.UPDATE') ? '' : 'bg-slate-50 border-slate-50 text-slate-200 grayscale opacity-40 cursor-not-allowed pointer-events-none'
+                                                                    can('Workflow.UPDATE', { domainId: domainId || undefined, moduleId: selectedModuleId || undefined }) ? '' : 'bg-slate-50 border-slate-50 text-slate-200 grayscale opacity-40 cursor-not-allowed pointer-events-none'
                                                                 }`}
                                                             >
                                                                 <Edit size={16} />

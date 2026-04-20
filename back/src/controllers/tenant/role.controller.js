@@ -128,6 +128,8 @@ class RoleController {
   static async update(req, res) {
     try {
       const Role = RoleController.getModel(req);
+      const User = req.tenantConn.model('User');
+      const Domain = req.tenantConn.model('Domain');
       const { id } = req.params;
       const { name, description, permissions, isDefault, isActive } = req.body;
       
@@ -159,6 +161,10 @@ class RoleController {
         }
       }
 
+      const prevName = role.name;
+      const prevDomainId = role.domainId?.toString();
+      const prevModuleId = role.moduleId?.toString();
+
       role.name = name || role.name;
       role.description = description !== undefined ? description : role.description;
       role.permissions = finalPermissions;
@@ -171,6 +177,32 @@ class RoleController {
 
       await role.save();
       console.log('✅ [RoleController] Role updated successfully:', role._id);
+
+      // --- PROPAGATION LOGIC ---
+      // If scope or name changed, sync all assigned users
+      const nameChanged = name && name !== prevName;
+      const scopeChanged = (domainId !== undefined && domainId?.toString() !== prevDomainId) || 
+                           (moduleId !== undefined && moduleId?.toString() !== prevModuleId);
+
+      if (nameChanged || scopeChanged) {
+        console.log('🔄 [RoleController] Propagating authority scope changes to assigned users...');
+        const updateData = {};
+        if (nameChanged) updateData.specificRole = name;
+        if (domainId !== undefined) updateData.domainId = domainId;
+        if (moduleId !== undefined) updateData.moduleId = moduleId;
+
+        // Fetch domain name if domainId is present for UI consistency
+        if (domainId) {
+          const dom = await Domain.findById(domainId);
+          if (dom) updateData.domain = dom.name;
+        } else if (domainId === null) {
+          updateData.domain = '';
+        }
+
+        const syncResult = await User.updateMany({ specificRoleId: id }, { $set: updateData });
+        console.log(`✅ [RoleController] Synchronized ${syncResult.modifiedCount} user accounts.`);
+      }
+
       res.json({ success: true, data: role });
 
     } catch (error) {
@@ -313,6 +345,54 @@ class RoleController {
 
     } catch (error) {
       console.error('getAvailablePermissions Error:', error);
+      res.status(500).json({ success: false, message: error.message });
+    }
+  }
+
+  // Bulk Assign Users
+  static async assignUsers(req, res) {
+    try {
+      console.log('🏗️ [RoleController] Hit assignUsers route');
+      const Role = RoleController.getModel(req);
+      const User = req.tenantConn.model('User');
+      const Domain = req.tenantConn.model('Domain');
+      const { id } = req.params;
+      const { userIds } = req.body;
+
+      if (!userIds || !Array.isArray(userIds)) {
+        return res.status(400).json({ success: false, message: 'User identifiers required for binding' });
+      }
+
+      const role = await Role.findById(id);
+      if (!role) {
+        return res.status(404).json({ success: false, message: 'Authority Node not found' });
+      }
+
+      const updateData = {
+        specificRoleId: role._id,
+        specificRole: role.name,
+        domainId: role.domainId || null,
+        moduleId: role.moduleId || null
+      };
+
+      // Sync domain name text for Persona Matrix UI
+      if (role.domainId) {
+        const dom = await Domain.findById(role.domainId);
+        if (dom) updateData.domain = dom.name;
+      } else {
+        updateData.domain = '';
+      }
+
+      const result = await User.updateMany(
+        { _id: { $in: userIds } },
+        { $set: updateData }
+      );
+
+      console.log(`✅ [RoleController] Bound ${result.modifiedCount} personas to node: ${role.name}`);
+      res.json({ success: true, message: `${result.modifiedCount} accounts synchronized`, data: { modifiedCount: result.modifiedCount } });
+
+    } catch (error) {
+      console.error('❌ [RoleController] assignUsers Error:', error);
       res.status(500).json({ success: false, message: error.message });
     }
   }

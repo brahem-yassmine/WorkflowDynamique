@@ -46,7 +46,7 @@ const COLORS = [
 
 function DomainsPageContent() {
     const router = useRouter();
-    const { can, btnDisabledClass, permissionDisabledClass } = usePermissions();
+    const { can, btnDisabledClass, permissionDisabledClass, roleScope } = usePermissions();
     const searchParams = useSearchParams();
     const [domains, setDomains] = useState<Domain[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
@@ -226,7 +226,7 @@ function DomainsPageContent() {
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: idx * 0.05 }}
                                 onClick={() => router.push(`/User/MODULES?domainId=${domain._id}`)}
-                                className={`group relative bg-white rounded-3xl border-y border-l border-slate-100 border-r-4 border-r-indigo-600 p-8 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.03)] hover:shadow-xl hover:shadow-indigo-500/10 transition-all cursor-pointer overflow-hidden flex flex-col ${permissionDisabledClass('Domain.VIEW')}`}
+                                className={`group relative bg-white rounded-3xl border-y border-l border-slate-100 border-r-4 border-r-indigo-600 p-8 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.03)] hover:shadow-xl hover:shadow-indigo-500/10 transition-all cursor-pointer overflow-hidden flex flex-col ${permissionDisabledClass('Domain.VIEW', { domainId: domain._id })}`}
                             >
                                 {/* Top area with Icon and Badge */}
                                 <div className="flex justify-between items-start mb-6">
@@ -251,19 +251,19 @@ function DomainsPageContent() {
                                 {/* Hidden Actions (Shows on Hover) */}
                                 <div className="absolute bottom-4 right-6 flex gap-2 opacity-0 group-hover:opacity-100 translate-y-3 group-hover:translate-y-0 transition-all duration-500">
                                     <button 
-                                        onClick={(e) => { e.stopPropagation(); can('Domain.UPDATE') && handleEdit(domain); }}
-                                        title={!can('Domain.UPDATE') ? "Matrix Restricted" : "Refine Sector"}
+                                        onClick={(e) => { e.stopPropagation(); can('Domain.UPDATE', { domainId: domain._id }) && handleEdit(domain); }}
+                                        title={!can('Domain.UPDATE', { domainId: domain._id }) ? "Matrix Restricted" : "Refine Sector"}
                                         className={`p-2.5 rounded-lg hover:shadow-md transition-all ${
-                                            btnDisabledClass('Domain.UPDATE') || 'bg-white border border-slate-100 text-slate-400 hover:text-indigo-600'
+                                            btnDisabledClass('Domain.UPDATE', { domainId: domain._id }) || 'bg-white border border-slate-100 text-slate-400 hover:text-indigo-600'
                                         }`}
                                     >
                                         <Edit size={14} />
                                     </button>
                                     <button 
-                                        onClick={(e) => { e.stopPropagation(); can('Domain.DELETE') && handleDelete(domain._id); }}
-                                        title={!can('Domain.DELETE') ? "Matrix Restricted" : "Fragment Sector"}
+                                        onClick={(e) => { e.stopPropagation(); can('Domain.DELETE', { domainId: domain._id }) && handleDelete(domain._id); }}
+                                        title={!can('Domain.DELETE', { domainId: domain._id }) ? "Matrix Restricted" : "Fragment Sector"}
                                         className={`p-2.5 rounded-lg hover:shadow-md transition-all ${
-                                            btnDisabledClass('Domain.DELETE') || 'bg-white border border-slate-100 text-slate-400 hover:text-rose-600'
+                                            btnDisabledClass('Domain.DELETE', { domainId: domain._id }) || 'bg-white border border-slate-100 text-slate-400 hover:text-rose-600'
                                         }`}
                                     >
                                         <Trash2 size={14} />

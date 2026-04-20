@@ -218,6 +218,10 @@ const login = async (req, res) => {
 
           if (userRole) {
             permissions = userRole.permissions || [];
+            req.roleScope = {
+              domainId: userRole.domainId || null,
+              moduleId: userRole.moduleId || null
+            };
           }
           await conn.close();
         }
@@ -351,7 +355,8 @@ const login = async (req, res) => {
           subscriptionExpired,
           daysLeft,
           currentPlan,
-          permissions: permissions || []
+          permissions: permissions || [],
+          roleScope: req.roleScope || null
         },
         tenantId: tenantId
       }
@@ -744,6 +749,10 @@ const getProfile = async (req, res) => {
 
           if (userRoleNode) {
             permissions = userRoleNode.permissions || [];
+            req.roleScope = {
+              domainId: userRoleNode.domainId || null,
+              moduleId: userRoleNode.moduleId || null
+            };
           }
           await conn.close();
         }
@@ -758,7 +767,8 @@ const getProfile = async (req, res) => {
         ...user.toObject(),
         role: role,
         tenantId: tenantId,
-        permissions: permissions
+        permissions: permissions,
+        roleScope: req.roleScope || null
       }
     });
   } catch (error) {

@@ -56,7 +56,7 @@ function AllWorkflowsContent() {
     const searchParams = useSearchParams();
     const [workflows, setWorkflows] = useState<Workflow[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const { can, btnDisabledClass, permissionDisabledClass, blurDisabledClass } = usePermissions();
+    const { can, btnDisabledClass, permissionDisabledClass, blurDisabledClass, roleScope } = usePermissions();
     const [searchTerm, setSearchTerm] = useState('');
 
     const fetchWorkflows = async () => {
@@ -173,9 +173,18 @@ function AllWorkflowsContent() {
                     </div>
                     
                     <button
-                        onClick={() => can('Workflow.CREATE') && router.push('/User/create?fresh=true')}
-                        className={`px-10 py-5 rounded-[22px] font-black text-[11px] uppercase tracking-[0.2em] transition-all shadow-2xl active:scale-95 flex items-center gap-3 bg-indigo-600 text-white hover:bg-indigo-500 shadow-indigo-900/20 ${blurDisabledClass('Workflow.CREATE')}`}
-                        title={!can('Workflow.CREATE') ? "Matrix Restricted" : ""}
+                        onClick={() => {
+                            const context = roleScope ? { domainId: roleScope.domainId, moduleId: roleScope.moduleId } : undefined;
+                            if (can('Workflow.CREATE', context)) {
+                                const params = new URLSearchParams();
+                                params.set('fresh', 'true');
+                                if (roleScope?.domainId) params.set('domainId', roleScope.domainId);
+                                if (roleScope?.moduleId) params.set('moduleId', roleScope.moduleId);
+                                router.push(`/User/create?${params.toString()}`);
+                            }
+                        }}
+                        className={`px-10 py-5 rounded-[22px] font-black text-[11px] uppercase tracking-[0.2em] transition-all shadow-2xl active:scale-95 flex items-center gap-3 bg-indigo-600 text-white hover:bg-indigo-500 shadow-indigo-900/20 ${blurDisabledClass('Workflow.CREATE', roleScope ? { domainId: roleScope.domainId, moduleId: roleScope.moduleId } : undefined)}`}
+                        title={!can('Workflow.CREATE', roleScope ? { domainId: roleScope.domainId, moduleId: roleScope.moduleId } : undefined) ? "Matrix Restricted" : ""}
                     >
                         <Plus size={20} strokeWidth={3} />
                         Create New Workflow
@@ -206,8 +215,8 @@ function AllWorkflowsContent() {
                       <motion.div
                           key={workflow._id}
                           whileHover={{ y: -8 }}
-                          onClick={() => can('Workflow.VIEW') && router.push(`/User/Workflows/${workflow._id}`)}
-                          className={`bg-white rounded-[2.5rem] border border-slate-100 p-8 shadow-xl shadow-slate-100/30 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all relative overflow-hidden group ${can('Workflow.VIEW') ? 'cursor-pointer' : 'cursor-not-allowed'} ${blurDisabledClass('Workflow.VIEW')}`}
+                          onClick={() => can('Workflow.VIEW', { moduleId: workflow.moduleId?._id || workflow.moduleId }) && router.push(`/User/Workflows/${workflow._id}`)}
+                          className={`bg-white rounded-[2.5rem] border border-slate-100 p-8 shadow-xl shadow-slate-100/30 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all relative overflow-hidden group ${can('Workflow.VIEW', { moduleId: workflow.moduleId?._id || workflow.moduleId }) ? 'cursor-pointer' : 'cursor-not-allowed'} ${blurDisabledClass('Workflow.VIEW', { moduleId: workflow.moduleId?._id || workflow.moduleId })}`}
                       >
                           <div className="flex justify-between items-start mb-6">
                               <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-inner">
@@ -243,12 +252,12 @@ function AllWorkflowsContent() {
                                   <button 
                                       onClick={(e) => {
                                           e.stopPropagation();
-                                          can('Workflow.UPDATE') && router.push(`/User/create?id=${workflow._id}`);
+                                          can('Workflow.UPDATE', { moduleId: workflow.moduleId?._id || workflow.moduleId }) && router.push(`/User/create?id=${workflow._id}`);
                                       }}
                                       className={`flex-[3] py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 group/btn ${
-                                          blurDisabledClass('Workflow.UPDATE') || 'bg-slate-900 text-white hover:bg-indigo-600'
+                                          blurDisabledClass('Workflow.UPDATE', { moduleId: workflow.moduleId?._id || workflow.moduleId }) || 'bg-slate-900 text-white hover:bg-indigo-600'
                                       }`}
-                                      title={!can('Workflow.UPDATE') ? "Matrix Restricted" : "Open Architect"}
+                                      title={!can('Workflow.UPDATE', { moduleId: workflow.moduleId?._id || workflow.moduleId }) ? "Matrix Restricted" : "Open Architect"}
                                   >
                                       Open Architect
                                       <ChevronRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />

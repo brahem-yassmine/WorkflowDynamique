@@ -709,13 +709,10 @@ export default function RolesPage() {
                     onClick={async () => {
                       try {
                         setIsAssigning(true);
-                        // Bulk update users
-                        await Promise.all(selectedUserIds.map(uid => 
-                          api.put(`/api/users/${uid}`, { 
-                            specificRoleId: selectedRole._id,
-                            specificRole: selectedRole.name
-                          })
-                        ));
+                        // Bulk update users via the new synchronized endpoint
+                        await api.post(`/api/tenant/roles/${selectedRole._id}/assign-users`, { 
+                          userIds: selectedUserIds 
+                        });
                         
                         toast.success(`${selectedUserIds.length} users bound to '${selectedRole.name}' node`);
                         setIsUserAssignModalOpen(false);

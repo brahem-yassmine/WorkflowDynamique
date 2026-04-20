@@ -12,6 +12,7 @@ import { apiService } from '@/service/api.service';
 import { motion, AnimatePresence } from 'framer-motion';
 import { showAlert, showConfirm } from '@/lib/alerts';
 import { toast } from 'sonner';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface NodeDetailsPanelProps {
     selectedNode: Node | null;
@@ -49,6 +50,7 @@ const TabButton = ({ active, onClick, icon, title, subtitle }: any) => (
 
 const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onClose, onUpdate, onDelete }: NodeDetailsPanelProps) => {
     const router = useRouter();
+    const { can, btnDisabledClass } = usePermissions();
     const [label, setLabel] = useState('');
     const [description, setDescription] = useState('');
     const [responsibleDomain, setResponsibleDomain] = useState('');
@@ -483,16 +485,18 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
 
                                                                 <div className="flex gap-3">
                                                                     <Button
-                                                                        onClick={handleCreateBoard}
-                                                                        className="flex-1 h-14 bg-indigo-50 text-indigo-700 font-bold rounded-2xl hover:bg-indigo-100 transition-all border border-indigo-200/50 flex items-center justify-center gap-3"
+                                                                        onClick={() => can('Kanban.CREATE') && handleCreateBoard()}
+                                                                        className={`flex-1 h-14 bg-indigo-50 text-indigo-700 font-bold rounded-2xl hover:bg-indigo-100 transition-all border border-indigo-200/50 flex items-center justify-center gap-3 ${btnDisabledClass('Kanban.CREATE')}`}
+                                                                        title={!can('Kanban.CREATE') ? "Permission Restricted" : "Instantiate Kanban"}
                                                                     >
                                                                         <Plus size={18} />
                                                                         Instantiate
                                                                     </Button>
                                                                     {kanbanBoardId && (
                                                                         <Button
-                                                                            onClick={handleViewBoard}
-                                                                            className="flex-1 h-14 bg-slate-900 text-white font-bold rounded-2xl hover:bg-slate-800 transition-all shadow-lg flex items-center justify-center gap-3"
+                                                                            onClick={() => can('Kanban.VIEW') && handleViewBoard()}
+                                                                            className={`flex-1 h-14 bg-slate-900 text-white font-bold rounded-2xl hover:bg-slate-800 transition-all shadow-lg flex items-center justify-center gap-3 ${btnDisabledClass('Kanban.VIEW')}`}
+                                                                            title={!can('Kanban.VIEW') ? "Permission Restricted" : "View board"}
                                                                         >
                                                                             <ExternalLink size={18} />
                                                                             View board

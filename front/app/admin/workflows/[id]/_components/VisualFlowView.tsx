@@ -24,14 +24,14 @@ const CustomNode = ({ data, selected }: any) => {
   const isCompleted = stats.completed > 0 && stats.working === 0 && stats.rejected === 0;
 
   const getStyle = () => {
-    if (data.type === 'start') return 'bg-emerald-50 border-emerald-100 text-emerald-700 shadow-sm';
-    if (data.type === 'end') return 'bg-rose-50 border-rose-100 text-rose-700 shadow-sm';
+    if (data.type === 'start') return 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-md';
+    if (data.type === 'end') return 'bg-rose-50 border-rose-200 text-rose-700 shadow-md';
     
-    if (isWorking) return 'bg-amber-50 border-amber-200 text-amber-800 border-dashed shadow-md';
-    if (isRejected) return 'bg-rose-100 border-rose-200 text-rose-800 shadow-sm';
-    if (isCompleted) return 'bg-emerald-100 border-emerald-200 text-emerald-800 shadow-sm';
+    if (isWorking) return 'bg-amber-50 border-amber-500 text-amber-700 border-dashed shadow-xl ring-4 ring-amber-50 z-50';
+    if (isRejected) return 'bg-rose-50 border-rose-200 text-rose-600 shadow-sm';
+    if (isCompleted) return 'bg-emerald-50 border-emerald-200 text-emerald-600 shadow-sm';
     
-    return 'bg-slate-50 border-slate-200 text-slate-400 shadow-none opacity-60'; // Global pending node
+    return 'bg-white border-slate-200 text-slate-400 shadow-none'; // Global pending node
   };
 
   return (
@@ -41,7 +41,7 @@ const CustomNode = ({ data, selected }: any) => {
          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 text-emerald-400 rounded-lg text-[9px] font-black uppercase">
             <CheckCircle2 size={12} /> {stats.completed} DONE
          </div>
-         <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 text-amber-400 rounded-lg text-[9px] font-black uppercase">
+         <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 text-amber-600 rounded-lg text-[9px] font-black uppercase">
             <Clock size={12} /> {stats.working} ACTIVE
          </div>
          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-500/10 text-blue-400 rounded-lg text-[9px] font-black uppercase">
@@ -52,34 +52,44 @@ const CustomNode = ({ data, selected }: any) => {
          </div>
       </div>
 
-      <div className={`px-3 py-1.5 rounded-xl border-2 font-black text-[9px] uppercase tracking-widest flex items-center gap-2 min-w-[130px] transition-all ${getStyle()} ${selected ? 'border-indigo-400 z-50' : ''} ${isWorking ? 'animate-pulse' : ''}`}>
-        <Handle type="target" position={Position.Top} className="w-1.5 h-1.5 bg-white !border-none shadow-sm" />
+      <div className={`px-4 py-3 rounded-2xl border-2 font-black text-[10px] uppercase tracking-widest flex items-center gap-3 min-w-[160px] transition-all ${getStyle()} ${selected ? 'border-indigo-600 scale-105 shadow-2xl z-50' : ''} ${isWorking ? 'animate-pulse' : ''}`}>
+        {data.type !== 'start' && (
+          <Handle type="target" position={Position.Top} className={`!w-2 !h-2 ${isWorking ? '!bg-amber-500' : '!bg-indigo-600'} !border-2 !border-white shadow-md transition-transform hover:scale-125`} />
+        )}
         
-        <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 border border-black/5 ${isWorking ? 'bg-white' : 'bg-black/5'}`}>
-          {data.type === 'start' ? 'S' : data.type === 'end' ? 'E' : data.type === 'condition' ? '?' : <Layers size={12} />}
+        <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border border-black/5 ${isWorking ? 'bg-amber-500 text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}>
+          {data.type === 'start' ? 'S' : data.type === 'end' ? 'E' : data.type === 'condition' ? '?' : <Layers size={14} />}
         </div>
 
-        <div className="flex flex-col">
-          <span className="truncate max-w-[80px] drop-shadow-none">{data.label || 'Node'}</span>
+        <div className="flex flex-col flex-1 min-w-0">
+          <span className="truncate drop-shadow-none text-slate-800">{data.label || 'Node'}</span>
           {isWorking ? (
-             <span className="text-[5px] text-amber-600 flex items-center gap-1 mt-0">
-                <Clock size={5} /> Active
+             <span className="text-[6px] text-amber-600 font-bold flex items-center gap-1 mt-0.5">
+                <Activity size={6} className="animate-spin" /> Live Processing
              </span>
           ) : (
-             <span className={`text-[5px] flex items-center gap-1 mt-0 ${isCompleted ? 'text-emerald-600' : 'text-slate-400'}`}>
-                {isCompleted ? <CheckCircle2 size={6} /> : <div className="w-0.5 h-0.5 bg-slate-300 rounded-full" />}
-                {isCompleted ? 'Done' : 'Wait'}
+             <span className={`text-[6px] font-bold flex items-center gap-1 mt-0.5 ${isCompleted ? 'text-emerald-500' : 'text-slate-300'}`}>
+                {isCompleted ? <CheckCircle2 size={6} /> : <Clock size={6} />}
+                {isCompleted ? 'Verified' : 'Pending'}
              </span>
           )}
         </div>
         
         {/* Active Mini Indicators */}
         <div className="ml-auto flex flex-col gap-1">
-           {isWorking && <div className="w-2 h-2 bg-amber-400 rounded-full animate-ping group-hover:animate-none" />}
-           {!isWorking && stats.completed > 0 && <CheckCircle2 size={12} className="text-emerald-400" />}
+           {isWorking && <div className="w-2 h-2 bg-amber-500 rounded-full animate-ping" />}
+           {!isWorking && stats.completed > 0 && <CheckCircle2 size={14} className="text-emerald-500" />}
         </div>
 
-        <Handle type="source" position={Position.Bottom} className="w-1.5 h-1.5 bg-white !border-none shadow-sm" />
+        {/* Dynamic Handles based on type */}
+        {data.type === 'condition' ? (
+          <>
+            <Handle type="source" position={Position.Bottom} id="yes" className="!w-2 !h-2 !bg-emerald-500 !border-2 !border-white shadow-md transition-transform hover:scale-125" style={{ left: '35%' }} />
+            <Handle type="source" position={Position.Bottom} id="no" className="!w-2 !h-2 !bg-rose-500 !border-2 !border-white shadow-md transition-transform hover:scale-125" style={{ left: '65%' }} />
+          </>
+        ) : data.type !== 'end' ? (
+          <Handle type="source" position={Position.Bottom} className={`!w-2 !h-2 ${isWorking ? '!bg-amber-500' : '!bg-indigo-600'} !border-2 !border-white shadow-md transition-transform hover:scale-125`} />
+        ) : null}
       </div>
     </div>
   );
@@ -167,7 +177,45 @@ export default function VisualFlowView({ workflowId, workflow }: { workflowId: s
   }, [workflow, instances]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(nodesWithStats);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(workflow?.edges || []);
+  
+  const edgesWithStyle = useMemo(() => {
+    return (workflow?.edges || []).map((edge: any) => {
+      const isActive = instances.some(inst => 
+        inst.currentNodes?.some((cn: any) => cn.nodeId === edge.source) ||
+        inst.executionPath?.slice(-1)[0]?.nodeId === edge.target
+      );
+
+      const sourceNode = workflow?.nodes?.find((n: any) => n.id === edge.source);
+      const isCondition = sourceNode?.type === 'condition';
+
+      const isYes = edge.sourceHandle === 'yes' || edge.label === 'Yes';
+      const isNo = edge.sourceHandle === 'no' || edge.label === 'No';
+
+      return {
+        ...edge,
+        // CRITICAL: If source is NOT a condition, we MUST remove sourceHandle 
+        // because the node only has one default handle.
+        sourceHandle: isCondition ? (edge.sourceHandle || (isYes ? 'yes' : isNo ? 'no' : undefined)) : undefined,
+        type: 'smoothstep',
+        animated: isActive,
+        label: edge.label || (isYes ? 'Yes' : isNo ? 'No' : ''),
+        labelStyle: { fill: isYes ? '#10b981' : isNo ? '#ef4444' : '#64748b', fontWeight: 900, fontSize: 8 },
+        style: { 
+          stroke: isActive ? '#f59e0b' : (isYes ? '#10b981' : isNo ? '#ef4444' : '#cbd5e1'), 
+          strokeWidth: isActive ? 3 : 2,
+          opacity: isActive ? 1 : 0.6
+        },
+        markerEnd: {
+          type: 'arrowclosed',
+          width: 20,
+          height: 20,
+          color: isActive ? '#f59e0b' : (isYes ? '#10b981' : isNo ? '#ef4444' : '#cbd5e1'),
+        },
+      };
+    });
+  }, [workflow, instances]);
+
+  const [edges, setEdges, onEdgesChange] = useEdgesState(edgesWithStyle);
 
   const [isLocked, setIsLocked] = useState(false);
 
@@ -177,8 +225,8 @@ export default function VisualFlowView({ workflowId, workflow }: { workflowId: s
   }, [nodesWithStats, setNodes]);
 
   useEffect(() => {
-    setEdges(workflow?.edges || []);
-  }, [workflow?.edges, setEdges]);
+    setEdges(edgesWithStyle);
+  }, [edgesWithStyle, setEdges]);
 
   return (
     <div className="h-full flex flex-col">

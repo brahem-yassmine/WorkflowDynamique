@@ -1,5 +1,6 @@
 const PERMISSION_DEPENDENCIES = {
   // Domain rules
+  'Domain.VIEW': [],
   'Domain.CREATE': ['Domain.VIEW'],
   'Domain.UPDATE': ['Domain.VIEW'],
   'Domain.DELETE': ['Domain.VIEW'],
@@ -11,13 +12,14 @@ const PERMISSION_DEPENDENCIES = {
   'Module.DELETE': ['Module.VIEW', 'Domain.VIEW'],
 
   // Project rules
-  'Project.CREATE': ['Project.VIEW', 'Domain.VIEW'], // Hierarchy
+  'Project.VIEW': ['Domain.VIEW'],
+  'Project.CREATE': ['Project.VIEW', 'Domain.VIEW'], 
   'Project.UPDATE': ['Project.VIEW'],
   'Project.DELETE': ['Project.VIEW'],
 
   // Workflow rules
-  'Workflow.VIEW': ['Project.VIEW'],
-  'Workflow.CREATE': ['Workflow.VIEW', 'Project.VIEW', 'Form.CREATE'], 
+  'Workflow.VIEW': ['Project.VIEW', 'Domain.VIEW'],
+  'Workflow.CREATE': ['Workflow.VIEW', 'Project.VIEW', 'Form.CREATE', 'Domain.VIEW'], 
   'Workflow.UPDATE': ['Workflow.VIEW', 'Project.VIEW'],
   'Workflow.DELETE': ['Workflow.VIEW', 'Project.VIEW'],
 
@@ -29,6 +31,7 @@ const PERMISSION_DEPENDENCIES = {
   'Template.EXECUTE': ['Template.VIEW', 'Project.VIEW', 'Workflow.VIEW'],
 
   // Form rules
+  'Form.VIEW': ['Domain.VIEW'],
   'Form.CREATE': ['Form.VIEW'],
   'Form.UPDATE': ['Form.VIEW'],
   'Form.DELETE': ['Form.VIEW'],
@@ -47,18 +50,38 @@ const PERMISSION_DEPENDENCIES = {
 };
 
 /**
+ * Normalizes a permission string to a standard format (Entity.ACTION)
+ * Handles both "PROJECT_VIEW" and "Project.VIEW" formats and case differences.
+ */
+const normalizePermission = (perm) => {
+  if (!perm || typeof perm !== 'string') return '';
+  // Convert PROJECT_VIEW to Project.VIEW format internally for matching
+  const parts = perm.replace(/_/g, '.').split('.');
+  if (parts.length === 2) {
+    const entity = parts[0].charAt(0).toUpperCase() + parts[0].slice(1).toLowerCase();
+    const action = parts[1].toUpperCase();
+    return `${entity}.${action}`;
+  }
+  return perm;
+};
+
+/**
  * Recursively resolves all required dependencies for an array of permissions.
  */
 const resolveDependencies = (selectedPermissions) => {
   if (!Array.isArray(selectedPermissions)) return [];
-  const result = new Set(selectedPermissions);
+  
+  // Normalize everything to Entity.ACTION for consistent lookup
+  const normalizedInputs = selectedPermissions.map(normalizePermission);
+  const result = new Set(normalizedInputs);
   let size;
   
   do {
     size = result.size;
     result.forEach(perm => {
-      if (PERMISSION_DEPENDENCIES[perm]) {
-        PERMISSION_DEPENDENCIES[perm].forEach(dep => result.add(dep));
+      const deps = PERMISSION_DEPENDENCIES[perm];
+      if (deps) {
+        deps.forEach(dep => result.add(normalizePermission(dep)));
       }
     });
   } while (result.size > size); 
@@ -68,5 +91,6 @@ const resolveDependencies = (selectedPermissions) => {
 
 module.exports = {
   PERMISSION_DEPENDENCIES,
-  resolveDependencies
+  resolveDependencies,
+  normalizePermission
 };

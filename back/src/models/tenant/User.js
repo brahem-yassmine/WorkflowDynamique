@@ -56,6 +56,11 @@ const userSchema = new mongoose.Schema({
     default: true
   },
 
+  tokenVersion: {
+    type: Number,
+    default: 1
+  },
+
   lastLogin: Date,
 
   hasSelectedPlan: {

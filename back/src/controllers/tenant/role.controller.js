@@ -171,6 +171,18 @@ class RoleController {
 
       await role.save();
       console.log('✅ [RoleController] Role updated successfully:', role._id);
+
+      // Sécurité : Révocation immédiate des tokens affectés
+      try {
+        const User = req.tenantConn.model('User');
+        await User.updateMany(
+          { $or: [{ specificRoleId: role._id }, { role: role.name }] },
+          { $inc: { tokenVersion: 1 } }
+        );
+      } catch (err) {
+        console.error('Failed to increment user tokenVersion:', err);
+      }
+
       res.json({ success: true, data: role });
 
     } catch (error) {
@@ -238,8 +250,14 @@ class RoleController {
           return res.status(404).json({ success: false, message: 'Fallback role not found in the matrix' });
         }
 
-        await User.updateMany({ specificRoleId: id }, { specificRoleId: replacementRoleId });
-        console.log(`[RoleController] Reassigned ${usersWithRole} user(s) to role ${replacementRoleId}`);
+        await User.updateMany(
+          { specificRoleId: id }, 
+          { 
+            specificRoleId: replacementRoleId,
+            $inc: { tokenVersion: 1 }
+          }
+        );
+        console.log(`[RoleController] Reassigned ${usersWithRole} user(s) to role ${replacementRoleId} (Token Invalidated)`);
       }
 
       await Role.findByIdAndDelete(id);

@@ -66,18 +66,32 @@ const hasPermission = (permission) => {
       return res.status(401).json({ success: false, message: 'Not authenticated' });
     }
 
-    // Admin & Super Admin bypass (Total Authority)
-    if (req.user.role === 'super_admin' || req.user.role === 'admin') return next();
-
-    // Check permissions embedded in the identity token
-    if (req.user.permissions && req.user.permissions.includes(permission)) {
+    // Role-based bypass (Total Authority)
+    const role = (req.user.role || '').toLowerCase();
+    if (role === 'super_admin' || role === 'admin') {
       return next();
     }
 
-    // Rejection if the protocol identifier is missing
+    // Permission-based bypass
+    if (req.user.permissions?.includes('all')) {
+      return next();
+    }
+
+    // Normalized comparison
+    const normalize = (p) => (p || '').replace(/_/g, '.').toLowerCase();
+    const target = normalize(permission);
+    const hasPerm = req.user.permissions?.some(p => normalize(p) === target);
+
+    if (hasPerm) {
+      return next();
+    }
+
+    // ✅ DEBUG LOGGING
+    console.warn(`🛑 [Permission Denied] User: ${req.user.email} | Required: ${permission}`);
+    
     return res.status(403).json({
       success: false,
-      message: `Forbidden: Matrix restricted identifier [${permission}] is required.`
+      message: `Forbidden: Permission [${permission}] is required.`
     });
   };
 };

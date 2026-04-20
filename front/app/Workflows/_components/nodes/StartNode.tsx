@@ -14,7 +14,7 @@ const StartNode = ({ data }: any) => {
                     <div className="text-[8px] text-slate-400">Entry</div>
                 </div>
             </div>
-            <Handle type="source" position={Position.Right} className="!bg-emerald-500" />
+            <Handle type="source" position={Position.Bottom} className="!bg-emerald-500 !w-2 !h-2 !border-2 !border-white" />
         </div>
     );
 };

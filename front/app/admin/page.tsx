@@ -72,14 +72,28 @@ export default function AdminDashboard() {
 
     const counts: Record<string, number> = {};
     logs.forEach(log => {
-      const action = (log.action || 'PROCESS').split('_').pop() || 'UNIT';
-      counts[action] = (counts[action] || 0) + 1;
+      const rawAction = log.action || 'PROCESS';
+      let actionName = '';
+      
+      if (rawAction.includes('SIGN_IN')) {
+        actionName = 'LOGINS';
+      } else if (rawAction.includes('CREATE')) {
+        actionName = 'CREATIONS';
+      } else if (rawAction.includes('DELETE')) {
+        actionName = 'DELETIONS';
+      } else if (rawAction.includes('COMPLETE')) {
+        actionName = 'COMPLETED';
+      } else {
+        actionName = rawAction.split('_').pop() || 'UNIT';
+      }
+      
+      counts[actionName] = (counts[actionName] || 0) + 1;
     });
 
     return Object.entries(counts)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 4)
-      .map(([name, active]) => ({ name, active }));
+      .map(([name, active]) => ({ name: name.toUpperCase(), active }));
   };
 
   if (loading || !stats) {
@@ -293,11 +307,12 @@ function StatCard({ label, value, trend, icon, color }: { label: string; value: 
 }
 
 function ActivityItem({ label, status, color }: { label: string; status: string; color: string }) {
+  const formattedLabel = label.toLowerCase().split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   return (
     <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
       <div className="flex items-center gap-3">
         <div className={`w-2 h-2 rounded-full ${color}`}></div>
-        <span className="text-sm font-bold text-slate-700">{label}</span>
+        <span className="text-sm font-bold text-slate-700">{formattedLabel}</span>
       </div>
       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{status}</span>
     </div>

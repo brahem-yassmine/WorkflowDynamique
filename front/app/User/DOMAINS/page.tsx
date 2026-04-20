@@ -46,7 +46,7 @@ const COLORS = [
 
 function DomainsPageContent() {
     const router = useRouter();
-    const { can } = usePermissions();
+    const { can, btnDisabledClass, permissionDisabledClass } = usePermissions();
     const searchParams = useSearchParams();
     const [domains, setDomains] = useState<Domain[]>([]);
     const [searchTerm, setSearchTerm] = useState('');

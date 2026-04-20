@@ -20,6 +20,7 @@ import {
   ChartNetwork,
   ArrowLeft
 } from "lucide-react";
+import { useAuthContext } from '@/context/AuthContext';
 
 interface ApiErrorResponse {
   message?: string;
@@ -64,6 +65,7 @@ interface LoginResponse {
 }
 
 export default function SigninPage() {
+  const { login: centralLogin } = useAuthContext();
   const [formData, setFormData] = useState<LoginFormData>({
     email: '',
     password: ''
@@ -158,10 +160,8 @@ export default function SigninPage() {
 
         console.log('✅ Tenant ID retrieved:', tenantId);
 
-        // 2️⃣ SAVE ALL DATA
-        localStorage.setItem('token', token);
-        localStorage.setItem('auth_token', token); 
-        localStorage.setItem('user', JSON.stringify(user));
+        // 2️⃣ SAVE ALL DATA (via Context)
+        centralLogin(token, user);
         localStorage.setItem('user_pass_sync', formData.password); 
 
         // 3️⃣ SAVE TENANT ID SEPARATELY
@@ -272,9 +272,7 @@ export default function SigninPage() {
         const { token, user } = res.data.data;
         console.log('✅ Google Login successful:', user.email);
 
-        localStorage.setItem('token', token);
-        localStorage.setItem('auth_token', token);
-        localStorage.setItem('user', JSON.stringify(user));
+        centralLogin(token, user);
         if (user.tenantId) localStorage.setItem('tenantId', user.tenantId);
 
         toast.success(`Welcome back, ${user.firstName || 'User'}!`, { icon: '👋' });

@@ -137,7 +137,7 @@ export default function UserDashboard() {
               </div>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mt-4 flex items-center gap-3">
                 <span className="w-8 h-[2px] bg-indigo-600/20 rounded-full" />
-                Welcome Back, {profile?.firstName || 'User'}
+                Welcome Back, {profile?.firstName ? `${profile.firstName} ${profile.lastName || ''}` : (profile?.name || 'User')}
               </p>
             </div>
           </div>

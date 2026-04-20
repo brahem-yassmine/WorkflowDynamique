@@ -61,7 +61,7 @@ interface Project {
 
 function DomainModulesContent() {
     const router = useRouter();
-    const { can, permissionDisabledClass } = usePermissions();
+    const { can, permissionDisabledClass, btnDisabledClass } = usePermissions();
     const searchParams = useSearchParams();
     const domainId = searchParams.get('domainId');
     const selectedModuleId = searchParams.get('moduleId');

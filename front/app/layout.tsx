@@ -14,6 +14,7 @@ import SubscriptionWarning from "@/components/SubscriptionWarning";
 import { GoogleAuthProvider } from "@/components/providers/GoogleAuthProvider";
 import MaintenanceGuard from "@/components/MaintenanceGuard";
 import AiChatWidget from "@/components/AiChatWidget";
+import { AuthProvider } from "@/context/AuthContext";
 
 export default function RootLayout({
   children,
@@ -23,13 +24,15 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body className={inter.className} suppressHydrationWarning>
-        <MaintenanceGuard>
-          <SubscriptionWarning />
-          <GoogleAuthProvider>
-            {children}
-            <AiChatWidget />
-          </GoogleAuthProvider>
-        </MaintenanceGuard>
+        <AuthProvider>
+          <MaintenanceGuard>
+            <SubscriptionWarning />
+            <GoogleAuthProvider>
+              {children}
+              <AiChatWidget />
+            </GoogleAuthProvider>
+          </MaintenanceGuard>
+        </AuthProvider>
         <Toaster position="top-right" richColors />
       </body>
     </html>

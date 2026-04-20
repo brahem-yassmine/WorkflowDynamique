@@ -61,7 +61,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
           <div className="text-left hidden sm:block">
             <div className="flex items-center gap-1.5">
               <p className="text-[11px] font-black text-slate-900 leading-none capitalize tracking-tight">
-                {user?.name || user?.firstName || user?.email?.split('@')[0] || 'Member'}
+                {(user?.name || user?.firstName) ? `${user.name || user.firstName} ${user.lastName || ''}` : (user?.email?.split('@')[0] || 'Member')}
               </p>
               <ShieldCheck size={10} className="text-indigo-400" />
             </div>

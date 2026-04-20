@@ -5,6 +5,7 @@ const API_URL = 'http://localhost:5000';
 
 export const api = axios.create({
   baseURL: API_URL,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -21,11 +22,6 @@ api.interceptors.request.use((config) => {
 
     const tenantId = localStorage.getItem('tenantId');
 
-    console.log('🔍 Interceptor - values:', {
-      token: token ? 'yes' : 'no',
-      tenantId: tenantId ? tenantId : 'no',
-    });
-
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -39,49 +35,89 @@ api.interceptors.request.use((config) => {
   return Promise.reject(error);
 });
 
+let isRefreshing = false;
+let failedQueue: Array<{ resolve: (value?: unknown) => void, reject: (reason?: any) => void }> = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 // Response Interceptor
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Determine the nature of the error
     const isNetworkError = !error.response && error.request;
     const isResponseError = !!error.response;
 
-    const apiError = {
-      status: error.response?.status || (isNetworkError ? 'Network Error' : 'Unknown'),
-      message: error.response?.data?.message || error.response?.data?.error || error.message || 'An unexpected error occurred',
-      data: error.response?.data || null,
-      url: error.config?.url,
-      method: error.config?.method?.toUpperCase(),
-      timestamp: new Date().toISOString(),
-    };
-
-    console.group('❌ API Error Detail');
-    console.error('Context:', apiError);
-    if (isResponseError) {
-      console.error('Response Data:', error.response.data);
-    } else if (isNetworkError) {
-      console.error('Request Info:', error.request);
-      console.error('Tip: Check CORS settings or if the backend is running correctly.');
-    }
-    console.groupEnd();
-
     if (error.response) {
-      console.error('❌ API Response Error:', {
-        status: error.response.status,
-        message: error.response.data?.message || error.response.data?.error || error.message,
-        data: error.response.data,
-        url: error.config?.url,
-        method: error.config?.method?.toUpperCase(),
-      });
-
       // Handle 401 Unauthorized globally
       if (error.response.status === 401 && typeof window !== 'undefined') {
-        console.warn('⚡ [SessionShield] Session expired. Redirecting to signin...');
-        localStorage.removeItem('token');
-        localStorage.removeItem('auth_token');
-        if (!window.location.pathname.includes('/signin')) {
-          window.location.href = '/signin?error=session_expired';
+        const originalRequest = error.config;
+        
+        // Prevent infinite loop if the refresh itself fails
+        if (originalRequest.url?.includes('/api/auth/refresh')) {
+          console.warn('⚡ [SessionShield] Refresh expired. Redirecting to signin...');
+          localStorage.removeItem('token');
+          localStorage.removeItem('auth_token');
+          if (!window.location.pathname.includes('/signin')) {
+            window.location.href = '/signin?error=session_expired';
+          }
+          return Promise.reject(error);
+        }
+
+        if (!originalRequest._retry) {
+          if (isRefreshing) {
+            return new Promise((resolve, reject) => {
+              failedQueue.push({ resolve, reject });
+            })
+              .then((token) => {
+                originalRequest.headers.Authorization = 'Bearer ' + token;
+                return api(originalRequest);
+              })
+              .catch((err) => {
+                return Promise.reject(err);
+              });
+          }
+
+          originalRequest._retry = true;
+          isRefreshing = true;
+
+          return new Promise((resolve, reject) => {
+            api.post('/api/auth/refresh', {}, { withCredentials: true })
+              .then(({ data }) => {
+                const newToken = data.data?.token;
+                if (newToken) {
+                  localStorage.setItem('auth_token', newToken);
+                  localStorage.setItem('token', newToken);
+                  api.defaults.headers.common['Authorization'] = 'Bearer ' + newToken;
+                  originalRequest.headers.Authorization = 'Bearer ' + newToken;
+                  processQueue(null, newToken);
+                  resolve(api(originalRequest));
+                } else {
+                  throw new Error('No token returned');
+                }
+              })
+              .catch((err) => {
+                processQueue(err, null);
+                console.warn('⚡ [SessionShield] Refresh failed. Redirecting to signin...');
+                localStorage.removeItem('token');
+                localStorage.removeItem('auth_token');
+                if (!window.location.pathname.includes('/signin')) {
+                  window.location.href = '/signin?error=session_expired';
+                }
+                reject(err);
+              })
+              .finally(() => {
+                isRefreshing = false;
+              });
+          });
         }
       }
     } else if (error.request) {

@@ -1,60 +1,52 @@
-import { useAuth } from './useAuth';
+import { useAuthContext } from '../context/AuthContext';
+import { toast } from 'sonner';
 
-/**
- * usePermissions
- * 
- * Functional hook to evaluate the current user's authority perimeter.
- * Enables high-fidelity visual and functional enforcement across the workspace.
- */
 export const usePermissions = () => {
-  const { user } = useAuth();
-
-  // Extract identified permissions from the user profile
-  const userPermissions = (user as any)?.permissions || [];
+  const { user, isAuthorized } = useAuthContext();
   
-  // Super Admin Check (Full Matrix Authority)
-  const isFullAccess = (user as any)?.role === 'super_admin' || (user as any)?.role === 'admin' || userPermissions.includes('all');
-
-  /**
-   * can
-   * Evaluates if a specific node configuration is granted in the matrix.
-   */
   const can = (permission: string): boolean => {
-    if (isFullAccess) return true;
-    return userPermissions.includes(permission);
+    return isAuthorized(permission);
   };
 
-  /**
-   * hasAny
-   * Check if user has at least one of the provided permissions.
-   */
   const hasAny = (perms: string[]): boolean => {
-    if (isFullAccess) return true;
-    return perms.some(p => userPermissions.includes(p));
+    return perms.some(p => isAuthorized(p));
   };
 
-  /**
-   * permissionDisabledClass
-   * Generates a high-visibility lock for navigation or informational nodes (No Blur).
-   */
+  const handleRestrictedClick = (e: React.MouseEvent, permission: string) => {
+    if (!can(permission)) {
+      e.preventDefault();
+      e.stopPropagation();
+      toast.error(`Accès refusé`, {
+        description: `La permission "${permission}" est requise pour cette action.`,
+        duration: 3000,
+      });
+      return true;
+    }
+    return false;
+  };
+
+  // ✅ CSS Class for visual "grised" state only
+  const permissionClass = (permission: string) => {
+    return can(permission) ? "" : "opacity-40 grayscale transition-all duration-300";
+  };
+
+  // ✅ Original helper with pointer events (for direct logic gating)
   const permissionDisabledClass = (permission: string) => {
-    return can(permission) ? "" : "pointer-events-none cursor-not-allowed";
+    return can(permission) ? "" : "opacity-40 grayscale cursor-not-allowed pointer-events-none transition-all duration-300";
   };
 
-  /**
-   * btnDisabledClass
-   * Generates a high-restriction lock for specific execution buttons (No Blur).
-   */
   const btnDisabledClass = (permission: string) => {
-    return can(permission) ? "" : "pointer-events-none cursor-not-allowed";
+    return can(permission) ? "" : "opacity-50 grayscale cursor-not-allowed pointer-events-none shadow-none";
   };
 
-  return {
-    can,
+  return { 
+    can, 
     hasAny,
-    isFullAccess,
-    permissionDisabledClass,
+    user, 
+    permissionClass,
+    permissionDisabledClass, 
     btnDisabledClass,
-    permissions: userPermissions
+    handleRestrictedClick,
+    isFullAccess: user?.role?.toLowerCase() === 'super_admin' || user?.role?.toLowerCase() === 'admin' || user?.permissions?.includes('all')
   };
 };

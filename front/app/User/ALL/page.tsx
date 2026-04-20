@@ -56,7 +56,7 @@ function AllWorkflowsContent() {
     const searchParams = useSearchParams();
     const [workflows, setWorkflows] = useState<Workflow[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const { user, btnDisabledClass, hasPermission } = useUser();
+    const { user, btnDisabledClass, permissionDisabledClass, hasPermission } = useUser();
     const [searchTerm, setSearchTerm] = useState('');
 
     const fetchWorkflows = async () => {

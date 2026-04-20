@@ -66,8 +66,14 @@ export default function ProjectWorkflowsPage() {
   const [isTemplatesLoading, setIsTemplatesLoading] = useState(false);
 
   useEffect(() => {
-    if (projectId) {
+    // Only fetch if ID is valid to avoid "Invalid format" errors from backend
+    const isValidId = /^[0-9a-fA-F]{24}$/.test(projectId);
+    if (projectId && isValidId) {
       fetchData();
+    } else if (projectId && !isValidId && projectId !== '[id]') {
+      // If ID is clearly not a valid format and not the Next.js placeholder, redirect
+      console.warn(`Redirecting due to invalid Project ID: ${projectId}`);
+      router.push('/admin/projects');
     }
   }, [projectId]);
 

@@ -40,6 +40,11 @@ const tenantSchema = new mongoose.Schema({
     default: null
   },
 
+  tokenVersion: {
+    type: Number,
+    default: 1
+  },
+
   adminName: {
     type: String,
     default: function () {

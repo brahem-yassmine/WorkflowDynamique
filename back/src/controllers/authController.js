@@ -8,6 +8,8 @@ const { recordActivity } = require('../services/auditLogger');
 const crypto = require('crypto');
 const { sendResetPasswordEmail } = require('../services/mailService');
 const LogService = require('../services/logService');
+const { resolveDependencies } = require('../utils/permission.utils');
+
 
 // Helper to get models from a specific connection
 const getModel = (conn, modelName, factoryPath) => {
@@ -21,7 +23,7 @@ const getModel = (conn, modelName, factoryPath) => {
 const getTenantModel = (req) => getModel(req.masterDb, 'Tenant', '../models/master/Tenant');
 const getPlanModel = (req) => getModel(req.masterDb, 'Plan', '../models/master/Plan');
 const getSuperAdminModel = (req) => getModel(req.masterDb, 'SuperAdmin', '../models/master/SuperAdmin');
-const getRoleModel = (conn) => getModel(conn, 'Role', '../models/master/Role');
+const getRoleModel = (conn) => getModel(conn, 'Role', '../models/tenant/role.model');
 const getSubscriptionModel = (conn) => getModel(conn, 'Subscription', '../models/tenant/Subscription');
 
 // FUNCTION TO CREATE TENANT DATABASE
@@ -196,7 +198,12 @@ const login = async (req, res) => {
 
     // Fetch permissions
     let permissions = [];
-    if (tenantId && role !== 'super_admin') {
+    const normalizedRole = (role || '').toLowerCase();
+
+    if (normalizedRole === 'super_admin' || normalizedRole === 'admin') {
+      permissions = ['all'];
+      console.log(`👑 [Auth] Full access granted to ${normalizedRole}: ${email}`);
+    } else if (tenantId) {
       try {
         const TenantModel = getTenantModel(req);
         const tenant = await TenantModel.findById(tenantId);
@@ -204,29 +211,28 @@ const login = async (req, res) => {
           const conn = mongoose.createConnection(tenant.databaseUri);
           const Role = getRoleModel(conn);
           
-          // CRITICAL: Check if user has a specific identity node (Specific Role)
-          // We prioritize specificRoleId from the user document
           let userRole = null;
           if (user.specificRoleId) {
             userRole = await Role.findById(user.specificRoleId);
           }
           
-          // Fallback to generic role name if no specific role or not found
           if (!userRole) {
-            userRole = await Role.findOne({ name: role });
+            userRole = await Role.findOne({ 
+              name: { $regex: new RegExp(`^${role}$`, 'i') } 
+            });
           }
 
           if (userRole) {
-            permissions = userRole.permissions || [];
+            permissions = resolveDependencies(userRole.permissions || []);
           }
           await conn.close();
         }
       } catch (err) {
         console.error('Error fetching role permissions:', err.message);
       }
-    } else if (role === 'super_admin') {
-      permissions = ['all'];
     }
+
+    const tokenVersion = user.tokenVersion || 1;
 
     const token = jwt.sign(
       {
@@ -239,11 +245,25 @@ const login = async (req, res) => {
         domain: user.domain || 'HR',
         specificRole: user.specificRole || '',
         specificRoleId: user.specificRoleId || null,
-        permissions: permissions
+        permissions: permissions,
+        tokenVersion: tokenVersion
       },
       process.env.JWT_SECRET || 'your_jwt_secret',
-      { expiresIn: '30d' }
+      { expiresIn: '15m' }
     );
+
+    const refreshToken = jwt.sign(
+      { id: user._id, role, tenantId, type: 'refresh', tokenVersion },
+      process.env.JWT_SECRET || 'your_jwt_secret',
+      { expiresIn: '7d' }
+    );
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 jours
+    });
 
     // Record Success Login in Master DB
     await logService.logLoginSuccess({
@@ -454,17 +474,33 @@ const registerTenant = async (req, res) => {
       });
     }
 
+    const tokenVersion = tenant.tokenVersion || 1;
+
     const token = jwt.sign(
       {
         id: tenant._id,
         userId: tenant._id,
         email: tenant.email,
         role: 'admin',
-        tenantId: tenant._id.toString()
+        tenantId: tenant._id.toString(),
+        tokenVersion
       },
       process.env.JWT_SECRET || 'your_jwt_secret',
-      { expiresIn: '30d' }
+      { expiresIn: '15m' }
     );
+
+    const refreshToken = jwt.sign(
+      { id: tenant._id, role: 'admin', tenantId: tenant._id.toString(), type: 'refresh', tokenVersion },
+      process.env.JWT_SECRET || 'your_jwt_secret',
+      { expiresIn: '7d' }
+    );
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 jours
+    });
 
     res.status(201).json({
       success: true,
@@ -695,61 +731,57 @@ const resetPassword = async (req, res) => {
 const getProfile = async (req, res) => {
   try {
     const { id, role, tenantId } = req.user;
+    const normalizedRole = (role || '').toLowerCase();
     let user = null;
+    let permissions = [];
 
-    if (role === 'super_admin') {
+    // 1. Fetch User Data & Establish Connection if needed
+    if (normalizedRole === 'super_admin') {
       const SuperAdmin = getSuperAdminModel(req);
       user = await SuperAdmin.findById(id).select('-password');
-    } else if (role === 'admin') {
-      const TenantModel = getTenantModel(req);
-      user = await TenantModel.findById(tenantId || id).select('-password');
+      permissions = ['all'];
     } else if (tenantId) {
       const TenantModel = getTenantModel(req);
       const tenant = await TenantModel.findById(tenantId);
+      
       if (tenant) {
         const conn = mongoose.createConnection(tenant.databaseUri);
-        const TenantUser = require('../models/tenant/User')(conn);
-        user = await TenantUser.findById(id).select('-password');
-        await conn.close();
+        
+        try {
+          if (normalizedRole === 'admin') {
+            user = await TenantModel.findById(id).select('-password');
+            permissions = ['all'];
+          } else {
+            const TenantUser = require('../models/tenant/User')(conn);
+            const Role = getRoleModel(conn);
+            
+            user = await TenantUser.findById(id).select('-password');
+            
+            if (user) {
+              let userRoleNode = null;
+              if (user.specificRoleId) {
+                userRoleNode = await Role.findById(user.specificRoleId);
+              }
+              
+              if (!userRoleNode) {
+                userRoleNode = await Role.findOne({ 
+                  name: { $regex: new RegExp(`^${role}$`, 'i') } 
+                });
+              }
+
+              if (userRoleNode) {
+                permissions = resolveDependencies(userRoleNode.permissions || []);
+              }
+            }
+          }
+        } finally {
+          await conn.close();
+        }
       }
     }
 
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    // CRITICAL: Recalculate permissions based on current assignment
-    let permissions = [];
-    if (role === 'super_admin') {
-      permissions = ['all'];
-    } else if (tenantId) {
-      try {
-        const TenantModel = getTenantModel(req);
-        const tenant = await TenantModel.findById(tenantId);
-        if (tenant) {
-          const conn = mongoose.createConnection(tenant.databaseUri);
-          const Role = getRoleModel(conn);
-          
-          let userRoleNode = null;
-          if (user.specificRoleId) {
-            userRoleNode = await Role.findById(user.specificRoleId);
-          }
-          
-          if (!userRoleNode) {
-            userRoleNode = await Role.findOne({ name: role });
-          }
-
-          if (userRoleNode) {
-            permissions = userRoleNode.permissions || [];
-          }
-          await conn.close();
-        }
-      } catch (err) {
-        console.error('Error refreshing permissions:', err.message);
-      }
+      return res.status(404).json({ success: false, message: 'User profile not found' });
     }
 
     res.json({
@@ -761,12 +793,10 @@ const getProfile = async (req, res) => {
         permissions: permissions
       }
     });
+
   } catch (error) {
     console.error('❌ getProfile error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error: ' + error.message
-    });
+    res.status(500).json({ success: false, message: 'Server error: ' + error.message });
   }
 };
 
@@ -850,8 +880,11 @@ module.exports = {
 
       // 3. Fetch Matrix Permissions
       let permissions = [];
-      if (role === 'super_admin') {
+      const normalizedRole = (role || '').toLowerCase();
+
+      if (normalizedRole === 'super_admin' || normalizedRole === 'admin') {
         permissions = ['all'];
+        console.log(`👑 [Auth-Google] Full access granted to ${normalizedRole}: ${email}`);
       } else if (tenantId) {
         try {
           const TenantModel = getTenantModel(req);
@@ -865,11 +898,13 @@ module.exports = {
               userRole = await Role.findById(user.specificRoleId);
             }
             if (!userRole) {
-              userRole = await Role.findOne({ name: role });
+              userRole = await Role.findOne({ 
+                name: { $regex: new RegExp(`^${role}$`, 'i') } 
+              });
             }
 
             if (userRole) {
-              permissions = userRole.permissions || [];
+              permissions = resolveDependencies(userRole.permissions || []);
             }
             await conn.close();
           }
@@ -879,6 +914,8 @@ module.exports = {
       }
 
       // 4. Generate Token
+      const tokenVersion = user.tokenVersion || 1;
+
       const token = jwt.sign(
         {
           id: user._id,
@@ -890,11 +927,25 @@ module.exports = {
           domain: user.domain || 'HR',
           specificRole: user.specificRole || '',
           specificRoleId: user.specificRoleId || null,
-          permissions: permissions
+          permissions: permissions,
+          tokenVersion: tokenVersion
         },
         process.env.JWT_SECRET || 'your_jwt_secret',
-        { expiresIn: '30d' }
+        { expiresIn: '15m' }
       );
+
+      const refreshToken = jwt.sign(
+        { id: user._id, role, tenantId, type: 'refresh', tokenVersion: tokenVersion },
+        process.env.JWT_SECRET || 'your_jwt_secret',
+        { expiresIn: '7d' }
+      );
+
+      res.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 jours
+      });
 
       // Success Response (Simplified compared to local login, but providing necessary data)
       res.json({
@@ -915,6 +966,111 @@ module.exports = {
     } catch (error) {
       console.error('❌ Google Login Controller Error:', error);
       res.status(500).json({ success: false, message: 'Google Authentication failed: ' + error.message });
+    }
+  },
+
+  refreshToken: async (req, res) => {
+    try {
+      const refreshToken = req.cookies.refreshToken || req.body.refreshToken;
+      if (!refreshToken) {
+        return res.status(401).json({ success: false, message: 'Refresh token manquant' });
+      }
+
+      const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET || 'your_jwt_secret');
+      if (decoded.type !== 'refresh') {
+        return res.status(401).json({ success: false, message: 'Token invalide' });
+      }
+
+      const { id, role, tenantId, tokenVersion } = decoded;
+      let user = null;
+
+      if (role === 'super_admin') {
+        const SuperAdmin = getSuperAdminModel(req);
+        user = await SuperAdmin.findById(id);
+      } else if (role === 'admin' && !tenantId) {
+        // Technically admin has tenantId, but their user doc is in the Master Tenant table
+        const TenantModel = getTenantModel(req);
+        user = await TenantModel.findById(id);
+      } else if (tenantId) {
+        if (role === 'admin') {
+           const TenantModel = getTenantModel(req);
+           user = await TenantModel.findById(tenantId);
+        } else {
+           const TenantModel = getTenantModel(req);
+           const tenant = await TenantModel.findById(tenantId);
+           if (tenant) {
+             const conn = mongoose.createConnection(tenant.databaseUri);
+             const TenantUser = require('../models/tenant/User')(conn);
+             user = await TenantUser.findById(id);
+             await conn.close();
+           }
+        }
+      }
+
+      if (!user || user.status === 'inactive' || user.isActive === false || user.status === 'suspended') {
+        return res.status(401).json({ success: false, message: 'Utilisateur introuvable ou inactif' });
+      }
+
+      // Check tokenVersion
+      const currentUserTokenVersion = user.tokenVersion || 1;
+      if (tokenVersion !== currentUserTokenVersion) {
+        return res.status(401).json({ success: false, message: 'Session expirée suite à la mise à jour des accès' });
+      }
+
+      // Re-fetch Matrix Permissions
+      let permissions = [];
+      if (role === 'super_admin') {
+        permissions = ['all'];
+      } else if (tenantId) {
+        try {
+          const TenantModel = getTenantModel(req);
+          const tenant = await TenantModel.findById(tenantId);
+          if (tenant) {
+            const conn = mongoose.createConnection(tenant.databaseUri);
+            const Role = getRoleModel(conn);
+            let userRole = null;
+            if (user.specificRoleId) userRole = await Role.findById(user.specificRoleId);
+            if (!userRole) {
+              userRole = await Role.findOne({ 
+                name: { $regex: new RegExp(`^${role}$`, 'i') } 
+              });
+            }
+
+            if (userRole) {
+              // ✅ RESOLVE DEPENDENCIES
+              permissions = resolveDependencies(userRole.permissions || []);
+            }
+            await conn.close();
+          }
+        } catch (err) {}
+      }
+
+      // Sign New Access Token
+      const token = jwt.sign(
+        {
+          id: user._id,
+          userId: user._id,
+          email: user.email,
+          name: user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : (user.name || user.username),
+          role: role,
+          tenantId: tenantId,
+          domain: user.domain || 'HR',
+          specificRole: user.specificRole || '',
+          specificRoleId: user.specificRoleId || null,
+          permissions: permissions,
+          tokenVersion: currentUserTokenVersion
+        },
+        process.env.JWT_SECRET || 'your_jwt_secret',
+        { expiresIn: '15m' }
+      );
+
+      res.json({
+        success: true,
+        data: { token }
+      });
+
+    } catch (error) {
+      res.status(401).json({ success: false, message: 'Token invalide ou expiré' });
     }
   }
 };

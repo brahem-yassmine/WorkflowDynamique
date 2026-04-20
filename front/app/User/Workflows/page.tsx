@@ -60,7 +60,7 @@ interface WorkflowInstance {
 }
 
 export default function UserWorkflowsPage() {
-  const { can, permissionDisabledClass } = usePermissions();
+  const { can, permissionDisabledClass, btnDisabledClass } = usePermissions();
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [instances, setInstances] = useState<WorkflowInstance[]>([]);

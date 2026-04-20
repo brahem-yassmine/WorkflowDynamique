@@ -34,7 +34,7 @@ function UserSidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const { user, btnDisabledClass } = useUser();
-  const { can, permissionDisabledClass } = usePermissions();
+  const { can, permissionClass, handleRestrictedClick } = usePermissions();
   const [taskCount, setTaskCount] = useState<number | null>(null);
 
   useEffect(() => {
@@ -107,21 +107,22 @@ function UserSidebar() {
           {menuItems.map((item, idx) => {
               const isActive = pathname === item.href;
               
-              // Apply Permission Gating (Grayed out but not blurred if unauthorized)
-              const permissionClass = item.permission ? permissionDisabledClass(item.permission) : "";
+              // Apply Permission Gating (Grayed out but clickable for Toast)
+              const permClass = item.permission ? permissionClass(item.permission) : "";
 
               return (
                 <Link
                   key={idx}
-                  href={item.href}
+                  href={can(item.permission || '') || !item.permission ? item.href : '#'}
+                  onClick={(e) => item.permission && handleRestrictedClick(e, item.permission)}
                   className={`
                     flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 group relative
                     ${isActive
                       ? 'bg-white text-indigo-700 shadow-xl shadow-indigo-900/20 font-black'
                       : 'text-indigo-100 hover:bg-white/10 hover:text-white font-bold'}
-                    ${permissionClass}
+                    ${permClass}
                   `}
-                  title={item.permission && permissionClass ? "Matrix Restricted" : ""}
+                  title={item.permission && !can(item.permission) ? "Accès Restreint" : ""}
                 >
                   <item.icon className={`h-4.5 w-4.5 transition-transform group-hover:scale-110 ${isActive ? 'text-indigo-600' : (item.color || 'text-indigo-300')} group-hover:text-white`} />
                   <span className="text-xs tracking-tight flex-1">{item.label}</span>

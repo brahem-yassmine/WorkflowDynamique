@@ -20,7 +20,7 @@ const ActionNode = ({ data }: any) => {
 
     return (
         <div className="px-2 py-1.5 shadow-sm rounded-md bg-white border border-slate-200 min-w-[120px]">
-            <Handle type="target" position={Position.Left} className="!bg-indigo-500" />
+            <Handle type="target" position={Position.Top} className="!bg-indigo-500 !w-2 !h-2 !border-2 !border-white" />
 
             <div className="flex items-center gap-2">
                 <div className="rounded-md w-6 h-6 flex-none flex items-center justify-center bg-indigo-50 text-indigo-600 border border-indigo-100">
@@ -34,7 +34,7 @@ const ActionNode = ({ data }: any) => {
                 </div>
             </div>
 
-            <Handle type="source" position={Position.Right} className="!bg-indigo-500" />
+            <Handle type="source" position={Position.Bottom} className="!bg-indigo-500 !w-2 !h-2 !border-2 !border-white" />
         </div>
     );
 };

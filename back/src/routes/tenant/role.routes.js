@@ -13,6 +13,7 @@ router.get('/active', RoleController.getActiveRoles);
 router.get('/permissions', requireRole('admin'), RoleController.getAvailablePermissions);
 router.get('/:id', requireRole('admin'), RoleController.getById);
 router.put('/:id', requireRole('admin'), RoleController.update);
+router.post('/:id/assign-users', requireRole('admin'), RoleController.assignUsers);
 router.delete('/:id', requireRole('admin'), RoleController.delete);
 router.post('/:id/permissions', requireRole('admin'), RoleController.addPermissions);
 router.delete('/:id/permissions', requireRole('admin'), RoleController.removePermissions);

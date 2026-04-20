@@ -66,16 +66,16 @@ function UserSidebar() {
 
   const menuItems = [
     { icon: LayoutGrid, label: "Command Center", href: "/User" },
-    { icon: Briefcase, label: "Attached projects ", href: "/User/PRO", permission: "Project.VIEW" },
-    { icon: Globe, label: "Organizational Domains", href: "/User/DOMAINS", permission: "Domain.VIEW" },
-    { icon: Layers, label: "Attached Workflows", href: "/User/ALL", permission: "Workflow.VIEW" },
+    { icon: Briefcase, label: "Attached projects ", href: "/User/PRO" },
+    { icon: Globe, label: "Organizational Domains", href: "/User/DOMAINS" },
+    { icon: Layers, label: "Attached Workflows", href: "/User/ALL" },
     { icon: User, label: "My Profile", href: "/User/prof" },
     { icon: CheckSquare, label: "Action Center", href: "/User/tasks" },
     { icon: Bell, label: "Alert Inbox", href: "/User/Notifications" },
     { icon: ShieldAlert, label: "Critical Requests", href: "/User/requests", color: "text-rose-400" },
     { icon: Users, label: "Team Space", href: "/User/InviteTeam" },
-    { icon: Layers, label: "Forms Lab", href: "/User/Allforms", permission: "Form.VIEW" },
-    { icon: ListTodo, label: "Checks Matrix", href: "/User/Allchecks", permission: "Checklist.VIEW" },
+    { icon: Layers, label: "Forms Lab", href: "/User/Allforms" },
+    { icon: ListTodo, label: "Checks Matrix", href: "/User/Allchecks" },
     { icon: Zap, label: "AI Co-pilot", href: "/User/AIGenerate", color: "text-amber-400" },
   ];
 
@@ -124,7 +124,7 @@ function UserSidebar() {
                   `}
                   title={item.permission && !can(item.permission) ? "Accès Restreint" : ""}
                 >
-                  <item.icon className={`h-4.5 w-4.5 transition-transform group-hover:scale-110 ${isActive ? 'text-indigo-600' : (item.color || 'text-indigo-300')} group-hover:text-white`} />
+                  <item.icon className={`h-4.5 w-4.5 transition-transform group-hover:scale-110 ${isActive ? 'text-indigo-600' : (item.color || 'text-indigo-300') + ' group-hover:text-white'}`} />
                   <span className="text-xs tracking-tight flex-1">{item.label}</span>
 
                   {item.badge !== null && item.badge !== undefined && (typeof item.badge === 'string' || item.badge > 0) && (

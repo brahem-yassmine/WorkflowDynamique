@@ -39,7 +39,7 @@ export default function UserAllFormsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const router = useRouter();
-  const { can } = usePermissions();
+  const { can, btnDisabledClass, permissionDisabledClass } = usePermissions();
 
   const fetchForms = async () => {
     try {
@@ -156,14 +156,10 @@ export default function UserAllFormsPage() {
                 <Link
                 href={can('Form.CREATE') ? "/form?from=user" : "#"}
                 onClick={(e) => !can('Form.CREATE') && e.preventDefault()}
-                className={`flex items-center justify-center gap-3 px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 group支撑 whitespace-nowrap ${
-                  can('Form.CREATE')
-                  ? 'bg-slate-900 text-white hover:bg-indigo-600'
-                  : 'bg-slate-100 text-slate-300 grayscale opacity-30 cursor-not-allowed'
-                }`}
+                className="flex items-center justify-center gap-3 px-10 py-5 rounded-[22px] font-black text-[11px] uppercase tracking-[0.2em] transition-all shadow-2xl bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-500/20 active:scale-95 group whitespace-nowrap"
                 title={!can('Form.CREATE') ? "Matrix Restricted" : ""}
               >
-                <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
+                <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
                 Initialize Form
               </Link>
             </div>

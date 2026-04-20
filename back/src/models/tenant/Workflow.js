@@ -38,14 +38,14 @@ const workflowSchema = new mongoose.Schema({
   projectId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Project',
-    required: function() {
+    required: function () {
       return this.isTemplate === false;
     }
   },
   moduleId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Module',
-    required: function() {
+    required: function () {
       return this.isTemplate === true;
     }
   },

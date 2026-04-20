@@ -168,7 +168,6 @@ export default function UserDashboard() {
           value={stats.activeWorkflows} 
           subValue="Active Instances"
           color="emerald" 
-          permission="Workflow.VIEW"
         />
         <MetricCard 
           icon={<Layers size={22} />} 
@@ -356,9 +355,8 @@ function CommandButton({ icon, label, href, color, permission }: any) {
       href={isLocked ? "#" : href}
       onClick={(e) => isLocked && e.preventDefault()}
       className={`
-        w-full flex items-center justify-between p-4 rounded-2xl transition-all active:scale-[0.98] group
-        ${isIndigo ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/40 hover:bg-indigo-500' : 'bg-white/10 text-white hover:bg-white/20 border border-white/10'}
-        ${isLocked ? 'opacity-30 grayscale cursor-not-allowed pointer-events-none' : ''}
+        w-full flex items-center justify-between p-5 rounded-2xl transition-all active:scale-[0.98] group
+        bg-indigo-600 text-white shadow-lg shadow-indigo-900/20 hover:bg-indigo-500
       `}
       title={isLocked ? "Matrix Restricted" : ""}
     >

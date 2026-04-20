@@ -43,11 +43,19 @@ const featuresToArray = (features: any): string[] => {
     if (features.maxStaff) array.push(`Up to ${features.maxStaff} staff`);
     if (features.maxLocations) array.push(`Up to ${features.maxLocations} locations`);
     if (features.analysis) array.push(`${features.analysis} analysis`);
+    if (features.maxWorkflowsPerUser && features.maxWorkflowsPerUser !== 999999) {
+      array.push(`${features.maxWorkflowsPerUser} Workflows per User`);
+    } else if (features.maxWorkflowsPerUser === 999999) {
+      array.push(`Unlimited Workflows per User`);
+    }
+    
+    if (features.maxWorkflows && features.maxWorkflows !== 999999) {
+      array.push(`Up to ${features.maxWorkflows} Organization-wide Workflows`);
+    }
+
     if (features.reports) array.push(`Professional reports`);
     if (features.aiSupport) array.push(`Advanced AI support`);
     if (features.customSupport) array.push(`Custom support`);
-    if (features.integrations) array.push(`Integrations`);
-    if (features.api) array.push(`API access`);
 
     return array.length > 0 ? array : ["No features listed"];
   }
@@ -161,9 +169,9 @@ export default function LandingPage() {
             currency: "D",
             interval: "month",
             features: {
-              maxStaff: 5,
-              maxLocations: 5,
-              analysis: "Fixed",
+              maxUsers: 5,
+              maxWorkflows: 25,
+              maxWorkflowsPerUser: 5,
               reports: false,
               aiSupport: false,
               customSupport: false
@@ -177,9 +185,9 @@ export default function LandingPage() {
             currency: "D",
             interval: "month",
             features: {
-              maxStaff: 10,
-              maxLocations: 10,
-              analysis: "Pro",
+              maxUsers: 10,
+              maxWorkflows: 200,
+              maxWorkflowsPerUser: 20,
               reports: true,
               aiSupport: false,
               customSupport: false
@@ -194,9 +202,9 @@ export default function LandingPage() {
             currency: "D",
             interval: "month",
             features: {
-              maxStaff: 999,
-              maxLocations: 999,
-              analysis: "Advanced",
+              maxUsers: 999999,
+              maxWorkflows: 999999,
+              maxWorkflowsPerUser: 999999,
               reports: true,
               aiSupport: true,
               customSupport: true

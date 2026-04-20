@@ -37,7 +37,6 @@ export const PERMISSION_DEPENDENCIES: Record<string, string[]> = {
   'Form.CREATE': ['Form.VIEW'],
   'Form.UPDATE': ['Form.VIEW'],
   'Form.DELETE': ['Form.VIEW'],
-  'Form.CLONE': ['Form.VIEW'],
 
   // Checklist rules
   'Checklist.VIEW': ['Workflow.VIEW'],
@@ -108,7 +107,7 @@ export const UI_GROUPS = {
   Project: { icon: '📁', label: 'Project', actions: ["VIEW", "CREATE", "UPDATE", "DELETE"] },
   Workflow: { icon: '🔁', label: 'Workflow', actions: ["VIEW", "CREATE", "UPDATE", "DELETE"] },
   Template: { icon: '📄', label: 'Template', actions: ["VIEW", "CREATE", "UPDATE", "DELETE", "EXECUTE"] },
-  Form: { icon: '📝', label: 'Form', actions: ["VIEW", "CREATE", "UPDATE", "DELETE", "CLONE"] },
+  Form: { icon: '📝', label: 'Form', actions: ["VIEW", "CREATE", "UPDATE", "DELETE"] },
   Checklist: { icon: '✅', label: 'Checklist', actions: ["VIEW", "COMPLETE_ITEM"] },
   Kanban: { icon: '🗂️', label: 'Kanban', actions: ["VIEW", "CREATE"] },
 };
@@ -122,5 +121,5 @@ export const ACTION_TOOLTIPS: Record<string, string> = {
   "EXECUTE": "Can launch and use workflows",
   "ASSIGN": "Can assign tasks to other users",
   "COMPLETE": "Can execute and validate tasks",
-  "COMPLETE_ITEM": "Can check/uncheck checklist items"
+  "COMPLETE_ITEM": "Can check/uncheck checklist items",
 };

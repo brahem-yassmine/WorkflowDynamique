@@ -8,9 +8,9 @@ router.use(auth);
 
 // Routes
 router.post('/', hasPermission('Domain.CREATE'), DomainController.create);
-router.get('/', hasPermission('Domain.VIEW'), DomainController.getAll);
-router.get('/active', hasPermission('Domain.VIEW'), DomainController.getActive);
-router.get('/:id', hasPermission('Domain.VIEW'), DomainController.getById);
+router.get('/', DomainController.getAll);
+router.get('/active', DomainController.getActive);
+router.get('/:id', DomainController.getById);
 router.put('/:id', hasPermission('Domain.UPDATE'), DomainController.update);
 router.delete('/:id', hasPermission('Domain.DELETE'), DomainController.delete);
 

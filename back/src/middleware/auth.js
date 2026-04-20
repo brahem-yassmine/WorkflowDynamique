@@ -1,5 +1,6 @@
 // back/src/middleware/auth.js
 const jwt = require('jsonwebtoken');
+const { normalizePermission } = require('../utils/permission.utils');
 
 //  Verify that this function exists and is exported
 const auth = async (req, res, next) => {
@@ -77,10 +78,12 @@ const hasPermission = (permission) => {
       return next();
     }
 
-    // Normalized comparison
-    const normalize = (p) => (p || '').replace(/_/g, '.').toLowerCase();
-    const target = normalize(permission);
-    const hasPerm = req.user.permissions?.some(p => normalize(p) === target);
+    // Robust Normalized comparison + Case-insensitive fallback
+    const target = normalizePermission(permission);
+    const hasPerm = req.user.permissions?.some(p => {
+      const normalizedP = normalizePermission(p);
+      return normalizedP === target || p.toLowerCase() === permission.toLowerCase();
+    });
 
     if (hasPerm) {
       return next();

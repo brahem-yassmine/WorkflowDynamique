@@ -263,9 +263,9 @@ export default function UserDashboard() {
                 />
                 <CommandButton 
                   icon={<Shield size={18} />} 
-                  label="Create New Project" 
+                  label={can('Project.CREATE') ? "Create New Project" : "Strategic Portfolios"} 
                   href="/User/PRO"
-                  permission="Project.CREATE"
+                  permission="Project.VIEW"
                   color="white"
                 />
               </div>
@@ -346,17 +346,18 @@ function MetricCard({ icon, label, value, subValue, color, permission }: any) {
 }
 
 function CommandButton({ icon, label, href, color, permission }: any) {
-  const { can } = usePermissions();
+  const { can, handleRestrictedClick, permissionDisabledClass } = usePermissions();
   const isIndigo = color === 'indigo';
   const isLocked = permission && !can(permission);
   
   return (
     <Link 
       href={isLocked ? "#" : href}
-      onClick={(e) => isLocked && e.preventDefault()}
+      onClick={(e) => permission && handleRestrictedClick(e, permission)}
       className={`
         w-full flex items-center justify-between p-5 rounded-2xl transition-all active:scale-[0.98] group
         bg-indigo-600 text-white shadow-lg shadow-indigo-900/20 hover:bg-indigo-500
+        ${permission ? permissionDisabledClass(permission) : ''}
       `}
       title={isLocked ? "Matrix Restricted" : ""}
     >
@@ -366,7 +367,7 @@ function CommandButton({ icon, label, href, color, permission }: any) {
         </div>
         <span className="text-[11px] font-black uppercase tracking-widest">{label}</span>
       </div>
-      <ArrowUpRight size={16} className="opacity-40 group-hover:opacity-100 group-hover:scale-110 transition-all" />
+      {!isLocked && <ArrowUpRight size={16} className="opacity-40 group-hover:opacity-100 group-hover:scale-110 transition-all" />}
     </Link>
   );
 }

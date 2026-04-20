@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
+import { normalizePermission } from '../lib/permission.utils';
 
 interface User {
   _id: string;
@@ -92,10 +93,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     router.push('/signin');
   };
 
-  const normalizePermission = (perm: string) => {
-    if (!perm || typeof perm !== 'string') return '';
-    return perm.replace(/_/g, '.').toLowerCase();
-  };
 
   const isAuthorized = useCallback((permission: string): boolean => {
     if (!user) {
@@ -104,18 +101,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     
     const role = user.role?.toLowerCase();
-    const isFullAccess = role === 'super_admin' || role === 'admin' || user.permissions?.includes('all');
+    const isFullAccess = 
+      role === 'super_admin' || 
+      role === 'admin' || 
+      user.permissions?.includes('all') ||
+      user.permissions?.map(p => p.toLowerCase()).includes('all');
     
     if (isFullAccess) return true;
     
+    if (!user.permissions || !Array.isArray(user.permissions)) {
+      console.warn("🔐 [AuthCheck] User has no permissions array.");
+      return false;
+    }
+
+    // Use the ROBUST normalization for both the target and the list
     const normalizedTarget = normalizePermission(permission);
-    const hasPerm = user.permissions?.some(p => normalizePermission(p) === normalizedTarget) ?? false;
+    
+    // We do a "super-check" that handles both normalized and raw formats
+    const hasPerm = user.permissions.some(p => {
+      const normalizedP = normalizePermission(p);
+      return normalizedP === normalizedTarget || p.toLowerCase() === permission.toLowerCase();
+    });
     
     if (!hasPerm) {
-      console.group(`🚫 [Access Denied] ${permission}`);
+      console.groupCollapsed(`🚫 [Access Denied] ${permission}`);
+      console.log("Target String:", permission);
       console.log("Normalized Target:", normalizedTarget);
       console.log("User Permissions (original):", user.permissions);
-      console.log("User Permissions (normalized):", user.permissions?.map(normalizePermission));
+      console.log("User Permissions (normalized):", user.permissions.map(normalizePermission));
       console.groupEnd();
     }
     

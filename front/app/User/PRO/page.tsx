@@ -151,9 +151,11 @@ export default function ProjectPortfoliosPage() {
                <Clock size={20} />
             </button>
             <button 
-              onClick={() => can('Project.CREATE') && setIsModalOpen(true)}
+              onClick={(e) => !can('Project.CREATE') ? handleRestrictedClick(e, 'Project.CREATE') : setIsModalOpen(true)}
+              className={`flex items-center gap-3 px-10 py-5 rounded-[24px] font-black text-[11px] uppercase tracking-[0.2em] transition-all shadow-2xl active:scale-95 ${
+                !can('Project.CREATE') ? 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-50 grayscale' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100'
+              }`}
               title={!can('Project.CREATE') ? "Matrix Restricted: Contact Authority Architect" : ""}
-              className="flex items-center gap-3 px-10 py-5 rounded-[24px] font-black text-[11px] uppercase tracking-[0.2em] transition-all shadow-2xl active:scale-95 bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100"
             >
               <Plus size={20} strokeWidth={3} />
               New Project
@@ -235,8 +237,11 @@ export default function ProjectPortfoliosPage() {
               Strategic projects act as core pillars for your tactical workflows. Establish your first portfolio to begin scaling.
             </p>
             <button 
-              onClick={() => setIsModalOpen(true)}
-              className="px-10 py-5 bg-indigo-600 text-white rounded-[22px] font-black text-xs uppercase tracking-widest shadow-2xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95"
+              onClick={(e) => !can('Project.CREATE') ? handleRestrictedClick(e, 'Project.CREATE') : setIsModalOpen(true)}
+              className={`px-10 py-5 rounded-[22px] font-black text-xs uppercase tracking-widest shadow-2xl transition-all active:scale-95 ${
+                !can('Project.CREATE') ? 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-50 grayscale' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100'
+              }`}
+              title={!can('Project.CREATE') ? "Matrix Restricted" : ""}
             >
               Initialize First Project
             </button>

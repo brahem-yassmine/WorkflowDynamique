@@ -6,6 +6,7 @@ import { ArrowLeft, Zap, Info, Activity } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect } from "react";
 import { toast } from "sonner";
+import { usePermissions } from "@/hooks/usePermissions";
 
 const WorkflowArchitectContent = () => {
     const router = useRouter();
@@ -13,7 +14,18 @@ const WorkflowArchitectContent = () => {
     const projectId = searchParams.get('projectId');
     const flowId = searchParams.get('id');
 
+    const { can } = usePermissions();
+    const [isAuthorized, setIsAuthorized] = React.useState(true);
+
     useEffect(() => {
+        // Permission Guard
+        if (!can('Workflow.CREATE')) {
+            setIsAuthorized(false);
+            toast.error("Contact Authority: You do not have 'Workflow.CREATE' clearance.");
+            router.push('/User');
+            return;
+        }
+
         const notif = searchParams.get('notif');
         if (notif) {
             toast.success(notif);
@@ -62,6 +74,8 @@ const WorkflowArchitectContent = () => {
         // Priority 3: Fallback to global workflow list
         router.push('/User/ALL' + (isTemplate ? '?isTemplate=true' : ''));
     };
+
+    if (!isAuthorized) return null;
 
     return (
         <div className="flex flex-col h-screen w-full bg-[#fdfdfd] overflow-hidden isolate">

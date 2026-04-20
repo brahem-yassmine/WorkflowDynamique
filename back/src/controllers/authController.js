@@ -8,7 +8,7 @@ const { recordActivity } = require('../services/auditLogger');
 const crypto = require('crypto');
 const { sendResetPasswordEmail } = require('../services/mailService');
 const LogService = require('../services/logService');
-const { resolveDependencies } = require('../utils/permission.utils');
+const { resolveDependencies, normalizePermission } = require('../utils/permission.utils');
 
 
 // Helper to get models from a specific connection
@@ -223,7 +223,8 @@ const login = async (req, res) => {
           }
 
           if (userRole) {
-            permissions = resolveDependencies(userRole.permissions || []);
+            // ✅ RESOLVE & NORMALIZE
+            permissions = resolveDependencies(userRole.permissions || []).map(normalizePermission);
           }
           await conn.close();
         }
@@ -339,12 +340,8 @@ const login = async (req, res) => {
                   role: role,
                   tenantId,
                   domain: user.domain,
-                  hasSelectedPlan: user.hasSelectedPlan ?? false,
-                  subscriptionExpired,
-                  warningSoon,
-                  daysLeft: Math.max(0, daysLeft),
                   currentPlan,
-                  permissions: permissions || []
+                  permissions: permissions.length > 0 ? permissions : []
                 },
                 tenantId: tenantId
               }
@@ -371,7 +368,7 @@ const login = async (req, res) => {
           subscriptionExpired,
           daysLeft,
           currentPlan,
-          permissions: permissions || []
+          permissions: permissions.length > 0 ? permissions : []
         },
         tenantId: tenantId
       }
@@ -770,7 +767,8 @@ const getProfile = async (req, res) => {
               }
 
               if (userRoleNode) {
-                permissions = resolveDependencies(userRoleNode.permissions || []);
+                // ✅ RESOLVE & NORMALIZE
+                permissions = resolveDependencies(userRoleNode.permissions || []).map(normalizePermission);
               }
             }
           }
@@ -790,7 +788,7 @@ const getProfile = async (req, res) => {
         ...user.toObject(),
         role: role,
         tenantId: tenantId,
-        permissions: permissions
+        permissions: permissions.length > 0 ? permissions : []
       }
     });
 
@@ -904,7 +902,8 @@ module.exports = {
             }
 
             if (userRole) {
-              permissions = resolveDependencies(userRole.permissions || []);
+              // ✅ RESOLVE & NORMALIZE
+              permissions = resolveDependencies(userRole.permissions || []).map(normalizePermission);
             }
             await conn.close();
           }
@@ -927,7 +926,7 @@ module.exports = {
           domain: user.domain || 'HR',
           specificRole: user.specificRole || '',
           specificRoleId: user.specificRoleId || null,
-          permissions: permissions,
+          permissions: permissions.length > 0 ? permissions : [],
           tokenVersion: tokenVersion
         },
         process.env.JWT_SECRET || 'your_jwt_secret',
@@ -1037,8 +1036,8 @@ module.exports = {
             }
 
             if (userRole) {
-              // ✅ RESOLVE DEPENDENCIES
-              permissions = resolveDependencies(userRole.permissions || []);
+              // ✅ RESOLVE & NORMALIZE
+              permissions = resolveDependencies(userRole.permissions || []).map(normalizePermission);
             }
             await conn.close();
           }

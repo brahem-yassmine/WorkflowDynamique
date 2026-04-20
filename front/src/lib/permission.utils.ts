@@ -52,16 +52,27 @@ export const PERMISSION_DEPENDENCIES: Record<string, string[]> = {
 
 /**
  * Normalizes a permission string to a standard format (Entity.ACTION)
+ * Handles both "PROJECT_VIEW" and "Project.VIEW" formats and case differences.
  */
 export const normalizePermission = (perm: string): string => {
-  if (!perm || typeof perm !== 'string') return '';
-  const parts = perm.replace(/_/g, '.').split('.');
-  if (parts.length === 2) {
-    const entity = parts[0].charAt(0).toUpperCase() + parts[0].slice(1).toLowerCase();
-    const action = parts[1].toUpperCase();
-    return `${entity}.${action}`;
-  }
-  return perm;
+  if (!perm || typeof perm !== 'string') return "";
+
+  // 1. Initial cleanup: replace underscore with dot and convert to lowercase
+  const clean = perm.replace("_", ".").toLowerCase();
+  const parts = clean.split(".");
+
+  // 2. Handle cases where format is not Entity.Action (like 'all' or 'super_admin')
+  if (parts.length !== 2) return perm;
+
+  const [entity, action] = parts;
+  if (!entity || !action) return perm;
+
+  // 3. Reconstruct as PascalCase.UPPERCASE
+  return (
+    entity.charAt(0).toUpperCase() + entity.slice(1) +
+    "." +
+    action.toUpperCase()
+  );
 };
 
 /**

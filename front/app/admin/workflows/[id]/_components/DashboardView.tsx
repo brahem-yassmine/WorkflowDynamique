@@ -241,7 +241,7 @@ export default function DashboardView({ workflowId }: DashboardViewProps) {
             <p className="text-slate-400 font-medium max-w-md">Enter the architect mode to restructure the logic nodes, add new edges, or configure step parameters for this template.</p>
           </div>
           <button 
-            onClick={() => window.location.href = `/create-workflow?id=${workflowId}`}
+            onClick={() => window.location.href = `/create-workflow?id=${workflowId}&isTemplate=true&returnUrl=${encodeURIComponent(window.location.pathname)}`}
             className="px-10 py-5 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-[0.2em] shadow-xl hover:scale-105 transition-all active:scale-95 flex items-center gap-3"
           >
             <Edit2 size={20} />

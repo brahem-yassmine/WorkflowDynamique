@@ -40,26 +40,32 @@ const WorkflowArchitectContent = () => {
             return;
         }
 
-        // Priority 1: Specific Workflow Context (Admin)
+        // Priority 1: Template Context
+        if (isTemplate) {
+            router.push(`/admin/templates${moduleId ? `?moduleId=${moduleId}` : ''}`);
+            return;
+        }
+
+        // Priority 2: Specific Workflow Context (Admin)
         if (flowId) {
             router.push(`/admin/workflows/${flowId}?tab=visual`);
             return;
         }
 
-        // Priority 2: Project Context (Admin)
+        // Priority 3: Project Context (Admin)
         if (projectId) {
             router.push(`/admin/projects/${projectId}`);
             return;
         }
 
-        // Priority 3: Operational Context (Module/Domain)
+        // Priority 4: Operational Context (Module/Domain)
         if (domainId && moduleId) {
             router.push(`/admin/domains/${domainId}/modules?moduleId=${moduleId}`);
             return;
         }
 
-        // Priority 4: Default Admin Fallback
-        router.push('/admin/workflows' + (isTemplate ? '?isTemplate=true' : ''));
+        // Priority 5: Default Admin Fallback
+        router.push('/admin/workflows');
     };
 
 

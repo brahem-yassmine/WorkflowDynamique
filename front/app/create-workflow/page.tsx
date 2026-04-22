@@ -42,6 +42,10 @@ const WorkflowArchitectContent = () => {
 
         // Priority 1: Template Context
         if (isTemplate) {
+            if (domainId && moduleId) {
+                router.push(`/admin/domains/${domainId}/modules?moduleId=${moduleId}`);
+                return;
+            }
             router.push(`/admin/templates${moduleId ? `?moduleId=${moduleId}` : ''}`);
             return;
         }

@@ -1,25 +1,131 @@
 const path = require('path');
 const mongoose = require('mongoose');
 const WorkflowEngine = require('../workflowEngine/WorkflowEngine');
+const notificationController = require('./notificationController');
+
+// Helper to sync state to currentNodes for frontend compatibility
+const syncCompatibilityFields = (instance) => {
+  if (!instance.state) return;
+  
+  instance.currentNodes = instance.state
+    .filter(s => s.status === 'IN_PROGRESS')
+    .map(s => ({
+      nodeId: s.stepId,
+      status: 'in_progress',
+      startedAt: s.startedAt,
+      responsibleUser: s.activePerformer || (s.assignees?.length === 1 ? s.assignees[0] : null),
+      assignees: s.assignees,
+      deadline: s.deadline
+    }));
+    
+  // Sync history to executionPath for frontend compatibility
+  if (instance.history) {
+    instance.executionPath = instance.history.map(h => ({
+      nodeId: h.stepId,
+      action: h.action?.toLowerCase(),
+      performedBy: h.performedBy,
+      timestamp: h.timestamp,
+      comments: h.comments
+    }));
+  }
+};
+
+// Helper to send notifications for new active steps
+const sendStepNotifications = async (req, instance) => {
+  try {
+    const Workflow = req.tenantConn.model('Workflow');
+    const workflow = await Workflow.findById(instance.workflowId);
+    if (!workflow) return;
+
+    const UserModel = req.tenantConn.model('User');
+    const recentTime = new Date(Date.now() - 10000); // 10 seconds grace
+
+    for (const step of instance.state) {
+      if (step.status !== 'IN_PROGRESS' || step.startedAt < recentTime) continue;
+
+      const nodeDef = workflow.nodes.find(n => n.id === step.stepId);
+      const nodeData = nodeDef?.data || {};
+
+      const targetUsers = new Set();
+      if (step.activePerformer) targetUsers.add(step.activePerformer.toString());
+      if (step.assignees) {
+        step.assignees.forEach(id => targetUsers.add(id.toString()));
+      }
+
+      for (const userId of targetUsers) {
+        await notificationController.createInternalNotification(req.tenantConn, {
+          recipient: userId,
+          title: 'New Task Assigned',
+          message: `Task "${nodeData.label || 'Step'}" requires your attention in "${instance.title}".`,
+          type: 'task_assigned',
+          link: `/Workflows/instances/${instance._id}`
+        });
+      }
+    }
+  } catch (err) {
+    console.error('❌ Notification Error:', err);
+  }
+};
 
 // 1. CREATE WORKFLOW INSTANCE
 exports.createInstance = async (req, res) => {
   try {
-    const { workflowId, title, initialContext, priority, dueDate, tags } = req.body;
-    
+    const { workflowId, title, description, initialContext, data, priority, dueDate, tags } = req.body;
+
+    if (!workflowId || !title) {
+      return res.status(400).json({ success: false, message: 'Workflow ID and title are required' });
+    }
+
+    const Workflow = req.tenantConn.model('Workflow');
+    const workflow = await Workflow.findById(workflowId);
+    if (!workflow) {
+      return res.status(404).json({ success: false, message: 'Workflow not found' });
+    }
+
     const engine = new WorkflowEngine(req.tenantConn);
-    const instance = await engine.start(workflowId, req.user.id, title, initialContext || {});
+    const instance = await engine.start(workflowId, req.user.id, title, initialContext || data || {});
 
     // Update optional fields not handled by engine.start
+    if (description) instance.description = description || workflow.description;
     if (priority) instance.priority = priority;
     if (dueDate) instance.dueDate = dueDate;
     if (tags) instance.tags = tags;
+
+    // Create associated checklist
+    const Checklist = req.tenantConn.model('Checklist');
+    const checklistTasks = workflow.nodes
+      .filter(node => ['action', 'condition', 'task'].includes(node.type.toLowerCase()))
+      .map(node => ({
+        id: node.id,
+        title: node.data?.label || (node.type === 'action' ? 'Task' : node.type === 'condition' ? 'Condition' : 'Step'),
+        completed: false,
+        priority: node.data?.priority || 'medium'
+      }));
+
+    if (checklistTasks.length > 0) {
+      const checklist = new Checklist({
+        name: `Checklist: ${title}`,
+        description: `Auto-generated for workflow instance: ${title}`,
+        tasks: checklistTasks,
+        createdBy: req.user.id,
+        status: 'draft',
+        instanceId: instance._id,
+        workflowId: workflow._id
+      });
+      await checklist.save();
+      instance.checklistId = checklist._id;
+    }
+
+    syncCompatibilityFields(instance);
     await instance.save();
+
+    // Send notifications for initial steps
+    await sendStepNotifications(req, instance);
 
     res.status(201).json({ success: true, message: 'Workflow instance created', data: instance });
   } catch (error) {
     console.error('❌ createInstance Error:', error);
-    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    res.status(500).json({ success: false, message: 'Server error: ' + error.message });
   }
 };
 
@@ -45,7 +151,6 @@ exports.getInstances = async (req, res) => {
 
     // Visibility Logic
     if (!isAdmin) {
-      // User can see instances they created OR instances where they are an assignee of an active step
       query.$or = [
         { createdBy: user.id },
         { 'state.assignees': user.id },
@@ -119,6 +224,11 @@ exports.approveNode = async (req, res) => {
       { ...data, comments }
     );
 
+    syncCompatibilityFields(instance);
+    await instance.save();
+    
+    await sendStepNotifications(req, instance);
+
     res.json({ success: true, message: 'Step processed', data: instance });
   } catch (error) {
     console.error('❌ approveNode Error:', error);
@@ -139,6 +249,11 @@ exports.rejectNode = async (req, res) => {
       'REJECTED', 
       { ...data, comments }
     );
+
+    syncCompatibilityFields(instance);
+    await instance.save();
+    
+    await sendStepNotifications(req, instance);
 
     res.json({ success: true, message: 'Step rejected', data: instance });
   } catch (error) {
@@ -166,6 +281,7 @@ exports.lockNode = async (req, res) => {
     }
 
     stepState.activePerformer = req.user.id;
+    syncCompatibilityFields(instance);
     await instance.save();
 
     res.json({ success: true, message: 'Step locked', data: instance });
@@ -188,6 +304,7 @@ exports.cancelInstance = async (req, res) => {
 
     instance.status = 'cancelled';
     instance.state.forEach(s => { if (s.status === 'IN_PROGRESS') s.status = 'FAILED'; });
+    syncCompatibilityFields(instance);
     await instance.save();
 
     res.json({ success: true, message: 'Instance cancelled', data: instance });
@@ -260,5 +377,48 @@ exports.updateNodeData = async (req, res) => {
 };
 
 exports.checkDeadlines = async (req, res) => {
-    res.status(200).json({ success: true, message: 'Deadline check triggered (background)' });
+  try {
+    if (!req.tenantConn) {
+      return res.status(403).json({ success: false, message: 'Tenant context required' });
+    }
+    const WorkflowInstance = req.tenantConn.model('WorkflowInstance');
+    const Notification = req.tenantConn.model('Notification');
+    const User = req.tenantConn.model('User');
+
+    const instances = await WorkflowInstance.find({ status: 'in_progress' });
+    const now = new Date();
+    const admins = await User.find({ role: 'admin' });
+
+    let alertsCreated = 0;
+
+    for (const inst of instances) {
+      for (const step of (inst.state || [])) {
+        if (step.deadline && new Date(step.deadline) < now && step.status === 'IN_PROGRESS') {
+          const alreadyNotified = await Notification.findOne({
+            recipient: { $in: admins.map(a => a._id) },
+            type: 'deadline_exceeded',
+            link: `/Workflows/instances/${inst._id}/`
+          });
+
+          if (!alreadyNotified) {
+            for (const admin of admins) {
+              await notificationController.createInternalNotification(req.tenantConn, {
+                recipient: admin._id,
+                title: '⏰ DEADLINE EXCEEDED',
+                message: `Task in workflow "${inst.title}" has passed its deadline!`,
+                type: 'deadline_exceeded',
+                link: `/Workflows/instances/${inst._id}/`
+              });
+            }
+            alertsCreated++;
+          }
+        }
+      }
+    }
+
+    res.json({ success: true, alertsCreated });
+  } catch (error) {
+    console.error('Error checking deadlines:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 };

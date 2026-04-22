@@ -258,7 +258,10 @@ export default function VisualFlowView({ workflowId, workflow }: { workflowId: s
                </div>
             </div>
             <button 
-              onClick={() => window.open(`/create-workflow?id=${workflowId}`, '_blank')}
+              onClick={() => {
+                const search = window.location.search;
+                window.open(`/create-workflow?id=${workflowId}${search ? '&' + search.slice(1) : ''}`, '_blank');
+              }}
               className="flex items-center gap-2 px-8 py-3.5 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95"
             >
               <Maximize2 size={16} />

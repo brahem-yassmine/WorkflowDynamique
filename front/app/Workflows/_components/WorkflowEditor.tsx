@@ -24,7 +24,10 @@ import '@xyflow/react/dist/style.css';
 import Sidebar from './Sidebar';
 import StartNode from './nodes/StartNode';
 import EndNode from './nodes/EndNode';
-import ActionNode from './nodes/ActionNode';
+import TaskNode from './nodes/TaskNode';
+import ApprovalNode from './nodes/ApprovalNode';
+import AutoNode from './nodes/AutoNode';
+import NotificationNode from './nodes/NotificationNode';
 import ConditionNode from './nodes/ConditionNode';
 import ParallelJoinNode from './nodes/ParallelJoinNode';
 import ParallelSplitNode from './nodes/ParallelSplitNode';
@@ -38,9 +41,17 @@ import { toast } from 'sonner';
 
 // Node types (defined outside the component to avoid unnecessary re-renders)
 const nodeTypes = {
+    START: StartNode,
+    END: EndNode,
+    TASK: TaskNode,
+    APPROVAL: ApprovalNode,
+    AUTO: AutoNode,
+    NOTIFICATION: NotificationNode,
+    CONDITION: ConditionNode,
+    // Keep old lowercase for backwards compatibility in UI designer (Optional but good)
     start: StartNode,
     end: EndNode,
-    action: ActionNode,
+    action: TaskNode, 
     condition: ConditionNode,
     parallel_split: ParallelSplitNode,
     parallel_join: ParallelJoinNode,
@@ -369,9 +380,12 @@ function WorkflowEditorContent({ onSaveSuccess }: { onSaveSuccess?: () => void }
                 type,
                 position,
                 data: {
-                    label: type === 'condition' ? 'New Condition' :
-                        type === 'action' ? 'New Task' :
-                            type === 'start' ? 'Start' :
+                    label: type === 'CONDITION' ? 'New Condition' :
+                        type === 'TASK' ? 'New Task' :
+                        type === 'APPROVAL' ? 'New Approval' :
+                        type === 'AUTO' ? 'Auto Script' :
+                        type === 'NOTIFICATION' ? 'Notification' :
+                            type === 'START' ? 'Start' :
                                 type === 'parallel_split' ? 'Start Parallel' :
                                     type === 'parallel_join' ? 'Sync Join' : 'End Workflow'
                 },

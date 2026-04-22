@@ -2,20 +2,23 @@
 const mongoose = require('mongoose');
 
 const workflowInstanceSchema = new mongoose.Schema({
-  // We keep the reference to the workflow (in the same database)
   workflowId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Workflow',
     required: true
   },
+  
+  workflowVersion: {
+    type: Number,
+    default: 1
+  },
 
-  // Link to generated checklist
+
   checklistId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Checklist'
   },
 
-  // We keep the reference to the user (in the same database)
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -29,7 +32,8 @@ const workflowInstanceSchema = new mongoose.Schema({
 
   description: String,
 
-  data: {
+  // SHARED WORKFLOW CONTEXT (The brain of the instance)
+  context: {
     type: mongoose.Schema.Types.Mixed,
     default: {}
   },
@@ -40,81 +44,58 @@ const workflowInstanceSchema = new mongoose.Schema({
     default: 'pending'
   },
 
-  // GRAPH EXECUTION STATE
+  version: {
+    type: Number,
+    default: 0
+  }, // For optimistic locking (concurrency control)
 
-  // Currently active nodes (where the process is pending)
-  currentNodes: [{
-    nodeId: String, // Node ID in the graph (e.g., "node-2")
+  // GRAPH EXECUTION STATE
+  state: [{
+    stepId: String,
     status: {
       type: String,
-      enum: ['pending', 'in_progress', 'completed', 'rejected'],
-      default: 'in_progress'
+      enum: ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'FAILED', 'REJECTED'],
+      default: 'IN_PROGRESS'
     },
     startedAt: { type: Date, default: Date.now },
+    completedAt: Date,
+    deadline: Date,
 
-    // For dynamic assignment
-    responsibleUser: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    },
-    responsibleDomain: {
-      type: String // e.g., 'HR', 'IT', etc. (specific Role/Target)
-    },
-    restrictedDomain: {
-      type: String // e.g., 'Finance' (organizational constraint)
-    },
+    // Dynamic state during execution
     assignees: [{
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
     }],
-    approvedBy: [{
+    activePerformer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
-    }],
-    workerCompleted: {
-      type: Boolean,
-      default: false
-    },
-    validatorApprovals: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    }],
-    deadline: { type: Date }
+    }, // The user who locked/is working on this step
+    
+    // Internal state tracking for the step (e.g. approvals list, external job id, etc)
+    data: { 
+      type: mongoose.Schema.Types.Mixed, 
+      default: {} 
+    }
   }],
 
+  // For backward compatibility during migration
+  currentNodes: [mongoose.Schema.Types.Mixed],
+
   // Execution history (Full traceability)
-  executionPath: [{
-    nodeId: String,
+  history: [{
+    stepId: String,
+    nodeId: String, // Keep nodeId for compat
     nodeType: String,
-    action: String, // 'approved', 'rejected', 'auto_transition'
+    action: String, 
     performedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
     },
     comments: String,
     timestamp: { type: Date, default: Date.now },
-    inputData: mongoose.Schema.Types.Mixed, // Incoming data
-    outputData: mongoose.Schema.Types.Mixed // Step result
-  }],
-
-  // Workflow variables (for conditions)
-  variables: {
-    type: Map,
-    of: mongoose.Schema.Types.Mixed,
-    default: {}
-  },
-
-  history: [{
-    nodeId: String,
-    action: String,
-    title: String,
-    performedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    },
-    comments: String,
     data: mongoose.Schema.Types.Mixed,
-    timestamp: { type: Date, default: Date.now }
+    inputData: mongoose.Schema.Types.Mixed,
+    outputData: mongoose.Schema.Types.Mixed
   }],
 
   priority: {
@@ -124,9 +105,7 @@ const workflowInstanceSchema = new mongoose.Schema({
   },
 
   dueDate: Date,
-
   tags: [String],
-
   timeStarted: Date,
   timeCompleted: Date,
 
@@ -144,26 +123,21 @@ const workflowInstanceSchema = new mongoose.Schema({
   }]
 }, { timestamps: true });
 
+// Pre-save hook for versioning/optimistic locking
+workflowInstanceSchema.pre('save', function(next) {
+  if (this.isModified()) {
+    this.version = (this.version || 0) + 1;
+  }
+  next();
+});
+
 // Helper to know if the instance is active
 workflowInstanceSchema.methods.isActive = function () {
   return !['completed', 'cancelled', 'rejected'].includes(this.status);
 };
 
-// Helper to find the current active node
-workflowInstanceSchema.methods.getNodeStatus = function (nodeId) {
-  return this.currentNodes.find(n => n.nodeId === nodeId);
-};
-
-// Indexing for performance
-workflowInstanceSchema.index({ workflowId: 1 });
-workflowInstanceSchema.index({ createdBy: 1 });
-workflowInstanceSchema.index({ status: 1 });
-workflowInstanceSchema.index({ 'currentNodes.responsibleUser': 1 });
-workflowInstanceSchema.index({ 'currentNodes.responsibleDomain': 1 });
-workflowInstanceSchema.index({ dueDate: 1 });
-
 workflowInstanceSchema.methods.isCompleted = function () {
-  return this.status === 'completed' || this.status === 'approved' || this.status === 'rejected';
+  return ['completed', 'approved', 'rejected', 'cancelled'].includes(this.status);
 };
 
 // Factory pattern

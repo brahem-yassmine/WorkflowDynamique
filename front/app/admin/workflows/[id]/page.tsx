@@ -164,7 +164,7 @@ function WorkflowAdminDetailsContent() {
             <div className="h-8 w-px bg-slate-100" />
             <div>
               <h1 className="text-lg font-black text-slate-800 tracking-tight uppercase leading-none">
-                {workflow?.name} <span className="text-indigo-500 font-extrabold ml-2 text-xs">TEMPLATE</span>
+                {workflow?.name} <span className="text-indigo-500 font-extrabold ml-2 text-xs">WORKFLOW</span>
               </h1>
               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Structural Protocol Blueprint</p>
             </div>

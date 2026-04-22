@@ -261,7 +261,7 @@ function WorkflowsContent() {
             <div className="flex items-center gap-2 bg-indigo-50 px-4 py-2 rounded-xl text-indigo-600 border border-indigo-100">
               <span className="text-xs font-black uppercase tracking-widest flex items-center gap-2">
                 <Briefcase size={14} />
-                {projectIdFilter ? `Project: ${getWorkflowProjectName(projectIdFilter)}` : 'Module Templates'}
+                {projectIdFilter ? `Project: ${getWorkflowProjectName(projectIdFilter)}` : 'Module Workflows'}
               </span>
               <button 
                 onClick={() => router.push('/admin/workflows')}
@@ -271,9 +271,6 @@ function WorkflowsContent() {
               </button>
             </div>
           )}
-          <button onClick={fetchData} className="p-3 bg-white border border-slate-100 rounded-xl text-slate-400 hover:text-indigo-600 transition-colors shadow-sm">
-            <Clock size={20} />
-          </button>
           <Link 
             href={btnDisabledClass('Workflow.CREATE') ? '#' : `/create-workflow?${moduleIdFilter ? `moduleId=${moduleIdFilter}&isTemplate=true` : projectIdFilter ? `projectId=${projectIdFilter}` : ''}`}
             onClick={(e) => {
@@ -283,9 +280,9 @@ function WorkflowsContent() {
               }
             }}
           >
-            <button className={`flex items-center gap-2 px-6 py-3 ${isTemplateFilter ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100'} text-white rounded-xl font-bold shadow-lg transition-all active:scale-95 ${btnDisabledClass('Workflow.CREATE')}`}>
+            <button className={`flex items-center gap-2 px-6 py-3 ${isTemplateFilter === 'true' ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100'} text-white rounded-xl font-bold shadow-lg transition-all active:scale-95 ${btnDisabledClass('Workflow.CREATE')}`}>
               <Plus size={18} />
-              {isTemplateFilter ? 'Add Template' : 'Create Flow'}
+              {isTemplateFilter === 'true' ? 'Add Workflow' : 'Create Flow'}
             </button>
           </Link>
         </div>

@@ -24,8 +24,8 @@ const CustomNode = ({ data, selected }: any) => {
   const isCompleted = stats.completed > 0 && stats.working === 0 && stats.rejected === 0;
 
   const getStyle = () => {
-    if (data.type === 'start') return 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-md';
-    if (data.type === 'end') return 'bg-rose-50 border-rose-200 text-rose-700 shadow-md';
+    if (data.type === 'START' || data.type === 'start') return 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-md';
+    if (data.type === 'END' || data.type === 'end') return 'bg-rose-50 border-rose-200 text-rose-700 shadow-md';
     
     if (isWorking) return 'bg-amber-50 border-amber-500 text-amber-700 border-dashed shadow-xl ring-4 ring-amber-50 z-50';
     if (isRejected) return 'bg-rose-50 border-rose-200 text-rose-600 shadow-sm';
@@ -58,7 +58,7 @@ const CustomNode = ({ data, selected }: any) => {
         )}
         
         <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border border-black/5 ${isWorking ? 'bg-amber-500 text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}>
-          {data.type === 'start' ? 'S' : data.type === 'end' ? 'E' : data.type === 'condition' ? '?' : <Layers size={14} />}
+          {(data.type === 'START' || data.type === 'start') ? 'S' : (data.type === 'END' || data.type === 'end') ? 'E' : (data.type === 'CONDITION' || data.type === 'condition') ? '?' : <Layers size={14} />}
         </div>
 
         <div className="flex flex-col flex-1 min-w-0">
@@ -82,12 +82,12 @@ const CustomNode = ({ data, selected }: any) => {
         </div>
 
         {/* Dynamic Handles based on type */}
-        {data.type === 'condition' ? (
+        {(data.type === 'CONDITION' || data.type === 'condition') ? (
           <>
             <Handle type="source" position={Position.Bottom} id="yes" className="!w-2 !h-2 !bg-emerald-500 !border-2 !border-white shadow-md transition-transform hover:scale-125" style={{ left: '35%' }} />
             <Handle type="source" position={Position.Bottom} id="no" className="!w-2 !h-2 !bg-rose-500 !border-2 !border-white shadow-md transition-transform hover:scale-125" style={{ left: '65%' }} />
           </>
-        ) : data.type !== 'end' ? (
+        ) : (data.type !== 'END' && data.type !== 'end') ? (
           <Handle type="source" position={Position.Bottom} className={`!w-2 !h-2 ${isWorking ? '!bg-amber-500' : '!bg-indigo-600'} !border-2 !border-white shadow-md transition-transform hover:scale-125`} />
         ) : null}
       </div>
@@ -102,6 +102,13 @@ export default function VisualFlowView({ workflowId, workflow }: { workflowId: s
   const isUserSpace = pathname.startsWith('/User');
 
   const nodeTypes = useMemo(() => ({
+    START: CustomNode,
+    END: CustomNode,
+    TASK: CustomNode,
+    APPROVAL: CustomNode,
+    AUTO: CustomNode,
+    NOTIFICATION: CustomNode,
+    CONDITION: CustomNode,
     start: CustomNode,
     end: CustomNode,
     action: CustomNode,
@@ -186,7 +193,7 @@ export default function VisualFlowView({ workflowId, workflow }: { workflowId: s
       );
 
       const sourceNode = workflow?.nodes?.find((n: any) => n.id === edge.source);
-      const isCondition = sourceNode?.type === 'condition';
+      const isCondition = sourceNode?.type === 'condition' || sourceNode?.type === 'CONDITION';
 
       const isYes = edge.sourceHandle === 'yes' || edge.label === 'Yes';
       const isNo = edge.sourceHandle === 'no' || edge.label === 'No';

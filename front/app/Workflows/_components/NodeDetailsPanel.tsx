@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Node } from '@xyflow/react';
-import { X, Plus, Trash2, ListChecks, Clock, ShieldAlert, Users, GraduationCap, LayoutGrid, ClipboardType, FilePlus, CheckSquare, ExternalLink, Paperclip, Image as ImageIcon, Check, Save } from 'lucide-react';
+import { X, Plus, Trash2, ListChecks, Clock, ShieldAlert, Users, GraduationCap, LayoutGrid, ClipboardType, FilePlus, CheckSquare, ExternalLink, Paperclip, Image as ImageIcon, Check, Save, Settings2, MessageSquare } from 'lucide-react';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -93,6 +93,18 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
     const [assignedTo, setAssignedTo] = useState<string>(''); // For Department or User ID
     const [deadline, setDeadline] = useState('');
 
+    // --- AUTO fields ---
+    const [actionType, setActionType] = useState<string>('');
+    const [actionParams, setActionParams] = useState<string>('{}');
+
+    // --- NOTIFICATION fields ---
+    const [channel, setChannel] = useState<'IN_APP' | 'EMAIL'>('IN_APP');
+    const [recipientTargetType, setRecipientTargetType] = useState<'USER' | 'ROLE' | 'ALL' | 'DYNAMIC'>('USER');
+    const [recipientValues, setRecipientValues] = useState<string>(''); // comma separated for simple editing
+    const [recipientLogic, setRecipientLogic] = useState<string>('');
+    const [messageTemplate, setMessageTemplate] = useState<string>('');
+    const [titleTemplate, setTitleTemplate] = useState<string>('');
+
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -120,7 +132,7 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                 if (allNodes) {
                     const vars: any[] = [];
                     for (const node of allNodes) {
-                        if (node.type === 'action' && node.data?.linkedObjectId) {
+                        if (node.type === 'TASK' && node.data?.linkedObjectId) {
                             const formId = node.data.linkedObjectId;
                             const form = loadedForms.find((f: any) => f._id === formId || f.id === formId);
                             if (form && Array.isArray(form.fields)) {
@@ -201,6 +213,30 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
             }
             setAssignedTo(selectedNode.data.assignedTo as string || '');
             setDeadline(selectedNode.data.deadline as string || '');
+
+            // Auto
+            setActionType(selectedNode.data.actionType as string || '');
+            setActionParams(
+                typeof selectedNode.data.actionParams === 'object' 
+                ? JSON.stringify(selectedNode.data.actionParams, null, 2) 
+                : (selectedNode.data.actionParams as string || '{}')
+            );
+
+            // Notification
+            setChannel((selectedNode.data.channel as 'IN_APP' | 'EMAIL') || 'IN_APP');
+            if (selectedNode.data.recipientConfig) {
+                const config = selectedNode.data.recipientConfig as any;
+                setRecipientTargetType(config.targetType || 'USER');
+                setRecipientValues(Array.isArray(config.values) ? config.values.join(', ') : '');
+                setRecipientLogic(config.logic || '');
+            } else {
+                setRecipientTargetType('USER');
+                setRecipientValues('');
+                setRecipientLogic('');
+            }
+            setMessageTemplate(selectedNode.data.messageTemplate as string || '');
+            setTitleTemplate(selectedNode.data.titleTemplate as string || '');
+
         }
     }, [selectedNode]);
 
@@ -288,7 +324,21 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                 userAction,
                 assignedTo
                 assignedTo,
-                deadline
+                deadline,
+                
+                // New Fields
+                actionType,
+                actionParams: (function() {
+                    try { return JSON.parse(actionParams); } catch { return {}; }
+                })(),
+                channel,
+                recipientConfig: {
+                    targetType: recipientTargetType,
+                    values: recipientValues.split(',').map(s => s.trim()).filter(s => s.length > 0),
+                    logic: recipientLogic
+                },
+                messageTemplate,
+                titleTemplate
             });
 
             toast.success("task updated", {
@@ -301,8 +351,8 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
     };
 
     const handleSaveWithValidation = async () => {
-        if (validationType === 'multi' && validatorIds.length < 2) {
-            await showAlert('Validation Error', 'Consensus (Multi) validation strategy requires at least 2 validators.', 'warning');
+        if (validationType === 'multi' && validatorIds.length !== 2) {
+            await showAlert('Validation Error', 'Consensus (Multi) validation strategy requires exactly 2 validators.', 'warning');
             return;
         }
         handleSave();
@@ -349,7 +399,7 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                             title="Base Config"
                             subtitle="Identity & Type"
                         />
-                        {selectedNode.type === 'action' && (
+                        {(selectedNode.type === 'TASK' || selectedNode.type === 'action') && (
                             <>
                                 <TabButton
                                     active={activeTab === 'assignment'}
@@ -359,28 +409,57 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                                     subtitle="Responsible parties"
                                 />
                                 <TabButton
-                                    active={activeTab === 'validation'}
-                                    onClick={() => setActiveTab('validation')}
-                                    icon={<ShieldAlert size={20} />}
-                                    title="Validation"
-                                    subtitle="Approval rules"
-                                />
-                                <TabButton
                                     active={activeTab === 'config'}
                                     onClick={() => setActiveTab('config')}
                                     icon={<ClipboardType size={20} />}
-                                    title="Content & Action"
-                                    subtitle="Task UI & Behavior"
+                                    title="Content Config"
+                                    subtitle="Forms & Documents"
                                 />
                             </>
                         )}
-                        {selectedNode.type === 'condition' && (
+                        {selectedNode.type === 'APPROVAL' && (
+                            <>
+                                <TabButton
+                                    active={activeTab === 'assignment'}
+                                    onClick={() => setActiveTab('assignment')}
+                                    icon={<Users size={20} />}
+                                    title="Assignment"
+                                    subtitle="Approvers"
+                                />
+                                <TabButton
+                                    active={activeTab === 'validation'}
+                                    onClick={() => setActiveTab('validation')}
+                                    icon={<ShieldAlert size={20} />}
+                                    title="Strategy"
+                                    subtitle="Approval Rules"
+                                />
+                            </>
+                        )}
+                        {(selectedNode.type === 'CONDITION' || selectedNode.type === 'condition') && (
                             <TabButton
                                 active={activeTab === 'logic'}
                                 onClick={() => setActiveTab('logic')}
                                 icon={<ShieldAlert size={20} />}
                                 title="Routing Logic"
                                 subtitle="Decision Rules"
+                            />
+                        )}
+                        {selectedNode.type === 'AUTO' && (
+                            <TabButton
+                                active={activeTab === 'automation'}
+                                onClick={() => setActiveTab('automation')}
+                                icon={<Settings2 size={20} />}
+                                title="Automation"
+                                subtitle="System Actions"
+                            />
+                        )}
+                        {selectedNode.type === 'NOTIFICATION' && (
+                            <TabButton
+                                active={activeTab === 'communication'}
+                                onClick={() => setActiveTab('communication')}
+                                icon={<MessageSquare size={20} />}
+                                title="Communication"
+                                subtitle="Alerts & Emails"
                             />
                         )}
                     </div>
@@ -427,7 +506,7 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
 
                                         <div className="grid gap-10">
                                             <div className="space-y-6">
-                                                {selectedNode.type !== 'start' && (
+                                                {selectedNode.type !== 'START' && selectedNode.type !== 'END' && (
                                                     <div className="space-y-3">
                                                         <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest text-[#6366f1]">Stage Name</Label>
                                                         <Input
@@ -450,7 +529,7 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                                                 </div>
                                             </div>
 
-                                            {selectedNode.type === 'action' && (
+                                            {(selectedNode.type === 'TASK' || selectedNode.type === 'action') && (
                                                 <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-8">
                                                     <div className="flex items-center gap-4">
                                                         <div className="p-3 bg-fuchsia-500/10 rounded-2xl text-fuchsia-600">
@@ -514,7 +593,7 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                                 )}
 
                                 {/* TAB: ASSIGNMENT */}
-                                {activeTab === 'assignment' && selectedNode.type === 'action' && (
+                                {(activeTab === 'assignment' && (selectedNode.type === 'TASK' || selectedNode.type === 'action' || selectedNode.type === 'APPROVAL')) && (
                                     <section className="space-y-10">
                                         <div className="space-y-2">
                                             <h2 className="text-3xl font-black text-slate-800 tracking-tight">Responsibility</h2>
@@ -713,8 +792,8 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                                 )}
 
 
-                                {/* TAB: VALIDATION */}
-                                {activeTab === 'validation' && selectedNode.type === 'action' && (
+                                {/* TAB: VALIDATION (Now specifically for APPROVAL nodes) */}
+                                {activeTab === 'validation' && selectedNode.type === 'APPROVAL' && (
                                     <section className="space-y-10">
                                         <div className="space-y-2">
                                             <h2 className="text-3xl font-black text-slate-800 tracking-tight">Validation Matrix</h2>
@@ -1237,7 +1316,7 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                                 )}
 
                                 {/* TAB: LOGIC */}
-                                {activeTab === 'logic' && selectedNode.type === 'condition' && (
+                                {activeTab === 'logic' && (selectedNode.type === 'CONDITION' || selectedNode.type === 'condition') && (
                                     <section className="space-y-10">
                                         <div className="space-y-2">
                                             <h2 className="text-3xl font-black text-slate-800 tracking-tight">Dynamic Routing</h2>
@@ -1300,6 +1379,135 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                                                     <li className="text-[10px] font-medium text-slate-400 leading-relaxed list-disc ml-4">Case sensitive variable names.</li>
                                                     <li className="text-[10px] font-medium text-slate-400 leading-relaxed list-disc ml-4">The path follow <span className="text-emerald-500 font-black">YES</span> if result is truthy, <span className="text-rose-500 font-black">NO</span> otherwise.</li>
                                                 </ul>
+                                            </div>
+                                        </div>
+                                </section>
+                                )}
+
+                                {/* TAB: AUTOMATION */}
+                                {activeTab === 'automation' && selectedNode.type === 'AUTO' && (
+                                    <section className="space-y-10">
+                                        <div className="space-y-2">
+                                            <h2 className="text-3xl font-black text-slate-800 tracking-tight">Automation Logic</h2>
+                                            <p className="text-slate-400 font-medium">Configure predefined backend actions without raw scripts.</p>
+                                        </div>
+
+                                        <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-8">
+                                            <div className="space-y-4">
+                                                <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest text-fuchsia-500">Action Type</Label>
+                                                <select
+                                                    className="w-full h-14 px-4 bg-slate-50 border-none rounded-2xl font-bold text-slate-700 outline-none ring-1 ring-slate-100 focus:ring-2 focus:ring-fuchsia-100"
+                                                    value={actionType}
+                                                    onChange={(e) => setActionType(e.target.value)}
+                                                >
+                                                    <option value="">-- Choose System Action --</option>
+                                                    <option value="GENERATE_DOCUMENT">Generate Document (PDF/Word)</option>
+                                                    <option value="CALL_API">Call External API (Webhook)</option>
+                                                    <option value="TRANSFORM_DATA">Transform Flow Data</option>
+                                                    <option value="CREATE_RECORD">Create Database Record</option>
+                                                    <option value="SEND_WEBHOOK">Fire System Webhook</option>
+                                                    <option value="CLONE_DATA">Clone Database Entities</option>
+                                                </select>
+                                            </div>
+
+                                            <div className="space-y-4">
+                                                <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest text-[#6366f1]">Action Parameters (JSON)</Label>
+                                                <Textarea
+                                                    value={actionParams}
+                                                    onChange={(e) => setActionParams(e.target.value)}
+                                                    className="min-h-[250px] p-6 bg-slate-50 border border-slate-200 rounded-2xl font-mono text-sm shadow-inner"
+                                                    placeholder='{\n  "templateId": "xyz",\n  "format": "PDF"\n}'
+                                                />
+                                                <p className="text-slate-400 text-xs font-semibold px-2">Action parameters must be carefully structured JSON correlating with the backend handlers.</p>
+                                            </div>
+                                        </div>
+                                    </section>
+                                )}
+
+                                {/* TAB: COMMUNICATION */}
+                                {activeTab === 'communication' && selectedNode.type === 'NOTIFICATION' && (
+                                    <section className="space-y-10">
+                                        <div className="space-y-2">
+                                            <h2 className="text-3xl font-black text-slate-800 tracking-tight">Communication Logic</h2>
+                                            <p className="text-slate-400 font-medium">Design external alerts (Email/In-App) triggering automatically.</p>
+                                        </div>
+
+                                        <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-8">
+                                            <div className="space-y-4">
+                                                <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest text-blue-500">Dispatch Channel</Label>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    {(['IN_APP', 'EMAIL'] as const).map((ch) => (
+                                                        <button
+                                                            key={ch}
+                                                            onClick={() => setChannel(ch)}
+                                                            className={`p-4 rounded-2xl border-2 transition-all font-bold ${channel === ch ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-100 bg-transparent text-slate-400 hover:border-slate-200'}`}
+                                                        >
+                                                            {ch === 'IN_APP' ? 'In-App Notification' : 'Email Dispatch'}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-8 border-t border-slate-100 pt-8 mt-8">
+                                                <div className="space-y-4">
+                                                    <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest text-[#6366f1]">Recipient Type</Label>
+                                                    <select
+                                                        className="w-full h-14 px-4 bg-slate-50 border-none rounded-2xl font-bold text-slate-700 outline-none ring-1 ring-slate-100 focus:ring-2 focus:ring-indigo-100"
+                                                        value={recipientTargetType}
+                                                        onChange={(e) => setRecipientTargetType(e.target.value as any)}
+                                                    >
+                                                        <option value="USER">Specific Users</option>
+                                                        <option value="ROLE">Role / Department</option>
+                                                        <option value="ALL">All Platform Users</option>
+                                                        <option value="DYNAMIC">Dynamic Workflow Variable</option>
+                                                    </select>
+                                                </div>
+
+                                                <div className="space-y-4">
+                                                    <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest text-[#6366f1]">
+                                                        {recipientTargetType === 'DYNAMIC' ? 'Dynamic Logic (Path)' : 'Recipient Values'}
+                                                    </Label>
+                                                    {recipientTargetType === 'DYNAMIC' ? (
+                                                        <Input
+                                                            value={recipientLogic}
+                                                            onChange={(e) => setRecipientLogic(e.target.value)}
+                                                            className="h-14 px-4 bg-slate-50 border-none rounded-2xl font-bold text-slate-700 ring-1 ring-slate-100"
+                                                            placeholder="e.g. initiator.email"
+                                                        />
+                                                    ) : recipientTargetType !== 'ALL' ? (
+                                                        <Input
+                                                            value={recipientValues}
+                                                            onChange={(e) => setRecipientValues(e.target.value)}
+                                                            className="h-14 px-4 bg-slate-50 border-none rounded-2xl font-bold text-slate-700 ring-1 ring-slate-100"
+                                                            placeholder="Comma separated IDs or Names"
+                                                        />
+                                                    ) : (
+                                                        <div className="h-14 px-4 bg-slate-100 rounded-2xl font-bold text-slate-400 flex items-center">
+                                                            Broadcasting to everyone.
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="border-t border-slate-100 pt-8 space-y-6">
+                                                <div className="space-y-4">
+                                                    <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest text-[#6366f1]">Alert Subject / Title {"(Supports {{var}} injection)"}</Label>
+                                                    <Input
+                                                        value={titleTemplate}
+                                                        onChange={(e) => setTitleTemplate(e.target.value)}
+                                                        className="h-14 px-4 bg-slate-50 border-none rounded-2xl font-bold text-slate-700 ring-1 ring-slate-100"
+                                                        placeholder="Urgent Review for {{request_id}}"
+                                                    />
+                                                </div>
+                                                <div className="space-y-4">
+                                                    <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest text-[#6366f1]">Message Payload {"(Supports {{var}})"}</Label>
+                                                    <Textarea
+                                                        value={messageTemplate}
+                                                        onChange={(e) => setMessageTemplate(e.target.value)}
+                                                        className="min-h-[150px] p-6 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium"
+                                                        placeholder="Hello, please review {{project.name}}..."
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
                                     </section>

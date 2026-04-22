@@ -161,8 +161,8 @@ function TemplatesContent() {
   };
 
   const filteredTemplates = templates.filter(w =>
-    w.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    w.domain.toLowerCase().includes(searchTerm.toLowerCase())
+    (w.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+    (w.domain?.toLowerCase() || '').includes(searchTerm.toLowerCase())
   );
 
   const getModuleName = (mId?: string) => {

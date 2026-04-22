@@ -414,7 +414,7 @@ export default function DomainModulesSpace() {
                                                         Assign
                                                     </button>
                                                     <button 
-                                                        onClick={() => router.push(`/admin/workflows/${tpl._id}?tab=visual&viewOnly=true`)}
+                                                        onClick={() => router.push(`/admin/workflows/${tpl._id}?tab=visual&viewOnly=true&domainId=${domainId}&moduleId=${selectedModuleId}`)}
                                                         className="flex-1 py-3.5 bg-slate-50 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all flex items-center justify-center gap-2"
                                                     >
                                                         <Eye size={14} />

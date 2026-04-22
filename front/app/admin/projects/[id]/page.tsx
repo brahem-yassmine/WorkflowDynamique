@@ -290,7 +290,7 @@ export default function ProjectWorkflowsPage() {
                 </div>
                 <div className="flex items-center gap-2">
                    <div className="px-3 py-1 bg-indigo-50 text-indigo-400 rounded-lg text-[9px] font-black uppercase tracking-widest border border-indigo-100">
-                      {typeof workflow.domainId === 'object' ? workflow.domainId.name : (workflow.domain || 'Lattice')}
+                      { (workflow.domainId && typeof workflow.domainId === 'object') ? workflow.domainId.name : (workflow.domain || 'Lattice') }
                    </div>
                 </div>
               </div>

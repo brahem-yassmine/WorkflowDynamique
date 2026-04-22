@@ -41,6 +41,7 @@ interface WorkflowTask {
     dueDate?: string;
     description?: string;
     linkedFormId?: string;
+    userRole?: string;
 }
 
 export default function UserTasksPage() {
@@ -344,9 +345,19 @@ function TaskCard({ task, onClick, isFetching, currentSelected }: { task: Workfl
                             }`}>
                             {task.priority || 'Medium'}
                         </div>
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.1em] bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
-                            {task.taskType}
-                        </span>
+                        <div className="flex gap-1.5 flex-wrap justify-end">
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.1em] bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                                {task.taskType}
+                            </span>
+                            {task.userRole && (
+                                <span className={`text-[9px] font-black uppercase tracking-[0.1em] px-2 py-0.5 rounded-md border ${task.userRole === 'To Validate' ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm' :
+                                    task.userRole.includes('Wait') ? 'bg-slate-100 text-slate-400 border-slate-200' :
+                                        'bg-blue-50 text-blue-600 border-blue-200'
+                                    }`}>
+                                    {task.userRole}
+                                </span>
+                            )}
+                        </div>
                     </div>
                 )}
                 {isCompleted && (

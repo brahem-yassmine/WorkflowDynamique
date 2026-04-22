@@ -300,8 +300,8 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
     };
 
     const handleSaveWithValidation = async () => {
-        if (validationType === 'multi' && validatorIds.length < 2) {
-            await showAlert('Validation Error', 'Consensus (Multi) validation strategy requires at least 2 validators.', 'warning');
+        if (validationType === 'multi' && validatorIds.length !== 2) {
+            await showAlert('Validation Error', 'Consensus (Multi) validation strategy requires exactly 2 validators.', 'warning');
             return;
         }
         handleSave();

@@ -1434,6 +1434,7 @@ async function processNodeTransition(req, instance, workflow, sourceNodeId) {
       responsibleDomain,
       restrictedDomain: node.data?.restrictedDomain || null,
       assignees: nodeAssignees,
+      validatorIds: node.data?.validatorIds || [],
       deadline: node.data?.deadline ? new Date(node.data.deadline) : null
     });
   }

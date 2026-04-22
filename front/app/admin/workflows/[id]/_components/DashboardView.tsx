@@ -238,7 +238,7 @@ export default function DashboardView({ workflowId }: DashboardViewProps) {
         >
           <div className="space-y-4 text-center md:text-left">
             <h2 className="text-3xl font-black tracking-tight">Modify Base Blueprint</h2>
-            <p className="text-slate-400 font-medium max-w-md">Enter the architect mode to restructure the logic nodes, add new edges, or configure step parameters for this template.</p>
+            <p className="text-slate-400 font-medium max-w-md">Enter the architect mode to restructure the logic nodes, add new edges, or configure step parameters for this workflow.</p>
           </div>
           <button 
             onClick={() => window.location.href = `/create-workflow?id=${workflowId}`}

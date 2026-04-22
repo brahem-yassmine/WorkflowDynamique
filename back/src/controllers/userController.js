@@ -495,22 +495,24 @@ exports.getUserTasks = async (req, res) => {
 
         const hasApproved = node.approvedBy?.some(u => u.toString() === userId.toString());
 
-        // 7. Final Visibility Decision
-        if (isVisible) {
-          
-          // Identify if the current specific user has validator privileges for this node
-          let isUserValidator = false;
-          const vType = String(nodeDef.data?.validationType || '').toLowerCase();
-          if (vType === 'simple' || vType === 'multi') {
-              const validatorIds = nodeDef.data?.validatorIds || [];
-              isUserValidator = validatorIds.includes(userId.toString()) || 
-                               (nodeDef.data?.validatorType === 'role' && validatorIds.includes(userRoleStr)) ||
-                               isAdmin;
-          }
+        // Identify if the current specific user has validator privileges for this node
+        let isUserValidator = false;
+        const vType = String(nodeDef.data?.validationType || '').toLowerCase();
+        if (vType === 'simple' || vType === 'multi') {
+            const validatorIds = nodeDef.data?.validatorIds || [];
+            isUserValidator = validatorIds.includes(userId.toString()) || 
+                             (nodeDef.data?.validatorType === 'role' && validatorIds.includes(userRoleStr)) ||
+                             isAdmin;
+        }
 
-          // If worker has finished, only validators should see it in their pending list
+        // 7. Final Visibility Decision
+        // Task is visible if current user is an admin, the creator, a worker, or a validator
+        if (isUserValidator) isVisible = true;
+
+        if (isVisible) {
+          // If worker has finished, and I am NOT a validator, hide it from my pending list
           if (node.workerCompleted && !isUserValidator) {
-              isVisible = false;
+            isVisible = false;
           }
         }
 
@@ -533,6 +535,7 @@ exports.getUserTasks = async (req, res) => {
               projectName: workflowData.projectId?.name || 'No Project',
               type: 'workflow',
               taskType: (nodeDef.type === 'form' || !!nodeDef.data?.formId || !!nodeDef.data?.linkedObjectId) ? 'Formulaire' : 'Tâche',
+              userRole: isUserValidator && node.workerCompleted ? 'To Validate' : (isUserValidator ? 'Approver (Wait)' : 'Executor'),
               status: 'pending',
               priority: instance.priority || 'medium',
               createdAt: node.startedAt || instance.createdAt,

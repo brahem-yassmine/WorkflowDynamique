@@ -45,8 +45,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const refreshProfile = useCallback(async () => {
-    const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
-    if (!token) return;
+    let token = localStorage.getItem('auth_token') || localStorage.getItem('token');
+    
+    // Safety check: sometimes localStorage can contain the string "undefined" or "null"
+    if (!token || token === 'undefined' || token === 'null') {
+      setLoading(false);
+      return;
+    }
 
     try {
       const response = await axios.get(`${API_URL}/auth/profile`, {
@@ -58,18 +63,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.log('✅ [AuthContext] Profile refreshed:', {
           email: userData.email,
           role: userData.role,
-          permissionsCount: userData.permissions?.length,
-          isFullAccess: (userData.role?.toLowerCase() === 'admin' || userData.role?.toLowerCase() === 'super_admin' || userData.permissions?.includes('all'))
+          permissionsCount: userData.permissions?.length
         });
         setUser(userData);
         localStorage.setItem('user', JSON.stringify(userData));
       }
-    } catch (error) {
-      console.error('Error refreshing profile:', error);
-      // If unauthorized, we might want to logout, but carefully
-      if ((error as any).response?.status === 401) {
-        // logout();
+    } catch (error: any) {
+      console.error('❌ [AuthContext] Error refreshing profile:', error.response?.data?.message || error.message);
+      
+      // If unauthorized (401), the token is likely expired or invalid
+      if (error.response?.status === 401) {
+        console.warn('🔐 [AuthContext] Session expired or invalid. Logging out.');
+        logout();
       }
+    } finally {
+      setLoading(false);
     }
   }, []);
 

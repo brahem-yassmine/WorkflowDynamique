@@ -12,7 +12,7 @@ const tenantResolver = async (req, res, next) => {
       try {
         const token = req.headers.authorization.split(' ')[1];
         const jwt = require('jsonwebtoken');
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'votre_secret_jwt');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
         if (decoded && decoded.tenantId) {
           tenantId = decoded.tenantId;
           console.log(`🔑 [TenantResolver] Resolved tenant from JWT: ${tenantId}`);

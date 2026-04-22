@@ -166,6 +166,19 @@ exports.createWorkflow = async (req, res) => {
     let workflowNodes = nodes || [];
     let workflowEdges = edges || [];
 
+    // Validation: Exactly 2 validators for Multi-Validation
+    for (const node of workflowNodes) {
+      if (node.data?.validationType === 'multi') {
+        const vIds = node.data.validatorIds || [];
+        if (vIds.length !== 2) {
+          return res.status(400).json({
+            success: false,
+            message: `Consensus (Multi) validation strategy on node "${node.data?.label || node.id}" requires exactly 2 validators.`
+          });
+        }
+      }
+    }
+
     // Process base64 attachments in nodes
     for (let node of workflowNodes) {
       if (node.data && node.data.attachments && Array.isArray(node.data.attachments)) {
@@ -350,6 +363,21 @@ exports.updateWorkflow = async (req, res) => {
                 node.data.attachments[i].url = `http://localhost:5000/uploads/${uniqueFilename}`;
               }
             }
+          }
+        }
+      }
+    }
+
+    // Validation: Exactly 2 validators for Multi-Validation
+    if (updates.nodes) {
+      for (const node of updates.nodes) {
+        if (node.data?.validationType === 'multi') {
+          const vIds = node.data.validatorIds || [];
+          if (vIds.length !== 2) {
+            return res.status(400).json({
+              success: false,
+              message: `Consensus (Multi) validation strategy on node "${node.data?.label || node.id}" requires exactly 2 validators.`
+            });
           }
         }
       }
@@ -634,7 +662,8 @@ async function _internalStartInstance(tenantConn, workflow, user, options = {}) 
         responsibleUser: responsibleUser,
         responsibleDomain: responsibleDomain,
         restrictedDomain: targetNode.data?.restrictedDomain || null,
-        assignees: nodeAssignees
+        assignees: nodeAssignees,
+        validatorIds: targetNode.data?.validatorIds || []
       };
     }));
 

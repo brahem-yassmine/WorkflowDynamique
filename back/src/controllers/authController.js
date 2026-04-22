@@ -250,7 +250,7 @@ const login = async (req, res) => {
         tokenVersion: tokenVersion
       },
       process.env.JWT_SECRET || 'your_jwt_secret',
-      { expiresIn: '15m' }
+      { expiresIn: '10h' }
     );
 
     const refreshToken = jwt.sign(
@@ -483,7 +483,7 @@ const registerTenant = async (req, res) => {
         tokenVersion
       },
       process.env.JWT_SECRET || 'your_jwt_secret',
-      { expiresIn: '15m' }
+      { expiresIn: '10h' }
     );
 
     const refreshToken = jwt.sign(
@@ -930,7 +930,7 @@ module.exports = {
           tokenVersion: tokenVersion
         },
         process.env.JWT_SECRET || 'your_jwt_secret',
-        { expiresIn: '15m' }
+        { expiresIn: '10h' }
       );
 
       const refreshToken = jwt.sign(
@@ -1060,7 +1060,7 @@ module.exports = {
           tokenVersion: currentUserTokenVersion
         },
         process.env.JWT_SECRET || 'your_jwt_secret',
-        { expiresIn: '15m' }
+        { expiresIn: '10h' }
       );
 
       res.json({

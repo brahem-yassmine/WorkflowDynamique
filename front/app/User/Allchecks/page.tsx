@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
   ListTodo, 
   Search, 
@@ -23,6 +24,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { apiService } from '@/service/api.service';
 import Link from 'next/link';
 import { toast, Toaster } from 'sonner';
+import { usePermissions } from '@/hooks/usePermissions';
 
 export default function AllChecklistsPage() {
   const [checklists, setChecklists] = useState<any[]>([]);
@@ -31,6 +33,8 @@ export default function AllChecklistsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedChecklist, setSelectedChecklist] = useState<any>(null);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const router = useRouter();
+  const { can, btnDisabledClass, permissionDisabledClass } = usePermissions();
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -123,7 +127,7 @@ export default function AllChecklistsPage() {
     if (!checklist || !isOpen) return null;
 
     return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40">
         <motion.div 
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -156,6 +160,10 @@ export default function AllChecklistsPage() {
                       task.completed ? 'bg-emerald-50/50 border-emerald-100 hover:border-emerald-200' : 'bg-slate-50 border-slate-100 hover:border-indigo-200'
                     }`}
                     onClick={async () => {
+                      if (!can('Checklist.COMPLETE_ITEM')) {
+                        toast.error("Matrix Restricted: You cannot modify tactical data");
+                        return;
+                      }
                       try {
                         const res = await apiService.toggleTaskStatus(checklist._id, task.id);
                         if (res.success) {
@@ -174,7 +182,13 @@ export default function AllChecklistsPage() {
                       }
                     }}
                   >
-                    <div className={`p-2 rounded-lg transition-colors ${task.completed ? 'bg-emerald-100 text-emerald-600' : 'bg-indigo-100 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white'}`}>
+                    <div className={`p-2 rounded-lg transition-colors ${
+                      task.completed 
+                      ? 'bg-emerald-100 text-emerald-600' 
+                      : can('Checklist.COMPLETE_ITEM') 
+                        ? 'bg-indigo-100 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white'
+                        : 'bg-slate-100 text-slate-300 grayscale opacity-40'
+                    }`}>
                       {task.completed ? <CheckCircle2 size={14} /> : <div className="w-3.5 h-3.5 border-2 border-current rounded-sm" />}
                     </div>
                     <div className="flex-1">
@@ -309,11 +323,13 @@ export default function AllChecklistsPage() {
                               <div 
                                 key={checklist._id}
                                 onClick={() => {
-                                  if (checklist.instanceId) {
-                                    router.push(`/Workflows/instances/${checklist.instanceId}`);
-                                  } else {
-                                    router.push(`/checklist/designer?id=${checklist._id}&source=allchecks&role=User`);
-                                  }
+                                  const query = new URLSearchParams({
+                                    id: checklist._id,
+                                    source: 'allchecks',
+                                    role: 'User'
+                                  });
+                                  if (checklist.instanceId) query.append('instanceId', checklist.instanceId);
+                                  router.push(`/checklist/designer?${query.toString()}`);
                                 }}
                                 className="group bg-white border border-slate-100 rounded-[32px] p-8 hover:shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] transition-all duration-500 relative overflow-hidden flex flex-col h-full cursor-pointer"
                               >
@@ -338,9 +354,20 @@ export default function AllChecklistsPage() {
                                       <Eye size={20} strokeWidth={2.5} />
                                     </button>
                                     <button 
-                                      onClick={(e) => { handleDeleteChecklist(e, checklist._id, checklist.instanceId); }}
-                                      className="p-3 bg-white border border-slate-100 transition-all shadow-sm rounded-2xl text-slate-400 hover:text-rose-600 hover:bg-rose-50"
-                                      title="Delete"
+                                      onClick={(e) => { 
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        if (can('Checklist.DELETE')) {
+                                          handleDeleteChecklist(e, checklist._id, checklist.instanceId);
+                                        }
+                                      }}
+                                      disabled={!can('Checklist.DELETE')}
+                                      className={`p-3 bg-white border border-slate-100 transition-all shadow-sm rounded-2xl ${
+                                        can('Checklist.DELETE')
+                                        ? 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
+                                        : 'text-slate-200 grayscale opacity-30 cursor-not-allowed'
+                                      }`}
+                                      title={!can('Checklist.DELETE') ? "Matrix Restricted" : "Delete"}
                                     >
                                       <Trash2 size={20} strokeWidth={2.5} />
                                     </button>
@@ -401,12 +428,12 @@ export default function AllChecklistsPage() {
 
                                 <div className="mt-8 pt-6 border-t border-slate-50">
                                     <Link 
-                                      href={checklist.instanceId ? `/Workflows/instances/${checklist.instanceId}` : `/checklist/designer?id=${checklist._id}&source=allchecks&role=User`}
+                                      href={`/checklist/designer?id=${checklist._id}&source=allchecks&role=User${checklist.instanceId ? `&instanceId=${checklist.instanceId}` : ''}`}
                                       className="flex items-center justify-between w-full group/btn"
                                       onClick={(e) => e.stopPropagation()}
                                     >
                                       <span className="text-[11px] font-black uppercase tracking-widest text-slate-900 group-hover/btn:text-indigo-600 transition-colors">
-                                        {checklist.instanceId ? "View Workflow Task" : "View Checklist Designer"}
+                                        {checklist.instanceId ? "View Dynamic Checklist" : "View Checklist Designer"}
                                       </span>
                                     <div className="p-2 bg-slate-50 text-slate-400 group-hover/btn:bg-indigo-600 group-hover/btn:text-white rounded-xl transition-all duration-300">
                                       <ArrowRight size={18} />

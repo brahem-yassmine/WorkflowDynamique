@@ -24,6 +24,7 @@ const superAdminSchema = new mongoose.Schema({
     enum: ['super_admin']
   },
 
+  tokenVersion: { type: Number, default: 1 },
   lastLogin: Date,
   isActive: { type: Boolean, default: true },
 

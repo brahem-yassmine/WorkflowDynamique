@@ -64,7 +64,7 @@ exports.getWorkflows = async (req, res) => {
 exports.getWorkflowById = async (req, res) => {
   try {
     const { workflowId } = req.params;
-    
+
     const mongoose = require('mongoose');
     if (!mongoose.Types.ObjectId.isValid(workflowId)) {
       return res.status(400).json({
@@ -108,28 +108,42 @@ exports.getWorkflowById = async (req, res) => {
 exports.createWorkflow = async (req, res) => {
   try {
     const { name, description, domain, domainId, nodes, edges, projectId, moduleId, status, isTemplate } = req.body;
-    
+
     if (!req.tenantConn) {
-        return res.status(400).json({ success: false, message: 'Tenant environment not resolved' });
+      return res.status(400).json({ success: false, message: 'Tenant environment not resolved' });
     }
 
     const Workflow = req.tenantConn.model('Workflow');
 
     // ID Validation
     if (domainId && !mongoose.Types.ObjectId.isValid(domainId)) {
-        return res.status(400).json({ success: false, message: 'Invalid Domain ID format' });
+      return res.status(400).json({ success: false, message: 'Invalid Domain ID format' });
     }
     if (projectId && !mongoose.Types.ObjectId.isValid(projectId)) {
-        return res.status(400).json({ success: false, message: 'Invalid Project ID format' });
+      return res.status(400).json({ success: false, message: 'Invalid Project ID format' });
     }
     if (moduleId && !mongoose.Types.ObjectId.isValid(moduleId)) {
-        return res.status(400).json({ success: false, message: 'Invalid Module ID format' });
+      return res.status(400).json({ success: false, message: 'Invalid Module ID format' });
     }
 
     if (!name) {
       return res.status(400).json({
         success: false,
         message: 'Name is required'
+      });
+    }
+
+    if (!isTemplate && (!projectId || !domainId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Un workflow doit être lié à un projet et un domaine.'
+      });
+    }
+
+    if (isTemplate && (!moduleId || !domainId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Un template de workflow doit être lié à un module et un domaine.'
       });
     }
 
@@ -221,46 +235,46 @@ exports.createWorkflow = async (req, res) => {
 
     // Notifications Guard
     try {
-        // Trigger Notification for Admins
-        const UserModel = req.tenantConn.model('User');
-        const admins = await UserModel.find({ role: 'admin' });
-        for (const admin of admins) {
-            const adminId = admin._id.toString();
-            if (adminId === currentUserId?.toString()) continue;
-            
-            await notificationController.createInternalNotification(req.tenantConn, {
-                recipient: admin._id,
-                title: 'New Workflow Created',
-                message: `A new workflow "${name}" has been drafted in domain ${workflowDomain}.`,
-                type: 'workflow_created',
-                link: `/admin/workflows?id=${workflow._id}`
-            });
-        }
+      // Trigger Notification for Admins
+      const UserModel = req.tenantConn.model('User');
+      const admins = await UserModel.find({ role: 'admin' });
+      for (const admin of admins) {
+        const adminId = admin._id.toString();
+        if (adminId === currentUserId?.toString()) continue;
 
-        // Trigger Notification for Users in the same domain
-        const searchDomains = [workflowDomain];
-        if (workflowDomain === 'HR' || workflowDomain === 'RH') {
-            searchDomains.push(workflowDomain === 'HR' ? 'RH' : 'HR');
-        }
-        const domainUsers = await UserModel.find({
-            domain: { $in: searchDomains },
-            role: { $ne: 'admin' }
+        await notificationController.createInternalNotification(req.tenantConn, {
+          recipient: admin._id,
+          title: 'New Workflow Created',
+          message: `A new workflow "${name}" has been drafted in domain ${workflowDomain}.`,
+          type: 'workflow_created',
+          link: `/admin/workflows?id=${workflow._id}`
         });
+      }
 
-        for (const user of domainUsers) {
-            const uId = user._id.toString();
-            if (uId === currentUserId?.toString()) continue;
-            
-            await notificationController.createInternalNotification(req.tenantConn, {
-                recipient: user._id,
-                title: 'New Workflow Template',
-                message: `A new template "${name}" is available in the ${workflowDomain} department.`,
-                type: 'workflow_created',
-                link: `/User/Workflows`
-            });
-        }
+      // Trigger Notification for Users in the same domain
+      const searchDomains = [workflowDomain];
+      if (workflowDomain === 'HR' || workflowDomain === 'RH') {
+        searchDomains.push(workflowDomain === 'HR' ? 'RH' : 'HR');
+      }
+      const domainUsers = await UserModel.find({
+        domain: { $in: searchDomains },
+        role: { $ne: 'admin' }
+      });
+
+      for (const user of domainUsers) {
+        const uId = user._id.toString();
+        if (uId === currentUserId?.toString()) continue;
+
+        await notificationController.createInternalNotification(req.tenantConn, {
+          recipient: user._id,
+          title: 'New Workflow Template',
+          message: `A new template "${name}" is available in the ${workflowDomain} department.`,
+          type: 'workflow_created',
+          link: `/User/Workflows`
+        });
+      }
     } catch (notifErr) {
-        console.warn('⚠️ [WorkflowCtrl] Notification failure (ignored):', notifErr.message);
+      console.warn('⚠️ [WorkflowCtrl] Notification failure (ignored):', notifErr.message);
     }
 
     await recordActivity(req, 'WORKFLOW_CREATE', {
@@ -278,13 +292,13 @@ exports.createWorkflow = async (req, res) => {
   } catch (error) {
     console.error('❌ createWorkflow Error:', error);
     if (error.name === 'ValidationError') {
-        return res.status(400).json({ 
-            success: false, 
-            message: 'Validation failed: ' + Object.values(error.errors).map((e) => e.message).join(', ') 
-        });
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed: ' + Object.values(error.errors).map((e) => e.message).join(', ')
+      });
     }
     if (error.name === 'CastError') {
-        return res.status(400).json({ success: false, message: `Data mapping error: Invalid ${error.path}` });
+      return res.status(400).json({ success: false, message: `Data mapping error: Invalid ${error.path}` });
     }
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
@@ -299,11 +313,11 @@ exports.updateWorkflow = async (req, res) => {
     const updates = req.body;
 
     if (!req.tenantConn) {
-        return res.status(400).json({ success: false, message: 'Tenant environment not resolved' });
+      return res.status(400).json({ success: false, message: 'Tenant environment not resolved' });
     }
 
     if (!mongoose.Types.ObjectId.isValid(workflowId)) {
-        return res.status(400).json({ success: false, message: 'Invalid Workflow ID format' });
+      return res.status(400).json({ success: false, message: 'Invalid Workflow ID format' });
     }
 
     const Workflow = req.tenantConn.model('Workflow');
@@ -418,13 +432,13 @@ exports.updateWorkflow = async (req, res) => {
   } catch (error) {
     console.error('❌ updateWorkflow Error:', error);
     if (error.name === 'ValidationError') {
-        return res.status(400).json({ 
-            success: false, 
-            message: 'Validation failed: ' + Object.values(error.errors).map((e) => e.message).join(', ') 
-        });
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed: ' + Object.values(error.errors).map((e) => e.message).join(', ')
+      });
     }
     if (error.name === 'CastError') {
-        return res.status(400).json({ success: false, message: `Data mapping error: Invalid ${error.path}` });
+      return res.status(400).json({ success: false, message: `Data mapping error: Invalid ${error.path}` });
     }
     res.status(500).json({ success: false, message: 'Server error' });
   }
@@ -530,7 +544,7 @@ async function _internalStartInstance(tenantConn, workflow, user, options = {}) 
   // Helper to find real tasks, bypassing system nodes (matching logic in WorkflowInstanceController)
   const findNextExecutableNodes = (nodeId, targetNodesArray) => {
     const nextEdges = workflow.edges.filter(e => e.source === nodeId);
-    
+
     nextEdges.forEach(edge => {
       const targetNode = workflow.nodes.find(n => n.id === edge.target);
       if (!targetNode) return;
@@ -548,7 +562,7 @@ async function _internalStartInstance(tenantConn, workflow, user, options = {}) 
       } else if (targetNode.type === 'parallel_join' || targetNode.type === 'sync_join') {
         const incoming = workflow.edges.filter(e => e.target === targetNode.id);
         const completed = executionPath.map(p => p.nodeId);
-        
+
         if (incoming.every(e => completed.includes(e.source))) {
           if (!executionPath.some(p => p.nodeId === targetNode.id)) {
             executionPath.push({
@@ -576,7 +590,7 @@ async function _internalStartInstance(tenantConn, workflow, user, options = {}) 
       const data = targetNode.data || {};
       const assignmentType = data.assignmentType || 'SINGLE';
       const assignedId = data.assignedTo || data.assignedUser;
-      
+
       let responsibleUser = null;
       let responsibleDomain = data.responsibleDomain || data.domain || null;
       let nodeAssignees = data.assigneeIds || data.validatorIds || [];
@@ -598,19 +612,19 @@ async function _internalStartInstance(tenantConn, workflow, user, options = {}) 
           }
         }
       } else if (assignmentType === 'ALL' && assignedId) {
-          // It's a group assignment, stored in assignees
-          nodeAssignees = (Array.isArray(assignedId) ? assignedId : [assignedId]);
-          responsibleDomain = data.responsibleDomain || null;
+        // It's a group assignment, stored in assignees
+        nodeAssignees = (Array.isArray(assignedId) ? assignedId : [assignedId]);
+        responsibleDomain = data.responsibleDomain || null;
       } else {
-          // Support for old fields
-          responsibleUser = data.assignedUser || (data.assigneeSelectionType === 'user' ? (data.assigneeIds?.[0]) : null);
-          responsibleDomain = data.responsibleDomain || data.domain || assignedId;
+        // Support for old fields
+        responsibleUser = data.assignedUser || (data.assigneeSelectionType === 'user' ? (data.assigneeIds?.[0]) : null);
+        responsibleDomain = data.responsibleDomain || data.domain || assignedId;
       }
 
       // Final domain-name resolution if it looks like an ID
       if (responsibleDomain && mongoose.Types.ObjectId.isValid(responsibleDomain)) {
-          const domainObj = (await tenantConn.model('Domain').findById(responsibleDomain)) || (await tenantConn.model('Role').findById(responsibleDomain));
-          if (domainObj) responsibleDomain = domainObj.name;
+        const domainObj = (await tenantConn.model('Domain').findById(responsibleDomain)) || (await tenantConn.model('Role').findById(responsibleDomain));
+        if (domainObj) responsibleDomain = domainObj.name;
       }
 
       return {
@@ -640,8 +654,31 @@ async function _internalStartInstance(tenantConn, workflow, user, options = {}) 
     status: (finalInitialNodes.length === 0 && nodesToActivate.some(n => n.type === 'end')) ? 'completed' : 'in_progress',
     priority: options.priority || 'medium',
     dueDate: options.dueDate || null,
-    timeStarted: new Date()
   });
+
+  // Automatically Create Checklist for the instance
+  const Checklist = tenantConn.model('Checklist');
+  const checklistTasks = workflow.nodes
+    .filter(node => node.type === 'action' || node.type === 'condition' || node.type === 'task')
+    .map(node => ({
+      id: node.id,
+      title: node.data?.label || (node.type === 'action' ? 'Task' : node.type === 'condition' ? 'Condition' : 'Step'),
+      completed: false,
+      priority: node.data?.priority || 'medium'
+    }));
+
+  const checklist = new Checklist({
+    name: `Checklist: ${options.title || `Instance: ${workflow.name}`}`,
+    description: `Auto-generated for workflow instance: ${options.title || `Instance: ${workflow.name}`}`,
+    tasks: checklistTasks,
+    createdBy: user.id || user.userId || user._id,
+    status: 'draft',
+    instanceId: instance._id,
+    workflowId: workflow._id
+  });
+
+  await checklist.save();
+  instance.checklistId = checklist._id;
 
   await instance.save();
 
@@ -714,49 +751,49 @@ exports.getWorkflowMembers = async (req, res) => {
     const templateRoleNames = new Set();
     const templateDomainNames = new Set();
 
-    const directUserTasksMap = {}; 
-    const roleTasksMap = {}; 
-    const domainTasksMap = {}; 
+    const directUserTasksMap = {};
+    const roleTasksMap = {};
+    const domainTasksMap = {};
 
     const addTaskToSet = (map, key, taskName) => {
-        if (!key || !taskName) return;
-        if (!map[key]) map[key] = new Set();
-        map[key].add(taskName);
+      if (!key || !taskName) return;
+      if (!map[key]) map[key] = new Set();
+      map[key].add(taskName);
     };
 
     for (const node of workflow.nodes) {
       const taskName = node.data?.label || 'Unnamed Task';
 
       if (node.data?.assigneeIds) {
-          node.data.assigneeIds.forEach(id => {
-              templateUserIds.add(id.toString());
-              addTaskToSet(directUserTasksMap, id.toString(), taskName);
-          });
+        node.data.assigneeIds.forEach(id => {
+          templateUserIds.add(id.toString());
+          addTaskToSet(directUserTasksMap, id.toString(), taskName);
+        });
       }
       if (node.data?.assignedUser) {
-          templateUserIds.add(node.data.assignedUser.toString());
-          addTaskToSet(directUserTasksMap, node.data.assignedUser.toString(), taskName);
+        templateUserIds.add(node.data.assignedUser.toString());
+        addTaskToSet(directUserTasksMap, node.data.assignedUser.toString(), taskName);
       }
-      
+
       const assignedTo = node.data?.assignedTo;
       if (assignedTo && assignedTo.length === 24) {
-          const domainObj = await Domain.findById(assignedTo);
-          if (domainObj) {
-              templateDomainNames.add(domainObj.name);
-              addTaskToSet(domainTasksMap, domainObj.name, taskName);
+        const domainObj = await Domain.findById(assignedTo);
+        if (domainObj) {
+          templateDomainNames.add(domainObj.name);
+          addTaskToSet(domainTasksMap, domainObj.name, taskName);
+        } else {
+          const roleObj = await Role.findById(assignedTo);
+          if (roleObj) {
+            templateRoleNames.add(roleObj.name);
+            addTaskToSet(roleTasksMap, roleObj.name, taskName);
           } else {
-              const roleObj = await Role.findById(assignedTo);
-              if (roleObj) {
-                  templateRoleNames.add(roleObj.name);
-                  addTaskToSet(roleTasksMap, roleObj.name, taskName);
-              } else {
-                  templateUserIds.add(assignedTo.toString());
-                  addTaskToSet(directUserTasksMap, assignedTo.toString(), taskName);
-              }
+            templateUserIds.add(assignedTo.toString());
+            addTaskToSet(directUserTasksMap, assignedTo.toString(), taskName);
           }
+        }
       } else if (assignedTo) {
-          templateDomainNames.add(assignedTo); 
-          addTaskToSet(domainTasksMap, assignedTo, taskName);
+        templateDomainNames.add(assignedTo);
+        addTaskToSet(domainTasksMap, assignedTo, taskName);
       }
     }
 
@@ -765,17 +802,17 @@ exports.getWorkflowMembers = async (req, res) => {
     instances.forEach(inst => inst.currentNodes.forEach(node => {
       const taskName = (node.label || 'Unnamed Task') + ' (Active)';
       if (node.responsibleUser) {
-          instanceUserIds.add(node.responsibleUser.toString());
-          addTaskToSet(directUserTasksMap, node.responsibleUser.toString(), taskName);
+        instanceUserIds.add(node.responsibleUser.toString());
+        addTaskToSet(directUserTasksMap, node.responsibleUser.toString(), taskName);
       }
       if (node.assignees) node.assignees.forEach(id => {
-          instanceUserIds.add(id.toString());
-          addTaskToSet(directUserTasksMap, id.toString(), taskName);
+        instanceUserIds.add(id.toString());
+        addTaskToSet(directUserTasksMap, id.toString(), taskName);
       });
     }));
 
     const allUserIds = Array.from(new Set([...templateUserIds, ...instanceUserIds]));
-    
+
     let query = { $or: [] };
     if (allUserIds.length > 0) query.$or.push({ _id: { $in: allUserIds } });
     if (templateRoleNames.size > 0) query.$or.push({ role: { $in: Array.from(templateRoleNames) } });
@@ -783,25 +820,25 @@ exports.getWorkflowMembers = async (req, res) => {
 
     let users = [];
     if (query.$or.length > 0) {
-        users = await User.find(query).select('name email role domain avatar firstName lastName tasks');
+      users = await User.find(query).select('name email role domain avatar firstName lastName tasks');
     }
 
     const formattedUsers = users.map(u => {
-        const uId = u._id.toString();
-        const usersTasks = new Set();
-        if (directUserTasksMap[uId]) directUserTasksMap[uId].forEach(t => usersTasks.add(t));
-        if (u.role && roleTasksMap[u.role]) roleTasksMap[u.role].forEach(t => usersTasks.add(t));
-        if (u.domain && domainTasksMap[u.domain]) domainTasksMap[u.domain].forEach(t => usersTasks.add(t));
+      const uId = u._id.toString();
+      const usersTasks = new Set();
+      if (directUserTasksMap[uId]) directUserTasksMap[uId].forEach(t => usersTasks.add(t));
+      if (u.role && roleTasksMap[u.role]) roleTasksMap[u.role].forEach(t => usersTasks.add(t));
+      if (u.domain && domainTasksMap[u.domain]) domainTasksMap[u.domain].forEach(t => usersTasks.add(t));
 
-        return {
-            ...u.toObject(),
-            tasks: u.tasks || [], 
-            assignedTasks: Array.from(usersTasks),
-            isTemplateMember: allUserIds.includes(uId) || 
-                              (u.role && templateRoleNames.has(u.role)) || 
-                              (u.domain && templateDomainNames.has(u.domain)),
-            isActiveMember: instanceUserIds.has(uId)
-        };
+      return {
+        ...u.toObject(),
+        tasks: u.tasks || [],
+        assignedTasks: Array.from(usersTasks),
+        isTemplateMember: allUserIds.includes(uId) ||
+          (u.role && templateRoleNames.has(u.role)) ||
+          (u.domain && templateDomainNames.has(u.domain)),
+        isActiveMember: instanceUserIds.has(uId)
+      };
     });
 
     res.json({ success: true, data: formattedUsers });
@@ -818,7 +855,7 @@ exports.duplicateWorkflow = async (req, res) => {
   try {
     const { workflowId } = req.params;
     const { projectId, name } = req.body; // If projectId provided, it's a "Clone to Project"
-    
+
     const Workflow = req.tenantConn.model('Workflow');
     const original = await Workflow.findById(workflowId);
     if (!original) return res.status(404).json({ success: false, message: 'Workflow not found' });
@@ -861,21 +898,21 @@ exports.duplicateWorkflow = async (req, res) => {
     });
 
     await duplicate.save();
-    
+
     // Automatically generates/syncs checklist for the new copy
     await _triggerAutomaticChecklist(req, duplicate);
 
-    await recordActivity(req, projectId ? 'CLONE_TEMPLATE_TO_PROJECT' : 'DUPLICATE_WORKFLOW', {
+    await recordActivity(req, projectId ? 'CLONE_WORKFLOW_TO_PROJECT' : 'DUPLICATE_WORKFLOW', {
       type: 'Workflow',
       id: duplicate._id,
       originalId: original._id,
       projectId: projectId || null
     });
 
-    res.status(201).json({ 
-      success: true, 
+    res.status(201).json({
+      success: true,
       message: projectId ? 'Template cloned to project successfully' : 'Workflow duplicated successfully',
-      data: duplicate 
+      data: duplicate
     });
   } catch (error) {
     console.error('❌ duplicateWorkflow Error:', error);
@@ -894,9 +931,9 @@ async function _syncActiveInstances(tenantConn, workflow) {
     const DomainModel = tenantConn.model('Domain');
     const RoleModel = tenantConn.model('Role');
 
-    const instances = await WorkflowInstance.find({ 
-      workflowId: workflow._id, 
-      status: 'in_progress' 
+    const instances = await WorkflowInstance.find({
+      workflowId: workflow._id,
+      status: 'in_progress'
     });
 
     if (instances.length === 0) return;
@@ -905,7 +942,7 @@ async function _syncActiveInstances(tenantConn, workflow) {
 
     for (const instance of instances) {
       let changed = false;
-      
+
       if (instance.currentNodes && Array.isArray(instance.currentNodes)) {
         for (const currentNode of instance.currentNodes) {
           // Find corresponding node in the NEW definition
@@ -918,7 +955,7 @@ async function _syncActiveInstances(tenantConn, workflow) {
             // Update assignment fields if they differ or to ensure consistency
             // Note: We only update if the instance node is still 'in_progress' or 'pending'
             if (['in_progress', 'pending'].includes(currentNode.status)) {
-              
+
               // 1. Identification logic (matches processNodeTransition in WorkflowInstanceController)
               let responsibleUser = null;
               let responsibleDomain = data.responsibleDomain || data.domain || null;
@@ -939,12 +976,12 @@ async function _syncActiveInstances(tenantConn, workflow) {
                 // ANY/ALL with ID
                 const domMaybe = await DomainModel.findById(assignedId) || await RoleModel.findById(assignedId);
                 if (domMaybe) {
-                   responsibleDomain = domMaybe.name;
+                  responsibleDomain = domMaybe.name;
                 } else {
-                   // User ID
-                   if (!nodeAssignees.map(id => id.toString()).includes(assignedId.toString())) {
-                       nodeAssignees.push(new mongoose.Types.ObjectId(assignedId));
-                   }
+                  // User ID
+                  if (!nodeAssignees.map(id => id.toString()).includes(assignedId.toString())) {
+                    nodeAssignees.push(new mongoose.Types.ObjectId(assignedId));
+                  }
                 }
               } else {
                 responsibleUser = data.assignedUser || (data.assigneeSelectionType === 'user' ? (data.assigneeIds?.[0]) : null);
@@ -963,7 +1000,7 @@ async function _syncActiveInstances(tenantConn, workflow) {
               currentNode.assignees = nodeAssignees;
               currentNode.restrictedDomain = data.restrictedDomain || null;
               currentNode.deadline = data.deadline ? new Date(data.deadline) : currentNode.deadline;
-              
+
               changed = true;
             }
           }
@@ -985,8 +1022,7 @@ async function _syncActiveInstances(tenantConn, workflow) {
  */
 async function _triggerAutomaticChecklist(req, workflow) {
   try {
-    // We only automate for admins creating templates
-    if (req.user?.role !== 'admin' && req.user?.role !== 'super_admin') return;
+    // Automated checklist for all users creating templates
 
     // Include actions and conditions as checklist items
     const nodesToInclude = (workflow.nodes || []).filter(n =>

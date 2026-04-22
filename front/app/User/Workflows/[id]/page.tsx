@@ -141,7 +141,7 @@ function WorkflowUserDetailsContent() {
                 
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-100 relative group/icon">
-                      <div className="absolute inset-0 bg-indigo-400 blur-lg opacity-0 group-hover/icon:opacity-40 transition-opacity" />
+                      <div className="absolute inset-0 bg-indigo-400 opacity-0 group-hover/icon:opacity-40 transition-opacity" />
                       <Layers size={20} className="relative z-10" />
                   </div>
                   <div>

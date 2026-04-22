@@ -20,6 +20,7 @@
     "@mui/x-date-pickers": "^8.27.2",
     "axios": "^1.13.5",
     "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "date-fns": "^4.1.0",
     "dotenv": "^16.0.3",

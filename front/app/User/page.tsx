@@ -19,6 +19,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiService } from '@/service/api.service';
 import Link from 'next/link';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface DashboardStats {
   activeTasks: number;
@@ -37,6 +38,7 @@ export default function UserDashboard() {
   });
   const [recentTasks, setRecentTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { can } = usePermissions();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -115,10 +117,10 @@ export default function UserDashboard() {
         variants={itemVariants}
         className="relative group perspective"
       >
-        <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-blue-600 rounded-[44px] blur opacity-10 group-hover:opacity-20 transition duration-1000"></div>
+        <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-blue-600 rounded-[44px] opacity-10 group-hover:opacity-20 transition duration-1000"></div>
         <div className="relative flex flex-col md:flex-row justify-between items-center bg-white p-10 md:p-12 rounded-[40px] border border-indigo-50/50 shadow-xl shadow-indigo-500/5 overflow-hidden">
           {/* Abstract decorative elements */}
-          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-indigo-500/10 to-transparent rounded-full -mr-48 -mt-48 blur-3xl"></div>
+          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-indigo-500/10 to-transparent rounded-full -mr-48 -mt-48"></div>
           
           <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
             <div className="w-20 h-20 bg-indigo-600 rounded-3xl flex items-center justify-center text-white shadow-2xl shadow-indigo-200 rotate-3 transition-transform">
@@ -135,7 +137,7 @@ export default function UserDashboard() {
               </div>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mt-4 flex items-center gap-3">
                 <span className="w-8 h-[2px] bg-indigo-600/20 rounded-full" />
-                Welcome Back, {profile?.firstName || 'User'}
+                Welcome Back, {profile?.firstName ? `${profile.firstName} ${profile.lastName || ''}` : (profile?.name || 'User')}
               </p>
             </div>
           </div>
@@ -261,8 +263,9 @@ export default function UserDashboard() {
                 />
                 <CommandButton 
                   icon={<Shield size={18} />} 
-                  label="Security Records" 
-                  href="/User/prof"
+                  label={can('Project.CREATE') ? "Create New Project" : "Strategic Portfolios"} 
+                  href="/User/PRO"
+                  permission="Project.VIEW"
                   color="white"
                 />
               </div>
@@ -309,7 +312,10 @@ export default function UserDashboard() {
   );
 }
 
-function MetricCard({ icon, label, value, subValue, color }: any) {
+function MetricCard({ icon, label, value, subValue, color, permission }: any) {
+  const { can } = usePermissions();
+  const isLocked = permission && !can(permission);
+  
   const colors = {
     indigo: 'bg-indigo-50 text-indigo-600 border-indigo-100',
     emerald: 'bg-emerald-50 text-emerald-600 border-emerald-100',
@@ -319,8 +325,11 @@ function MetricCard({ icon, label, value, subValue, color }: any) {
 
   return (
     <motion.div 
-      whileHover={{ y: -5, shadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
-      className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-xl shadow-slate-200/50 flex flex-col justify-between"
+      whileHover={!isLocked ? { y: -5, shadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' } : {}}
+      className={`bg-white p-8 rounded-[40px] border border-slate-100 shadow-xl shadow-slate-200/50 flex flex-col justify-between transition-all duration-500 ${
+        isLocked ? 'opacity-30 grayscale' : ''
+      }`}
+      title={isLocked ? "Matrix Restricted" : ""}
     >
       <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-8 border ${colors[color as keyof typeof colors]}`}>
         {icon}
@@ -328,7 +337,7 @@ function MetricCard({ icon, label, value, subValue, color }: any) {
       <div>
         <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1 leading-none">{label}</p>
         <div className="flex items-baseline gap-2">
-          <h4 className="text-3xl font-black text-slate-800 tracking-tighter">{value}</h4>
+          <h4 className="text-3xl font-black text-slate-800 tracking-tighter">{isLocked ? "---" : value}</h4>
           <span className="text-[10px] font-bold text-slate-400">{subValue}</span>
         </div>
       </div>
@@ -336,16 +345,21 @@ function MetricCard({ icon, label, value, subValue, color }: any) {
   );
 }
 
-function CommandButton({ icon, label, href, color }: any) {
+function CommandButton({ icon, label, href, color, permission }: any) {
+  const { can, handleRestrictedClick, permissionDisabledClass } = usePermissions();
   const isIndigo = color === 'indigo';
+  const isLocked = permission && !can(permission);
   
   return (
     <Link 
-      href={href}
+      href={isLocked ? "#" : href}
+      onClick={(e) => permission && handleRestrictedClick(e, permission)}
       className={`
-        w-full flex items-center justify-between p-4 rounded-2xl transition-all active:scale-[0.98] group
-        ${isIndigo ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/40 hover:bg-indigo-500' : 'bg-white/10 text-white hover:bg-white/20 border border-white/10'}
+        w-full flex items-center justify-between p-5 rounded-2xl transition-all active:scale-[0.98] group
+        bg-indigo-600 text-white shadow-lg shadow-indigo-900/20 hover:bg-indigo-500
+        ${permission ? permissionDisabledClass(permission) : ''}
       `}
+      title={isLocked ? "Matrix Restricted" : ""}
     >
       <div className="flex items-center gap-3">
         <div className={`p-2 rounded-xl ${isIndigo ? 'bg-indigo-500' : 'bg-white/10'}`}>
@@ -353,7 +367,7 @@ function CommandButton({ icon, label, href, color }: any) {
         </div>
         <span className="text-[11px] font-black uppercase tracking-widest">{label}</span>
       </div>
-      <ArrowUpRight size={16} className="opacity-40 group-hover:opacity-100 group-hover:scale-110 transition-all" />
+      {!isLocked && <ArrowUpRight size={16} className="opacity-40 group-hover:opacity-100 group-hover:scale-110 transition-all" />}
     </Link>
   );
 }

@@ -5,7 +5,7 @@ import { Square } from 'lucide-react';
 const EndNode = ({ data }: any) => {
     return (
         <div className="px-3 py-2 shadow-sm rounded-md bg-white border border-slate-200 min-w-[100px]">
-            <Handle type="target" position={Position.Left} className="!bg-rose-500" />
+            <Handle type="target" position={Position.Top} className="!bg-rose-500 !w-2 !h-2 !border-2 !border-white" />
             <div className="flex items-center gap-2">
                 <div className="rounded-md w-6 h-6 flex items-center justify-center bg-rose-100 text-rose-600">
                     <Square size={10} fill="currentColor" />

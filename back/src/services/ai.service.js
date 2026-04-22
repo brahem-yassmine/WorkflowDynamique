@@ -46,7 +46,8 @@ STRICT NODE RULES:
 4. Calculate positions logically (Y increases by 150 each step).
 
 EDGES RULES:
-- If source node is "condition", edge must have "sourceHandle": "yes" or "no".
+- If source node is "condition", you MUST provide BOTH a "yes" and a "no" outgoing edge.
+- Every node except "end" MUST have at least one outgoing edge to ensure the graph is fully connected.
 
 RETURN ONLY VALID JSON. NO MARKDOWN, NO TEXT.`;
 

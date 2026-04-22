@@ -66,7 +66,7 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle, icon, rightContent, on
                         <Link href="/admin/profile" className="flex flex-row items-center gap-3 pl-6 border-l border-slate-100 cursor-pointer hover:opacity-80 transition-opacity outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-lg">
                             <div className="text-right hidden sm:block">
                                 <p className="text-sm font-black text-slate-800 leading-none capitalize">
-                                    {user?.firstName || user?.name || user?.email?.split('@')[0] || 'User'}
+                                    {(user?.firstName || user?.name) ? `${user.firstName || user.name} ${user.lastName || ''}` : (user?.email?.split('@')[0] || 'User')}
                                 </p>
                                 <div className="flex items-center gap-1.5 mt-1 justify-end">
                                     <span className="text-[10px] text-indigo-600 font-bold uppercase tracking-tight">

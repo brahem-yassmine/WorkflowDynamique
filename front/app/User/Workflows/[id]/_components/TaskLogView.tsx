@@ -258,7 +258,7 @@ export default function TaskLogView({ workflowId }: TaskLogViewProps) {
       <AnimatePresence>
         {showReportModal && (
           <div className="fixed inset-0 z-[600] flex items-center justify-center p-4">
-             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowReportModal(false)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-md" />
+             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowReportModal(false)} className="absolute inset-0 bg-slate-900/40" />
              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white rounded-[40px] p-10 w-full max-w-lg relative z-10 shadow-2xl border border-rose-100">
                 <div className="flex items-center gap-4 mb-8 text-rose-600">
                    <div className="p-3 bg-rose-50 rounded-2xl">
@@ -421,7 +421,7 @@ export default function TaskLogView({ workflowId }: TaskLogViewProps) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSelectedTask(null)}
-              className="absolute inset-0 bg-slate-900/80 backdrop-blur-xl"
+              className="absolute inset-0 bg-slate-900/80"
             />
             <motion.div
               initial={{ scale: 0.9, opacity: 0, y: 30 }}
@@ -430,10 +430,10 @@ export default function TaskLogView({ workflowId }: TaskLogViewProps) {
               className="bg-white rounded-[48px] shadow-2xl w-full max-w-2xl relative z-10 overflow-hidden border border-white/20 flex flex-col max-h-[90vh]"
             >
               <div className="bg-indigo-600 p-12 text-white relative overflow-hidden shrink-0">
-                <div className="absolute -right-20 -top-20 w-80 h-80 bg-white/10 rounded-full blur-3xl opacity-50"></div>
+                <div className="absolute -right-20 -top-20 w-80 h-80 bg-white/10 rounded-full opacity-50"></div>
                 
                 <div className="flex items-center gap-6 mb-4 relative z-10">
-                   <div className="w-16 h-16 bg-white/20 rounded-3xl flex items-center justify-center backdrop-blur-md shadow-2xl border border-white/10">
+                   <div className="w-16 h-16 bg-white/20 rounded-3xl flex items-center justify-center shadow-2xl border border-white/10">
                       <FileText size={32} />
                    </div>
                    <div>
@@ -507,7 +507,7 @@ export default function TaskLogView({ workflowId }: TaskLogViewProps) {
                                 return (
                                   <div className="relative group/img overflow-hidden rounded-2xl border border-slate-100 shadow-sm transition-all hover:shadow-xl w-full">
                                      <img src={getFullUrl(v)} alt={key} className="w-full h-auto max-h-[400px] object-cover" />
-                                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+                                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
                                         <a href={getFullUrl(v)} target="_blank" rel="noopener noreferrer" className="px-5 py-2.5 bg-white text-slate-900 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-indigo-600 hover:text-white transition-all shadow-xl">
                                            <Eye size={12} /> Open Full View
                                         </a>

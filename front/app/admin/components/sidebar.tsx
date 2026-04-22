@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
 import {
   LayoutDashboard,
@@ -38,46 +39,48 @@ const menuGroups = [
     title: "Overview & Analytics",
     icon: LayoutDashboard,
     items: [
-      { icon: LayoutDashboard, label: "Command Center", href: "/admin" },
-      { icon: Zap, label: "Quick Actions", href: "/admin/quick-actions" },
-      { icon: Activity, label: "Live Operations", href: "/admin/operations" },
-      { icon: ShieldAlert, label: "Alerts Center", href: "/admin/alerts" },
-      { icon: ClipboardList, label: "Global Tasks", href: "/admin/tasks" },
+      { icon: LayoutDashboard, label: "Command Center", href: "/admin", perm: "Dashboard.VIEW" },
+      { icon: Zap, label: "Quick Actions", href: "/admin/quick-actions", perm: "Dashboard.VIEW" },
+      { icon: Activity, label: "Live Operations", href: "/admin/operations", perm: "Dashboard.VIEW" },
+      { icon: ShieldAlert, label: "Alerts Center", href: "/admin/alerts", perm: "Dashboard.VIEW" },
+      // Tasks represent workflows/instances now or checklists depending on global scope
+      { icon: ClipboardList, label: "Global Tasks", href: "/admin/tasks", perm: "Dashboard.VIEW" },
     ]
   },
   {
     title: "Process & Automation",
     icon: Workflow,
     items: [
-      { icon: Workflow, label: "Workflow Studio", href: "/admin/workflows" },
-      { icon: Copy, label: "Workflow Templates", href: "/admin/templates" },
-      { icon: Briefcase, label: "Project Workspace", href: "/admin/projects" },
+      { icon: Workflow, label: "Workflow Studio", href: "/admin/workflows", perm: "Workflow.VIEW" },
+      { icon: Copy, label: "Workflow Templates", href: "/admin/templates", perm: "Template.VIEW" },
+      { icon: Briefcase, label: "Project Workspace", href: "/admin/projects", perm: "Project.VIEW" },
     ]
   },
   {
     title: "Assets & Repositories",
     icon: BookOpen,
     items: [
-      { icon: FileText, label: "Dynamic Forms", href: "/admin/AllForms" },
-      { icon: FolderKanban, label: "Kanban Boards", href: "/admin/AllKanban" },
-      { icon: ListTodo, label: "Checklists", href: "/admin/AllCheck" },
-      { icon: LayoutGrid, label: "Domains", href: "/admin/domains" },
+      { icon: FileText, label: "Dynamic Forms", href: "/admin/AllForms", perm: "Form.VIEW" },
+      { icon: FolderKanban, label: "Kanban Boards", href: "/admin/AllKanban", perm: "Kanban.VIEW" },
+      { icon: ListTodo, label: "Checklists", href: "/admin/AllCheck", perm: "Checklist.VIEW" },
+      { icon: LayoutGrid, label: "Domains", href: "/admin/domains", perm: "Domain.VIEW" },
     ]
   },
   {
     title: "Access & Security",
     icon: Shield,
     items: [
-      { icon: Users, label: "User Management", href: "/admin/userManagement" },
-      { icon: ShieldCheck, label: "Roles & Permissions", href: "/admin/roles" },
-      { icon: FileText, label: "System Logs", href: "/admin/Log" },
+      // Usually users are domain-controlled, let's lock them with Domain.VIEW
+      { icon: Users, label: "User Management", href: "/admin/userManagement", perm: "Domain.VIEW" },
+      { icon: ShieldCheck, label: "Roles & Permissions", href: "/admin/roles", perm: "Domain.VIEW" },
+      { icon: FileText, label: "System Logs", href: "/admin/Log", perm: "Dashboard.VIEW" },
     ]
   },
   {
     title: "Help & Discovery",
     icon: LifeBuoy,
     items: [
-      { icon: BookOpen, label: "Platform Guide", href: "/admin/guide" },
+      { icon: BookOpen, label: "Platform Guide", href: "/admin/guide" }, // No perm required
       { icon: LifeBuoy, label: "Support Reports", href: "/admin/reports" },
     ]
   },
@@ -94,6 +97,7 @@ const menuGroups = [
 function Sidebar({ isExpired = false }: { isExpired?: boolean }) {
   const pathname = usePathname();
   const { subscriptionExpired } = useAuth();
+  const { can } = usePermissions();
   
   // Combine local and auth state
   const effectiveExpired = isExpired || subscriptionExpired;
@@ -179,10 +183,12 @@ function Sidebar({ isExpired = false }: { isExpired?: boolean }) {
                       {/* Connection line */}
                       <div className="absolute left-6 top-1 bottom-3 w-px bg-white/10 rounded-full"></div>
                       
-                      {group.items.map((item, index) => {
+                      {group.items.map((item: any, index) => {
                         const isActive = pathname === item.href;
                         const isBilling = item.href === '/admin/billing';
-                        const isRestricted = effectiveExpired && !isBilling;
+                        const hasAccess = item.perm ? can(item.perm) : true;
+                        const isExpiredLocked = effectiveExpired && !isBilling;
+                        const isRestricted = isExpiredLocked || !hasAccess;
 
                         return (
                           <Link
@@ -192,9 +198,15 @@ function Sidebar({ isExpired = false }: { isExpired?: boolean }) {
                             onClick={(e) => {
                               if (isRestricted) {
                                 e.preventDefault();
-                                toast.error("Access Restricted: Subscription Protocol Terminated.", {
-                                  description: "Please renew your matrix access in the Fiscal center.",
-                                });
+                                if (isExpiredLocked) {
+                                  toast.error("Access Restricted: Subscription Protocol Terminated.", {
+                                    description: "Please renew your matrix access in the Fiscal center.",
+                                  });
+                                } else {
+                                  toast.error("Accès Refusé", {
+                                    description: `La permission ${item.perm} est requise.`,
+                                  });
+                                }
                               }
                             }}
                             className={`

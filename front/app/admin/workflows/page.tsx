@@ -29,6 +29,8 @@ import { apiService } from '@/service/api.service';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { showAlert, showConfirm } from '@/lib/alerts';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface Workflow {
   _id: string;
@@ -55,6 +57,8 @@ function WorkflowsContent() {
   const [searchTerm, setSearchTerm] = useState('');
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+
+  const { btnDisabledClass } = usePermissions();
 
   const [editForm, setEditForm] = useState({ name: '', domain: 'HR', projectId: '', status: 'draft' });
   const [isUpdating, setIsUpdating] = useState(false);
@@ -270,8 +274,16 @@ function WorkflowsContent() {
           <button onClick={fetchData} className="p-3 bg-white border border-slate-100 rounded-xl text-slate-400 hover:text-indigo-600 transition-colors shadow-sm">
             <Clock size={20} />
           </button>
-          <Link href={`/create-workflow?${moduleIdFilter ? `moduleId=${moduleIdFilter}&isTemplate=true` : projectIdFilter ? `projectId=${projectIdFilter}` : ''}`}>
-            <button className={`flex items-center gap-2 px-6 py-3 ${isTemplateFilter ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100'} text-white rounded-xl font-bold shadow-lg transition-all active:scale-95`}>
+          <Link 
+            href={btnDisabledClass('Workflow.CREATE') ? '#' : `/create-workflow?${moduleIdFilter ? `moduleId=${moduleIdFilter}&isTemplate=true` : projectIdFilter ? `projectId=${projectIdFilter}` : ''}`}
+            onClick={(e) => {
+              if (btnDisabledClass('Workflow.CREATE')) {
+                 e.preventDefault();
+                 toast.error("Permission Refusée", { description: "Vous n'avez pas l'autorisation Option Create (Workflow.CREATE)." });
+              }
+            }}
+          >
+            <button className={`flex items-center gap-2 px-6 py-3 ${isTemplateFilter ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100'} text-white rounded-xl font-bold shadow-lg transition-all active:scale-95 ${btnDisabledClass('Workflow.CREATE')}`}>
               <Plus size={18} />
               {isTemplateFilter ? 'Add Template' : 'Create Flow'}
             </button>
@@ -474,9 +486,11 @@ function WorkflowsContent() {
 
 export default function WorkflowsPage() {
   return (
-    <Suspense fallback={<div className="flex h-screen items-center justify-center">Loading Data...</div>}>
-      <WorkflowsContent />
-    </Suspense>
+    <ProtectedRoute permission="Workflow.VIEW">
+      <Suspense fallback={<div className="flex h-screen items-center justify-center">Loading Data...</div>}>
+        <WorkflowsContent />
+      </Suspense>
+    </ProtectedRoute>
   );
 }
 
@@ -490,6 +504,8 @@ function WorkflowCard({ workflow, projectName, onClick, onDelete }: { workflow: 
       default: return 'bg-slate-300';
     }
   };
+
+  const { btnDisabledClass } = usePermissions();
 
   return (
     <motion.div
@@ -514,19 +530,41 @@ function WorkflowCard({ workflow, projectName, onClick, onDelete }: { workflow: 
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 relative z-10">
           <button 
-            onClick={(e) => { e.stopPropagation(); onDelete(workflow._id); }}
-            className="p-2 hover:bg-rose-50 text-slate-300 hover:text-rose-600 rounded-lg transition-all"
+            onClick={(e) => { 
+                e.preventDefault();
+                e.stopPropagation(); 
+                if (!btnDisabledClass('Workflow.DELETE')) {
+                   onDelete(workflow._id); 
+                } else {
+                   toast.error("Permission Refusée", { description: "Vous n'avez pas la permission Workflow.DELETE." });
+                }
+            }}
+            className={`p-2 hover:bg-rose-50 text-slate-300 hover:text-rose-600 rounded-lg transition-all ${btnDisabledClass('Workflow.DELETE')}`}
             title="Delete Workflow"
           >
             <Trash2 size={14} />
           </button>
-          <Link href={`/create-workflow?id=${workflow._id}`} onClick={(e) => e.stopPropagation()}>
-            <div className="p-2 hover:bg-indigo-50 text-slate-300 hover:text-indigo-600 rounded-lg transition-all" title="Edit Schema">
-              <Edit size={14} />
-            </div>
-          </Link>
+          
+          <div className={`${btnDisabledClass('Workflow.UPDATE')}`} title="Edit Schema">
+            <Link 
+              href={btnDisabledClass('Workflow.UPDATE') ? '#' : `/create-workflow?id=${workflow._id}`} 
+              onClick={(e) => {
+                 if (btnDisabledClass('Workflow.UPDATE')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toast.error("Permission Refusée", { description: "Vous n'avez pas la permission Workflow.UPDATE." });
+                 } else {
+                    e.stopPropagation();
+                 }
+              }}
+            >
+              <div className="p-2 hover:bg-indigo-50 text-slate-300 hover:text-indigo-600 rounded-lg transition-all" title="Edit Schema">
+                <Edit size={14} />
+              </div>
+            </Link>
+          </div>
           <div className={`w-2.5 h-2.5 rounded-full ${getStatusColor(workflow.status)} animate-pulse ml-2`}></div>
         </div>
       </div>

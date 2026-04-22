@@ -20,16 +20,16 @@ const { checkTenantActive, checkPlanLimits } = require('../middleware/tenantMidd
 router.use(auth, checkTenantActive);
 
 // Full CRUD
-router.get('/', hasPermission('WORKFLOW_VIEW'), getWorkflows);                           
-router.get('/:workflowId', hasPermission('WORKFLOW_VIEW'), getWorkflowById);            
-router.get('/:workflowId/members', hasPermission('WORKFLOW_VIEW'), getWorkflowMembers);   
-router.post('/', hasPermission('WORKFLOW_CREATE'), checkPlanLimits('workflows'), createWorkflow);                        
-router.put('/:workflowId', hasPermission('WORKFLOW_EDIT'), checkPlanLimits('nodes'), updateWorkflow);             
-router.delete('/:workflowId', hasPermission('WORKFLOW_DELETE'), deleteWorkflow);          
+router.get('/', hasPermission('Workflow.VIEW'), getWorkflows);                           
+router.get('/:workflowId', hasPermission('Workflow.VIEW'), getWorkflowById);            
+router.get('/:workflowId/members', hasPermission('Workflow.VIEW'), getWorkflowMembers);   
+router.post('/', hasPermission('Workflow.CREATE'), checkPlanLimits('workflows'), createWorkflow);                        
+router.put('/:workflowId', hasPermission('Workflow.UPDATE'), checkPlanLimits('nodes'), updateWorkflow);             
+router.delete('/:workflowId', hasPermission('Workflow.DELETE'), deleteWorkflow);          
 
 // Special actions
-router.post('/:workflowId/execute', hasPermission('TASK_ACTION'), executeWorkflow);    
-router.post('/:workflowId/duplicate', hasPermission('WORKFLOW_CLONE'), duplicateWorkflow);  
-router.patch('/:workflowId/status', hasPermission('WORKFLOW_EDIT'), changeWorkflowStatus); 
+router.post('/:workflowId/execute', hasPermission('Template.EXECUTE'), executeWorkflow);    
+router.post('/:workflowId/duplicate', hasPermission('Workflow.CREATE'), duplicateWorkflow);  
+router.patch('/:workflowId/status', hasPermission('Workflow.UPDATE'), changeWorkflowStatus); 
 
 module.exports = router;

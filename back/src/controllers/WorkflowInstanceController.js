@@ -46,11 +46,12 @@ exports.createInstance = async (req, res) => {
       }
     }
 
-      let respUser = null;
-      let respDomain = node1Data.responsibleDomain || node1Data.domain;
-      const assignedId1 = node1Data.assignedTo;
+    const node1Data = startNode.data || {};
+    let respUser = null;
+    let respDomain = node1Data.responsibleDomain || node1Data.domain;
+    const assignedId1 = node1Data.assignedTo;
 
-      if (node1Data.assignmentType === 'SINGLE' && node1Data.assigneeSelectionType === 'user') {
+    if (node1Data.assignmentType === 'SINGLE' && node1Data.assigneeSelectionType === 'user') {
         respUser = assignedId1;
       } else if (node1Data.assigneeSelectionType === 'role' && assignedId1) {
         if (mongoose.Types.ObjectId.isValid(assignedId1)) {

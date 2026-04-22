@@ -58,7 +58,7 @@ export default function UserLayout({
       {/* Mobile Backdrop Overlay */}
       {!isFullscreenPage && isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 lg:hidden transition-opacity"
+          className="fixed inset-0 bg-slate-900/40 z-40 lg:hidden transition-opacity"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}

@@ -1,44 +1,76 @@
 const PERMISSION_DEPENDENCIES = {
   // Domain rules
+  'Domain.VIEW': [],
   'Domain.CREATE': ['Domain.VIEW'],
   'Domain.UPDATE': ['Domain.VIEW'],
   'Domain.DELETE': ['Domain.VIEW'],
   
   // Module rules
-  'Module.CREATE': ['Module.VIEW', 'Domain.VIEW'], // Hierarchy
-  'Module.UPDATE': ['Module.VIEW'],
-  'Module.DELETE': ['Module.VIEW'],
+  'Module.VIEW': ['Domain.VIEW'],
+  'Module.CREATE': ['Module.VIEW', 'Domain.VIEW'], 
+  'Module.UPDATE': ['Module.VIEW', 'Domain.VIEW'],
+  'Module.DELETE': ['Module.VIEW', 'Domain.VIEW'],
 
   // Project rules
-  'Project.CREATE': ['Project.VIEW', 'Domain.VIEW'], // Hierarchy
+  'Project.VIEW': ['Domain.VIEW'],
+  'Project.CREATE': ['Project.VIEW', 'Domain.VIEW'], 
   'Project.UPDATE': ['Project.VIEW'],
   'Project.DELETE': ['Project.VIEW'],
 
   // Workflow rules
-  'Workflow.CREATE': ['Workflow.VIEW', 'Project.VIEW', 'Form.CREATE'], // Hierarchy + Form
-  'Workflow.UPDATE': ['Workflow.VIEW'],
-  'Workflow.DELETE': ['Workflow.VIEW'],
-  'Workflow.EXECUTE': ['Workflow.VIEW'], // Must view to launch
+  'Workflow.VIEW': ['Project.VIEW', 'Domain.VIEW'],
+  'Workflow.CREATE': ['Workflow.VIEW', 'Project.VIEW', 'Form.CREATE', 'Domain.VIEW'], 
+  'Workflow.UPDATE': ['Workflow.VIEW', 'Project.VIEW'],
+  'Workflow.DELETE': ['Workflow.VIEW', 'Project.VIEW'],
 
   // Template rules
+  'Template.VIEW': ['Module.VIEW', 'Domain.VIEW'],
   'Template.CREATE': ['Template.VIEW', 'Domain.VIEW', 'Module.VIEW'],
-  'Template.UPDATE': ['Template.VIEW'],
-  'Template.DELETE': ['Template.VIEW'],
-  'Template.CLONE_TEMPLATE': ['Template.VIEW', 'Workflow.CREATE', 'Project.VIEW'],
+  'Template.UPDATE': ['Template.VIEW', 'Module.VIEW', 'Domain.VIEW'],
+  'Template.DELETE': ['Template.VIEW', 'Module.VIEW', 'Domain.VIEW'],
+  'Template.EXECUTE': ['Template.VIEW', 'Project.VIEW', 'Workflow.VIEW'],
 
   // Form rules
+  'Form.VIEW': ['Domain.VIEW'],
   'Form.CREATE': ['Form.VIEW'],
   'Form.UPDATE': ['Form.VIEW'],
   'Form.DELETE': ['Form.VIEW'],
 
   // Checklist rules
+  'Checklist.VIEW': ['Workflow.VIEW'],
+  'Checklist.CREATE': ['Checklist.VIEW', 'Workflow.CREATE'],
+  'Checklist.UPDATE': ['Checklist.VIEW'],
+  'Checklist.DELETE': ['Checklist.VIEW'],
   'Checklist.COMPLETE_ITEM': ['Checklist.VIEW'],
 
   // Kanban rules
   'Kanban.VIEW': ['Project.VIEW'],
-  'Kanban.CREATE': ['Kanban.VIEW', 'Project.VIEW'],
-  'Kanban.UPDATE': ['Kanban.VIEW', 'Project.VIEW'],
-  'Kanban.DELETE': ['Kanban.VIEW', 'Project.VIEW'],
+  'Kanban.CREATE': ['Kanban.VIEW', 'Project.VIEW', 'Project.CREATE', 'Domain.VIEW', 'Domain.CREATE', 'Workflow.VIEW', 'Workflow.CREATE', 'Module.VIEW', 'Module.CREATE'],
+};
+
+/**
+ * Normalizes a permission string to a standard format (Entity.ACTION)
+ * Handles both "PROJECT_VIEW" and "Project.VIEW" formats and case differences.
+ */
+const normalizePermission = (perm) => {
+  if (!perm || typeof perm !== 'string') return "";
+
+  // 1. Initial cleanup: replace underscore with dot and convert to lowercase
+  const clean = perm.replace("_", ".").toLowerCase();
+  const parts = clean.split(".");
+
+  // 2. Handle cases where format is not Entity.Action (like 'all' or 'super_admin')
+  if (parts.length !== 2) return perm;
+
+  const [entity, action] = parts;
+  if (!entity || !action) return perm;
+
+  // 3. Reconstruct as PascalCase.UPPERCASE
+  return (
+    entity.charAt(0).toUpperCase() + entity.slice(1) +
+    "." +
+    action.toUpperCase()
+  );
 };
 
 /**
@@ -46,14 +78,18 @@ const PERMISSION_DEPENDENCIES = {
  */
 const resolveDependencies = (selectedPermissions) => {
   if (!Array.isArray(selectedPermissions)) return [];
-  const result = new Set(selectedPermissions);
+  
+  // Normalize everything to Entity.ACTION for consistent lookup
+  const normalizedInputs = selectedPermissions.map(normalizePermission);
+  const result = new Set(normalizedInputs);
   let size;
   
   do {
     size = result.size;
     result.forEach(perm => {
-      if (PERMISSION_DEPENDENCIES[perm]) {
-        PERMISSION_DEPENDENCIES[perm].forEach(dep => result.add(dep));
+      const deps = PERMISSION_DEPENDENCIES[perm];
+      if (deps) {
+        deps.forEach(dep => result.add(normalizePermission(dep)));
       }
     });
   } while (result.size > size); 
@@ -63,5 +99,6 @@ const resolveDependencies = (selectedPermissions) => {
 
 module.exports = {
   PERMISSION_DEPENDENCIES,
-  resolveDependencies
+  resolveDependencies,
+  normalizePermission
 };

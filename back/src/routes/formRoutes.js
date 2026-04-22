@@ -21,10 +21,10 @@ router.use(auth, checkTenantActive);
 
 router.get('/', getForms);
 router.get('/:id', getFormById);
-router.post('/', createForm);
-router.patch('/:id', updateForm);
-router.delete('/:id', deleteForm);
-router.post('/:id/submit', submitResponse);
-router.patch('/:id/status', updateFormStatus);
+router.post('/', hasPermission('Form.CREATE'), createForm);
+router.patch('/:id', hasPermission('Form.UPDATE'), updateForm);
+router.delete('/:id', hasPermission('Form.DELETE'), deleteForm);
+router.post('/:id/submit', hasPermission('Form.VIEW'), submitResponse);
+router.patch('/:id/status', hasPermission('Form.UPDATE'), updateFormStatus);
 
 module.exports = router;

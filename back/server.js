@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
+const cookieParser = require('cookie-parser');
 
 // ========================
 // GLOBAL ERROR CATCHERS
@@ -51,6 +52,7 @@ const app = express();
 // ========================
 // MIDDLEWARES
 // ========================
+app.use(cookieParser());
 app.use(cors({
   origin: true, // Allow the origin of the request (safe for dev when credentials are true)
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],

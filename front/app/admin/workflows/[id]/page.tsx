@@ -148,12 +148,12 @@ function WorkflowAdminDetailsContent() {
           <div className="flex items-center gap-6">
             <button 
               onClick={() => {
-                const domId = workflow?.domainId?._id || workflow?.domainId;
-                const modId = workflow?.moduleId?._id || workflow?.moduleId;
-                if (domId) {
-                  router.push(`/admin/domains/${domId}/modules${modId ? `?moduleId=${modId}` : ''}`);
+                const domId = searchParams.get('domainId');
+                const modId = searchParams.get('moduleId') || workflow?.moduleId?._id || workflow?.moduleId;
+                if (domId && modId) {
+                  router.push(`/admin/domains/${domId}/modules?moduleId=${modId}`);
                 } else {
-                  router.push('/admin/workflows');
+                  router.push(`/admin/templates${modId ? `?moduleId=${modId}` : ''}`);
                 }
               }}
               className="px-6 py-2.5 bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-slate-700 transition-all active:scale-95 flex items-center gap-2 group"
@@ -237,7 +237,12 @@ function WorkflowAdminDetailsContent() {
                    key={tab.id}
                    onClick={() => {
                      if (tab.id === 'architect') {
-                       router.push(`/create-workflow?id=${workflowId}`);
+                       const domId = searchParams.get('domainId');
+                       const modId = searchParams.get('moduleId') || workflow?.moduleId?._id || workflow?.moduleId;
+                       let url = `/create-workflow?id=${workflowId}&isTemplate=true`;
+                       if (domId) url += `&domainId=${domId}`;
+                       if (modId) url += `&moduleId=${modId}`;
+                       router.push(url);
                      } else {
                        setActiveTab(tab.id);
                      }

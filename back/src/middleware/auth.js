@@ -1,5 +1,6 @@
 // back/src/middleware/auth.js
 const jwt = require('jsonwebtoken');
+const { normalizePermission } = require('../utils/permission.utils');
 
 //  Verify that this function exists and is exported
 const auth = async (req, res, next) => {
@@ -48,8 +49,11 @@ const requireRole = (role) => {
       });
     }
 
-    if (req.user.role !== role && req.user.role !== 'super_admin') {
-      console.log(`[PERMISSIONS] Bypassing ${role} check for user ${req.user.email} (Visual Role Mode)`);
+    if (req.user.role !== role && req.user.role !== 'super_admin' && req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: `Forbidden: This action requires the ${role} role.`
+      });
     }
 
     next();
@@ -63,13 +67,35 @@ const hasPermission = (permission) => {
       return res.status(401).json({ success: false, message: 'Not authenticated' });
     }
 
-    if (req.user.role === 'super_admin') return next();
-
-    if (!req.user.permissions || !req.user.permissions.includes(permission)) {
-      console.log(`[PERMISSIONS] Bypassing permission check: ${permission} (Visual Role Mode)`);
+    // Role-based bypass (Total Authority)
+    const role = (req.user.role || '').toLowerCase();
+    if (role === 'super_admin' || role === 'admin') {
+      return next();
     }
 
-    next();
+    // Permission-based bypass
+    if (req.user.permissions?.includes('all')) {
+      return next();
+    }
+
+    // Robust Normalized comparison + Case-insensitive fallback
+    const target = normalizePermission(permission);
+    const hasPerm = req.user.permissions?.some(p => {
+      const normalizedP = normalizePermission(p);
+      return normalizedP === target || p.toLowerCase() === permission.toLowerCase();
+    });
+
+    if (hasPerm) {
+      return next();
+    }
+
+    // ✅ DEBUG LOGGING
+    console.warn(`🛑 [Permission Denied] User: ${req.user.email} | Required: ${permission}`);
+    
+    return res.status(403).json({
+      success: false,
+      message: `Forbidden: Permission [${permission}] is required.`
+    });
   };
 };
 

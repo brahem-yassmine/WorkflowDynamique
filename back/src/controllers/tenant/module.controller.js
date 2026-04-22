@@ -13,7 +13,7 @@ class ModuleController {
     static async create(req, res) {
         try {
             const Module = ModuleController.getModel(req);
-            const { name, description, domainId, isActive } = req.body;
+            const { name, description, domainId, isActive, color } = req.body;
 
             if (!name || !domainId) {
                 return res.status(400).json({ 
@@ -27,6 +27,7 @@ class ModuleController {
                 description,
                 domainId,
                 isActive: isActive !== undefined ? isActive : true,
+                color: color || '#6366f1',
                 createdBy: req.user.userId
             });
 

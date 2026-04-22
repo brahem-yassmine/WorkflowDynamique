@@ -66,8 +66,14 @@ export default function ProjectWorkflowsPage() {
   const [isTemplatesLoading, setIsTemplatesLoading] = useState(false);
 
   useEffect(() => {
-    if (projectId) {
+    // Only fetch if ID is valid to avoid "Invalid format" errors from backend
+    const isValidId = /^[0-9a-fA-F]{24}$/.test(projectId);
+    if (projectId && isValidId) {
       fetchData();
+    } else if (projectId && !isValidId && projectId !== '[id]') {
+      // If ID is clearly not a valid format and not the Next.js placeholder, redirect
+      console.warn(`Redirecting due to invalid Project ID: ${projectId}`);
+      router.push('/admin/projects');
     }
   }, [projectId]);
 
@@ -284,7 +290,7 @@ export default function ProjectWorkflowsPage() {
                 </div>
                 <div className="flex items-center gap-2">
                    <div className="px-3 py-1 bg-indigo-50 text-indigo-400 rounded-lg text-[9px] font-black uppercase tracking-widest border border-indigo-100">
-                      {typeof workflow.domainId === 'object' ? workflow.domainId.name : (workflow.domain || 'Lattice')}
+                      { (workflow.domainId && typeof workflow.domainId === 'object') ? workflow.domainId.name : (workflow.domain || 'Lattice') }
                    </div>
                 </div>
               </div>

@@ -20,6 +20,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast, Toaster } from 'sonner';
 import { apiService } from '@/service/api.service';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface Form {
   _id: string;
@@ -38,6 +39,7 @@ export default function UserAllFormsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const router = useRouter();
+  const { can, btnDisabledClass, permissionDisabledClass } = usePermissions();
 
   const fetchForms = async () => {
     try {
@@ -151,11 +153,13 @@ export default function UserAllFormsPage() {
                   onChange={(e) => setSearch(e.target.value)}
                 />
               </div>
-              <Link
-                href="/form?from=user"
-                className="flex items-center justify-center gap-3 bg-slate-900 text-white px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 group支撑 whitespace-nowrap hover:bg-indigo-600"
+                <Link
+                href={can('Form.CREATE') ? "/form?from=user" : "#"}
+                onClick={(e) => !can('Form.CREATE') && e.preventDefault()}
+                className="flex items-center justify-center gap-3 px-10 py-5 rounded-[22px] font-black text-[11px] uppercase tracking-[0.2em] transition-all shadow-2xl bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-500/20 active:scale-95 group whitespace-nowrap"
+                title={!can('Form.CREATE') ? "Matrix Restricted" : ""}
               >
-                <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
+                <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
                 Initialize Form
               </Link>
             </div>
@@ -179,8 +183,14 @@ export default function UserAllFormsPage() {
             <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Empty Registry</h2>
             <p className="text-slate-500 mt-3 font-medium max-w-sm mb-10 leading-relaxed text-sm">No protocols have been committed to this sector. Start by creating a dynamic interactive form.</p>
             <Link
-              href="/User/form"
-              className="bg-indigo-600 text-white px-10 py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-xl shadow-indigo-100 flex items-center gap-3 active:scale-95 hover:bg-indigo-700"
+              href={can('Form.CREATE') ? "/User/form" : "#"}
+              onClick={(e) => !can('Form.CREATE') && e.preventDefault()}
+              className={`px-10 py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-xl shadow-indigo-100 flex items-center gap-3 active:scale-95 ${
+                can('Form.CREATE')
+                ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                : 'bg-slate-100 text-slate-300 grayscale opacity-30 cursor-not-allowed'
+              }`}
+              title={!can('Form.CREATE') ? "Matrix Restricted" : ""}
             >
               <Plus className="w-5 h-5" /> Start Ledger Creation
             </Link>
@@ -260,23 +270,38 @@ export default function UserAllFormsPage() {
 
                                 <div className="flex items-center gap-2">
                                   <button
-                                    onClick={(e) => { e.stopPropagation(); handleClone(form._id); }}
-                                    className="p-3 transition-all rounded-2xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
-                                    title="Duplicate Unit"
+                                    onClick={(e) => { e.stopPropagation(); can('Form.CLONE') && handleClone(form._id); }}
+                                    disabled={!can('Form.CLONE')}
+                                    className={`p-3 transition-all rounded-2xl ${
+                                      can('Form.CLONE')
+                                      ? 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'
+                                      : 'text-slate-200 grayscale opacity-30 cursor-not-allowed'
+                                    }`}
+                                    title={!can('Form.CLONE') ? "Matrix Restricted" : "Duplicate Unit"}
                                   >
                                     <Copy className="w-5 h-5" />
                                   </button>
                                   <button
-                                    onClick={(e) => { e.stopPropagation(); router.push(`/form?id=${form._id}&from=user`); }}
-                                    className="p-3 transition-all rounded-2xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
-                                    title="Reconfigure"
+                                    onClick={(e) => { e.stopPropagation(); can('Form.UPDATE') && router.push(`/form?id=${form._id}&from=user`); }}
+                                    disabled={!can('Form.UPDATE')}
+                                    className={`p-3 transition-all rounded-2xl ${
+                                      can('Form.UPDATE')
+                                      ? 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'
+                                      : 'text-slate-200 grayscale opacity-30 cursor-not-allowed'
+                                    }`}
+                                    title={!can('Form.UPDATE') ? "Matrix Restricted" : "Reconfigure"}
                                   >
                                     <Edit3 className="w-5 h-5" />
                                   </button>
                                   <button
-                                    onClick={(e) => { e.stopPropagation(); handleDelete(form._id); }}
-                                    className="p-3 transition-all rounded-2xl text-slate-400 hover:text-rose-600 hover:bg-rose-50"
-                                    title="Decommission"
+                                    onClick={(e) => { e.stopPropagation(); can('Form.DELETE') && handleDelete(form._id); }}
+                                    disabled={!can('Form.DELETE')}
+                                    className={`p-3 transition-all rounded-2xl ${
+                                      can('Form.DELETE')
+                                      ? 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
+                                      : 'text-slate-200 grayscale opacity-30 cursor-not-allowed'
+                                    }`}
+                                    title={!can('Form.DELETE') ? "Matrix Restricted" : "Decommission"}
                                   >
                                     <Trash2 className="w-5 h-5" />
                                   </button>

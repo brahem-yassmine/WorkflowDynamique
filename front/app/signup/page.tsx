@@ -48,9 +48,9 @@ interface Plan {
   interval: string;
   trialDays?: number;
   features: {
-    maxStaff: number;
-    maxLocations: number;
-    analysis: string;
+    maxUsers: number;
+    maxWorkflows: number;
+    maxWorkflowsPerUser: number;
     reports: boolean;
     aiSupport: boolean;
     customSupport: boolean;
@@ -190,17 +190,20 @@ export default function SignupPage() {
     if (name === "expiryDate") {
       const cleaned = value.replace(/\D/g, "");
       if (cleaned.length <= 4) {
+        const isDeleting = value.length < paymentDetails.expiryDate.length;
         if (cleaned.length >= 2) {
-          const month = parseInt(cleaned.slice(0, 2));
-          if (month > 12) {
-             // If month > 12, just take the first digit if it's 0 or 1, or cap it
-             setPaymentDetails(prev => ({ ...prev, [name]: '12/' }));
-             return;
-          }
+          const monthStr = cleaned.slice(0, 2);
+          const month = parseInt(monthStr);
+          const validMonthStr = month > 12 ? '12' : monthStr;
+
           if (cleaned.length > 2) {
-            setPaymentDetails(prev => ({ ...prev, [name]: `${cleaned.slice(0, 2)}/${cleaned.slice(2)}` }));
-          } else {
-            setPaymentDetails(prev => ({ ...prev, [name]: `${cleaned.slice(0, 2)}/` }));
+            setPaymentDetails(prev => ({ ...prev, [name]: `${validMonthStr}/${cleaned.slice(2)}` }));
+          } else if (cleaned.length === 2) {
+            if (isDeleting) {
+              setPaymentDetails(prev => ({ ...prev, [name]: validMonthStr }));
+            } else {
+              setPaymentDetails(prev => ({ ...prev, [name]: `${validMonthStr}/` }));
+            }
           }
         } else {
           setPaymentDetails(prev => ({ ...prev, [name]: cleaned }));
@@ -737,6 +740,9 @@ export default function SignupPage() {
                             </p>
                             <p className={`text-[13px] font-black mt-1 ${formData.planId === plan._id ? 'text-indigo-900' : 'text-slate-900'}`}>
                               {plan.price === 0 ? 'FREE' : `${plan.price}${plan.currency || 'D'}`}
+                            </p>
+                            <p className={`text-[8px] font-bold mt-1 uppercase tracking-tight ${formData.planId === plan._id ? 'text-indigo-600/70' : 'text-slate-400'}`}>
+                              {plan.features?.maxWorkflowsPerUser === 999999 ? 'Unlimited' : `${plan.features?.maxWorkflowsPerUser}`} Workflows/User
                             </p>
                           </label>
                         ))}

@@ -29,6 +29,12 @@ class ApiService {
     return null;
   }
 
+  private isValidId(id: string): boolean {
+    if (!id) return false;
+    // Check if it's a valid 24-character hex string (MongoDB ObjectId format)
+    return /^[0-9a-fA-F]{24}$/.test(id) && id !== 'undefined' && id !== 'null' && id !== '[id]';
+  }
+
   async request(endpoint: string, options: RequestInit = {}) {
     const token = this.getToken();
     const tenantId = this.getTenantId();
@@ -98,6 +104,7 @@ class ApiService {
   }
 
   updateRole(id: string, data: any) {
+    if (!this.isValidId(id)) return Promise.resolve({ success: false, message: 'Invalid ID format' });
     return this.request(`/tenant/roles/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -105,6 +112,7 @@ class ApiService {
   }
 
   deleteRole(id: string) {
+    if (!this.isValidId(id)) return Promise.resolve({ success: false, message: 'Invalid ID format' });
     return this.request(`/tenant/roles/${id}`, {
       method: 'DELETE',
     });
@@ -149,6 +157,7 @@ class ApiService {
   }
 
   updateModule(id: string, data: any) {
+    if (!this.isValidId(id)) return Promise.resolve({ success: false, message: 'Invalid ID format' });
     return this.request(`/modules/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -156,6 +165,7 @@ class ApiService {
   }
 
   deleteModule(id: string) {
+    if (!this.isValidId(id)) return Promise.resolve({ success: false, message: 'Invalid ID format' });
     return this.request(`/modules/${id}`, {
       method: 'DELETE',
     });
@@ -174,6 +184,7 @@ class ApiService {
   }
 
   updateUser(id: string, data: any) {
+    if (!this.isValidId(id)) return Promise.resolve({ success: false, message: 'Invalid ID format' });
     return this.request(`/users/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -181,6 +192,7 @@ class ApiService {
   }
 
   deleteUser(id: string) {
+    if (!this.isValidId(id)) return Promise.resolve({ success: false, message: 'Invalid ID format' });
     return this.request(`/users/${id}`, {
       method: 'DELETE',
     });
@@ -192,10 +204,12 @@ class ApiService {
   }
 
   getTaskById(id: string) {
+    if (!this.isValidId(id)) return Promise.resolve({ success: false, message: 'Invalid ID format' });
     return this.request(`/tasks/${id}`);
   }
 
   updateTask(id: string, data: any) {
+    if (!this.isValidId(id)) return Promise.resolve({ success: false, message: 'Invalid ID format' });
     return this.request(`/tasks/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
@@ -208,6 +222,7 @@ class ApiService {
   }
 
   getWorkflowById(id: string) {
+    if (!this.isValidId(id)) return Promise.resolve({ success: false, message: 'Invalid ID format' });
     return this.request(`/workflows/${id}`);
   }
 
@@ -219,6 +234,7 @@ class ApiService {
   }
 
   updateWorkflow(id: string, data: any) {
+    if (!this.isValidId(id)) return Promise.resolve({ success: false, message: 'Invalid ID format' });
     return this.request(`/workflows/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -226,12 +242,14 @@ class ApiService {
   }
 
   deleteWorkflow(id: string) {
+    if (!this.isValidId(id)) return Promise.resolve({ success: false, message: 'Invalid ID format' });
     return this.request(`/workflows/${id}`, {
       method: 'DELETE',
     });
   }
 
   duplicateWorkflow(id: string, data?: any) {
+    if (!this.isValidId(id)) return Promise.resolve({ success: false, message: 'Invalid ID format' });
     return this.request(`/workflows/${id}/duplicate`, {
       method: 'POST',
       body: data ? JSON.stringify(data) : undefined
@@ -243,6 +261,7 @@ class ApiService {
   }
 
   changeWorkflowStatus(id: string, status: string) {
+    if (!this.isValidId(id)) return Promise.resolve({ success: false, message: 'Invalid ID format' });
     return this.request(`/workflows/${id}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status })
@@ -255,6 +274,9 @@ class ApiService {
   }
 
   getProjectById(id: string) {
+    if (!this.isValidId(id)) {
+      return Promise.resolve({ success: false, message: 'Invalid Project ID format' });
+    }
     return this.request(`/projects/${id}`);
   }
 
@@ -266,6 +288,7 @@ class ApiService {
   }
 
   updateProject(id: string, data: any) {
+    if (!this.isValidId(id)) return Promise.resolve({ success: false, message: 'Invalid ID format' });
     return this.request(`/projects/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -273,6 +296,7 @@ class ApiService {
   }
 
   deleteProject(id: string) {
+    if (!this.isValidId(id)) return Promise.resolve({ success: false, message: 'Invalid ID format' });
     return this.request(`/projects/${id}`, {
       method: 'DELETE',
     });

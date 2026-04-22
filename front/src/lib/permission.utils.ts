@@ -2,6 +2,7 @@
 
 export const PERMISSION_DEPENDENCIES: Record<string, string[]> = {
   // Domain rules
+  'Domain.VIEW': [],
   'Domain.CREATE': ['Domain.VIEW'],
   'Domain.UPDATE': ['Domain.VIEW'],
   'Domain.DELETE': ['Domain.VIEW'],
@@ -13,52 +14,81 @@ export const PERMISSION_DEPENDENCIES: Record<string, string[]> = {
   'Module.DELETE': ['Module.VIEW', 'Domain.VIEW'],
 
   // Project rules
-  'Project.CREATE': ['Project.VIEW', 'Domain.VIEW'], // Hierarchy
+  'Project.VIEW': ['Domain.VIEW'],
+  'Project.CREATE': ['Project.VIEW', 'Domain.VIEW'], 
   'Project.UPDATE': ['Project.VIEW'],
   'Project.DELETE': ['Project.VIEW'],
 
   // Workflow rules
-  'Workflow.VIEW': ['Project.VIEW'],
-  'Workflow.CREATE': ['Workflow.VIEW', 'Project.VIEW', 'Form.CREATE'], 
+  'Workflow.VIEW': ['Project.VIEW', 'Domain.VIEW'],
+  'Workflow.CREATE': ['Workflow.VIEW', 'Project.VIEW', 'Form.CREATE', 'Domain.VIEW'], 
   'Workflow.UPDATE': ['Workflow.VIEW', 'Project.VIEW'],
   'Workflow.DELETE': ['Workflow.VIEW', 'Project.VIEW'],
-  'Workflow.EXECUTE': ['Workflow.VIEW', 'Project.VIEW'], 
 
   // Template rules
   'Template.VIEW': ['Module.VIEW', 'Domain.VIEW'],
   'Template.CREATE': ['Template.VIEW', 'Domain.VIEW', 'Module.VIEW'],
   'Template.UPDATE': ['Template.VIEW', 'Module.VIEW', 'Domain.VIEW'],
   'Template.DELETE': ['Template.VIEW', 'Module.VIEW', 'Domain.VIEW'],
-  'Template.CLONE_TEMPLATE': ['Template.VIEW', 'Workflow.CREATE', 'Project.VIEW'],
+  'Template.EXECUTE': ['Template.VIEW', 'Project.VIEW', 'Workflow.VIEW'],
 
   // Form rules
+  'Form.VIEW': ['Domain.VIEW'],
   'Form.CREATE': ['Form.VIEW'],
   'Form.UPDATE': ['Form.VIEW'],
   'Form.DELETE': ['Form.VIEW'],
 
-
   // Checklist rules
+  'Checklist.VIEW': ['Workflow.VIEW'],
+  'Checklist.CREATE': ['Checklist.VIEW', 'Workflow.CREATE'],
+  'Checklist.UPDATE': ['Checklist.VIEW'],
+  'Checklist.DELETE': ['Checklist.VIEW'],
   'Checklist.COMPLETE_ITEM': ['Checklist.VIEW'],
 
   // Kanban rules
   'Kanban.VIEW': ['Project.VIEW'],
-  'Kanban.CREATE': ['Kanban.VIEW', 'Project.VIEW'],
-  'Kanban.UPDATE': ['Kanban.VIEW', 'Project.VIEW'],
-  'Kanban.DELETE': ['Kanban.VIEW', 'Project.VIEW'],
+  'Kanban.CREATE': ['Kanban.VIEW', 'Project.VIEW', 'Project.CREATE', 'Domain.VIEW', 'Domain.CREATE', 'Workflow.VIEW', 'Workflow.CREATE', 'Module.VIEW', 'Module.CREATE'],
+};
+
+/**
+ * Normalizes a permission string to a standard format (Entity.ACTION)
+ * Handles both "PROJECT_VIEW" and "Project.VIEW" formats and case differences.
+ */
+export const normalizePermission = (perm: string): string => {
+  if (!perm || typeof perm !== 'string') return "";
+
+  // 1. Initial cleanup: replace underscore with dot and convert to lowercase
+  const clean = perm.replace("_", ".").toLowerCase();
+  const parts = clean.split(".");
+
+  // 2. Handle cases where format is not Entity.Action (like 'all' or 'super_admin')
+  if (parts.length !== 2) return perm;
+
+  const [entity, action] = parts;
+  if (!entity || !action) return perm;
+
+  // 3. Reconstruct as PascalCase.UPPERCASE
+  return (
+    entity.charAt(0).toUpperCase() + entity.slice(1) +
+    "." +
+    action.toUpperCase()
+  );
 };
 
 /**
  * Recursively resolves all required dependencies for an array of permissions.
  */
 export const resolveDependencies = (selectedPermissions: string[]): string[] => {
-  const result = new Set<string>(selectedPermissions);
+  const normalizedInputs = selectedPermissions.map(normalizePermission);
+  const result = new Set<string>(normalizedInputs);
   let size;
   
   do {
     size = result.size;
     result.forEach(perm => {
-      if (PERMISSION_DEPENDENCIES[perm]) {
-        PERMISSION_DEPENDENCIES[perm].forEach(dep => result.add(dep));
+      const deps = PERMISSION_DEPENDENCIES[perm];
+      if (deps) {
+        deps.forEach(dep => result.add(normalizePermission(dep)));
       }
     });
   } while (result.size > size); 
@@ -73,21 +103,24 @@ export const isRequiredByOthers = (
   permissionToCheck: string, 
   currentPermissions: string[]
 ): boolean => {
+  const normChecking = normalizePermission(permissionToCheck);
   return currentPermissions.some(perm => {
-    if (perm === permissionToCheck) return false;
-    return resolveDependencies([perm]).includes(permissionToCheck);
+    const normCurrent = normalizePermission(perm);
+    if (normCurrent === normChecking) return false;
+    return resolveDependencies([normCurrent]).includes(normChecking);
   });
 };
 
 export const UI_GROUPS = {
+  Dashboard: { icon: '📊', label: 'Dashboard', actions: ["VIEW"] },
   Domain: { icon: '📦', label: 'Domain', actions: ["VIEW", "CREATE", "UPDATE", "DELETE"] },
   Module: { icon: '🧩', label: 'Module', actions: ["VIEW", "CREATE", "UPDATE", "DELETE"] },
   Project: { icon: '📁', label: 'Project', actions: ["VIEW", "CREATE", "UPDATE", "DELETE"] },
-  Workflow: { icon: '🔁', label: 'Workflow', actions: ["VIEW", "CREATE", "UPDATE", "DELETE", "EXECUTE"] },
-  Template: { icon: '📄', label: 'Template', actions: ["VIEW", "CREATE", "UPDATE", "DELETE", "CLONE_TEMPLATE"] },
+  Workflow: { icon: '🔁', label: 'Workflow', actions: ["VIEW", "CREATE", "UPDATE", "DELETE"] },
+  Template: { icon: '📄', label: 'Template', actions: ["VIEW", "CREATE", "UPDATE", "DELETE", "EXECUTE"] },
   Form: { icon: '📝', label: 'Form', actions: ["VIEW", "CREATE", "UPDATE", "DELETE"] },
   Checklist: { icon: '✅', label: 'Checklist', actions: ["VIEW", "COMPLETE_ITEM"] },
-  Kanban: { icon: '🗂️', label: 'Kanban', actions: ["VIEW", "CREATE", "UPDATE", "DELETE"] },
+  Kanban: { icon: '🗂️', label: 'Kanban', actions: ["VIEW", "CREATE"] },
 };
 
 export const ACTION_TOOLTIPS: Record<string, string> = {
@@ -95,9 +128,9 @@ export const ACTION_TOOLTIPS: Record<string, string> = {
   "UPDATE": "Can edit existing items",
   "DELETE": "Can remove items",
   "VIEW": "Can view items",
+  "CLONE": "Can duplicate this item",
   "EXECUTE": "Can launch and use workflows",
-  "CLONE_TEMPLATE": "Can duplicate template to a project",
   "ASSIGN": "Can assign tasks to other users",
   "COMPLETE": "Can execute and validate tasks",
-  "COMPLETE_ITEM": "Can check/uncheck checklist items"
+  "COMPLETE_ITEM": "Can check/uncheck checklist items",
 };

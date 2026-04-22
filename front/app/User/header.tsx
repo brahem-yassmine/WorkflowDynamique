@@ -13,7 +13,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
   const { user, tenant } = useUser();
 
   return (
-    <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-100 px-8 flex items-center justify-between sticky top-0 z-[100] transition-all duration-300">
+    <header className="h-20 bg-white border-b border-slate-100 px-8 flex items-center justify-between sticky top-0 z-[100] transition-all duration-300">
       <div className="flex items-center gap-6">
         {/* Hamburger - Squared & Premium */}
         {onToggleSidebar && (
@@ -61,7 +61,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
           <div className="text-left hidden sm:block">
             <div className="flex items-center gap-1.5">
               <p className="text-[11px] font-black text-slate-900 leading-none capitalize tracking-tight">
-                {user?.firstName || user?.name || user?.email?.split('@')[0] || 'Member'}
+                {(user?.name || user?.firstName) ? `${user.name || user.firstName} ${user.lastName || ''}` : (user?.email?.split('@')[0] || 'Member')}
               </p>
               <ShieldCheck size={10} className="text-indigo-400" />
             </div>
@@ -69,7 +69,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
               <span className="text-[8px] text-white font-black uppercase tracking-widest bg-indigo-600 px-1.5 py-0.5 rounded-[4px] shadow-sm shadow-indigo-200">
                 {user?.role?.toLowerCase() === 'super_admin' ? 'Super Admin' : 
                  user?.role?.toLowerCase() === 'admin' ? 'Admin' : 
-                 (user?.specificRole || 'User')}
+                 'User'}
               </span>
               {tenant?.name && (
                 <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider truncate max-w-[70px]">

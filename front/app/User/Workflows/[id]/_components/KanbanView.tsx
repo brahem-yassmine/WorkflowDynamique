@@ -16,11 +16,12 @@ import { motion } from 'framer-motion';
 import { apiService } from '@/service/api.service';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
+import { usePermissions } from '@/hooks/usePermissions';
 
 export default function KanbanView({ workflowId }: { workflowId: string }) {
-  const [boards, setBoards] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const { can } = usePermissions();
 
   useEffect(() => {
     fetchBoards();
@@ -58,8 +59,14 @@ export default function KanbanView({ workflowId }: { workflowId: string }) {
             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Managing tasks and productivity visualizers for this protocol</p>
          </div>
          <button 
-           onClick={handleCreateBoard}
-           className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95"
+           onClick={() => can('Kanban.CREATE') && handleCreateBoard()}
+           disabled={!can('Kanban.CREATE')}
+           title={!can('Kanban.CREATE') ? "Matrix Restricted" : "Provision Board"}
+           className={`flex items-center gap-2 px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg transition-all active:scale-95 ${
+              can('Kanban.CREATE')
+              ? 'bg-indigo-600 text-white shadow-indigo-100 hover:bg-indigo-700'
+              : 'bg-slate-100 text-slate-300 grayscale opacity-30 cursor-not-allowed'
+           }`}
          >
            <Plus size={16} />
            Provision Throughput Board

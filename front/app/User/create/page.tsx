@@ -6,6 +6,7 @@ import { ArrowLeft, Zap, Info, Activity } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect } from "react";
 import { toast } from "sonner";
+import { usePermissions } from "@/hooks/usePermissions";
 
 const WorkflowArchitectContent = () => {
     const router = useRouter();
@@ -13,7 +14,18 @@ const WorkflowArchitectContent = () => {
     const projectId = searchParams.get('projectId');
     const flowId = searchParams.get('id');
 
+    const { can } = usePermissions();
+    const [isAuthorized, setIsAuthorized] = React.useState(true);
+
     useEffect(() => {
+        // Permission Guard
+        if (!can('Workflow.CREATE')) {
+            setIsAuthorized(false);
+            toast.error("Contact Authority: You do not have 'Workflow.CREATE' clearance.");
+            router.push('/User');
+            return;
+        }
+
         const notif = searchParams.get('notif');
         if (notif) {
             toast.success(notif);
@@ -63,6 +75,8 @@ const WorkflowArchitectContent = () => {
         router.push('/User/ALL' + (isTemplate ? '?isTemplate=true' : ''));
     };
 
+    if (!isAuthorized) return null;
+
     return (
         <div className="flex flex-col h-screen w-full bg-[#fdfdfd] overflow-hidden isolate">
             {/* Top Navigation Bar - Contextual Theme */}
@@ -73,7 +87,7 @@ const WorkflowArchitectContent = () => {
                 <div className="flex items-center gap-10">
                     <button
                         onClick={handleBack}
-                        className="flex items-center gap-3 px-6 py-2.5 bg-white/5 border border-white/10 rounded-2xl text-white/70 hover:text-white hover:bg-white/10 transition-all group cursor-pointer backdrop-blur-md relative z-[300000] pointer-events-auto"
+                        className="flex items-center gap-3 px-6 py-2.5 bg-white/5 border border-white/10 rounded-2xl text-white/70 hover:text-white hover:bg-white/10 transition-all group cursor-pointer relative z-[300000] pointer-events-auto"
                     >
                         <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
                         <span className="text-[10px] font-black uppercase tracking-[0.2em] pt-0.5">Exit Architect</span>

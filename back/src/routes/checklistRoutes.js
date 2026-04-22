@@ -7,12 +7,12 @@ const { tenantResolver } = require('../middleware/tenantMiddleware');
 router.use(auth);
 router.use(tenantResolver);
 
-router.get('/', hasPermission('CHECKLIST_VIEW'), checklistController.getChecklists);
-router.get('/:id', hasPermission('CHECKLIST_VIEW'), checklistController.getChecklistById);
-router.post('/', hasPermission('CHECKLIST_CREATE'), checklistController.createChecklist);
-router.put('/:id', hasPermission('CHECKLIST_EDIT'), checklistController.updateChecklist);
-router.post('/:id/clone', hasPermission('CHECKLIST_CLONE'), checklistController.cloneChecklist);
-router.patch('/:id/tasks/:taskId/toggle', hasPermission('CHECKLIST_EDIT'), checklistController.toggleTaskStatus);
-router.delete('/:id', hasPermission('CHECKLIST_DELETE'), checklistController.deleteChecklist);
+router.get('/', checklistController.getChecklists);
+router.get('/:id', checklistController.getChecklistById);
+router.post('/', hasPermission('Checklist.VIEW'), checklistController.createChecklist); // Usually creation of instance-checklist requires at least view
+router.put('/:id', hasPermission('Checklist.VIEW'), checklistController.updateChecklist);
+router.post('/:id/clone', hasPermission('Checklist.VIEW'), checklistController.cloneChecklist);
+router.patch('/:id/tasks/:taskId/toggle', hasPermission('Checklist.COMPLETE_ITEM'), checklistController.toggleTaskStatus);
+router.delete('/:id', hasPermission('Checklist.VIEW'), checklistController.deleteChecklist);
 
 module.exports = router;

@@ -69,7 +69,7 @@ export default function CreateDomainPage() {
             {/* Full-Screen Premium Header */}
             <div className="bg-slate-900 text-white p-8 md:p-12 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-indigo-500/10 to-transparent"></div>
-                <div className="absolute -right-20 -top-20 w-80 h-80 bg-indigo-600/10 rounded-full blur-[100px]"></div>
+                <div className="absolute -right-20 -top-20 w-80 h-80 bg-indigo-600/10 rounded-full"></div>
                 
                 <div className="max-w-4xl mx-auto relative z-10">
                     <button 

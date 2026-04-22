@@ -59,13 +59,26 @@ export default function GlobalTasksPage() {
     fetchData();
   }, [currentUser]);
 
-  const getUserName = (userId: string) => {
-    if (!userId) return 'Unassigned';
+  const getUserName = (userId: string, task?: any) => {
+    if (!userId) {
+      if (task?.nodeData?.assigneeIds && task.nodeData.assigneeIds.length > 0) {
+        const firstId = task.nodeData.assigneeIds[0];
+        const user = users.find(u => u._id === firstId || u.id === firstId);
+        if (user) return `${user.firstName} ${user.lastName}`;
+        return task.nodeData.responsibleDomain || 'Multiple Assignees';
+      }
+      return 'Unassigned';
+    }
     const user = users.find(u => u._id === userId || u.id === userId);
     return user ? `${user.firstName} ${user.lastName}` : 'Unknown Operator';
   };
 
-  const getUserRole = (userId: string) => {
+  const getUserRole = (userId: string, task?: any) => {
+    if (!userId && task?.nodeData?.assigneeIds?.length > 0) {
+      const firstId = task.nodeData.assigneeIds[0];
+      const user = users.find(u => u._id === firstId || u.id === firstId);
+      return user?.role || task.nodeData.responsibleDomain || 'User';
+    }
     const user = users.find(u => u._id === userId || u.id === userId);
     return user?.role || 'User';
   };
@@ -405,7 +418,7 @@ export default function GlobalTasksPage() {
                         <div className="flex items-center gap-3">
                            <div className="relative">
                               <div className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-[10px] font-black shadow-sm border border-indigo-100">
-                                {getUserName(task.performedBy || (task.submissions[0]?.userId)).substring(0, 2).toUpperCase()}
+                                {getUserName(task.performedBy || (task.submissions[0]?.userId), task).substring(0, 2).toUpperCase()}
                               </div>
                               {task.submissions.length > 1 && (
                                 <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 text-white rounded-md flex items-center justify-center text-[8px] font-black border-2 border-white shadow-sm" title={`${task.submissions.length} participants`}>
@@ -414,9 +427,9 @@ export default function GlobalTasksPage() {
                               )}
                            </div>
                            <div>
-                              <p className="text-xs font-black text-slate-700">{getUserName(task.performedBy || (task.submissions[0]?.userId))}</p>
+                              <p className="text-xs font-black text-slate-700">{getUserName(task.performedBy || (task.submissions[0]?.userId), task)}</p>
                               <div className="flex items-center gap-2">
-                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{getUserRole(task.performedBy || (task.submissions[0]?.userId))}</p>
+                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{getUserRole(task.performedBy || (task.submissions[0]?.userId), task)}</p>
                                 {task.submissions.length > 1 && (
                                   <span className="w-1 h-1 bg-slate-300 rounded-full" />
                                 )}
@@ -533,8 +546,8 @@ export default function GlobalTasksPage() {
                 <div className="grid grid-cols-2 gap-10 pt-6 border-t border-slate-100">
                   <div className="space-y-2">
                     <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] underline decoration-indigo-200 underline-offset-4">Active Operator</p>
-                    <p className="text-2xl font-black text-slate-800 tracking-tight">{getUserName(selectedTask.performedBy)}</p>
-                    <p className="text-[10px] font-black text-indigo-400 tracking-widest uppercase opacity-70">{getUserRole(selectedTask.performedBy)} Protocol Role</p>
+                    <p className="text-2xl font-black text-slate-800 tracking-tight">{getUserName(selectedTask.performedBy, selectedTask)}</p>
+                    <p className="text-[10px] font-black text-indigo-400 tracking-widest uppercase opacity-70">{getUserRole(selectedTask.performedBy, selectedTask)} Protocol Role</p>
                   </div>
                   <div className="space-y-2 text-right">
                     <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] underline decoration-indigo-200 underline-offset-4">Execution Timestamp</p>

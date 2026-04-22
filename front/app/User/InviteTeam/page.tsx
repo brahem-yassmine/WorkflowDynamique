@@ -429,7 +429,7 @@ const InviteTeam = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 p-4"
             onClick={(e) => {
               if (e.target === e.currentTarget) setShowSaveModal(false);
             }}
@@ -509,7 +509,7 @@ const InviteTeam = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 p-4"
             onClick={(e) => {
               if (e.target === e.currentTarget) setShowInviteModal(false);
             }}
@@ -586,7 +586,7 @@ const InviteTeam = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 p-4"
             onClick={(e) => {
               if (e.target === e.currentTarget) setShowDeleteModal(false);
             }}

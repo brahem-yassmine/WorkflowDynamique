@@ -26,7 +26,7 @@ const tenantResolver = async (req, res, next) => {
 
     if (!tenantId) {
       console.warn('⚠️ [TenantResolver] No TenantID found in headers or query');
-      
+
       // If it's a super_admin trying to access something without tenantId, 
       // we might want to let it pass if the controller can handle it, 
       // but for workflows/tasks, it will definitely crash.
@@ -70,7 +70,9 @@ const tenantResolver = async (req, res, next) => {
 const checkTenantActive = async (req, res, next) => {
   try {
     if (req.tenant) {
+      console.log(`📡 [checkTenantActive] Checking req.tenant: ${req.tenant.name} (${req.tenant._id}) | Status: ${req.tenant.status}`);
       if (req.tenant.status !== 'active') {
+        console.warn(`🛑 [checkTenantActive] Blocking access: Tenant ${req.tenant._id} is ${req.tenant.status}`);
         return res.status(403).json({ success: false, message: 'Tenant inactif' });
       }
       return next();
@@ -83,8 +85,12 @@ const checkTenantActive = async (req, res, next) => {
     const TenantModel = req.masterDb?.model('Tenant');
     const tenant = await TenantModel.findById(req.user.tenantId);
 
-    if (tenant && tenant.status !== 'active') {
-      return res.status(403).json({ success: false, message: 'Tenant inactif' });
+    if (tenant) {
+      console.log(`📡 [checkTenantActive] Checking DB tenant: ${tenant.name} (${tenant._id}) | Status: ${tenant.status}`);
+      if (tenant.status !== 'active') {
+        console.warn(`🛑 [checkTenantActive] Blocking access: Tenant ${tenant._id} is ${tenant.status}`);
+        return res.status(403).json({ success: false, message: 'Tenant inactif' });
+      }
     }
 
     next();
@@ -112,9 +118,9 @@ const checkPlanLimits = (resourceType) => {
           if (maxUsers !== 0 && maxUsers !== 999999 && count >= maxUsers) {
             let nextPlan = maxUsers <= 5 ? 'Starter' : 'Pro';
             let currentPlan = maxUsers <= 5 ? 'Demo' : 'Starter';
-            return res.status(403).json({ 
-                success: false, 
-                message: `LIMIT: You have reached the limit of ${maxUsers} users for the ${currentPlan} plan. Please upgrade to the ${nextPlan} plan to add more users.` 
+            return res.status(403).json({
+              success: false,
+              message: `LIMIT: You have reached the limit of ${maxUsers} users for the ${currentPlan} plan. Please upgrade to the ${nextPlan} plan to add more users.`
             });
           }
         }
@@ -123,10 +129,27 @@ const checkPlanLimits = (resourceType) => {
       if (resourceType === 'workflows') {
         const Workflow = req.tenantConn?.model('Workflow');
         if (Workflow) {
-          const count = await Workflow.countDocuments();
+          // 1. GLOBAL LIMIT CHECK
+          const totalCount = await Workflow.countDocuments();
           const maxWorkflows = limits.maxWorkflows || defaultLimits.maxWorkflows;
-          if (maxWorkflows !== 0 && maxWorkflows !== 999999 && count >= maxWorkflows) {
-            return res.status(403).json({ success: false, message: `Limite de ${maxWorkflows} workflows atteinte` });
+          
+          if (maxWorkflows !== 0 && maxWorkflows !== 999999 && totalCount >= maxWorkflows) {
+            return res.status(403).json({ 
+              success: false, 
+              message: `ORGANIZATIONAL LIMIT: The company has reached the maximum of ${maxWorkflows} workflows allowed by your plan.` 
+            });
+          }
+
+          // 2. PERSONAL QUOTA CHECK
+          const userId = req.user.id || req.user.userId || req.user._id;
+          const personalCount = await Workflow.countDocuments({ createdBy: userId });
+          const maxWorkflowsPerUser = limits.maxWorkflowsPerUser || 999999; // Default to unlimited if not defined
+
+          if (maxWorkflowsPerUser !== 0 && maxWorkflowsPerUser !== 999999 && personalCount >= maxWorkflowsPerUser) {
+            return res.status(403).json({ 
+              success: false, 
+              message: `PERSONAL LIMIT: You have reached your individual quota of ${maxWorkflowsPerUser} workflows.` 
+            });
           }
         }
       }
@@ -149,8 +172,8 @@ const checkPlanLimits = (resourceType) => {
 
           // If maxNodes is 0 or 999999, it means unlimited
           if (maxNodes !== 0 && maxNodes !== 999999 && totalAfterOperation > maxNodes) {
-            return res.status(403).json({ 
-              success: false, 
+            return res.status(403).json({
+              success: false,
               message: `Maximum system capacity reached (${maxNodes} Flow Nodes). You are trying to use ${totalAfterOperation} nodes total across the organization.`,
               currentTotal: currentTotalNodes,
               limit: maxNodes

@@ -5,9 +5,6 @@ const nextConfig: NextConfig = {
   // @ts-ignore - Resolving ambiguous workspace root warning
   turbopack: {
     root: '..',
-  },
-  turbopack: {
-    root: '.'
   }
   turbopack: {
     root: path.resolve(__dirname),

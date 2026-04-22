@@ -23,8 +23,8 @@ const CustomNode = ({ data, selected }: any) => {
   const isCompleted = stats.completed > 0 && stats.working === 0 && stats.rejected === 0;
 
   const getStyle = () => {
-    if (data.type === 'start') return 'bg-emerald-50 border-emerald-100 text-emerald-700 shadow-sm';
-    if (data.type === 'end') return 'bg-rose-50 border-rose-100 text-rose-700 shadow-sm';
+    if (data.type === 'START' || data.type === 'start') return 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-md';
+    if (data.type === 'END' || data.type === 'end') return 'bg-rose-50 border-rose-200 text-rose-700 shadow-md';
     
     if (isWorking) return 'bg-amber-50 border-amber-200 text-amber-800 border-dashed shadow-md';
     if (isRejected) return 'bg-rose-100 border-rose-200 text-rose-800 shadow-sm';
@@ -55,7 +55,7 @@ const CustomNode = ({ data, selected }: any) => {
         <Handle type="target" position={Position.Top} className="w-1.5 h-1.5 bg-white !border-none shadow-sm" />
         
         <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 border border-black/5 ${isWorking ? 'bg-white' : 'bg-black/5'}`}>
-          {data.type === 'start' ? 'S' : data.type === 'end' ? 'E' : data.type === 'condition' ? '?' : <Layers size={12} />}
+          {(data.type === 'START' || data.type === 'start') ? 'S' : (data.type === 'END' || data.type === 'end') ? 'E' : (data.type === 'CONDITION' || data.type === 'condition') ? '?' : <Layers size={14} />}
         </div>
 
         <div className="flex flex-col">
@@ -89,6 +89,13 @@ export default function VisualFlowView({ workflowId, workflow }: { workflowId: s
   const [loading, setLoading] = useState(true);
 
   const nodeTypes = useMemo(() => ({
+    START: CustomNode,
+    END: CustomNode,
+    TASK: CustomNode,
+    APPROVAL: CustomNode,
+    AUTO: CustomNode,
+    NOTIFICATION: CustomNode,
+    CONDITION: CustomNode,
     start: CustomNode,
     end: CustomNode,
     action: CustomNode,

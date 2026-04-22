@@ -4,6 +4,7 @@ const path = require('path');
 const mongoose = require('mongoose');
 const notificationController = require('./notificationController');
 const { recordActivity } = require('../services/auditLogger');
+const WorkflowEngine = require('../workflowEngine/WorkflowEngine');
 
 // ============================================
 // 1. LIST ALL WORKFLOWS
@@ -233,11 +234,8 @@ exports.createWorkflow = async (req, res) => {
     // IF status is active, automatically start an instance
     if (workflow.status === 'active') {
       try {
-        await _internalStartInstance(req.tenantConn, workflow, req.user, {
-          title: `Auto-start: ${workflow.name}`,
-          description: workflow.description,
-          priority: 'medium'
-        });
+        const engine = new WorkflowEngine(req.tenantConn);
+        await engine.start(workflow._id, currentUserId, `Auto-start: ${workflow.name}`, {});
       } catch (execErr) {
         console.error('❌ Auto-start failed during creation:', execErr.message);
       }
@@ -401,11 +399,8 @@ exports.updateWorkflow = async (req, res) => {
     // IF status becomes active, automatically start an instance (only if it was draft)
     if (newStatus === 'active' && oldStatus === 'draft') {
       try {
-        await _internalStartInstance(req.tenantConn, workflow, req.user, {
-          title: `Auto-start: ${workflow.name}`,
-          description: workflow.description,
-          priority: 'medium'
-        });
+        const engine = new WorkflowEngine(req.tenantConn);
+        await engine.start(workflow._id, req.user.id, `Auto-start: ${workflow.name}`, {});
       } catch (execErr) {
         console.error('❌ Auto-start failed during update:', execErr.message);
       }
@@ -530,13 +525,12 @@ exports.executeWorkflow = async (req, res) => {
 
     if (!workflow) return res.status(404).json({ success: false, message: 'Workflow not found' });
 
-    const instance = await _internalStartInstance(req.tenantConn, workflow, req.user, {
-      title: req.body.title,
-      description: req.body.description,
-      priority: req.body.priority || 'medium',
-      dueDate: req.body.dueDate,
-      data: req.body.data
-    });
+    const engine = new WorkflowEngine(req.tenantConn);
+    const instance = await engine.start(workflow._id, req.user.id, req.body.title || `Instance: ${workflow.name}`, req.body.data || {});
+    
+    if (req.body.priority) instance.priority = req.body.priority;
+    if (req.body.dueDate) instance.dueDate = req.body.dueDate;
+    await instance.save();
 
     res.status(201).json({
       success: true,
@@ -549,197 +543,7 @@ exports.executeWorkflow = async (req, res) => {
   }
 };
 
-/**
- * INTERNAL FUNCTION: Start a workflow execution instance
- */
-async function _internalStartInstance(tenantConn, workflow, user, options = {}) {
-  const WorkflowInstance = tenantConn.model('WorkflowInstance');
-  const UserModel = tenantConn.model('User');
-  const RoleModel = tenantConn.model('Role');
-
-  const startNode = workflow.nodes.find(n => n.type === 'start');
-  if (!startNode) throw new Error('Workflow has no start node');
-
-  const initialNodes = [];
-  const executionPath = [{
-    nodeId: startNode.id,
-    nodeType: 'start',
-    action: 'completed',
-    performedBy: user.id,
-    timestamp: new Date()
-  }];
-
-  // Helper to find real tasks, bypassing system nodes (matching logic in WorkflowInstanceController)
-  const findNextExecutableNodes = (nodeId, targetNodesArray) => {
-    const nextEdges = workflow.edges.filter(e => e.source === nodeId);
-
-    nextEdges.forEach(edge => {
-      const targetNode = workflow.nodes.find(n => n.id === edge.target);
-      if (!targetNode) return;
-
-      if (targetNode.type === 'parallel' || targetNode.type === 'parallel_split' || targetNode.type === 'sync_split') {
-        if (!executionPath.some(p => p.nodeId === targetNode.id)) {
-          executionPath.push({
-            nodeId: targetNode.id,
-            nodeType: 'parallel_split',
-            action: 'auto_approved',
-            timestamp: new Date()
-          });
-        }
-        findNextExecutableNodes(targetNode.id, targetNodesArray);
-      } else if (targetNode.type === 'parallel_join' || targetNode.type === 'sync_join') {
-        const incoming = workflow.edges.filter(e => e.target === targetNode.id);
-        const completed = executionPath.map(p => p.nodeId);
-
-        if (incoming.every(e => completed.includes(e.source))) {
-          if (!executionPath.some(p => p.nodeId === targetNode.id)) {
-            executionPath.push({
-              nodeId: targetNode.id,
-              nodeType: 'parallel_join',
-              action: 'auto_approved',
-              timestamp: new Date()
-            });
-          }
-          findNextExecutableNodes(targetNode.id, targetNodesArray);
-        }
-      } else {
-        // Human task or End node found
-        targetNodesArray.push(targetNode);
-      }
-    });
-  };
-
-  const nodesToActivate = [];
-  findNextExecutableNodes(startNode.id, nodesToActivate);
-
-  const finalInitialNodes = await Promise.all(nodesToActivate
-    .filter(n => n.type !== 'end')
-    .map(async (targetNode) => {
-      const data = targetNode.data || {};
-      const assignmentType = data.assignmentType || 'SINGLE';
-      const assignedId = data.assignedTo || data.assignedUser;
-
-      let responsibleUser = null;
-      let responsibleDomain = data.responsibleDomain || data.domain || null;
-      let nodeAssignees = data.assigneeIds || data.validatorIds || [];
-
-      // Unified assignment logic matching WorkflowInstanceController
-      if (assignmentType === 'SINGLE' && assignedId && mongoose.Types.ObjectId.isValid(assignedId)) {
-        // Resolve if it's a domain, role, or user
-        const DomainModel = tenantConn.model('Domain');
-        const domainMaybe = await DomainModel.findById(assignedId);
-        if (domainMaybe) {
-          responsibleDomain = domainMaybe.name;
-        } else {
-          const RoleModel = tenantConn.model('Role');
-          const roleMaybe = await RoleModel.findById(assignedId);
-          if (roleMaybe) {
-            responsibleDomain = roleMaybe.name;
-          } else {
-            responsibleUser = assignedId;
-          }
-        }
-      } else if (assignmentType === 'ALL' && assignedId) {
-        // It's a group assignment, stored in assignees
-        nodeAssignees = (Array.isArray(assignedId) ? assignedId : [assignedId]);
-        responsibleDomain = data.responsibleDomain || null;
-      } else {
-        // Support for old fields
-        responsibleUser = data.assignedUser || (data.assigneeSelectionType === 'user' ? (data.assigneeIds?.[0]) : null);
-        responsibleDomain = data.responsibleDomain || data.domain || assignedId;
-      }
-
-      // Final domain-name resolution if it looks like an ID
-      if (responsibleDomain && mongoose.Types.ObjectId.isValid(responsibleDomain)) {
-        const domainObj = (await tenantConn.model('Domain').findById(responsibleDomain)) || (await tenantConn.model('Role').findById(responsibleDomain));
-        if (domainObj) responsibleDomain = domainObj.name;
-      }
-
-      return {
-        nodeId: targetNode.id,
-        status: 'in_progress',
-        startedAt: new Date(),
-        responsibleUser: responsibleUser,
-        responsibleDomain: responsibleDomain,
-        restrictedDomain: targetNode.data?.restrictedDomain || null,
-        assignees: nodeAssignees,
-        validatorIds: targetNode.data?.validatorIds || []
-      };
-    }));
-
-  // If we ONLY hit an end node instantly (empty workflow beyond start)
-  if (finalInitialNodes.length === 0 && nodesToActivate.some(n => n.type === 'end')) {
-    // This will be handled by the status: 'completed' below
-  }
-
-  const instance = new WorkflowInstance({
-    workflowId: workflow._id,
-    createdBy: user.id || user.userId || user._id,
-    title: options.title || `Instance: ${workflow.name}`,
-    description: options.description || workflow.description,
-    currentNodes: finalInitialNodes,
-    variables: options.data || {},
-    executionPath: executionPath,
-    status: (finalInitialNodes.length === 0 && nodesToActivate.some(n => n.type === 'end')) ? 'completed' : 'in_progress',
-    priority: options.priority || 'medium',
-    dueDate: options.dueDate || null,
-  });
-
-  // Automatically Create Checklist for the instance
-  const Checklist = tenantConn.model('Checklist');
-  const checklistTasks = workflow.nodes
-    .filter(node => node.type === 'action' || node.type === 'condition' || node.type === 'task')
-    .map(node => ({
-      id: node.id,
-      title: node.data?.label || (node.type === 'action' ? 'Task' : node.type === 'condition' ? 'Condition' : 'Step'),
-      completed: false,
-      priority: node.data?.priority || 'medium'
-    }));
-
-  const checklist = new Checklist({
-    name: `Checklist: ${options.title || `Instance: ${workflow.name}`}`,
-    description: `Auto-generated for workflow instance: ${options.title || `Instance: ${workflow.name}`}`,
-    tasks: checklistTasks,
-    createdBy: user.id || user.userId || user._id,
-    status: 'draft',
-    instanceId: instance._id,
-    workflowId: workflow._id
-  });
-
-  await checklist.save();
-  instance.checklistId = checklist._id;
-
-  await instance.save();
-
-  // Notifications
-  try {
-    for (const currentNode of instance.currentNodes) {
-      const nodeDef = workflow.nodes.find(n => n.id === currentNode.nodeId);
-      const targetUsers = new Set();
-      if (currentNode.responsibleUser) targetUsers.add(currentNode.responsibleUser.toString());
-      if (currentNode.assignees) currentNode.assignees.forEach(id => targetUsers.add(id.toString()));
-
-      if (nodeDef?.data?.assigneeSelectionType === 'role' && currentNode.assignees?.length > 0) {
-        const rolesMatching = await RoleModel.find({ _id: { $in: currentNode.assignees } });
-        const roleNames = rolesMatching.map(r => r.name);
-        const roleUsers = await UserModel.find({ $or: [{ role: { $in: roleNames } }, { role: { $in: currentNode.assignees.map(id => id.toString()) } }] });
-        roleUsers.forEach(u => targetUsers.add(u._id.toString()));
-      }
-
-      for (const userId of targetUsers) {
-        await notificationController.createInternalNotification(tenantConn, {
-          recipient: userId,
-          title: 'New Task Assigned',
-          message: `Task "${nodeDef?.data?.label || 'Step'}" activated in "${instance.title}".`,
-          type: 'task_assigned',
-          link: `/Workflows/instances/${instance._id}`
-        });
-      }
-    }
-  } catch (err) { }
-
-  return instance;
-}
+// Removed deprecated _internalStartInstance
 
 // ============================================
 // 7. CHANGE WORKFLOW STATUS

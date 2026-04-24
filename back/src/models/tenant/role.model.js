@@ -16,10 +16,8 @@ const roleSchema = new mongoose.Schema(
     permissions: [
       {
         type: String,
-        trim: true
+        trim: true,
         required: true
-        required: true,
-        trim: true
       }
     ],
     isDefault: {

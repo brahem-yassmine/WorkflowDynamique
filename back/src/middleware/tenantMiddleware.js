@@ -106,24 +106,12 @@ const checkPlanLimits = (resourceType) => {
     try {
       if (!req.tenant) return next();
 
-      const defaultLimits = { maxUsers: 10, maxWorkflows: 5 };
+      const defaultLimits = { maxUsers: 999999, maxWorkflows: 30 };
       const limits = req.tenant.planDetails?.features || defaultLimits;
 
       if (resourceType === 'users') {
-        const User = req.tenantConn?.model('User');
-        if (User) {
-          // Ne pas compter les administrateurs
-          const count = await User.countDocuments({ role: { $nin: ['admin', 'super_admin'] } });
-          const maxUsers = limits.maxUsers || defaultLimits.maxUsers;
-          if (maxUsers !== 0 && maxUsers !== 999999 && count >= maxUsers) {
-            let nextPlan = maxUsers <= 5 ? 'Starter' : 'Pro';
-            let currentPlan = maxUsers <= 5 ? 'Demo' : 'Starter';
-            return res.status(403).json({
-              success: false,
-              message: `LIMIT: You have reached the limit of ${maxUsers} users for the ${currentPlan} plan. Please upgrade to the ${nextPlan} plan to add more users.`
-            });
-          }
-        }
+        // User capacity check disabled per requirements
+        return next();
       }
 
       if (resourceType === 'workflows') {
@@ -140,10 +128,11 @@ const checkPlanLimits = (resourceType) => {
             });
           }
 
-          // 2. PERSONAL QUOTA CHECK
+          // 2. PERSONAL QUOTA CHECK (Disabled - workflow limits are now strictly global)
+          /*
           const userId = req.user.id || req.user.userId || req.user._id;
           const personalCount = await Workflow.countDocuments({ createdBy: userId });
-          const maxWorkflowsPerUser = limits.maxWorkflowsPerUser || 999999; // Default to unlimited if not defined
+          const maxWorkflowsPerUser = limits.maxWorkflowsPerUser || 999999; 
 
           if (maxWorkflowsPerUser !== 0 && maxWorkflowsPerUser !== 999999 && personalCount >= maxWorkflowsPerUser) {
             return res.status(403).json({ 
@@ -151,6 +140,7 @@ const checkPlanLimits = (resourceType) => {
               message: `PERSONAL LIMIT: You have reached your individual quota of ${maxWorkflowsPerUser} workflows.` 
             });
           }
+          */
         }
       }
 

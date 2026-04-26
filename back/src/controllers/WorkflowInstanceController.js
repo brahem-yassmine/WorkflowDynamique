@@ -91,30 +91,7 @@ exports.createInstance = async (req, res) => {
     if (dueDate) instance.dueDate = dueDate;
     if (tags) instance.tags = tags;
 
-    // Create associated checklist
-    const Checklist = req.tenantConn.model('Checklist');
-    const checklistTasks = workflow.nodes
-      .filter(node => ['action', 'condition', 'task'].includes(node.type.toLowerCase()))
-      .map(node => ({
-        id: node.id,
-        title: node.data?.label || (node.type === 'action' ? 'Task' : node.type === 'condition' ? 'Condition' : 'Step'),
-        completed: false,
-        priority: node.data?.priority || 'medium'
-      }));
-
-    if (checklistTasks.length > 0) {
-      const checklist = new Checklist({
-        name: `Checklist: ${title}`,
-        description: `Auto-generated for workflow instance: ${title}`,
-        tasks: checklistTasks,
-        createdBy: req.user.id,
-        status: 'draft',
-        instanceId: instance._id,
-        workflowId: workflow._id
-      });
-      await checklist.save();
-      instance.checklistId = checklist._id;
-    }
+    // Checklist creation is now handled by engine.start()
 
     syncCompatibilityFields(instance);
     await instance.save();

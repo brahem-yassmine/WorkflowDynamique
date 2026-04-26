@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const notificationController = require('./notificationController');
 const { recordActivity } = require('../services/auditLogger');
 const WorkflowEngine = require('../workflowEngine/WorkflowEngine');
+const checklistService = require('../services/checklistService');
 
 // ============================================
 // 1. LIST ALL WORKFLOWS
@@ -242,7 +243,7 @@ exports.createWorkflow = async (req, res) => {
     }
 
     // 🚀 AUTOMATIC CHECKLIST GENERATION
-    await _triggerAutomaticChecklist(req, workflow);
+    await checklistService.syncWorkflowChecklist(req.tenantConn, workflow, currentUserId);
 
     // Notifications Guard
     try {
@@ -407,7 +408,7 @@ exports.updateWorkflow = async (req, res) => {
     }
 
     // 🚀 AUTOMATIC CHECKLIST SYNC
-    await _triggerAutomaticChecklist(req, workflow);
+    await checklistService.syncWorkflowChecklist(req.tenantConn, workflow, req.user.id);
 
     await recordActivity(req, 'WORKFLOW_EDIT', {
       type: 'Workflow',
@@ -531,6 +532,8 @@ exports.executeWorkflow = async (req, res) => {
     if (req.body.priority) instance.priority = req.body.priority;
     if (req.body.dueDate) instance.dueDate = req.body.dueDate;
     await instance.save();
+    
+    // Note: Checklist creation is now handled by engine.start()
 
     res.status(201).json({
       success: true,
@@ -733,7 +736,7 @@ exports.duplicateWorkflow = async (req, res) => {
     await duplicate.save();
 
     // Automatically generates/syncs checklist for the new copy
-    await _triggerAutomaticChecklist(req, duplicate);
+    await checklistService.syncWorkflowChecklist(req.tenantConn, duplicate, req.user.id);
 
     await recordActivity(req, projectId ? 'CLONE_WORKFLOW_TO_PROJECT' : 'DUPLICATE_WORKFLOW', {
       type: 'Workflow',
@@ -850,46 +853,4 @@ async function _syncActiveInstances(tenantConn, workflow) {
   }
 }
 
-/**
- * PRIVATE HELPER: Automatically generates/syncs checklist
- */
-async function _triggerAutomaticChecklist(req, workflow) {
-  try {
-    // Automated checklist for all users creating templates
 
-    // Include actions and conditions as checklist items
-    const nodesToInclude = (workflow.nodes || []).filter(n =>
-      n.type === 'action' || n.type === 'condition' || n.type === 'task'
-    );
-
-    if (nodesToInclude.length === 0) return;
-
-    const Checklist = req.tenantConn.model('Checklist');
-
-    // Use a unique identifier or name for the template's checklist
-    const checklistName = `Workflow: ${workflow.name}`;
-
-    const checklistTasks = nodesToInclude.map(n => ({
-      id: n.id,
-      title: n.data?.label || (n.type === 'action' ? 'Task' : n.type === 'condition' ? 'Condition' : 'Step'),
-      completed: false,
-      priority: n.data?.priority || 'medium'
-    }));
-
-    await Checklist.findOneAndUpdate(
-      { workflowId: workflow._id }, // Better to find by workflowId than name
-      {
-        name: checklistName,
-        tasks: checklistTasks,
-        description: `Automated checklist for workflow "${workflow.name}"`,
-        createdBy: req.user.id || req.user.userId || req.user._id,
-        workflowId: workflow._id
-      },
-      { new: true, upsert: true }
-    );
-
-    console.log(`✅ Automatic checklist for workflow: ${workflow.name} (ID: ${workflow._id})`);
-  } catch (error) {
-    console.error('❌ Automatic Checklist Generation Error:', error.message);
-  }
-}

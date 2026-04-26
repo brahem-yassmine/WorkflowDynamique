@@ -132,8 +132,6 @@ api.interceptors.response.use(
       console.error('❌ API Request Error:', error.message);
     }
     // Determine the nature of the error
-    const isNetworkError = !error.response && error.request;
-    const isResponseError = !!error.response;
 
     const apiError = {
       status: error.response?.status || (isNetworkError ? 'Network Error' : 'Unknown'),

@@ -1,5 +1,6 @@
 // back/src/services/workflowExecutionService.js
 const mongoose = require('mongoose');
+const checklistService = require('./checklistService');
 
 /**
  * Clones a workflow template and starts an execution instance.
@@ -107,26 +108,15 @@ async function cloneAndStartWorkflow(tenantConn, template, user, options = {}) {
     await instance.save();
 
     // 5. Create Checklist
-    const checklistTasks = workflow.nodes
-        .filter(node => node.type === 'action' || node.type === 'condition' || node.type === 'task')
-        .map(node => ({
-            id: node.id,
-            title: node.data?.label || 'Étape',
-            completed: false,
-            priority: node.data?.priority || 'medium'
-        }));
-
-    const checklist = new Checklist({
-        name: `Checklist: ${instance.title}`,
-        tasks: checklistTasks,
-        createdBy: user.id || user._id,
-        status: 'draft',
-        instanceId: instance._id,
-        workflowId: workflow._id
-    });
-    await checklist.save();
-    instance.checklistId = checklist._id;
-    await instance.save();
+    try {
+        const checklist = await checklistService.createInstanceChecklist(tenantConn, instance, workflow, user.id || user._id);
+        if (checklist) {
+            instance.checklistId = checklist._id;
+            await instance.save();
+        }
+    } catch (checklistErr) {
+        console.error('❌ Failed to create auto-checklist in workflowExecutionService:', checklistErr.message);
+    }
 
     return { workflow, instance };
 }

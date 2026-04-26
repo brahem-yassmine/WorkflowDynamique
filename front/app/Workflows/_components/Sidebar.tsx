@@ -89,7 +89,7 @@ export default function Sidebar() {
                 {/* Parallel Split */}
                 <div
                     className="flex items-center gap-3 p-3 bg-cyan-50 border-2 border-cyan-100/50 rounded-2xl cursor-grab hover:border-cyan-200 hover:bg-cyan-100/50 transition-all active:scale-95 group"
-                    onDragStart={(e) => onDragStart(e, 'parallel_split')}
+                    onDragStart={(e) => onDragStart(e, 'PARALLEL_SPLIT')}
                     draggable
                 >
                     <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center text-cyan-500 shadow-sm border border-cyan-100 group-hover:rotate-12 transition-transform">
@@ -101,7 +101,7 @@ export default function Sidebar() {
                 {/* Parallel Join */}
                 <div
                     className="flex items-center gap-3 p-3 bg-violet-50 border-2 border-violet-100/50 rounded-2xl cursor-grab hover:border-violet-200 hover:bg-violet-100/50 transition-all active:scale-95 group"
-                    onDragStart={(e) => onDragStart(e, 'parallel_join')}
+                    onDragStart={(e) => onDragStart(e, 'PARALLEL_JOIN')}
                     draggable
                 >
                     <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center text-violet-500 shadow-sm border border-violet-100 group-hover:rotate-12 transition-transform">

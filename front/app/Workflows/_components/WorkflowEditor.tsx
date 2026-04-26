@@ -48,6 +48,8 @@ const nodeTypes = {
     AUTO: AutoNode,
     NOTIFICATION: NotificationNode,
     CONDITION: ConditionNode,
+    PARALLEL_SPLIT: ParallelSplitNode,
+    PARALLEL_JOIN: ParallelJoinNode,
     // Keep old lowercase for backwards compatibility in UI designer (Optional but good)
     start: StartNode,
     end: EndNode,
@@ -60,7 +62,7 @@ const nodeTypes = {
 const initialNodes: Node[] = [
     {
         id: '1',
-        type: 'start',
+        type: 'START',
         data: { label: 'Start' },
         position: { x: 250, y: 5 },
     },
@@ -386,8 +388,8 @@ function WorkflowEditorContent({ onSaveSuccess }: { onSaveSuccess?: () => void }
                         type === 'AUTO' ? 'Auto Script' :
                         type === 'NOTIFICATION' ? 'Notification' :
                             type === 'START' ? 'Start' :
-                                type === 'parallel_split' ? 'Start Parallel' :
-                                    type === 'parallel_join' ? 'Sync Join' : 'End Workflow'
+                                type === 'PARALLEL_SPLIT' ? 'Start Parallel' :
+                                    type === 'PARALLEL_JOIN' ? 'Sync Join' : 'End Workflow'
                 },
             };
 

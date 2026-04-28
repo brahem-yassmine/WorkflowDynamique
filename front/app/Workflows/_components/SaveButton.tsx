@@ -220,7 +220,7 @@ const SaveButton = ({
                               className="w-full h-12 px-4 bg-slate-50 border-none rounded-2xl font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-100 transition-all appearance-none cursor-pointer text-sm"
                           >
                               <option value="active">Active</option>
-                              <option value="planning">Draft</option>
+                              <option value="draft">Draft</option>
                           </select>
                       </div>
                     </div>

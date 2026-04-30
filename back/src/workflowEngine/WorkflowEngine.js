@@ -1,5 +1,6 @@
 const StepHandlerFactory = require('./StepHandlerFactory');
 const SecureEvaluator = require('./SecureEvaluator');
+const checklistService = require('../services/checklistService');
 
 class WorkflowEngine {
   constructor(tenantConn) {
@@ -32,6 +33,16 @@ class WorkflowEngine {
 
     await instance.save();
     
+    // 🚀 AUTOMATIC CHECKLIST GENERATION
+    try {
+      const checklist = await checklistService.createInstanceChecklist(this.tenantConn, instance, workflow, creatorId);
+      if (checklist) {
+        instance.checklistId = checklist._id;
+      }
+    } catch (checklistErr) {
+      console.error('❌ Failed to create auto-checklist for instance:', checklistErr.message);
+    }
+
     // Activate transitions from START
     await this._activateNextSteps(instance, workflow, startStep.id, 'START');
     

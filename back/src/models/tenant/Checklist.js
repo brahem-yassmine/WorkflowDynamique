@@ -29,7 +29,7 @@ const checklistSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['draft', 'completed'],
+        enum: ['draft', 'completed', 'active', 'archived'],
         default: 'draft'
     },
     instanceId: {

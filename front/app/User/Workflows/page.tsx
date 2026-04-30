@@ -79,6 +79,7 @@ export default function UserWorkflowsPage() {
   const [isChecklistModalOpen, setIsChecklistModalOpen] = useState(false);
   
   const searchParams = useSearchParams();
+  const router = useRouter();
   const projectIdParam = searchParams.get('projectId');
   const mode = searchParams.get('mode') || 'operations';
   const initialTab = searchParams.get('tab') === 'registry' ? 'registry' : 'tasks';

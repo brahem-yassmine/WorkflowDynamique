@@ -21,6 +21,7 @@ import { useRouter } from 'next/navigation';
 import { apiService } from '@/service/api.service';
 import useUser from '@/hooks/useUser';
 import { toast, Toaster } from 'sonner';
+import { DeleteConfirmModal } from '@/components/DeleteConfirmModal';
 
 interface Checklist {
   _id: string;
@@ -28,14 +29,19 @@ interface Checklist {
   tasks: any[];
   status: 'draft' | 'completed';
   createdAt: string;
-  workflowId?: any;
   instanceId?: string;
+  workflowId?: any;
+  projectId?: any;
 }
 
 export default function AllChecklistsPage() {
   const [checklists, setChecklists] = useState<Checklist[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [checklistToDelete, setChecklistToDelete] = useState<Checklist | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isExtraDeleting, setIsExtraDeleting] = useState(false);
   const router = useRouter();
   const { btnDisabledClass } = useUser();
 
@@ -71,17 +77,53 @@ export default function AllChecklistsPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDeleteOnly = async () => {
+    if (!checklistToDelete) return;
+    
     try {
-      const response = await apiService.request(`/checklists/${id}`, {
+      setIsDeleting(true);
+      const response = await apiService.request(`/checklists/${checklistToDelete._id}`, {
         method: 'DELETE'
       });
       if (response.success) {
-        toast.success("Checklist deleted");
-        setChecklists(checklists.filter(c => c._id !== id));
+        toast.success("Checklist deleted (Workflow preserved)");
+        setChecklists(checklists.filter(c => c._id !== checklistToDelete._id));
+        setIsDeleteModalOpen(false);
       }
     } catch (error) {
       toast.error("Failed to delete checklist");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteEverything = async () => {
+    if (!checklistToDelete) return;
+    
+    try {
+      setIsExtraDeleting(true);
+      
+      // 1. Delete Checklist
+      await apiService.deleteChecklist(checklistToDelete._id);
+      
+      // 2. Delete Related Workflow or Instance
+      if (checklistToDelete.instanceId) {
+        await apiService.deleteInstance(checklistToDelete.instanceId);
+        toast.success("Checklist and Live Instance deleted");
+      } else if (checklistToDelete.workflowId) {
+        // If workflowId is an object (populated), use its _id
+        const wId = typeof checklistToDelete.workflowId === 'object' ? checklistToDelete.workflowId._id : checklistToDelete.workflowId;
+        await apiService.deleteWorkflow(wId);
+        toast.success("Checklist and Workflow Template deleted");
+      }
+
+      setChecklists(checklists.filter(c => c._id !== checklistToDelete._id));
+      setIsDeleteModalOpen(false);
+    } catch (error: any) {
+      console.error("Delete everything error:", error);
+      toast.error(error.message || "Failed to delete associated resources");
+    } finally {
+      setIsExtraDeleting(false);
     }
   };
 
@@ -233,7 +275,12 @@ export default function AllChecklistsPage() {
                               <div className="h-6 w-px bg-slate-100"></div>
                               <div className="flex flex-col">
                                 <span className="text-[9px] uppercase font-black text-slate-400 tracking-[0.2em]">Status</span>
-                                <span className={`text-[10px] font-black uppercase ${checklist.status === 'completed' ? 'text-emerald-500' : 'text-slate-400'}`}>
+                                <span className={`text-[10px] font-black uppercase ${
+                                  checklist.status === 'active' ? 'text-emerald-500' : 
+                                  checklist.status === 'draft' ? 'text-amber-500' : 
+                                  checklist.status === 'completed' ? 'text-indigo-500' :
+                                  'text-slate-400'
+                                }`}>
                                   {checklist.status || 'draft'}
                                 </span>
                               </div>
@@ -265,11 +312,12 @@ export default function AllChecklistsPage() {
                                 >
                                   <Edit3 size={18} />
                                 </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDelete(checklist._id);
-                                  }}
+                                  <button
+                                   onClick={(e) => {
+                                     e.stopPropagation();
+                                     setChecklistToDelete(checklist);
+                                     setIsDeleteModalOpen(true);
+                                   }}
                                   className={`p-2.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all ${btnDisabledClass('CHECKLIST_DELETE')}`}
                                   title="Delete Checklist"
                                 >
@@ -386,6 +434,23 @@ export default function AllChecklistsPage() {
           )}
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDeleteOnly}
+        onExtraConfirm={checklistToDelete?.workflowId || checklistToDelete?.instanceId ? handleDeleteEverything : undefined}
+        extraConfirmLabel={checklistToDelete?.instanceId ? "Delete Checklist & Instance" : "Delete Checklist & Workflow"}
+        title="Delete Strategy"
+        description={
+          checklistToDelete?.workflowId || checklistToDelete?.instanceId
+            ? "This checklist is linked to a workflow resource. Would you like to delete only the checklist registry or the entire workflow chain?"
+            : "Are you sure you want to permanently delete this checklist? This action cannot be undone."
+        }
+        isDeleting={isDeleting}
+        isExtraDeleting={isExtraDeleting}
+      />
     </div>
   );
 }

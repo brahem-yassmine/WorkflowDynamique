@@ -127,6 +127,10 @@ class RoleController {
   // Update a role
   static async update(req, res) {
     try {
+      console.log('🔄 [RoleController] Hit UPDATE route for ID:', req.params.id);
+      console.log(`🔄 [RoleController] Updating role ID: ${req.params.id} for tenant: ${req.tenantId || 'Unknown'}`);
+      console.log('📦 Payload:', JSON.stringify(req.body, null, 2));
+
       const Role = RoleController.getModel(req);
       const { id } = req.params;
       const { name, description, permissions, isDefault, isActive } = req.body;

@@ -19,6 +19,7 @@ interface Notification {
 export default function NotificationBell() {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [isOpen, setIsOpen] = useState(false);
+    const [userRole, setUserRole] = useState<string>('');
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     const unreadCount = notifications.filter(n => !n.read).length;
@@ -38,6 +39,14 @@ export default function NotificationBell() {
     useEffect(() => {
         const token = apiService.getToken();
         if (!token) return;
+
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+            try {
+                const parsed = JSON.parse(userStr);
+                setUserRole(parsed.role?.toLowerCase() || '');
+            } catch (e) {}
+        }
 
         fetchNotifications();
         const interval = setInterval(fetchNotifications, 30000); // Poll every 30s
@@ -156,8 +165,8 @@ export default function NotificationBell() {
                                                             <Clock size={10} />
                                                             {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                         </div>
-                                                        {n.link && (
-                                                            <Link href={n.link} className="flex items-center gap-1 text-[9px] font-black text-indigo-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        {(userRole === 'user' || n.link) && (
+                                                            <Link href={userRole === 'user' ? '/User/ALL' : (n.link || '#')} className="flex items-center gap-1 text-[9px] font-black text-indigo-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
                                                                 View <ExternalLink size={8} />
                                                             </Link>
                                                         )}

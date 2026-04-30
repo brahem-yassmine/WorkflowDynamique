@@ -94,8 +94,10 @@ function BillingPageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const upgradeRequest = searchParams.get('upgrade') as PlanType;
-    // Note: subscription state is computed locally below (isExpired, days, currentLimit)
-    useAuth(); // ensure auth context is initialized
+    const auth = useAuth() as any;
+    const isAuthExpired = auth?.user?.subscriptionExpired || auth?.subscriptionExpired;
+    const daysRemaining = auth?.user?.daysRemaining || auth?.daysRemaining;
+    const limit = auth?.user?.subscriptionLimit || auth?.subscriptionLimit;
 
     const [plan, setPlan] = useState<PlanType>('demo');
     const [days, setDays] = useState(0);
@@ -306,7 +308,7 @@ function BillingPageContent() {
     };
 
     const changePlan = async (next: PlanType) => {
-        if (next === plan) return;
+        if (next === plan && !isExpired) return;
         
         const nextPlanObj = dbPlans.find(p => p.code.toLowerCase() === next.toLowerCase());
         
@@ -547,16 +549,6 @@ function BillingPageContent() {
                         <div className="grid grid-cols-2 gap-4 mb-8 pt-4 border-t border-white/10 mt-4">
                            <div className="flex flex-col">
                                <div className="flex items-center gap-1.5 mb-1 text-indigo-300">
-                                   <User size={10} />
-                                   <p className="text-[10px] font-black uppercase tracking-widest leading-none">User Capacity</p>
-                               </div>
-                               <p className="text-sm font-black">
-                                   {activeDbPlan?.features?.maxUsers || '...'} 
-                                   <span className="text-[10px] ml-1 opacity-50">Slots</span>
-                               </p>
-                           </div>
-                           <div className="flex flex-col">
-                               <div className="flex items-center gap-1.5 mb-1 text-indigo-300">
                                    <Zap size={10} />
                                    <p className="text-[10px] font-black uppercase tracking-widest leading-none">Workflow Threads</p>
                                </div>
@@ -618,10 +610,6 @@ function BillingPageContent() {
                                 
                                 <div className="space-y-3 mb-8 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
                                     <div className="flex items-center justify-between">
-                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">User Capacity</span>
-                                        <span className="text-xs font-black text-slate-700">{p.features?.maxUsers || p.maxUsers || 1}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between">
                                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Workflows</span>
                                         <span className="text-xs font-black text-slate-700">{p.features?.maxWorkflows || p.maxWorkflows || 1}</span>
                                     </div>
@@ -639,16 +627,20 @@ function BillingPageContent() {
                                 </ul>
                                 <button
                                     onClick={() => changePlan(p.code)}
-                                    disabled={isCurrent || loading || isRestricted}
+                                    disabled={(isCurrent && (!isExpired || p.code.toLowerCase().includes('demo'))) || loading || isRestricted}
                                     className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-[0.98] ${
-                                        isCurrent 
+                                        isCurrent && (!isExpired || p.code.toLowerCase().includes('demo'))
                                         ? 'bg-slate-100 text-slate-400 cursor-default' 
                                         : isRestricted
                                         ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
                                         : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-100'
                                     }`}
                                 >
-                                    {isCurrent ? 'Active Protocol' : isRestricted ? 'Restricted' : 'Sync Request'}
+                                    {isCurrent 
+                                        ? (isExpired 
+                                            ? (p.code.toLowerCase().includes('demo') ? 'Uplink Required' : 'Renew Protocol') 
+                                            : 'Active Protocol') 
+                                        : isRestricted ? 'Restricted' : 'Sync Request'}
                                 </button>
                             </div>
                         );

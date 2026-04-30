@@ -101,7 +101,7 @@ export default function WorkflowChecklist() {
   const [tasks, setTasks] = useState<WorkflowTask[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [checklistName, setChecklistName] = useState('Workflow Checklist');
-  const [checklistStatus, setChecklistStatus] = useState<'draft' | 'completed'>('draft');
+  const [checklistStatus, setChecklistStatus] = useState<'draft' | 'completed' | 'active' | 'archived'>('draft');
   const [checklistId, setChecklistId] = useState<string | null>(null);
   const [checklistDescription, setChecklistDescription] = useState('');
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
@@ -507,12 +507,17 @@ export default function WorkflowChecklist() {
                 <select
                   value={checklistStatus}
                   onChange={(e) => setChecklistStatus(e.target.value as any)}
-                  className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl border appearance-none cursor-pointer transition-all ${checklistStatus === 'completed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                  className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl border appearance-none cursor-pointer transition-all ${
+                    checklistStatus === 'completed' ? 'bg-indigo-50 text-indigo-600 border-indigo-100' :
+                    checklistStatus === 'active' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                    checklistStatus === 'draft' ? 'bg-amber-50 text-amber-600 border-amber-100' :
                     'bg-slate-50 text-slate-600 border-slate-100'
-                    }`}
+                  }`}
                 >
                   <option value="draft">Draft</option>
+                  <option value="active">Active</option>
                   <option value="completed">Completed</option>
+                  <option value="archived">Archived</option>
                 </select>
 
                 {!isExecutionMode && !isConsult && (

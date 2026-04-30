@@ -25,7 +25,7 @@ const workflowSchema = new mongoose.Schema({
     type: { 
       type: String, 
       required: true,
-      enum: ['START', 'TASK', 'APPROVAL', 'AUTO', 'NOTIFICATION', 'CONDITION', 'SUB_WORKFLOW', 'EVENT', 'END', 'task', 'action', 'condition', 'start', 'end', 'parallel_split', 'parallel_join', 'FORM', 'DOCUMENT'] // Kept legacy lowercase and added missing ones for AI/Migration support
+      enum: ['START', 'TASK', 'APPROVAL', 'AUTO', 'NOTIFICATION', 'CONDITION', 'SUB_WORKFLOW', 'EVENT', 'END', 'task', 'action', 'condition', 'start', 'end', 'parallel_split', 'parallel_join', 'FORM', 'DOCUMENT', 'PARALLEL_SPLIT', 'PARALLEL_JOIN'] // Unified support for legacy and new architectures
     },
     config: {
       // TASK settings (Handling generic content, forms, pdf, images)

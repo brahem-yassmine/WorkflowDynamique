@@ -29,6 +29,8 @@ const WorkflowArchitectContent = () => {
             router.replace(`${window.location.pathname}?${newParams.toString()}`);
         }
     }, [searchParams, router]);
+
+
     const handleBack = () => {
         const domainId = searchParams.get('domainId');
         const moduleId = searchParams.get('moduleId');
@@ -42,6 +44,10 @@ const WorkflowArchitectContent = () => {
 
         // Priority 1: Template Context
         if (isTemplate) {
+            if (domainId && moduleId) {
+                router.push(`/admin/domains/${domainId}/modules?moduleId=${moduleId}`);
+                return;
+            }
             router.push(`/admin/templates${moduleId ? `?moduleId=${moduleId}` : ''}`);
             return;
         }

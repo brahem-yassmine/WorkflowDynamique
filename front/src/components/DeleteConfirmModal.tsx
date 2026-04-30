@@ -8,18 +8,24 @@ interface DeleteConfirmModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
+  onExtraConfirm?: () => void;
   title: string;
   description: string;
   isDeleting?: boolean;
+  extraConfirmLabel?: string;
+  isExtraDeleting?: boolean;
 }
  
 export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
   isOpen,
   onClose,
   onConfirm,
+  onExtraConfirm,
   title,
   description,
-  isDeleting = false
+  isDeleting = false,
+  extraConfirmLabel,
+  isExtraDeleting = false
 }) => {
   return (
     <AnimatePresence>
@@ -66,25 +72,42 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
                 </p>
               </div>
  
-              <div className="flex items-center gap-4">
-                <button 
-                  onClick={onClose}
-                  className="flex-1 py-4 px-6 bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-slate-100 transition-all border border-slate-100 hover:text-slate-600 active:scale-95"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={onConfirm}
-                  disabled={isDeleting}
-                  className="flex-1 py-4 px-6 bg-rose-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-rose-700 active:scale-95 transition-all shadow-xl shadow-rose-100 disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {isDeleting ? (
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <Trash2 size={16} />
-                  )}
-                  {isDeleting ? 'Deleting...' : 'Delete Permanently'}
-                </button>
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-4">
+                  <button 
+                    onClick={onClose}
+                    className="flex-1 py-4 px-6 bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-slate-100 transition-all border border-slate-100 hover:text-slate-600 active:scale-95"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={onConfirm}
+                    disabled={isDeleting || isExtraDeleting}
+                    className="flex-1 py-4 px-6 bg-rose-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-rose-700 active:scale-95 transition-all shadow-xl shadow-rose-100 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isDeleting ? (
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <Trash2 size={16} />
+                    )}
+                    {isDeleting ? 'Deleting...' : onExtraConfirm ? 'Delete Checklist' : 'Delete Permanently'}
+                  </button>
+                </div>
+
+                {onExtraConfirm && (
+                  <button 
+                    onClick={onExtraConfirm}
+                    disabled={isDeleting || isExtraDeleting}
+                    className="w-full py-4 px-6 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-slate-800 active:scale-95 transition-all shadow-xl shadow-slate-100 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isExtraDeleting ? (
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <Trash2 size={16} />
+                    )}
+                    {isExtraDeleting ? 'Deleting...' : extraConfirmLabel || 'Delete Everything'}
+                  </button>
+                )}
               </div>
             </div>
  

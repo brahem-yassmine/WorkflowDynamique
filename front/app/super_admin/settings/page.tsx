@@ -34,9 +34,9 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
 const initialPlans = [
-  { id: 1, name: "Starter Lattice", price: 19, maxUsers: 10, maxWorkflows: 20, storage: "10GB", active: true },
-  { id: 2, name: "Pro Cluster", price: 49, maxUsers: 999999, maxWorkflows: 999999, storage: "100GB", active: true },
-  { id: 3, name: "Enterprise Node", price: 199, maxUsers: 1000, maxWorkflows: 5000, storage: "10TB", active: false },
+  { id: 1, name: "Starter Lattice", price: 19, maxWorkflows: 20, storage: "10GB", active: true },
+  { id: 2, name: "Pro Cluster", price: 49, maxWorkflows: 999999, storage: "100GB", active: true },
+  { id: 3, name: "Enterprise Node", price: 199, maxWorkflows: 5000, storage: "10TB", active: false },
 ];
 
 export default function PlatformSettingsPage() {
@@ -157,7 +157,7 @@ export default function PlatformSettingsPage() {
       name: "New Tier", 
       code: "NEW_TIER",
       price: 0, 
-      features: { maxUsers: 10, maxWorkflows: 5 }, 
+      features: { maxWorkflows: 30 }, 
       interval: "month",
       isActive: false,
       isDirty: true,
@@ -229,8 +229,6 @@ export default function PlatformSettingsPage() {
             currency: plan.currency || 'D',
             isActive: plan.isActive !== undefined ? plan.isActive : plan.active,
             features: {
-              ...plan.features,
-              maxUsers: plan.features?.maxUsers || plan.maxUsers || 1,
               maxWorkflows: plan.features?.maxWorkflows || plan.maxWorkflows || 1,
             }
           };
@@ -563,7 +561,7 @@ export default function PlatformSettingsPage() {
                         </div>
 
                         {/* Bottom Row: Numerical Metrics (Maximized Width) */}
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-6 border-t border-slate-100 border-dashed">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-6 border-t border-slate-100 border-dashed">
                           <div className="space-y-3">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block text-center">Service Price (DT)</label>
                             <Input 
@@ -571,15 +569,6 @@ export default function PlatformSettingsPage() {
                               className="h-20 text-3xl font-black bg-white border-slate-200 rounded-2xl text-center focus:ring-2 focus:ring-indigo-600 transition-all shadow-sm" 
                               value={p.price} 
                               onChange={(e) => handlePlanChange(id, "price", Number(e.target.value))} 
-                            />
-                          </div>
-                          <div className="space-y-3">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block text-center">User Capacity</label>
-                            <Input 
-                              type="number" 
-                              className="h-20 text-3xl font-black bg-white border-slate-200 rounded-2xl text-center focus:ring-2 focus:ring-indigo-600 transition-all shadow-sm" 
-                              value={maxU} 
-                              onChange={(e) => handlePlanChange(id, "features", { ...p.features, maxUsers: Number(e.target.value) })} 
                             />
                           </div>
                           <div className="space-y-3">

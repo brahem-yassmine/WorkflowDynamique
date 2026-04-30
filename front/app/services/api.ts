@@ -131,6 +131,27 @@ api.interceptors.response.use(
     } else {
       console.error('❌ API Request Error:', error.message);
     }
+    // Determine the nature of the error
+
+    const apiError = {
+      status: error.response?.status || (isNetworkError ? 'Network Error' : 'Unknown'),
+      message: error.response?.data?.message || error.response?.data?.error || error.message || 'An unexpected error occurred',
+      data: error.response?.data || null,
+      url: error.config?.url,
+      method: error.config?.method?.toUpperCase(),
+      timestamp: new Date().toISOString()
+    };
+
+    console.group('❌ API Error Detail');
+    console.error('Context:', apiError);
+    if (isResponseError) {
+      console.error('Response Data:', error.response.data);
+    } else if (isNetworkError) {
+      console.error('Request Info:', error.request);
+      console.error('Tip: Check CORS settings or if the backend is running correctly.');
+    }
+    console.groupEnd();
+
 
     return Promise.reject(error);
   }

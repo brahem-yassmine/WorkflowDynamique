@@ -54,6 +54,8 @@ interface Persona {
 interface Role {
     _id: string;
     name: string;
+    domainId?: any;
+    moduleId?: any;
 }
 
 interface Domain {

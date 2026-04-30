@@ -25,7 +25,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 
 export default function ProjectPortfoliosPage() {
   const router = useRouter();
-  const { can, btnDisabledClass, permissionDisabledClass } = usePermissions();
+  const { can, btnDisabledClass, permissionDisabledClass, handleRestrictedClick } = usePermissions();
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -102,7 +102,7 @@ export default function ProjectPortfoliosPage() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-8 lg:p-12">
-      <Toaster position="top-right" richColors rotate={true} />
+      <Toaster position="top-right" richColors />
       
       <div className="max-w-7xl mx-auto space-y-12">
         {/* Header Section */}

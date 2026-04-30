@@ -200,7 +200,7 @@ export default function UserTasksPage() {
                                 : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
                                 }`}
                         >
-                            Pending Actions ({activeTasksCount})
+                            Pending Actions - UPDATED ({activeTasksCount})
                         </button>
                         <button
                             onClick={() => setActiveTab('completed')}
@@ -238,7 +238,7 @@ export default function UserTasksPage() {
                     </div>
                     <h3 className="text-xl font-black text-slate-800 tracking-tight">Queue Clear</h3>
                     <p className="text-slate-500 font-medium text-center mt-2 max-w-sm">
-                        No tasks are currently assigned to you.
+                        No tasks are currently assigned to you. [FRONTEND-V2-CHECK]
                     </p>
                 </div>
             ) : (
@@ -332,10 +332,10 @@ function TaskCard({ task, onClick, isFetching, currentSelected }: { task: Workfl
             <div className="flex items-start justify-between mb-4 relative z-10">
                 <div className={`p-3 rounded-2xl ${isCompleted
                     ? (task.isEditable ? 'bg-amber-50 text-amber-500' : 'bg-emerald-50 text-emerald-500')
-                    : task.taskType === 'Formulaire' || task.taskType === 'form' ? 'bg-amber-50 text-amber-600' : 'bg-indigo-50 text-indigo-600'
+                    : task.taskType === 'validation' ? 'bg-indigo-50 text-indigo-600' : 'bg-amber-50 text-amber-600'
                     }`}>
                     {isCompleted ? (task.isEditable ? <Clock size={20} /> : <CheckCircle2 size={20} />) :
-                        (task.taskType === 'Formulaire' || task.taskType === 'form' ? <FileText size={20} /> : <Zap size={20} />)}
+                        (task.taskType === 'validation' ? <CheckSquare size={20} /> : <Zap size={20} />)}
                 </div>
                 {!isCompleted && (
                     <div className="flex flex-col items-end gap-2 text-right">
@@ -346,11 +346,13 @@ function TaskCard({ task, onClick, isFetching, currentSelected }: { task: Workfl
                             {task.priority || 'Medium'}
                         </div>
                         <div className="flex gap-1.5 flex-wrap justify-end">
-                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.1em] bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
-                                {task.taskType}
+                            <span className={`text-[9px] font-black uppercase tracking-[0.1em] px-2 py-0.5 rounded-md border ${
+                                task.taskType === 'validation' ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-amber-100 text-amber-700 border-amber-200'
+                            }`}>
+                                {task.taskType === 'validation' ? 'Validation' : 'Action'}
                             </span>
                             {task.userRole && (
-                                <span className={`text-[9px] font-black uppercase tracking-[0.1em] px-2 py-0.5 rounded-md border ${task.userRole === 'To Validate' ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm' :
+                                <span className={`text-[9px] font-black uppercase tracking-[0.1em] px-2 py-0.5 rounded-md border ${task.userRole === 'To Validate' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
                                     task.userRole.includes('Wait') ? 'bg-slate-100 text-slate-400 border-slate-200' :
                                         'bg-blue-50 text-blue-600 border-blue-200'
                                     }`}>

@@ -1,5 +1,5 @@
 // front/app/services/quickActionService.ts
-import api from './api';
+import { api } from './api';
 
 export const getQuickActions = async () => {
     const response = await api.get('/quick-actions');

@@ -36,8 +36,15 @@ interface Plan {
     displayName: string;
     monthlyPrice: number;
     yearlyPrice: number;
+    price: number;
     currency: string;
     features: any;
+    trialDays?: number;
+    description?: string;
+    isActive?: boolean;
+    interval?: string;
+    maxUsers?: number;
+    maxWorkflows?: number;
 }
 
 interface HistoryItem {
@@ -87,7 +94,8 @@ function BillingPageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const upgradeRequest = searchParams.get('upgrade') as PlanType;
-    const { subscriptionExpired: isAuthExpired, daysRemaining, subscriptionLimit: limit } = useAuth();
+    // Note: subscription state is computed locally below (isExpired, days, currentLimit)
+    useAuth(); // ensure auth context is initialized
 
     const [plan, setPlan] = useState<PlanType>('demo');
     const [days, setDays] = useState(0);
@@ -110,7 +118,7 @@ function BillingPageContent() {
 
     const activeDbPlan = dbPlans.find(p => p.code.toLowerCase() === plan.toLowerCase());
     const currentLimit = activeDbPlan?.trialDays || 15;
-    const isExpired = isAuthExpired || days >= currentLimit;
+    const isExpired = days >= currentLimit;
 
     const handleDownloadManifest = () => {
         if (history.length === 0) {

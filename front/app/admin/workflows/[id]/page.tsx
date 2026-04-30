@@ -51,13 +51,20 @@ function WorkflowAdminDetailsContent() {
   const initialTab = searchParams.get('tab') || 'overview';
   const [activeTab, setActiveTab] = useState(initialTab);
 
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId);
+    const newSearchParams = new URLSearchParams(searchParams.toString());
+    newSearchParams.set('tab', tabId);
+    router.replace(`?${newSearchParams.toString()}`, { scroll: false });
+  };
+
   // Sync activeTab with searchParams
   useEffect(() => {
     const tabFromUrl = searchParams.get('tab');
     if (tabFromUrl && tabFromUrl !== activeTab) {
       setActiveTab(tabFromUrl);
     }
-  }, [searchParams, activeTab]);
+  }, [searchParams]);
 
   useEffect(() => {
     if (workflowId) {
@@ -234,7 +241,7 @@ function WorkflowAdminDetailsContent() {
                      if (tab.id === 'architect') {
                        router.push(`/create-workflow?id=${workflowId}&isTemplate=true&returnUrl=${encodeURIComponent(window.location.pathname)}`);
                      } else {
-                       setActiveTab(tab.id);
+                       handleTabChange(tab.id);
                      }
                    }}
                     className={`px-5 py-2.5 rounded-xl transition-all flex items-center gap-3 whitespace-nowrap cursor-pointer relative z-40 pointer-events-auto ${

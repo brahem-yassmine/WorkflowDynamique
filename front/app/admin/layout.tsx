@@ -99,7 +99,7 @@ export default function AdminLayout({
     children: React.ReactNode;
 }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-    const { subscriptionExpired, loading } = useAuth();
+    const { loading } = useAuth();
     const [isExpired, setIsExpired] = useState(false);
     const pathname = usePathname();
     const router = useRouter();

@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
 import {
@@ -96,11 +95,9 @@ const menuGroups = [
 
 function Sidebar({ isExpired = false }: { isExpired?: boolean }) {
   const pathname = usePathname();
-  const { subscriptionExpired } = useAuth();
   const { can } = usePermissions();
   
-  // Combine local and auth state
-  const effectiveExpired = isExpired || subscriptionExpired;
+  const effectiveExpired = isExpired;
 
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
 

@@ -37,7 +37,7 @@ import {
   ACTION_TOOLTIPS 
 } from '@/lib/permission.utils';
 
-interface Role {
+interface RoleItem {
   _id: string;
   name: string;
   description?: string;
@@ -45,8 +45,8 @@ interface Role {
   isDefault: boolean;
   isActive: boolean;
   isSystemRole?: boolean;
-  domainId?: string | any;
-  moduleId?: string | any;
+  domainId?: any;
+  moduleId?: any;
 }
 
 interface Permission {
@@ -58,12 +58,12 @@ interface Permission {
 const PERMISSION_ORDER = ['Domain', 'Module', 'Project', 'Workflow', 'Kanban', 'Template', 'Form', 'Checklist'];
 
 export default function RolesPage() {
-  const [roles, setRoles] = useState<Role[]>([]);
+  const [roles, setRoles] = useState<RoleItem[]>([]);
   const [availablePermissions, setAvailablePermissions] = useState<Permission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedRole, setSelectedRole] = useState<Role | null>(null);
+  const [selectedRole, setSelectedRole] = useState<RoleItem | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [roleToDelete, setRoleToDelete] = useState<string | null>(null);
   const [replacementRoleId, setReplacementRoleId] = useState<string>('');
@@ -248,7 +248,7 @@ export default function RolesPage() {
     }
   };
 
-  const startEditing = (role: Role) => {
+  const startEditing = (role: RoleItem) => {
     setEditingRoleId(role._id);
     setNewRoleName(role.name);
     setNewRoleDescription(role.description || '');
@@ -303,7 +303,7 @@ export default function RolesPage() {
     setSelectedPermissions(prev => prev.filter(p => !permsInCat.includes(p)));
   };
 
-  const filteredRoles = roles.filter(role =>
+  const filteredRoles: any[] = roles.filter(role =>
     role.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     role.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -402,15 +402,15 @@ export default function RolesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {filteredRoles.map((role) => (
+                {filteredRoles.map((role: any) => (
                   <tr
                     key={role._id}
                     onClick={() => setSelectedRole(role)}
-                    className={`hover:bg-indigo-50/50 transition-all duration-300 cursor-pointer group ${selectedRole?._id === role._id ? 'bg-indigo-50/80 shadow-sm' : ''}`}
+                    className={`hover:bg-indigo-50/50 transition-all duration-300 cursor-pointer group ${(selectedRole as any)?._id === role['_id'] ? 'bg-indigo-50/80 shadow-sm' : ''}`}
                   >
                     <td className="px-8 py-5">
                       <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-sm transition-all duration-300 shadow-sm border ${selectedRole?._id === role._id ? 'bg-gradient-to-br from-indigo-500 to-violet-600 text-white border-transparent shadow-indigo-200' : 'bg-white border-slate-100 text-slate-400 group-hover:border-indigo-200 group-hover:text-indigo-600 group-hover:shadow-md'}`}>
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-sm transition-all duration-300 shadow-sm border ${(selectedRole as any)?._id === role['_id'] ? 'bg-gradient-to-br from-indigo-500 to-violet-600 text-white border-transparent shadow-indigo-200' : 'bg-white border-slate-100 text-slate-400 group-hover:border-indigo-200 group-hover:text-indigo-600 group-hover:shadow-md'}`}>
                           <Shield size={20} />
                         </div>
                         <div>

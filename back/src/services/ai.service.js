@@ -40,8 +40,8 @@ Generate a logical and complete workflow for: "${description}"
 Output a VALID JSON structure containing 'nodes' and 'edges'.
 
 STRICT NODE RULES:
-1. THE FIRST NODE MUST BE EXACTLY: { "id": "1", "type": "start", "position": { "x": 250, "y": 5 }, "data": { "label": "Start" } }.
-2. Types MUST be: "action", "condition", "parallel_split", "parallel_join", or "end".
+1. THE FIRST NODE MUST BE EXACTLY: { "id": "1", "type": "START", "position": { "x": 250, "y": 5 }, "data": { "label": "Start" } }.
+2. Types MUST be: "TASK", "CONDITION", "parallel_split", "parallel_join", or "END".
 3. "data" must be { "label": "Action Name" }.
 4. Calculate positions logically (Y increases by 150 each step).
 

@@ -325,7 +325,7 @@ function MetricCard({ icon, label, value, subValue, color, permission }: any) {
 
   return (
     <motion.div 
-      whileHover={!isLocked ? { y: -5, shadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' } : {}}
+      whileHover={!isLocked ? { y: -5, boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' } : {}}
       className={`bg-white p-8 rounded-[40px] border border-slate-100 shadow-xl shadow-slate-200/50 flex flex-col justify-between transition-all duration-500 ${
         isLocked ? 'opacity-30 grayscale' : ''
       }`}

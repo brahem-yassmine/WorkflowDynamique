@@ -2,6 +2,7 @@
 
 import { Search, HelpCircle, User, Bell, Menu, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
+import { useState, useEffect } from 'react';
 import useUser from '@/hooks/useUser';
 import NotificationBell from '@/components/NotificationBell';
 
@@ -10,7 +11,18 @@ interface HeaderProps {
 }
 
 export default function Header({ onToggleSidebar }: HeaderProps) {
-  const { user, tenant } = useUser();
+  const { user } = useUser();
+  const [tenantName, setTenantName] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const tenantStr = localStorage.getItem('tenant');
+      if (tenantStr) {
+        const t = JSON.parse(tenantStr);
+        setTenantName(t?.name || null);
+      }
+    } catch (e) { /* ignore */ }
+  }, []);
 
   return (
     <header className="h-20 bg-white border-b border-slate-100 px-8 flex items-center justify-between sticky top-0 z-[100] transition-all duration-300">
@@ -71,9 +83,9 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
                  user?.role?.toLowerCase() === 'admin' ? 'Admin' : 
                  'User'}
               </span>
-              {tenant?.name && (
+              {tenantName && (
                 <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider truncate max-w-[70px]">
-                  {tenant.name}
+                  {tenantName}
                 </span>
               )}
             </div>

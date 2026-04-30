@@ -419,13 +419,6 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                         {selectedNode.type === 'APPROVAL' && (
                             <>
                                 <TabButton
-                                    active={activeTab === 'assignment'}
-                                    onClick={() => setActiveTab('assignment')}
-                                    icon={<Users size={20} />}
-                                    title="Assignment"
-                                    subtitle="Approvers"
-                                />
-                                <TabButton
                                     active={activeTab === 'validation'}
                                     onClick={() => setActiveTab('validation')}
                                     icon={<ShieldAlert size={20} />}
@@ -592,7 +585,7 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                                 )}
 
                                 {/* TAB: ASSIGNMENT */}
-                                {(activeTab === 'assignment' && (selectedNode.type === 'TASK' || selectedNode.type === 'action' || selectedNode.type === 'APPROVAL')) && (
+                                {(activeTab === 'assignment' && (selectedNode.type === 'TASK' || selectedNode.type === 'action')) && (
                                     <section className="space-y-10">
                                         <div className="space-y-2">
                                             <h2 className="text-3xl font-black text-slate-800 tracking-tight">Responsibility</h2>
@@ -960,6 +953,50 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                                                     </div>
                                                 </motion.div>
                                             )}
+
+                                            <div className="grid grid-cols-3 gap-6 pt-8 border-t border-slate-100 mt-8">
+                                                <div className="space-y-4">
+                                                    <Label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                                                        <ShieldAlert size={12} className="text-rose-500" />
+                                                        Priority
+                                                    </Label>
+                                                    <select
+                                                        className="w-full h-14 px-4 bg-slate-50/80 rounded-2xl font-bold text-slate-700 border-none outline-none ring-1 ring-slate-100 focus:ring-4 focus:ring-indigo-100/30 transition-all"
+                                                        value={priority}
+                                                        onChange={(e) => setPriority(e.target.value)}
+                                                    >
+                                                        <option value="">-- Choose Priority --</option>
+                                                        <option value="low">Low</option>
+                                                        <option value="medium">Standard</option>
+                                                        <option value="high">High</option>
+                                                        <option value="critical">Critical</option>
+                                                    </select>
+                                                </div>
+                                                <div className="space-y-4">
+                                                    <Label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                                                        <Clock size={12} className="text-indigo-500" />
+                                                        Estimation
+                                                    </Label>
+                                                    <Input
+                                                        value={estimatedDuration}
+                                                        onChange={(e) => setEstimatedDuration(e.target.value)}
+                                                        placeholder="e.g. 2h"
+                                                        className="h-14 px-6 bg-slate-50/80 border-none rounded-2xl font-bold ring-1 ring-slate-100 focus:ring-4 focus:ring-indigo-100/30 transition-all"
+                                                    />
+                                                </div>
+                                                <div className="space-y-4">
+                                                    <Label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                                                        <Clock size={12} className="text-amber-500" />
+                                                        Deadline
+                                                    </Label>
+                                                    <input
+                                                        type="date"
+                                                        value={deadline}
+                                                        onChange={(e) => setDeadline(e.target.value)}
+                                                        className="w-full h-14 px-6 bg-slate-50/80 border-none rounded-2xl font-bold text-slate-700 outline-none ring-1 ring-slate-100 focus:ring-4 focus:ring-indigo-100/30 transition-all"
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
                                     </section>
                                 )}

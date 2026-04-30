@@ -520,13 +520,15 @@ exports.deleteWorkflow = async (req, res) => {
 exports.executeWorkflow = async (req, res) => {
   try {
     const { workflowId } = req.params;
+    console.log(`📡 [WorkflowCtrl] Execute request received for workflow: ${workflowId}`);
     const Workflow = req.tenantConn.model('Workflow');
     const workflow = await Workflow.findById(workflowId);
 
     if (!workflow) return res.status(404).json({ success: false, message: 'Workflow not found' });
 
     const engine = new WorkflowEngine(req.tenantConn);
-    const instance = await engine.start(workflow._id, req.user.id, req.body.title || `Instance: ${workflow.name}`, req.body.data || {});
+    const currentUserId = req.user.id || req.user.userId || req.user._id;
+    const instance = await engine.start(workflow._id, currentUserId, req.body.title || `Instance: ${workflow.name}`, req.body.data || {});
     
     if (req.body.priority) instance.priority = req.body.priority;
     if (req.body.dueDate) instance.dueDate = req.body.dueDate;
@@ -690,31 +692,34 @@ exports.duplicateWorkflow = async (req, res) => {
     const { projectId, name } = req.body; // If projectId provided, it's a "Clone to Project"
 
     const Workflow = req.tenantConn.model('Workflow');
-    const original = await Workflow.findById(workflowId);
+    const original = await Workflow.findById(workflowId).lean();
     if (!original) return res.status(404).json({ success: false, message: 'Workflow not found' });
 
     // SAFE CLONING LOGIC: Regenerate all IDs for nodes and edges
     const nodeMap = {}; // oldId -> newId
-    const newNodes = original.nodes.map(node => {
+    const newNodes = (original.nodes || []).map(node => {
       const newId = `node_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`;
       nodeMap[node.id] = newId;
+      const { _id, ...restNode } = node;
       return {
-        ...node,
+        ...restNode,
         id: newId,
         // If it's a clone for a project, we keep the internal data as is (Isolated)
       };
     });
 
-    const newEdges = original.edges.map(edge => {
+    const newEdges = (original.edges || []).map(edge => {
+      const { _id, ...restEdge } = edge;
       return {
-        ...edge,
+        ...restEdge,
         id: `edge_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`,
-        source: nodeMap[edge.source],
-        target: nodeMap[edge.target]
+        source: nodeMap[edge.source] || edge.source,
+        target: nodeMap[edge.target] || edge.target
       };
     });
 
-    const isCreatingTemplate = !projectId; // If no projectId, it's a template copy
+    const isCreatingTemplate = projectId ? false : original.isTemplate;
+    const targetProjectId = projectId || original.projectId;
 
     const duplicate = new Workflow({
       name: name || `${original.name} (copy)`,
@@ -725,8 +730,8 @@ exports.duplicateWorkflow = async (req, res) => {
       status: 'draft',
       isTemplate: isCreatingTemplate,
       templateId: original.isTemplate ? original._id : original.templateId,
-      projectId: projectId || null,
-      moduleId: isCreatingTemplate ? original.moduleId : original.moduleId, // Can keep moduleId for tracking origin
+      projectId: targetProjectId,
+      moduleId: original.moduleId,
       createdBy: req.user.id || req.user.userId || req.user._id
     });
 

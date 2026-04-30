@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Workflow,
   Search,
@@ -61,6 +61,13 @@ interface WorkflowInstance {
 
 export default function UserWorkflowsPage() {
   const { can, permissionDisabledClass, btnDisabledClass } = usePermissions();
+  const router = useRouter();
+
+  const handleRestrictedClick = (e: React.MouseEvent, permission: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toast.error(`Access denied: ${permission} permission required.`);
+  };
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [instances, setInstances] = useState<WorkflowInstance[]>([]);
@@ -512,6 +519,7 @@ export default function UserWorkflowsPage() {
                   );
                 })}
               </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

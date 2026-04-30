@@ -12,10 +12,11 @@ class WorkflowEngine {
    * Starts a new workflow instance.
    */
   async start(workflowId, creatorId, title, initialContext = {}) {
+    console.log(`🚀 [Engine] Starting workflow: ${workflowId} for creator: ${creatorId}`);
     const workflow = await this.Workflow.findById(workflowId);
     if (!workflow) throw new Error('Workflow definition not found');
 
-    const startStep = workflow.nodes.find(n => n.type === 'START');
+    const startStep = workflow.nodes.find(n => (n.type || '').toUpperCase() === 'START');
     if (!startStep) throw new Error('Workflow has no START node');
 
     const instance = new this.WorkflowInstance({
@@ -118,7 +119,7 @@ class WorkflowEngine {
 
     for (const node of nodesToActivate) {
       // Handle END node
-      if (node.type === 'END') {
+      if ((node.type || '').toUpperCase() === 'END') {
         if (instance.state.filter(s => s.status === 'IN_PROGRESS').length === 0) {
           instance.status = 'completed';
           instance.timeCompleted = new Date();

@@ -8,7 +8,8 @@ exports.createInstance = async (req, res) => {
     const { workflowId, title, initialContext, priority, dueDate, tags } = req.body;
     
     const engine = new WorkflowEngine(req.tenantConn);
-    const instance = await engine.start(workflowId, req.user.id, title, initialContext || {});
+    const currentUserId = req.user.id || req.user.userId || req.user._id;
+    const instance = await engine.start(workflowId, currentUserId, title, initialContext || {});
 
     // Update optional fields not handled by engine.start
     if (priority) instance.priority = priority;
@@ -43,13 +44,17 @@ exports.getInstances = async (req, res) => {
     const user = req.user || {};
     const isAdmin = (user.role?.toLowerCase() === 'admin' || user.role?.toLowerCase() === 'super_admin');
 
+    console.log(`🔍 [InstancesCtrl] User: ${user.email} | Role: ${user.role} | IsAdmin: ${isAdmin}`);
+    console.log(`🔍 [InstancesCtrl] Query params:`, req.query);
+
     // Visibility Logic
     if (!isAdmin) {
       // User can see instances they created OR instances where they are an assignee of an active step
+      const currentUserId = user.id || user.userId || user._id;
       query.$or = [
-        { createdBy: user.id },
-        { 'state.assignees': user.id },
-        { 'state.activePerformer': user.id }
+        { createdBy: currentUserId },
+        { 'state.assignees': currentUserId },
+        { 'state.activePerformer': currentUserId }
       ];
     }
 
@@ -67,6 +72,11 @@ exports.getInstances = async (req, res) => {
         .populate('createdBy', 'email firstName lastName'),
       WorkflowInstance.countDocuments(query)
     ]);
+
+    console.log(`✅ [InstancesCtrl] Found ${instances.length} instances. Total count: ${total}`);
+    if (instances.length > 0) {
+      console.log(`📄 [InstancesCtrl] Sample Instance WorkflowId: ${instances[0].workflowId?._id || instances[0].workflowId}`);
+    }
 
     res.json({
       success: true,

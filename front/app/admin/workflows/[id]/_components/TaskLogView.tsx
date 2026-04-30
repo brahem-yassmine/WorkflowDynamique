@@ -69,22 +69,25 @@ export default function TaskLogView({ workflowId }: TaskLogViewProps) {
         const instances = instancesRes.data;
 
         const isLogicBlock = (type: string) => {
-            return ['syncJoin', 'parallelStart', 'parallel_split', 'parallel_join', 'start', 'end', 'condition', 'gateway', 'split', 'join'].includes(type);
+            const t = (type || '').toUpperCase();
+            return ['START', 'END', 'CONDITION', 'PARALLEL_SPLIT', 'PARALLEL_JOIN', 'AUTO', 'NOTIFICATION', 'SYNCJOIN', 'PARALLELSTART', 'GATEWAY', 'SPLIT', 'JOIN'].includes(t);
         };
 
         instances.forEach((inst: any) => {
-          // 1. Completed/Rejected tasks
-          inst.executionPath?.forEach((path: any) => {
-            const nodeDef = wfRes.data.nodes?.find((n: any) => n.id === path.nodeId);
-            if (!nodeDef || isLogicBlock(nodeDef.type)) return;
+          // 1. Completed/Rejected tasks from History
+          inst.history?.forEach((path: any) => {
+            const nodeId = path.nodeId || path.stepId;
+            const nodeDef = wfRes.data.nodes?.find((n: any) => n.id === nodeId);
+            const nodeType = (nodeDef?.type || path.nodeType || 'TASK').toUpperCase();
+            if (!nodeDef || isLogicBlock(nodeType)) return;
             
             aggregatedTasks.push({
-              id: `${inst._id}-${path.nodeId}-${path.timestamp}`,
+              id: `${inst._id}-${nodeId}-${path.timestamp}`,
               instanceId: inst._id,
               instanceTitle: inst.title,
-              nodeId: path.nodeId,
+              nodeId: nodeId,
               name: nodeDef?.data?.label || 'Action Sequence',
-              status: path.action === 'rejected' ? 'REJECTED' : 'COMPLETED',
+              status: (path.action || '').toUpperCase() === 'REJECTED' ? 'REJECTED' : 'COMPLETED',
               performedBy: path.performedBy,
               timestamp: path.timestamp,
               type: nodeDef?.data?.userAction === 'Fill Form' ? 'Formulaire' : 
@@ -93,44 +96,49 @@ export default function TaskLogView({ workflowId }: TaskLogViewProps) {
                     (nodeDef?.data?.userAction || 'Tâche'),
               assignmentType: nodeDef?.data?.assignmentType || 'SINGLE',
               responsibleDomain: nodeDef?.data?.responsibleDomain,
-              approvedBy: inst.history?.filter((h: any) => h.nodeId === path.nodeId && (h.action === 'partial_approval' || h.action === 'step_approved')).map((h: any) => h.performedBy) || [path.performedBy],
+              approvedBy: inst.history?.filter((h: any) => h.nodeId === nodeId && (h.action === 'partial_approval' || h.action === 'step_approved')).map((h: any) => h.performedBy) || [path.performedBy],
               nodeData: nodeDef?.data,
               outputData: path.outputData,
               comments: path.comments
             });
           });
 
-          // 2. In Progress tasks
-          inst.currentNodes?.forEach((curr: any) => {
-            const nodeDef = wfRes.data.nodes?.find((n: any) => n.id === curr.nodeId);
-            if (!nodeDef || isLogicBlock(nodeDef.type)) return;
+          // 2. In Progress tasks from State
+          inst.state?.forEach((curr: any) => {
+            const nodeId = curr.nodeId || curr.stepId;
+            const nodeDef = wfRes.data.nodes?.find((n: any) => n.id === nodeId);
+            const nodeType = (nodeDef?.type || 'TASK').toUpperCase();
+            if (!nodeDef || isLogicBlock(nodeType)) return;
 
-            aggregatedTasks.push({
-              id: `${inst._id}-${curr.nodeId}`,
-              instanceId: inst._id,
-              instanceTitle: inst.title,
-              nodeId: curr.nodeId,
-              name: nodeDef?.data?.label || 'Active Step',
-              status: 'IN_PROGRESS',
-              performedBy: null,
-              timestamp: curr.startedAt,
-              type: nodeDef?.data?.userAction === 'Fill Form' ? 'Formulaire' : 
-                    nodeDef?.data?.userAction === 'Write Report' ? 'Texte' : 
-                    nodeDef?.data?.userAction === 'Upload File' ? 'Fichier' :
-                    (nodeDef?.data?.userAction || 'Tâche'),
-              assignmentType: nodeDef?.data?.assignmentType || 'SINGLE',
-              responsibleDomain: nodeDef?.data?.responsibleDomain,
-              approvedBy: curr.approvedBy || [],
-              nodeData: nodeDef?.data
-            });
+            if (['PENDING', 'IN_PROGRESS'].includes((curr.status || '').toUpperCase())) {
+              aggregatedTasks.push({
+                id: `${inst._id}-${nodeId}`,
+                instanceId: inst._id,
+                instanceTitle: inst.title,
+                nodeId: nodeId,
+                name: nodeDef?.data?.label || 'Active Step',
+                status: 'IN_PROGRESS',
+                performedBy: curr.activePerformer || null,
+                timestamp: curr.startedAt,
+                type: nodeDef?.data?.userAction === 'Fill Form' ? 'Formulaire' : 
+                      nodeDef?.data?.userAction === 'Write Report' ? 'Texte' : 
+                      nodeDef?.data?.userAction === 'Upload File' ? 'Fichier' :
+                      (nodeDef?.data?.userAction || 'Tâche'),
+                assignmentType: nodeDef?.data?.assignmentType || 'SINGLE',
+                responsibleDomain: nodeDef?.data?.responsibleDomain,
+                approvedBy: curr.approvedBy || [],
+                nodeData: nodeDef?.data
+              });
+            }
           });
           
           // 3. Potential tasks (Not Started)
           wfRes.data.nodes?.forEach((node: any) => {
-             if (isLogicBlock(node.type)) return;
+             const nodeType = (node.type || 'TASK').toUpperCase();
+             if (isLogicBlock(nodeType)) return;
              
-             const isDone = inst.executionPath?.some((p: any) => p.nodeId === node.id);
-             const isInProgress = inst.currentNodes?.some((c: any) => c.nodeId === node.id);
+             const isDone = inst.history?.some((p: any) => (p.nodeId || p.stepId) === node.id);
+             const isInProgress = inst.state?.some((c: any) => (c.nodeId || c.stepId) === node.id);
              
              if (!isDone && !isInProgress) {
                aggregatedTasks.push({

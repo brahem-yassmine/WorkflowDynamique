@@ -22,6 +22,7 @@ export default function KanbanView({ workflowId }: { workflowId: string }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const { can } = usePermissions();
+  const [boards, setBoards] = useState<any[]>([]);
 
   useEffect(() => {
     fetchBoards();
@@ -83,7 +84,7 @@ export default function KanbanView({ workflowId }: { workflowId: string }) {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {boards.map((board) => (
+            {boards.map((board: any) => (
               <motion.div
                 key={board._id}
                 whileHover={{ y: -5 }}

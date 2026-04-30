@@ -60,7 +60,7 @@ const nodeTypes = {
 const initialNodes: Node[] = [
     {
         id: '1',
-        type: 'start',
+        type: 'START',
         data: { label: 'Start' },
         position: { x: 250, y: 5 },
     },

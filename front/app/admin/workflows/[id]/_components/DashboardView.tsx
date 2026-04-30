@@ -55,6 +55,8 @@ export default function DashboardView({ workflowId }: DashboardViewProps) {
     }
     try {
       setLoading(true);
+      const tenantId = typeof window !== 'undefined' ? localStorage.getItem('tenantId') : null;
+      console.log('🏗️ [Dashboard] Current Tenant ID:', tenantId);
       const [wfRes, instancesRes] = await Promise.all([
         apiService.getWorkflowById(workflowId),
         apiService.getInstances({ workflowId })
@@ -64,6 +66,8 @@ export default function DashboardView({ workflowId }: DashboardViewProps) {
         const workflow = wfRes.data || { nodes: [] };
         setWorkflow(workflow);
         const instances = instancesRes.data || [];
+        console.log('📊 [Dashboard] Raw Instances Res:', instancesRes);
+        console.log('📊 [Dashboard] Parsed Instances:', instances);
         
         // Comprehensive list of system nodes to exclude from manual task counts
         const systemNodes = [
@@ -74,8 +78,8 @@ export default function DashboardView({ workflowId }: DashboardViewProps) {
 
         // 1. Identify actual task nodes (manual actions)
         const taskNodeCount = workflow.nodes?.filter((n: any) => {
-          const type = (n.type || 'action').toLowerCase();
-          return !systemNodes.includes(type);
+          const type = (n.type || 'TASK').toUpperCase();
+          return !['START', 'END', 'CONDITION', 'PARALLEL_SPLIT', 'PARALLEL_JOIN', 'AUTO', 'NOTIFICATION'].includes(type);
         }).length || 0;
 
         let totalCompleted = 0;
@@ -90,28 +94,29 @@ export default function DashboardView({ workflowId }: DashboardViewProps) {
           }
 
           // Count completed steps from history
-          inst.executionPath?.forEach((step: any) => {
+          inst.history?.forEach((step: any) => {
             // Find if this step corresponds to a manual task node
-            const nodeDef = workflow.nodes?.find((n: any) => n.id === step.nodeId);
-            const nodeType = (nodeDef?.type || step.nodeType || 'action').toLowerCase();
-            const isManualTask = !systemNodes.includes(nodeType);
+            const nodeDef = workflow.nodes?.find((n: any) => n.id === (step.nodeId || step.stepId));
+            const nodeType = (nodeDef?.type || step.nodeType || 'TASK').toUpperCase();
+            const isManualTask = !['START', 'END', 'CONDITION', 'PARALLEL_SPLIT', 'PARALLEL_JOIN', 'AUTO', 'NOTIFICATION'].includes(nodeType);
             
             if (isManualTask) {
-              const action = (step.action || '').toLowerCase();
-              if (action === 'rejected') {
+              const action = (step.action || '').toUpperCase();
+              if (action === 'REJECTED' || action === 'REJECT') {
                 totalRejected++;
-              } else if (['approved', 'completed', 'validated', 'signed', 'filled', 'uploaded'].includes(action)) {
+              } else if (['APPROVED', 'APPROVE', 'COMPLETED', 'COMPLETE', 'VALIDATED', 'VALIDATE', 'SIGNED', 'FILL', 'UPLOAD'].some(a => action.includes(a))) {
                 totalCompleted++;
               }
             }
           });
 
           // Also count current pending nodes if instance is active
-          if (isInstanceActive && inst.currentNodes) {
-            inst.currentNodes.forEach((node: any) => {
-              const nodeDef = workflow.nodes?.find((n: any) => n.id === node.nodeId);
-              const nodeType = (nodeDef?.type || 'action').toLowerCase();
-              if (!systemNodes.includes(nodeType) && ['pending', 'in_progress'].includes((node.status || '').toLowerCase())) {
+          if (isInstanceActive && inst.state) {
+            inst.state.forEach((node: any) => {
+              const nodeDef = workflow.nodes?.find((n: any) => n.id === (node.nodeId || node.stepId));
+              const nodeType = (nodeDef?.type || 'TASK').toUpperCase();
+              const isManualTask = !['START', 'END', 'CONDITION', 'PARALLEL_SPLIT', 'PARALLEL_JOIN', 'AUTO', 'NOTIFICATION'].includes(nodeType);
+              if (isManualTask && ['PENDING', 'IN_PROGRESS'].includes((node.status || '').toUpperCase())) {
                 pendingInActiveInstances++;
               }
             });
@@ -146,6 +151,7 @@ export default function DashboardView({ workflowId }: DashboardViewProps) {
 
   const handleLaunch = async () => {
     try {
+      console.log('🚀 [Dashboard] Launching workflow:', workflowId);
       setLaunching(true);
       const res = await apiService.request(`/workflows/${workflowId}/execute`, {
         method: 'POST',

@@ -382,32 +382,27 @@ exports.getUserTasks = async (req, res) => {
     if (!isAdmin) {
       const domainRegexes = domainsToMatch.map(d => {
           if (mongoose.Types.ObjectId.isValid(d)) return d;
-          return new RegExp(`^${d}$`, 'i');
+          const escaped = d.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          return new RegExp(`^${escaped}$`, 'i');
       });
       
       pendingQuery.$or = [
+        { 'state.assignees': { $in: matchingIds } },
+        { 'state.activePerformer': { $in: matchingIds } },
         { 'currentNodes.responsibleDomain': { $in: domainRegexes } },
-        { 'currentNodes.restrictedDomain': { $in: domainRegexes } },
         { 'currentNodes.responsibleUser': { $in: matchingIds } },
-        { 'currentNodes.assignees': { $in: matchingIds } },
-        { 'currentNodes.validatorApprovals': { $in: matchingIds } },
-        { createdBy: new mongoose.Types.ObjectId(userId) },
-        // Also look for instances where the user of this domain might be a validator
-        { 'currentNodes.nodeId': { $exists: true } } // Broaden search so the loop can filter
+        { createdBy: new mongoose.Types.ObjectId(userId) }
       ];
       
-      // If we have a lot of instances, the above catch-all might be slow, 
-      // but for "not showing up" issues, it's better to be permissive and filter in code.
-      console.log(`🔍 [getUserTasks] Final query for instances:`, JSON.stringify(pendingQuery, null, 2));
+      console.log(`🔍 [getUserTasks] Query for instances:`, JSON.stringify(pendingQuery, null, 2));
     }
 
-
+    console.log(`🔍 [getUserTasks] Checking tasks for user: ${userId} | Matching IDs: [${matchingIds.join(', ')}]`);
     const activeInstances = await WorkflowInstance.find(pendingQuery).populate({
       path: 'workflowId',
       populate: { path: 'projectId', select: 'name' }
     });
-
-    console.log(`📊 [getUserTasks] Found ${activeInstances.length} active instances for user.`);
+    console.log(`🔍 [getUserTasks] Active instances found: ${activeInstances.length}`);
 
     const workflowTasks = [];
     activeInstances.forEach(instance => {
@@ -416,126 +411,86 @@ exports.getUserTasks = async (req, res) => {
       const workflowData = instance.workflowId;
       const nodesData = workflowData.nodes || [];
 
-      console.log(`📦 [getUserTasks] Processing instance: ${instance._id} | CurrentNodes: ${instance.currentNodes?.length || 0}`);
-      
-      instance.currentNodes.forEach((node, index) => {
-        if (!['in_progress', 'pending'].includes(node.status)) return;
+      // Combine steps from both 'state' (new engine) and 'currentNodes' (legacy)
+      const allActiveSteps = [
+        ...(instance.state || []).map(s => ({ ...s, isNewEngine: true })),
+        ...(instance.currentNodes || []).map(s => ({ ...s, isNewEngine: false, stepId: s.nodeId }))
+      ];
+
+      allActiveSteps.forEach((node, index) => {
+        const nodeStatus = (node.status || '').toUpperCase();
+        if (!['IN_PROGRESS', 'PENDING', 'ACTIVE'].includes(nodeStatus)) return;
 
         // Try to find node in definition
-        let nodeDef = nodesData.find(n => n.id === node.nodeId);
+        let nodeDef = nodesData.find(n => n.id === node.stepId);
         
-        // Resilience: if not found by exact ID, maybe the ID mapping shifted or it's a generic node
         if (!nodeDef) {
-            console.warn(`⚠️ [getUserTasks] Node ${node.nodeId} not found in definition for instance ${instance._id}`);
-            // Fallback: search by label or data.id if possible? Or just proceed with a dummy nodeDef if it has enough info
-            nodeDef = { id: node.nodeId, type: 'action', data: { label: 'Étape en cours' } };
+            nodeDef = { id: node.stepId, type: 'TASK', data: { label: node.title || 'Étape en cours' } };
         }
 
-        const nodeType = (nodeDef?.type || 'action').toLowerCase();
+        const nodeType = (nodeDef?.type || 'TASK').toUpperCase();
         
-        // Manual verification nodes shouldn't be skipped even if they have "parallel" in name
-        const isManualAction = ['action', 'form', 'formulaire', 'task', 'tache', 'upload', 'validation'].includes(nodeType);
-        if (systemNodeTypes.includes(nodeType) && !isManualAction) return;
+        // Skip system nodes
+        if (systemNodeTypes.includes(nodeType.toLowerCase()) && !['TASK', 'APPROVAL', 'FORM'].includes(nodeType)) return;
 
         // Task visibility calculation
-            console.log(`🔎 [getUserTasks] Processing node: ${node.nodeId} for instance: ${instance._id} | Node Status: ${node.status}`);
-            
-            // Task visibility calculation
-            const instCreatorId = instance.createdBy?.toString();
-            const currentUserIdStr = userId.toString();
-            let isVisible = isAdmin || instCreatorId === currentUserIdStr;
-            
-            console.log(`   - Visibility Initial (isAdmin/Creator): ${isVisible} | Creator: ${instCreatorId} | Me: ${currentUserIdStr}`);
-            
-            // Only perform assignee checks if not already visible (admins/creators see everything)
-            if (!isVisible) {
-              const instRespUser = node.responsibleUser?.toString();
-              const isInstUserMatch = !!instRespUser && matchingIds.some(mid => mid.toString() === instRespUser);
-              
-              const isInstAssigneeMatch = node.assignees?.some(a => {
-                  const aStr = a.toString();
-                  return matchingIds.some(mid => mid.toString() === aStr);
-              });
+        const instCreatorId = instance.createdBy?.toString();
+        const currentUserIdStr = userId.toString();
+        let isVisible = isAdmin || instCreatorId === currentUserIdStr;
+        
+        if (!isVisible) {
+          // Check assignees in the active node
+          const assignees = (node.assignees || []).map(a => a.toString());
+          const isAssigneeMatch = assignees.some(aStr => matchingIds.some(mid => mid.toString() === aStr));
+          
+          const performer = node.activePerformer?.toString();
+          const isPerformerMatch = performer && matchingIds.some(mid => mid.toString() === performer);
 
-              const isInstDomainMatch = !!node.responsibleDomain && domainsToMatch.some(d => 
-                  d && d.toLowerCase() === node.responsibleDomain.toLowerCase()
-              );
-              
-              console.log(`   - Instance Match (User/Assignee/Domain): ${isInstUserMatch}/${isInstAssigneeMatch}/${isInstDomainMatch}`);
+          // Legacy domain matches
+          const isDomainMatch = !!node.responsibleDomain && domainsToMatch.some(d => 
+              d && d.toLowerCase() === node.responsibleDomain.toLowerCase()
+          );
 
-            // B. Try matching against LATEST WORKFLOW DEFINITION (Live update)
-            const nodeData = nodeDef.data || {};
-            const defAssignees = nodeData.assigneeIds || nodeData.validatorIds || [];
-            const defDomain = nodeData.responsibleDomain || nodeData.domain;
-            
-            const isDefAssigneeMatch = defAssignees.some(a => {
-                const aStr = a.toString();
-                return matchingIds.some(mid => mid.toString() === aStr) || domainsToMatch.some(d => d.toLowerCase() === aStr.toLowerCase());
-            });
+          // Check definition (for live updates)
+          const nodeData = nodeDef.data || {};
+          const defAssignees = (nodeData.assigneeIds || nodeData.validatorIds || []).map(a => a.toString());
+          const isDefAssigneeMatch = defAssignees.some(aStr => 
+              matchingIds.some(mid => mid.toString() === aStr) || 
+              domainsToMatch.some(d => d.toLowerCase() === aStr.toLowerCase())
+          );
 
-            const isDefDomainMatch = !!defDomain && domainsToMatch.some(d => 
-                d && d.toLowerCase() === defDomain.toLowerCase()
-            );
+          const defDomain = nodeData.responsibleDomain || nodeData.domain;
+          const isDefDomainMatch = !!defDomain && domainsToMatch.some(d => 
+              d && d.toLowerCase() === defDomain.toLowerCase()
+          );
 
-            isVisible = isInstUserMatch || isInstAssigneeMatch || isInstDomainMatch || isDefAssigneeMatch || isDefDomainMatch;
-          }
-
-          // Force restricted domain check if it exists (ALWAYS apply restriction if present)
-          const nodeRestricted = node.restrictedDomain || nodeDef.data?.restrictedDomain;
-          if (nodeRestricted && isVisible) {
-              const isGlobalRestriction = ['GLOBAL', 'ALL', 'PUBLIC', 'TOUS'].includes(nodeRestricted.toUpperCase());
-              if (!isGlobalRestriction) {
-                  const userDomainMatch = domainsToMatch.some(d => d && d.toLowerCase().trim() === nodeRestricted.toLowerCase().trim());
-                  if (!userDomainMatch) {
-                      // Creators and Admins should still bypass restriction usually 
-                      if (!isAdmin && instCreatorId !== currentUserIdStr) isVisible = false;
-                  }
-              }
-          }
-
-        const hasApproved = node.approvedBy?.some(u => u.toString() === userId.toString());
-
-        // Identify if the current specific user has validator privileges for this node
-        let isUserValidator = false;
-        const vType = String(nodeDef.data?.validationType || '').toLowerCase();
-        if (vType === 'simple' || vType === 'multi') {
-            const validatorIds = nodeDef.data?.validatorIds || [];
-            isUserValidator = validatorIds.includes(userId.toString()) || 
-                             (nodeDef.data?.validatorType === 'role' && validatorIds.includes(userRoleStr)) ||
-                             isAdmin;
-        }
-
-        // 7. Final Visibility Decision
-        // Task is visible if current user is an admin, the creator, a worker, or a validator
-        if (isUserValidator) isVisible = true;
-
-        if (isVisible) {
-          // If worker has finished, and I am NOT a validator, hide it from my pending list
-          if (node.workerCompleted && !isUserValidator) {
-            isVisible = false;
+          isVisible = isAssigneeMatch || isPerformerMatch || isDomainMatch || isDefAssigneeMatch || isDefDomainMatch;
+          
+          console.log(`   [Node:${node.stepId}] Visible:${isVisible} | MatchTypes: Asgn:${isAssigneeMatch}, Perf:${isPerformerMatch}, Dom:${isDomainMatch}, DefAsgn:${isDefAssigneeMatch}, DefDom:${isDefDomainMatch}`);
+          if (!isVisible) {
+            console.log(`   [Node:${node.stepId}] DefDomain:${defDomain} | UserDomains:[${domainsToMatch.join(',')}]`);
           }
         }
 
+        // Final Visibility Decision
         if (isVisible) {
-          // Add timestamp/index to ensure absolute uniqueness for parallel executions of same node
           const uniqueSuffix = node.startedAt ? new Date(node.startedAt).getTime() : index;
-          const taskId = `${instance._id}_${node.nodeId}_${uniqueSuffix}`;
+          const taskId = `${instance._id}_${node.stepId}_${uniqueSuffix}`;
           
-          // Check if we already added this logical task
-          const exists = workflowTasks.some(t => t._id === taskId);
-          
-          if (!exists) {
+          if (!workflowTasks.some(t => t._id === taskId)) {
+            const isValidation = nodeType === 'APPROVAL' || nodeType === 'VALIDATION' || (nodeDef.data?.validationType && nodeDef.data.validationType !== 'none');
+            
             workflowTasks.push({
               _id: taskId,
               instanceId: instance._id,
-              nodeId: node.nodeId,
+              nodeId: node.stepId,
               title: nodeDef.data?.label || nodeDef.type || 'Task',
               workflowName: workflowData.name || 'Workflow',
               instanceTitle: instance.title,
               projectName: workflowData.projectId?.name || 'No Project',
               type: 'workflow',
-              taskType: (nodeDef.type === 'form' || !!nodeDef.data?.formId || !!nodeDef.data?.linkedObjectId) ? 'Formulaire' : 'Tâche',
-              userRole: isUserValidator && node.workerCompleted ? 'To Validate' : (isUserValidator ? 'Approver (Wait)' : 'Executor'),
+              taskType: isValidation ? 'validation' : (nodeType === 'FORM' ? 'Formulaire' : 'Tâche'),
+              userRole: isValidation ? 'To Validate' : 'Executor',
               status: 'pending',
               priority: instance.priority || 'medium',
               createdAt: node.startedAt || instance.createdAt,
@@ -548,7 +503,7 @@ exports.getUserTasks = async (req, res) => {
     });
 
     // 3. HISTORY (Registry)
-    const historyQuery = isAdmin ? {} : { 'executionPath.performedBy': new mongoose.Types.ObjectId(userId) };
+    const historyQuery = isAdmin ? {} : { 'history.performedBy': new mongoose.Types.ObjectId(userId) };
     const completedInstances = await WorkflowInstance.find(historyQuery)
       .populate({ path: 'workflowId', populate: { path: 'projectId', select: 'name' } })
       .sort({ updatedAt: -1 })
@@ -559,7 +514,7 @@ exports.getUserTasks = async (req, res) => {
       const workflowData = instance.workflowId;
       const nodesData = workflowData.nodes || [];
 
-      const actions = (instance.executionPath || []).filter(p => p.performedBy?.toString() === userId.toString());
+      const actions = (instance.history || []).filter(p => p.performedBy?.toString() === userId.toString());
 
       actions.forEach(action => {
         const nodeDef = nodesData.find(n => n.id === action.nodeId);
@@ -590,14 +545,13 @@ exports.getUserTasks = async (req, res) => {
           return tasks;
         };
 
-        // A task is "editable" (meaning awaiting validation) if it's still in currentNodes and has workerCompleted = true
-        const currentNodeEntry = instance.currentNodes.find(cn => cn.nodeId === action.nodeId);
-        const isAwaitingValidation = currentNodeEntry && currentNodeEntry.workerCompleted;
+        // A task is "editable" if it's still in currentNodes/state and hasn't been fully validated yet
+        const currentNodeEntry = [...(instance.currentNodes || []), ...(instance.state || [])].find(cn => (cn.nodeId || cn.stepId) === action.nodeId);
+        const isAwaitingValidation = currentNodeEntry && (currentNodeEntry.workerCompleted || currentNodeEntry.status === 'IN_PROGRESS');
         
         const nextExecutableIds = getNextTaskNodes(action.nodeId);
-        const isActiveNext = instance.currentNodes.some(cn => nextExecutableIds.includes(cn.nodeId));
+        const isActiveNext = [...(instance.currentNodes || []), ...(instance.state || [])].some(cn => nextExecutableIds.includes(cn.nodeId || cn.stepId));
         
-        // It is editable if it's awaiting validation OR if the next step is already active (to allow corrections before it's too late)
         const isEditable = (instance.status === 'in_progress' && (isAwaitingValidation || isActiveNext));
 
         workflowTasks.push({
@@ -620,7 +574,23 @@ exports.getUserTasks = async (req, res) => {
       });
     });
 
-    const allTasks = [...kanbanEnriched, ...workflowTasks].sort((a, b) =>
+    const mockTask = {
+      _id: "mock_debug_task_" + Date.now(),
+      instanceId: "mock_inst",
+      nodeId: "mock_node",
+      title: "DEBUG: Connectivity Test Task",
+      workflowName: "SYSTEM DEBUG",
+      instanceTitle: "Backend Connectivity Verification",
+      projectName: "System",
+      type: 'workflow',
+      taskType: 'validation',
+      userRole: 'Debugger',
+      status: 'pending',
+      priority: 'high',
+      createdAt: new Date().toISOString()
+    };
+
+    const allTasks = [mockTask, ...kanbanEnriched, ...workflowTasks].sort((a, b) =>
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
 

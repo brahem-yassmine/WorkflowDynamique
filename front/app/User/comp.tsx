@@ -127,12 +127,12 @@ function UserSidebar() {
                   <item.icon className={`h-4.5 w-4.5 transition-transform group-hover:scale-110 ${isActive ? 'text-indigo-600' : (item.color || 'text-indigo-300') + ' group-hover:text-white'}`} />
                   <span className="text-xs tracking-tight flex-1">{item.label}</span>
 
-                  {item.badge !== null && item.badge !== undefined && (typeof item.badge === 'string' || item.badge > 0) && (
+                  {(item as any).badge !== null && (item as any).badge !== undefined && (typeof (item as any).badge === 'string' || (item as any).badge > 0) && (
                     <span className={`
                       px-2 py-0.5 rounded-full text-[9px] font-black 
                       ${isActive ? 'bg-indigo-600 text-white' : 'bg-rose-500 text-white shadow-lg shadow-rose-500/30 ring-2 ring-indigo-700'}
                     `}>
-                      {item.badge}
+                      {(item as any).badge}
                     </span>
                   )}
 

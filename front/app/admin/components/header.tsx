@@ -16,8 +16,9 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ title, subtitle, icon, rightContent, onToggleSidebar, isSidebarOpen }) => {
-    const { user, tenant } = useUser();
+    const { user } = useUser();
     const [avatar, setAvatar] = useState<string | null>(null);
+    const [tenantName, setTenantName] = useState<string | null>(null);
 
     useEffect(() => {
         if (user) {
@@ -29,6 +30,14 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle, icon, rightContent, on
                 if (lsAvatar) setAvatar(lsAvatar);
             }
         }
+        // Read tenant name from localStorage
+        try {
+            const tenantStr = localStorage.getItem('tenant');
+            if (tenantStr) {
+                const t = JSON.parse(tenantStr);
+                setTenantName(t?.name || null);
+            }
+        } catch (e) { /* ignore */ }
     }, [user]);
 
     return (
@@ -72,11 +81,11 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle, icon, rightContent, on
                                     <span className="text-[10px] text-indigo-600 font-bold uppercase tracking-tight">
                                         {user?.role === 'super_admin' ? 'Global Admin' : (user?.role || 'Member')}
                                     </span>
-                                    {tenant?.name && (
+                                    {tenantName && (
                                         <>
                                             <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
                                             <span className="text-[10px] text-slate-400 font-medium uppercase truncate max-w-[100px]">
-                                                {tenant.name}
+                                                {tenantName}
                                             </span>
                                         </>
                                     )}

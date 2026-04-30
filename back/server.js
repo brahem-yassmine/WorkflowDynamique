@@ -80,9 +80,9 @@ app.use((req, res, next) => {
   
   req.requestId = Date.now().toString(36) + Math.random().toString(36).substr(2);
 
-  // console.log(`📡 [HTTP] ${req.method} ${req.originalUrl} from ${ip}`);
+  console.log(`📡 [HTTP] ${req.method} ${req.originalUrl} from ${ip} [${req.requestId}]`);
   res.on('finish', () => {
-    // console.log(`🏁 [HTTP] ${req.method} ${req.originalUrl} - ${res.statusCode}`);
+    console.log(`🏁 [HTTP] ${req.method} ${req.originalUrl} - ${res.statusCode} [${req.requestId}]`);
   });
   next();
 });

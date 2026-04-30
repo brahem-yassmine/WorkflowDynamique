@@ -170,13 +170,13 @@ export default function AllChecklistsPage() {
           />
         </div>
 
-        <button
+        {/* <button
           onClick={() => router.push('/checklist/designer?source=allchecks')}
           className={`flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-indigo-100 active:scale-95 whitespace-nowrap ${btnDisabledClass('CHECKLIST_CREATE')}`}
         >
           <Plus size={18} />
           Create Checklist
-        </button>
+        </button> */}
       </div>
 
       {loading ? (
@@ -192,12 +192,12 @@ export default function AllChecklistsPage() {
           </div>
           <h2 className="text-xl font-black text-slate-800 tracking-tight uppercase">Registry Empty</h2>
           <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-2 mb-8">No dynamic checklists or automated schemas identified in this lattice.</p>
-          <button 
+          {/* <button 
             onClick={() => router.push('/checklist/designer?source=allchecks')}
             className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 flex items-center gap-2 active:scale-95"
           >
             <Plus size={18} /> Generate Schema
-          </button>
+          </button> */}
         </div>
       ) : (
         <div className="space-y-12 pb-8">

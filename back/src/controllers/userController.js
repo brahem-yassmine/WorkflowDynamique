@@ -302,12 +302,19 @@ exports.getUserTasks = async (req, res) => {
     const specificRoleIdStr = user?.specificRoleId?.toString() || req.user.specificRoleId?.toString() || '';
 
     // 0. Identity & Domains for visibility
-    const matchingIds = [new mongoose.Types.ObjectId(userId)];
-    if (roleIdStr && mongoose.Types.ObjectId.isValid(roleIdStr)) {
-      matchingIds.push(new mongoose.Types.ObjectId(roleIdStr));
+    const matchingIds = [];
+    if (mongoose.Types.ObjectId.isValid(userId)) {
+      matchingIds.push(new mongoose.Types.ObjectId(userId));
     }
-    if (specificRoleIdStr && mongoose.Types.ObjectId.isValid(specificRoleIdStr)) {
-      matchingIds.push(new mongoose.Types.ObjectId(specificRoleIdStr));
+    matchingIds.push(userId.toString());
+
+    if (roleIdStr) {
+      if (mongoose.Types.ObjectId.isValid(roleIdStr)) matchingIds.push(new mongoose.Types.ObjectId(roleIdStr));
+      matchingIds.push(roleIdStr);
+    }
+    if (specificRoleIdStr) {
+      if (mongoose.Types.ObjectId.isValid(specificRoleIdStr)) matchingIds.push(new mongoose.Types.ObjectId(specificRoleIdStr));
+      matchingIds.push(specificRoleIdStr);
     }
 
     // CRITICAL: include current user ID as a potential "domain" (string match) 
@@ -350,7 +357,7 @@ exports.getUserTasks = async (req, res) => {
       ];
     }
 
-    let kanbanTasksRaw = await Task.find(kanbanQuery).populate({
+    let kanbanTasksRaw = await Task.find(kanbanQuery).lean().populate({
       path: 'boardId',
       select: 'name workflowId'
     }).populate('createdBy', 'firstName lastName avatar email');
@@ -391,14 +398,16 @@ exports.getUserTasks = async (req, res) => {
         { 'state.activePerformer': { $in: matchingIds } },
         { 'currentNodes.responsibleDomain': { $in: domainRegexes } },
         { 'currentNodes.responsibleUser': { $in: matchingIds } },
-        { createdBy: new mongoose.Types.ObjectId(userId) }
+        { 'currentNodes.assignees': { $in: matchingIds } }, // Added this
+        { createdBy: new mongoose.Types.ObjectId(userId) },
+        { status: 'in_progress' } // Broaden: check any in_progress if user has matching domains
       ];
       
       console.log(`🔍 [getUserTasks] Query for instances:`, JSON.stringify(pendingQuery, null, 2));
     }
 
     console.log(`🔍 [getUserTasks] Checking tasks for user: ${userId} | Matching IDs: [${matchingIds.join(', ')}]`);
-    const activeInstances = await WorkflowInstance.find(pendingQuery).populate({
+    const activeInstances = await WorkflowInstance.find(pendingQuery).lean().populate({
       path: 'workflowId',
       populate: { path: 'projectId', select: 'name' }
     });
@@ -574,25 +583,11 @@ exports.getUserTasks = async (req, res) => {
       });
     });
 
-    const mockTask = {
-      _id: "mock_debug_task_" + Date.now(),
-      instanceId: "mock_inst",
-      nodeId: "mock_node",
-      title: "DEBUG: Connectivity Test Task",
-      workflowName: "SYSTEM DEBUG",
-      instanceTitle: "Backend Connectivity Verification",
-      projectName: "System",
-      type: 'workflow',
-      taskType: 'validation',
-      userRole: 'Debugger',
-      status: 'pending',
-      priority: 'high',
-      createdAt: new Date().toISOString()
-    };
-
-    const allTasks = [mockTask, ...kanbanEnriched, ...workflowTasks].sort((a, b) =>
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+    const allTasks = [...kanbanEnriched, ...workflowTasks].sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA;
+    });
 
     res.json({ success: true, count: allTasks.length, data: allTasks });
 

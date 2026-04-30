@@ -145,6 +145,39 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
         return url;
     };
 
+    const getTaskUrl = () => {
+        if (!data.linkedObjectId) return null;
+        
+        const isChecklist = (data.taskType === 'checklist' || String(userAction || '').toLowerCase().includes('checklist'));
+        const isForm = (data.taskType === 'form' || !!data.formId || String(userAction || '').toLowerCase().includes('form'));
+        const isKanban = (data.taskType === 'kanban' || String(userAction || '').toLowerCase().includes('kanban'));
+
+        if (isForm) {
+            return `/form/form2?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}${data.linkedObjectId ? `&formId=${data.linkedObjectId}` : ''}&from=${typeof window !== 'undefined' ? window.location.pathname : ''}${isValidator ? '&consult=true' : ''}`;
+        }
+        if (isChecklist) {
+            return `/checklist/designer?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}${data.linkedObjectId ? `&id=${data.linkedObjectId}` : ''}&from=${typeof window !== 'undefined' ? window.location.pathname : ''}${isValidator ? '&consult=true' : ''}`;
+        }
+        if (isKanban) {
+            return `/kanban?boardId=${data.linkedObjectId}&instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}&from=${typeof window !== 'undefined' ? window.location.pathname : ''}${isValidator ? '&consult=true' : ''}`;
+        }
+        
+        return `/${data.taskType || 'task'}/${data.linkedObjectId}?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}&from=${typeof window !== 'undefined' ? window.location.pathname : ''}${isValidator ? '&consult=true' : ''}`;
+    };
+
+    const getActionLabel = () => {
+        const act = String(userAction || '').toLowerCase();
+        const type = String(taskType || '').toLowerCase();
+        
+        if (act.includes('form') || type === 'form') return 'Fill Required Form';
+        if (act.includes('approve') || act.includes('reject') || type === 'validation' || type === 'approval') return 'Approve / Reject Task';
+        if (act.includes('image') || act.includes('file') || type === 'upload') return 'Upload Documents';
+        if (act.includes('report') || act.includes('text') || act.includes('write')) return 'Write Report';
+        if (act.includes('checklist') || type === 'checklist') return 'Complete Checklist';
+        
+        return String(userAction || 'TECHNICAL STEP').toUpperCase();
+    };
+
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file || !instance?._id) return;
@@ -193,6 +226,20 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleCopyLink = () => {
+        const url = getTaskUrl();
+        if (!url) {
+            toast.error('No linked resource found');
+            return;
+        }
+        
+        const fullUrl = `${window.location.origin}${url}`;
+        navigator.clipboard.writeText(fullUrl);
+        toast.success('Direct link copied to clipboard!', {
+            description: 'You can now share this URL or open it in a new tab.'
+        });
     };
 
     const handleDeleteAttachment = async (attachmentId: string) => {
@@ -363,9 +410,10 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
 
                             <div className="space-y-2">
                                 <div className="flex items-center gap-3">
-                                    <span className="text-[11px] font-black uppercase tracking-[0.3em] text-indigo-500/80">
-                                        {String(userAction || 'TECHNICAL STEP').toUpperCase()}
-                                    </span>
+                                    <div className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-indigo-100/50 flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                                        {getActionLabel()}
+                                    </div>
                                     {isActive && !isLocked && <div className="flex gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span></div>}
                                 </div>
                                 <h2 className="text-4xl font-black text-slate-900 leading-[1.1] tracking-tight">
@@ -443,20 +491,36 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                     <LayoutGrid size={14} /> Required Process Resource
                                 </p>
 
-                                <div className={`p-8 border rounded-[32px] transition-all duration-500 ${isExecuted ? 'bg-emerald-50/30 border-emerald-200' : 'bg-slate-50 border-slate-100 hover:border-indigo-200'}`}>
+                                <div 
+                                    role="button"
+                                    onClick={() => {
+                                        const url = getTaskUrl();
+                                        if (!url) return;
+
+                                        const isChecklist = (data.taskType === 'checklist' || String(userAction || '').toLowerCase().includes('checklist'));
+                                        const isForm = (data.taskType === 'form' || !!data.formId || String(userAction || '').toLowerCase().includes('form'));
+                                        
+                                        // Permission checks
+                                        if (isChecklist && !can('CHECKLIST_VIEW')) return;
+                                        if (isForm && !can('FORM_VIEW')) return;
+
+                                        if (!data.taskType?.includes('form')) setIsExecuted(true);
+                                        router.push(url);
+                                        handleClose();
+                                    }}
+                                    className={`cursor-pointer p-8 border rounded-[32px] transition-all duration-500 ${isExecuted ? 'bg-emerald-50/30 border-emerald-200' : 'bg-slate-50 border-slate-100 hover:border-indigo-200'}`}
+                                >
                                     <div className="flex items-center justify-between mb-8">
                                         <div className="flex items-center gap-5">
-                                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm transition-transform duration-500 ${isExecuted || (Boolean(String(userAction).match(/file|image/i)) && localAttachments.length > 0) ? 'bg-emerald-500 text-white' : 'bg-white text-slate-400 group-hover:scale-110'}`}>
+                                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm transition-transform duration-500 ${isExecuted || (Boolean(String(userAction).match(/file|image/i)) && localAttachments.length > 0) ? 'bg-emerald-500 text-white' : 'bg-white text-slate-400'}`}>
                                                 {data.taskType === 'form' ? <ClipboardList size={26} /> : <ListChecks size={26} />}
                                             </div>
                                             <div>
                                                 <h4 className={`text-lg font-black ${isExecuted || (Boolean(String(userAction).match(/file|image/i)) && localAttachments.length > 0) ? 'text-emerald-900' : 'text-slate-800'}`}>
-                                                    {data.taskType === 'form' ? 'Formulaire requis' : 
-                                                     data.taskType === 'checklist' ? 'Checklist requise' : 
-                                                     'Action complémentaire'}
+                                                    {getActionLabel()}: {data.label || 'Workflow Task'}
                                                 </h4>
                                                 <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">
-                                                    {isExecuted || (Boolean(String(userAction).match(/file|image/i)) && localAttachments.length > 0) ? 'Condition remplie' : 'Action obligatoire pour continuer'}
+                                                    {isExecuted || (Boolean(String(userAction).match(/file|image/i)) && localAttachments.length > 0) ? 'Condition remplie' : 'Cliquez ici pour compléter cette étape'}
                                                 </p>
                                             </div>
                                         </div>
@@ -472,48 +536,49 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                       String(taskContent || '').toLowerCase().includes('form') ||
                                       String(taskContent || '').toLowerCase().includes('checklist') ||
                                       String(taskContent || '').toLowerCase().includes('kanban')) ? (
-                                        <button
-                                            onClick={() => {
-                                                const isChecklist = (data.taskType === 'checklist' || String(userAction || '').toLowerCase().includes('checklist'));
-                                                const isForm = (data.taskType === 'form' || !!data.formId || String(userAction || '').toLowerCase().includes('form'));
-                                                
-                                                // Permission checks
-                                                if (isChecklist && !can('CHECKLIST_VIEW')) return;
-                                                if (isForm && !can('FORM_VIEW')) return;
+                                        <div className="flex flex-col gap-3">
+                                            <button
+                                                onClick={() => {
+                                                    const url = getTaskUrl();
+                                                    if (!url) return;
 
-                                                const url = (data.taskType === 'form' || !!data.formId || String(userAction || '').toLowerCase().includes('form')) 
-                                                    ? `/form/form2?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}${data.linkedObjectId ? `&formId=${data.linkedObjectId}` : ''}&from=${typeof window !== 'undefined' ? window.location.pathname : ''}${isValidator ? '&consult=true' : ''}` :
-                                                (data.taskType === 'checklist' || String(userAction || '').toLowerCase().includes('checklist')) 
-                                                    ? `/checklist/designer?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}${data.linkedObjectId ? `&id=${data.linkedObjectId}` : ''}&from=${typeof window !== 'undefined' ? window.location.pathname : ''}${isValidator ? '&consult=true' : ''}` :
-                                                data.taskType === 'kanban' 
-                                                    ? `/kanban?boardId=${data.linkedObjectId}&instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}&from=${typeof window !== 'undefined' ? window.location.pathname : ''}${isValidator ? '&consult=true' : ''}` :
-                                                `/${data.taskType || 'task'}/${data.linkedObjectId}?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}&from=${typeof window !== 'undefined' ? window.location.pathname : ''}${isValidator ? '&consult=true' : ''}`;
-                                                
-                                                if (!data.taskType?.includes('form')) setIsExecuted(true);
-                                                router.push(url);
-                                                handleClose();
-                                            }}
-                                            disabled={
-                                                ((data.taskType === 'checklist' || String(userAction || '').toLowerCase().includes('checklist')) && !can('CHECKLIST_VIEW')) ||
-                                                ((data.taskType === 'form' || !!data.formId || String(userAction || '').toLowerCase().includes('form')) && !can('FORM_VIEW'))
-                                            }
-                                            title={
-                                                ((data.taskType === 'checklist' || String(userAction || '').toLowerCase().includes('checklist')) && !can('CHECKLIST_VIEW')) ? "Matrix Restricted: Checklist View authority required" :
-                                                ((data.taskType === 'form' || !!data.formId || String(userAction || '').toLowerCase().includes('form')) && !can('FORM_VIEW')) ? "Matrix Restricted: Form View authority required" :
-                                                "Access Process Module"
-                                            }
-                                            className={`w-full h-14 rounded-[22px] flex items-center justify-center gap-3 text-xs font-black uppercase tracking-[0.15em] transition-all ${
-                                                ((data.taskType === 'checklist' || String(userAction || '').toLowerCase().includes('checklist')) && !can('CHECKLIST_VIEW')) ||
-                                                ((data.taskType === 'form' || !!data.formId || String(userAction || '').toLowerCase().includes('form')) && !can('FORM_VIEW'))
-                                                ? 'bg-slate-100 text-slate-300 grayscale opacity-30 blur-[1px] cursor-not-allowed border border-slate-200' 
-                                                : isExecuted || isValidator
-                                                    ? 'bg-indigo-900 text-white hover:bg-slate-800 shadow-lg'
-                                                    : canPerform ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-xl shadow-indigo-100' : 'bg-slate-100 text-slate-400 cursor-not-allowed hidden'
-                                            }`}
-                                        >
-                                            {isValidator ? 'Consult Record / Operator Data' : isExecuted ? 'Modify My Submission' : 'Complete Required Action'} 
-                                            {isExecuted || isValidator ? <CheckCircle2 size={18} /> : <ExternalLink size={18} />}
-                                        </button>
+                                                    const isChecklist = (data.taskType === 'checklist' || String(userAction || '').toLowerCase().includes('checklist'));
+                                                    const isForm = (data.taskType === 'form' || !!data.formId || String(userAction || '').toLowerCase().includes('form'));
+                                                    
+                                                    // Permission checks
+                                                    if (isChecklist && !can('CHECKLIST_VIEW')) return;
+                                                    if (isForm && !can('FORM_VIEW')) return;
+
+                                                    if (!data.taskType?.includes('form')) setIsExecuted(true);
+                                                    router.push(url);
+                                                    handleClose();
+                                                }}
+                                                disabled={
+                                                    ((data.taskType === 'checklist' || String(userAction || '').toLowerCase().includes('checklist')) && !can('CHECKLIST_VIEW')) ||
+                                                    ((data.taskType === 'form' || !!data.formId || String(userAction || '').toLowerCase().includes('form')) && !can('FORM_VIEW'))
+                                                }
+                                                className={`w-full h-14 rounded-[22px] flex items-center justify-center gap-3 text-sm font-black uppercase tracking-[0.15em] transition-all shadow-xl hover:scale-[1.02] active:scale-95 ${
+                                                    ((data.taskType === 'checklist' || String(userAction || '').toLowerCase().includes('checklist')) && !can('CHECKLIST_VIEW')) ||
+                                                    ((data.taskType === 'form' || !!data.formId || String(userAction || '').toLowerCase().includes('form')) && !can('FORM_VIEW'))
+                                                    ? 'bg-slate-100 text-slate-300 grayscale opacity-30 cursor-not-allowed border border-slate-200 shadow-none' 
+                                                    : isExecuted || isValidator
+                                                        ? 'bg-indigo-900 text-white hover:bg-slate-800'
+                                                        : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100'
+                                                }`}
+                                            >
+                                                {isValidator ? 'Ouvrir pour consultation' : isExecuted ? 'Modifier ma saisie' : `Ouvrir : ${data.label || 'Action'}`} 
+                                                <ExternalLink size={20} />
+                                            </button>
+
+                                            <button
+                                                onClick={handleCopyLink}
+                                                className="w-full h-10 rounded-[18px] border border-slate-200 bg-white text-slate-400 flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all"
+                                                title="Copy direct link"
+                                            >
+                                                <ClipboardType size={14} />
+                                                Copier le lien direct
+                                            </button>
+                                        </div>
                                     ) : (
                                         null
                                     )}

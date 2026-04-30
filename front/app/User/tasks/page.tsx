@@ -200,7 +200,7 @@ export default function UserTasksPage() {
                                 : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
                                 }`}
                         >
-                            Pending Actions - UPDATED ({activeTasksCount})
+                            Pending Actions {activeTasksCount > 0 ? `(${activeTasksCount})` : ''}
                         </button>
                         <button
                             onClick={() => setActiveTab('completed')}
@@ -209,7 +209,7 @@ export default function UserTasksPage() {
                                 : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
                                 }`}
                         >
-                            Completed History ({completedTasksCount})
+                            Completed History {completedTasksCount > 0 ? `(${completedTasksCount})` : ''}
                         </button>
                     </div>
 

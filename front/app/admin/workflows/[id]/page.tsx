@@ -195,7 +195,9 @@ function WorkflowAdminDetailsContent() {
               <div className="flex items-center gap-6">
                   <button 
                     onClick={() => {
-                      if (project?._id) {
+                      if (window.history.length > 2) {
+                        router.back();
+                      } else if (project?._id) {
                         router.push(`/admin/projects/${project._id}`);
                       } else if (workflow?.projectId) {
                         router.push(`/admin/projects/${workflow.projectId}`);

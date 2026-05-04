@@ -36,6 +36,11 @@ const WorkflowArchitectContent = () => {
         const moduleId = searchParams.get('moduleId');
         const returnUrl = searchParams.get('returnUrl');
 
+        if (window.history.length > 2) {
+            router.back();
+            return;
+        }
+
         // Priority 0: Explicit Return URL
         if (returnUrl) {
             router.push(returnUrl);

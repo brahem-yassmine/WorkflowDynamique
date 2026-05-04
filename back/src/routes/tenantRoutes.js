@@ -57,7 +57,7 @@ router.get('/stats', requirePlan, async (req, res) => {
       Workflow.countDocuments(),
       WorkflowInstance.countDocuments({ status: { $in: ['active', 'pending'] } }),
       WorkflowInstance.countDocuments({ status: 'completed' }),
-      User.countDocuments(),
+      User.countDocuments({ role: { $ne: 'admin' } }),
       Project.countDocuments()
     ]);
 

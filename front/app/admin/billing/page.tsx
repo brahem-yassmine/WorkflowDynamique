@@ -89,6 +89,14 @@ const FISCAL_DATA = [
      { month: 'Mar', amount: 7200 },
 ];
 
+const getUserCapacity = (planCode?: string) => {
+    const code = (planCode || '').toLowerCase();
+    if (code.includes('demo')) return 10;
+    if (code.includes('starter')) return 50;
+    if (code.includes('pro')) return 'Unlimited';
+    return 'Unlimited';
+};
+
 
 function BillingPageContent() {
     const router = useRouter();
@@ -117,6 +125,7 @@ function BillingPageContent() {
     });
     const [usageData, setUsageData] = useState<any[]>([]);
     const [tenantCreatedAt, setTenantCreatedAt] = useState<Date | null>(null);
+    const [totalUsers, setTotalUsers] = useState<number>(0);
 
     const activeDbPlan = dbPlans.find(p => p.code.toLowerCase() === plan.toLowerCase());
     const currentLimit = activeDbPlan?.trialDays || 15;
@@ -210,6 +219,7 @@ function BillingPageContent() {
                             });
                             if (statsRes.data.success) {
                                 setUsageData(statsRes.data.data.performanceData);
+                                setTotalUsers(statsRes.data.data.totalUsers || 0);
                                 if (statsRes.data.data.tenantCreatedAt) {
                                     setTenantCreatedAt(new Date(statsRes.data.data.tenantCreatedAt));
                                 }
@@ -557,6 +567,16 @@ function BillingPageContent() {
                                    <span className="text-[10px] ml-1 opacity-50">Allowed</span>
                                </p>
                            </div>
+                           <div className="flex flex-col">
+                               <div className="flex items-center gap-1.5 mb-1 text-indigo-300">
+                                   <User size={10} />
+                                   <p className="text-[10px] font-black uppercase tracking-widest leading-none">System Users</p>
+                               </div>
+                               <p className="text-sm font-black">
+                                   {totalUsers} / {getUserCapacity(activeDbPlan?.code)} 
+                                   <span className="text-[10px] ml-1 opacity-50">Allowed</span>
+                               </p>
+                           </div>
                         </div>
 
 
@@ -612,6 +632,10 @@ function BillingPageContent() {
                                     <div className="flex items-center justify-between">
                                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Workflows</span>
                                         <span className="text-xs font-black text-slate-700">{p.features?.maxWorkflows || p.maxWorkflows || 1}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Users</span>
+                                        <span className="text-xs font-black text-slate-700">{getUserCapacity(p.code)}</span>
                                     </div>
                                 </div>
 

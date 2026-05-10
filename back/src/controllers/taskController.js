@@ -39,8 +39,13 @@ exports.getTask = async (req, res) => {
 exports.createTask = async (req, res) => {
     try {
         const Task = getTaskModel(req);
-        const { title, description, status, position, boardId, assignedTo, assignedDomain, type, linkedFormId, attachments } = req.body;
+        let { title, description, status, position, boardId, assignedTo, assignedDomain, type, linkedFormId, attachments } = req.body;
         const userId = req.user?.userId || req.user?.id || req.user?._id;
+
+        // Clean ObjectIds (convert empty strings to null)
+        if (assignedTo === '') assignedTo = null;
+        if (boardId === '') boardId = null;
+        if (linkedFormId === '') linkedFormId = null;
 
         // process attachments
         if (attachments && Array.isArray(attachments)) {
@@ -125,6 +130,11 @@ exports.updateTask = async (req, res) => {
         const Task = getTaskModel(req);
         const { id } = req.params;
         const updates = req.body;
+
+        // Clean ObjectIds in updates
+        if (updates.assignedTo === '') updates.assignedTo = null;
+        if (updates.boardId === '') updates.boardId = null;
+        if (updates.linkedFormId === '') updates.linkedFormId = null;
 
         // process attachments
         if (updates.attachments && Array.isArray(updates.attachments)) {

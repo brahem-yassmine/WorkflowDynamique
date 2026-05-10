@@ -108,10 +108,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return false;
     }
     
-    const role = user.role?.toLowerCase();
+    const rawRole = user.role;
+    const userRole = typeof rawRole === 'object' ? (rawRole as any)?.name || (rawRole as any)?.label || (rawRole as any)?.slug : rawRole;
+    const roleString = String(userRole || '').toLowerCase();
+    
     const isFullAccess = 
-      role === 'super_admin' || 
-      role === 'admin' || 
+      roleString.includes('admin') || 
       user.permissions?.includes('all') ||
       user.permissions?.map(p => p.toLowerCase()).includes('all');
     

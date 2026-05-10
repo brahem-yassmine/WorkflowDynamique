@@ -78,7 +78,7 @@ export default function DomainsPage() {
 
         console.log('🚀 Starting domain save...', { name, description, color, isEditing });
 
-        if (!name || !description) {
+        if (!name) {
             toast.error('Please fill in required fields');
             return;
         }
@@ -342,7 +342,6 @@ export default function DomainsPage() {
                                 <div className="space-y-1.5">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Mission Narrative (Description)</label>
                                     <textarea
-                                        required
                                         value={description}
                                         onChange={(e) => setDescription(e.target.value)}
                                         rows={4}

@@ -182,7 +182,7 @@ export default function InstancePage({ params }: { params: Promise<{ instanceId:
                             ...selectedNode,
                             ...(instance?.currentNodes?.find((cn: any) => cn.nodeId === selectedNode.id) || {})
                         }}
-                        workflowId={workflowId}
+                        workflowId={instance?.workflowId?._id || instance?.workflowId || workflowId}
                         onClose={() => setSelectedNode(null)}
                         onRefresh={fetchData}
                     />

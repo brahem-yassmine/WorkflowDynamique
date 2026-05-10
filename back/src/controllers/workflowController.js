@@ -602,17 +602,31 @@ exports.getWorkflowMembers = async (req, res) => {
     for (const node of workflow.nodes) {
       const taskName = node.data?.label || 'Unnamed Task';
 
-      if (node.data?.assigneeIds) {
-        node.data.assigneeIds.forEach(id => {
+      // 1. Check direct arrays (assignees and validators)
+      const potentialIds = [
+        ...(node.data?.assigneeIds || []),
+        ...(node.data?.validatorIds || [])
+      ];
+
+      for (const id of potentialIds) {
+        if (!id || id.length !== 24) continue;
+        const roleObj = await Role.findById(id);
+        if (roleObj) {
+          templateRoleNames.add(roleObj.name);
+          addTaskToSet(roleTasksMap, roleObj.name, taskName);
+        } else {
           templateUserIds.add(id.toString());
           addTaskToSet(directUserTasksMap, id.toString(), taskName);
-        });
+        }
       }
+
+      // 2. Check individual assignment fields
       if (node.data?.assignedUser) {
         templateUserIds.add(node.data.assignedUser.toString());
         addTaskToSet(directUserTasksMap, node.data.assignedUser.toString(), taskName);
       }
 
+      // 3. Check assignedTo (Complex field: ID or Name)
       const assignedTo = node.data?.assignedTo;
       if (assignedTo && assignedTo.length === 24) {
         const domainObj = await Domain.findById(assignedTo);
@@ -632,6 +646,13 @@ exports.getWorkflowMembers = async (req, res) => {
       } else if (assignedTo) {
         templateDomainNames.add(assignedTo);
         addTaskToSet(domainTasksMap, assignedTo, taskName);
+      }
+
+      // 4. Explicit Responsible Domain/Role
+      const respDom = node.data?.responsibleDomain || node.data?.domain;
+      if (respDom && respDom.length !== 24) {
+        templateDomainNames.add(respDom);
+        addTaskToSet(domainTasksMap, respDom, taskName);
       }
     }
 
@@ -679,7 +700,46 @@ exports.getWorkflowMembers = async (req, res) => {
       };
     });
 
-    res.json({ success: true, data: formattedUsers });
+    // --- NEW: Add Roles and Domains as Virtual Members ---
+    const virtualMembers = [];
+    
+    // Add Roles
+    for (const roleName of templateRoleNames) {
+      virtualMembers.push({
+        _id: `role_${roleName}`,
+        name: roleName,
+        firstName: roleName,
+        lastName: '(Role)',
+        email: 'Group Assignment',
+        role: 'role',
+        domain: 'System',
+        assignedTasks: Array.from(roleTasksMap[roleName] || []),
+        isTemplateMember: true,
+        isActiveMember: false,
+        isGroup: true,
+        type: 'role'
+      });
+    }
+
+    // Add Domains
+    for (const domainName of templateDomainNames) {
+      virtualMembers.push({
+        _id: `domain_${domainName}`,
+        name: domainName,
+        firstName: domainName,
+        lastName: '(Domain)',
+        email: 'Departmental Scope',
+        role: 'domain',
+        domain: domainName,
+        assignedTasks: Array.from(domainTasksMap[domainName] || []),
+        isTemplateMember: true,
+        isActiveMember: false,
+        isGroup: true,
+        type: 'domain'
+      });
+    }
+
+    res.json({ success: true, data: [...virtualMembers, ...formattedUsers] });
   } catch (error) {
     console.error("getWorkflowMembers Error:", error);
     res.status(500).json({ success: false, message: 'Server error' });

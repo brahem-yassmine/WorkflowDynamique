@@ -1,8 +1,19 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-// Initialise avec la clé configurée dans back/.env
-const apiKey = process.env.GEMINI_API_KEY;
-const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
+let genAI = null;
+
+function getGenAI() {
+    if (!genAI) {
+        const path = require('path');
+        require('dotenv').config({ path: path.join(__dirname, '../../.env') }); // Force reload from back/.env file
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (apiKey) {
+            genAI = new GoogleGenerativeAI(apiKey);
+        }
+    }
+    // Final nodemon restart trigger
+    return genAI;
+}
 
 /**
  * Wrapper for AI calls with Exponential Backoff
@@ -31,9 +42,10 @@ async function safeAiCall(model, prompt, maxRetries = 5) {
  * based on a textural description.
  */
 const generateWorkflowFromText = async (description) => {
-    if (!genAI) throw new Error("Gemini API Key missing in backend configuration (.env).");
+    const aiInstance = getGenAI();
+    if (!aiInstance) throw new Error("Gemini API Key missing in backend configuration (.env).");
 
-    const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+    const model = aiInstance.getGenerativeModel({ model: "gemini-flash-latest" });
 
     const prompt = `As a ReactFlow business workflow architect expert.
 Generate a logical and complete workflow for: "${description}"
@@ -69,9 +81,10 @@ RETURN ONLY VALID JSON. NO MARKDOWN, NO TEXT.`;
  * Generates a structured JSON form from a text description.
  */
 const generateFormFromText = async (description) => {
-    if (!genAI) throw new Error("Gemini API Key missing in backend configuration (.env).");
+    const aiInstance = getGenAI();
+    if (!aiInstance) throw new Error("Gemini API Key missing in backend configuration (.env).");
 
-    const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+    const model = aiInstance.getGenerativeModel({ model: "gemini-flash-latest" });
 
     const prompt = `Create a functional form structure for this purpose: "${description}".
 Generate ONLY a JSON array. Each element represents a form field.

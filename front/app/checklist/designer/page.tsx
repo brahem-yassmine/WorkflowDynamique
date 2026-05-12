@@ -520,7 +520,7 @@ export default function WorkflowChecklist() {
                   <option value="archived">Archived</option>
                 </select>
 
-                {!isExecutionMode && !isConsult && (
+                {!isExecutionMode && !isConsult && checklistStatus !== 'active' && (
                   <button
                     onClick={addTask}
                     className="flex items-center gap-2 px-8 py-4 bg-indigo-50 text-indigo-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-100 transition-all border border-indigo-100 shadow-sm whitespace-nowrap active:scale-95"
@@ -537,7 +537,7 @@ export default function WorkflowChecklist() {
               <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
                 <div className="space-y-4">
                   {tasks.map(task => (
-                    <SortableTask key={task.id} task={task} onUpdate={updateTask} onDelete={isExecutionMode ? undefined : deleteTask} isConsult={isConsult} />
+                    <SortableTask key={task.id} task={task} onUpdate={updateTask} onDelete={isExecutionMode || checklistStatus === 'active' ? undefined : deleteTask} isConsult={isConsult || checklistStatus === 'active'} />
                   ))}
                   {tasks.length === 0 && (
                     <div className="text-center py-32 border-2 border-dashed border-slate-100 rounded-[40px] bg-slate-50/30">

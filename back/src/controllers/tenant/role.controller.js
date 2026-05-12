@@ -277,6 +277,43 @@ class RoleController {
     }
   }
 
+  // Assign multiple users to a role
+  static async assignUsers(req, res) {
+    try {
+      const Role = RoleController.getModel(req);
+      const User = req.tenantConn.model('User');
+      const { id } = req.params;
+      const { userIds } = req.body;
+
+      if (!userIds || !Array.isArray(userIds)) {
+        return res.status(400).json({ success: false, message: 'userIds array is required' });
+      }
+
+      const role = await Role.findById(id);
+      if (!role) {
+        return res.status(404).json({ success: false, message: 'Role not found' });
+      }
+
+      // Update all specified users to have this specific role
+      await User.updateMany(
+        { _id: { $in: userIds } },
+        { 
+          specificRoleId: id,
+          $inc: { tokenVersion: 1 } 
+        }
+      );
+
+      res.json({ 
+        success: true, 
+        message: `${userIds.length} users successfully assigned to role ${role.name}`
+      });
+
+    } catch (error) {
+      console.error('assignUsers Error:', error);
+      res.status(500).json({ success: false, message: error.message });
+    }
+  }
+
   static async addPermissions(req, res) {
     try {
       const Role = RoleController.getModel(req);

@@ -43,14 +43,10 @@ const featuresToArray = (features: any): string[] => {
     if (features.maxStaff) array.push(`Up to ${features.maxStaff} staff`);
     if (features.maxLocations) array.push(`Up to ${features.maxLocations} locations`);
     if (features.analysis) array.push(`${features.analysis} analysis`);
-    if (features.maxWorkflowsPerUser && features.maxWorkflowsPerUser !== 999999) {
-      array.push(`${features.maxWorkflowsPerUser} Workflows per User`);
-    } else if (features.maxWorkflowsPerUser === 999999) {
-      array.push(`Unlimited Workflows per User`);
-    }
-    
     if (features.maxWorkflows && features.maxWorkflows !== 999999) {
       array.push(`Up to ${features.maxWorkflows} Organization-wide Workflows`);
+    } else if (features.maxWorkflows === 999999) {
+      array.push(`Unlimited Organization-wide Workflows`);
     }
 
     if (features.reports) array.push(`Professional reports`);
@@ -171,7 +167,6 @@ export default function LandingPage() {
             features: {
               maxUsers: 5,
               maxWorkflows: 25,
-              maxWorkflowsPerUser: 5,
               reports: false,
               aiSupport: false,
               customSupport: false
@@ -187,7 +182,6 @@ export default function LandingPage() {
             features: {
               maxUsers: 10,
               maxWorkflows: 200,
-              maxWorkflowsPerUser: 20,
               reports: true,
               aiSupport: false,
               customSupport: false
@@ -204,7 +198,6 @@ export default function LandingPage() {
             features: {
               maxUsers: 999999,
               maxWorkflows: 999999,
-              maxWorkflowsPerUser: 999999,
               reports: true,
               aiSupport: true,
               customSupport: true

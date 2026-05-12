@@ -50,7 +50,6 @@ interface Plan {
   features: {
     maxUsers: number;
     maxWorkflows: number;
-    maxWorkflowsPerUser: number;
     reports: boolean;
     aiSupport: boolean;
     customSupport: boolean;
@@ -742,7 +741,7 @@ export default function SignupPage() {
                               {plan.price === 0 ? 'FREE' : `${plan.price}${plan.currency || 'D'}`}
                             </p>
                             <p className={`text-[8px] font-bold mt-1 uppercase tracking-tight ${formData.planId === plan._id ? 'text-indigo-600/70' : 'text-slate-400'}`}>
-                              {plan.features?.maxWorkflowsPerUser === 999999 ? 'Unlimited' : `${plan.features?.maxWorkflowsPerUser}`} Workflows/User
+                              {plan.features?.maxWorkflows === 999999 ? 'Unlimited' : `${plan.features?.maxWorkflows}`} Workflows
                             </p>
                           </label>
                         ))}

@@ -574,12 +574,12 @@ export default function UserManagementPage() {
                                             <div className="flex flex-col md:flex-row gap-4">
                                                 <button
                                                     onClick={() => handleToggleStatus(selectedUser)}
-                                                    className={`flex-[2] py-6 rounded-[28px] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-4 transition-all active:scale-95 shadow-xl ${selectedUser.isActive ? 'bg-white border-2 border-amber-100 text-amber-600 hover:bg-amber-50 shadow-amber-100/20' : 'bg-emerald-600 text-white shadow-emerald-200/50 hover:bg-emerald-700'}`}
+                                                    className={`flex-[1.5] py-6 rounded-[28px] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-4 transition-all active:scale-95 shadow-xl ${selectedUser.isActive ? 'bg-white border-2 border-amber-100 text-amber-600 hover:bg-amber-50 shadow-amber-100/20' : 'bg-emerald-600 text-white shadow-emerald-200/50 hover:bg-emerald-700'}`}
                                                 >
                                                     {selectedUser.isActive ? <Lock size={20} /> : <CheckCircle2 size={20} />}
                                                     {selectedUser.isActive ? 'Suspend Authorization' : 'Restore Connection'}
                                                 </button>
-                                                <div className="flex flex-1 gap-4">
+                                                <div className="flex flex-[1.2] gap-4">
                                                     <button
                                                         onClick={() => handleEdit(selectedUser)}
                                                         className="flex-1 py-6 bg-slate-900 text-white rounded-[28px] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-slate-800 transition-all active:scale-95 shadow-xl shadow-slate-200/50"

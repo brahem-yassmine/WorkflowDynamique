@@ -612,7 +612,8 @@ function BillingPageContent() {
                     {dbPlans.filter(p => p.isActive !== false).map((p) => {
                         const isCurrent = p.code.toLowerCase() === plan.toLowerCase();
                         const isFree = p.price === 0;
-                        const isRestricted = isFree && !isCurrent && activeDbPlan && activeDbPlan.price > 0;
+                        const freePlanUsageCount = history.filter(inv => inv.price === 0).length;
+                        const isRestricted = isFree && !isCurrent && activeDbPlan && activeDbPlan.price > 0 && freePlanUsageCount >= 2;
 
                         return (
                             <div key={p._id} className={`rounded-[32px] border-2 p-8 transition-all relative overflow-hidden group ${
@@ -674,11 +675,11 @@ function BillingPageContent() {
                 <div className="mt-10 flex gap-4">
                     <button
                         onClick={() => idx > 0 && changePlan(dbPlans[idx - 1].code)}
-                        disabled={idx <= 0 || loading || (dbPlans[idx-1].price === 0 && activeDbPlan && activeDbPlan.price > 0)}
+                        disabled={idx <= 0 || loading || (dbPlans[idx-1]?.price === 0 && activeDbPlan && activeDbPlan.price > 0 && history.filter(inv => inv.price === 0).length >= 2)}
                         className="flex-1 py-4 px-6 bg-slate-50 text-slate-600 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-100 transition-all disabled:opacity-50"
                     >
                         <ChevronDown size={14} />
-                        {(dbPlans[idx-1]?.price === 0 && activeDbPlan && activeDbPlan.price > 0) ? 'Downgrade Restricted' : 'Downgrade Protocol'}
+                        {(dbPlans[idx-1]?.price === 0 && activeDbPlan && activeDbPlan.price > 0 && history.filter(inv => inv.price === 0).length >= 2) ? 'Downgrade Restricted' : 'Downgrade Protocol'}
                     </button>
                     <button
                         onClick={() => idx < dbPlans.length - 1 && changePlan(dbPlans[idx + 1].code)}
@@ -777,19 +778,19 @@ function BillingPageContent() {
                         <form onSubmit={(e) => {
                             e.preventDefault();
                             executePlanChange(pendingPlan, paymentDetails);
-                        }} className="space-y-6">
+                        }} className="space-y-6" autoComplete="off">
                             <div>
                                 <label className="block text-[10px] font-black uppercase text-slate-400 mb-2 ml-1">Card Number</label>
-                                <input name="cardNumber" value={paymentDetails.cardNumber} onChange={handlePaymentChange} required className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 ring-indigo-500" placeholder="0000 0000 0000 0000" />
+                                <input name="cardNumber" value={paymentDetails.cardNumber} onChange={handlePaymentChange} required className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 ring-indigo-500" placeholder="0000 0000 0000 0000" autoComplete="off" />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-[10px] font-black uppercase text-slate-400 mb-2 ml-1">Expiry</label>
-                                    <input name="expiryDate" value={paymentDetails.expiryDate} onChange={handlePaymentChange} required className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold text-slate-700 outline-none placeholder:opacity-50" placeholder="MM/YY" />
+                                    <input name="expiryDate" value={paymentDetails.expiryDate} onChange={handlePaymentChange} required className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold text-slate-700 outline-none placeholder:opacity-50" placeholder="MM/YY" autoComplete="off" />
                                 </div>
                                 <div>
                                     <label className="block text-[10px] font-black uppercase text-slate-400 mb-2 ml-1">CVV</label>
-                                    <input name="cvv" value={paymentDetails.cvv} onChange={handlePaymentChange} required className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold text-slate-700 outline-none" placeholder="***" type="password" />
+                                    <input name="cvv" value={paymentDetails.cvv} onChange={handlePaymentChange} required className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold text-slate-700 outline-none" placeholder="***" type="password" autoComplete="off" />
                                 </div>
                             </div>
                             <div className="pt-4">

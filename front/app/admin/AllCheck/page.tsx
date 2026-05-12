@@ -63,20 +63,6 @@ export default function AllChecklistsPage() {
     fetchChecklists();
   }, []);
 
-  const handleClone = async (id: string) => {
-    try {
-      const response = await apiService.request(`/checklists/${id}/clone`, {
-        method: 'POST'
-      });
-      if (response.success) {
-        toast.success("Checklist cloned successfully!");
-        fetchChecklists();
-      }
-    } catch (error) {
-      toast.error("Failed to clone checklist");
-    }
-  };
-
   const handleDeleteOnly = async () => {
     if (!checklistToDelete) return;
     
@@ -288,30 +274,23 @@ export default function AllChecklistsPage() {
 
                             <div className="flex items-center justify-between mt-auto pt-5 border-t border-slate-50">
                               <div className="flex items-center gap-1">
+
+                                {checklist.status !== 'active' && (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      handleClone(checklist._id);
+                                      if (checklist.instanceId) {
+                                        router.push(`/Workflows/instances/${checklist.instanceId}`);
+                                      } else {
+                                        router.push(`/checklist/designer?id=${checklist._id}&source=allchecks&role=admin`);
+                                      }
                                     }}
-                                    className={`p-2.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all ${btnDisabledClass('CHECKLIST_CLONE')}`}
-                                    title="Clone Checklist"
+                                    className={`p-2.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all ${btnDisabledClass('CHECKLIST_EDIT')}`}
+                                    title={checklist.instanceId ? "View Instance" : "Edit Checklist"}
                                   >
-                                    <Copy size={18} />
+                                    <Edit3 size={18} />
                                   </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (checklist.instanceId) {
-                                      router.push(`/Workflows/instances/${checklist.instanceId}`);
-                                    } else {
-                                      router.push(`/checklist/designer?id=${checklist._id}&source=allchecks&role=admin`);
-                                    }
-                                  }}
-                                  className={`p-2.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all ${btnDisabledClass('CHECKLIST_EDIT')}`}
-                                  title={checklist.instanceId ? "View Instance" : "Edit Checklist"}
-                                >
-                                  <Edit3 size={18} />
-                                </button>
+                                )}
                                   <button
                                    onClick={(e) => {
                                      e.stopPropagation();
@@ -409,8 +388,10 @@ export default function AllChecklistsPage() {
 
                     <div className="flex items-center justify-between mt-auto pt-5 border-t border-slate-50">
                       <div className="flex items-center gap-1">
-                        <button onClick={(e) => { e.stopPropagation(); handleClone(checklist._id); }} className="p-2.5 text-slate-300 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Copy size={18} /></button>
-                        <button onClick={(e) => { e.stopPropagation(); router.push(checklist.instanceId ? `/Workflows/instances/${checklist.instanceId}` : `/checklist/designer?id=${checklist._id}&source=allchecks&role=admin`); }} className="p-2.5 text-slate-300 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Edit3 size={18} /></button>
+
+                        {checklist.status !== 'active' && (
+                          <button onClick={(e) => { e.stopPropagation(); router.push(checklist.instanceId ? `/Workflows/instances/${checklist.instanceId}` : `/checklist/designer?id=${checklist._id}&source=allchecks&role=admin`); }} className="p-2.5 text-slate-300 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Edit3 size={18} /></button>
+                        )}
                         <button onClick={(e) => { e.stopPropagation(); handleDelete(checklist._id); }} className="p-2.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"><Trash2 size={18} /></button>
                       </div>
                       <button

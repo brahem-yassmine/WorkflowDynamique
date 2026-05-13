@@ -586,23 +586,44 @@ router.get('/stats', async (req, res) => {
     // Fetch all tenants
     const tenants = await Tenant.find().populate('selectedPlan');
 
+    const Plan = masterDb.model('Plan');
+    const allAvailablePlans = await Plan.find({ isActive: true }).sort({ price: 1 });
+
     // Initialize counters
     let totalUsers = 0;
     let totalWorkflows = 0;
     let totalNodes = 0;
     let totalExecutions = 0;
     const sectorCounts = {};
+    
+    // Initialize distributions with ALL available plans
     const planCounts = {};
     const planRevenueMapping = {};
+    allAvailablePlans.forEach(p => {
+      planCounts[p.name] = 0;
+      planRevenueMapping[p.name] = 0;
+    });
+    // Ensure "No plan" is also represented
+    planCounts['No plan'] = 0;
+    planRevenueMapping['No plan'] = 0;
+
     let totalMonthlyRevenue = 0;
     let lastMonthRevenue = 0;
 
     const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    
+    // Real Monthly History (Last 6 Months)
+    const monthlyRevenueMap = {};
+    const monthLabels = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const label = monthNames[d.getMonth()];
+      monthlyRevenueMap[label] = 0;
+      monthLabels.push(label);
+    }
+
     const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const lastMonth = lastMonthDate.getMonth();
-    const lastMonthYear = lastMonthDate.getFullYear();
 
     // Historical Stats (Last 7 Days)
     const dailyGrowth = {};
@@ -687,15 +708,27 @@ router.get('/stats', async (req, res) => {
           const WorkflowInstance = tenantConn.model('WorkflowInstance', new mongoose.Schema({}));
           totalExecutions += await WorkflowInstance.countDocuments();
 
-          // Check expiration
+          // Check expiration and count subscriptions for real history
           const Subscription = tenantConn.model('Subscription', new mongoose.Schema({
+            price: Number,
+            createdAt: Date,
+            status: String,
             currentPeriodEnd: Date,
             trialEndDate: Date
           }));
-          const sub = await Subscription.findOne().sort({ createdAt: -1 });
-          if (sub) {
-            const now = new Date();
-            const endDate = sub.currentPeriodEnd || sub.trialEndDate;
+          
+          const subs = await Subscription.find({ status: { $ne: 'canceled' } });
+          subs.forEach(sub => {
+            const date = new Date(sub.createdAt);
+            const label = monthNames[date.getMonth()];
+            if (monthlyRevenueMap[label] !== undefined) {
+              monthlyRevenueMap[label] += (sub.price || 0);
+            }
+          });
+
+          const latestSub = await Subscription.findOne().sort({ createdAt: -1 });
+          if (latestSub) {
+            const endDate = latestSub.currentPeriodEnd || latestSub.trialEndDate;
             if (endDate && now > endDate) {
               isExpired = true;
             }
@@ -776,14 +809,10 @@ router.get('/stats', async (req, res) => {
       revenue: {
         total: totalMonthlyRevenue,
         growthTrend: lastMonthRevenue > 0 ? `+${(((totalMonthlyRevenue - lastMonthRevenue) / lastMonthRevenue) * 100).toFixed(1)}%` : '+0.0%',
-        monthly: [
-          { month: "Jan", revenue: totalMonthlyRevenue * 0.65 },
-          { month: "Feb", revenue: totalMonthlyRevenue * 0.75 },
-          { month: "Mar", revenue: totalMonthlyRevenue * 0.82 },
-          { month: "Apr", revenue: totalMonthlyRevenue * 0.88 },
-          { month: "May", revenue: totalMonthlyRevenue * 0.94 },
-          { month: "Jun", revenue: totalMonthlyRevenue }
-        ],
+        monthly: monthLabels.map(label => ({
+          month: label,
+          revenue: monthlyRevenueMap[label]
+        })),
         perPlan: Object.keys(planRevenueMapping).map(name => ({
           name,
           revenue: planRevenueMapping[name],
@@ -834,16 +863,17 @@ router.get('/plans', async (req, res) => {
     const Plan = masterDb.model('Plan');
     let plans = await Plan.find().sort({ price: 1 });
 
-    // Auto-sync if no plans exist (initial bootstrap)
-    if (plans.length === 0 && plansConfig.plans) {
-      console.log('🌱 No plans found in DB. Initializing from codebase configuration...');
+    // Auto-sync with codebase configuration to ensure data integrity
+    if (plansConfig.plans) {
+      console.log('🔄 Synchronizing plans with codebase configuration...');
       for (const p of plansConfig.plans) {
         await Plan.findOneAndUpdate(
-          { name: p.name },
+          { code: p.code }, // Sync by code is more reliable than by name
           { ...p, isActive: true },
           { upsert: true }
         );
       }
+      // Re-fetch after sync
       plans = await Plan.find().sort({ price: 1 });
     }
 

@@ -47,12 +47,7 @@ exports.getPlans = async (req, res) => {
     // Perform query
     const now = new Date();
     const plans = await Plan.find({ 
-      isActive: true,
-      $or: [
-        { expiryDate: { $exists: false } },
-        { expiryDate: null },
-        { expiryDate: { $gt: now } }
-      ]
+      isActive: true
     })
       .sort({ price: 1 })
       .lean();

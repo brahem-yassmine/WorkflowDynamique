@@ -559,8 +559,8 @@ const registerSuperAdmin = async (req, res) => {
     const newUser = new SuperAdmin({
       email: email.toLowerCase(),
       password: hashedPassword,
-      firstName: firstName || 'Super',
-      lastName: lastName || 'Admin',
+      firstName: firstName || 'Axia',
+      lastName: lastName || 'Solutions',
       role: 'super_admin'
     });
 
@@ -736,6 +736,14 @@ const getProfile = async (req, res) => {
     if (normalizedRole === 'super_admin') {
       const SuperAdmin = getSuperAdminModel(req);
       user = await SuperAdmin.findById(id).select('-password');
+      
+      // Auto-repair for "Super" name to "Axia"
+      if (user && user.firstName === 'Super') {
+        user.firstName = 'Axia';
+        user.lastName = 'Solutions';
+        await user.save();
+      }
+      
       permissions = ['all'];
     } else if (tenantId) {
       const TenantModel = getTenantModel(req);

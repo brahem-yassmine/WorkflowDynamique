@@ -41,8 +41,8 @@ export default function CreateDomainPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
-        if (!name || !description) {
-            toast.error('Please define both designation and mission narrative.');
+        if (!name) {
+            toast.error('Please define sector designation.');
             return;
         }
 
@@ -137,7 +137,6 @@ export default function CreateDomainPage() {
                                 <div className="space-y-3">
                                     <label className="text-[11px] font-black text-slate-800 uppercase tracking-widest pl-2">Mission Narrative</label>
                                     <textarea
-                                        required
                                         value={description}
                                         onChange={(e) => setDescription(e.target.value)}
                                         rows={8}

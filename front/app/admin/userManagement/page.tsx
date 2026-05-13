@@ -318,9 +318,37 @@ export default function UserManagementPage() {
             {/* Header section */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-black text-slate-800 tracking-tight">Talent Network Management</h1>
-                    <p className="text-slate-500 text-sm font-medium">Manage organization nodes, assign tiers, and authorize access domains.</p>
+                    <h1 className="text-4xl font-black text-slate-800 tracking-tight">Talent Network <span className="text-indigo-600">Matrix</span></h1>
+                    <p className="text-slate-500 text-sm font-bold uppercase tracking-widest opacity-60">Architectural Node Management & Authorization</p>
                 </div>
+            </div>
+
+            {/* Stats Overview */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <StatCard 
+                    label="Total Entities" 
+                    value={users.length} 
+                    icon={<Users size={24} />} 
+                    color="from-indigo-500 to-indigo-600" 
+                />
+                <StatCard 
+                    label="Active Nodes" 
+                    value={users.filter(u => u.isActive).length} 
+                    icon={<Activity size={24} />} 
+                    color="from-emerald-500 to-emerald-600" 
+                />
+                <StatCard 
+                    label="Restricted" 
+                    value={users.filter(u => !u.isActive).length} 
+                    icon={<Lock size={24} />} 
+                    color="from-rose-500 to-rose-600" 
+                />
+                <StatCard 
+                    label="Admin Tiers" 
+                    value={users.filter(u => u.role === 'admin').length} 
+                    icon={<Shield size={24} />} 
+                    color="from-amber-500 to-amber-600" 
+                />
             </div>
 
             {/* Control Bar */}
@@ -346,136 +374,106 @@ export default function UserManagementPage() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-8">
-                {/* User List Matrix - Now full width */}
-                <div className="bg-white rounded-[40px] shadow-xl border border-slate-100 overflow-hidden">
-                    <div className="px-8 py-6 border-b border-slate-50 flex justify-between items-center">
-                        <h3 className="text-lg font-black text-slate-800 tracking-tight">Lattice Entities</h3>
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{filteredUsers.length} Nodes Detected</span>
+            <div className="grid grid-cols-1 gap-8">                {/* User List Matrix */}
+                <div className="bg-white rounded-[48px] shadow-2xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
+                    <div className="px-10 py-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
+                        <div className="flex items-center gap-3">
+                            <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                            <h3 className="text-xl font-black text-slate-800 tracking-tight">Lattice Entities</h3>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <div className="px-4 py-1.5 bg-white rounded-xl border border-slate-200 text-[10px] font-black text-slate-400 uppercase tracking-widest shadow-sm">
+                                {filteredUsers.length} Nodes Detected
+                            </div>
+                        </div>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                             <thead>
-                                <tr className="bg-slate-50/50">
-                                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Entity Signature</th>
-                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Node ID</th>
-                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Access & Authority</th>
-                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">System Status</th>
-                                    <th className="px-8 py-4 text-right"></th>
+                                <tr>
+                                    <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Entity Identity</th>
+                                    <th className="px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-center">Node Ref</th>
+                                    <th className="px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Perimeter</th>
+                                    <th className="px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Operational Status</th>
+                                    <th className="px-10 py-6 text-right"></th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-50">
                                 {isLoading ? (
                                     Array(5).fill(0).map((_, i) => (
                                         <tr key={i} className="animate-pulse">
-                                            <td colSpan={4} className="px-8 py-6 h-16 bg-slate-50/50"></td>
+                                            <td colSpan={5} className="px-10 py-8">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-12 h-12 bg-slate-100 rounded-2xl" />
+                                                    <div className="space-y-2">
+                                                        <div className="w-32 h-4 bg-slate-100 rounded" />
+                                                        <div className="w-24 h-3 bg-slate-50 rounded" />
+                                                    </div>
+                                                </div>
+                                            </td>
                                         </tr>
                                     ))
                                 ) : filteredUsers.map((user) => (
-                                    <tr
+                                    <motion.tr
+                                        layoutId={user._id}
                                         key={user._id}
                                         onClick={() => setSelectedUser(user)}
-                                        className={`hover:bg-indigo-50/20 transition-all cursor-pointer group ${selectedUser?._id === user._id ? 'bg-indigo-50/40' : ''}`}
+                                        className={`hover:bg-indigo-50/30 transition-all cursor-pointer group relative ${selectedUser?._id === user._id ? 'bg-indigo-50/50' : ''}`}
                                     >
-                                        <td className="px-8 py-5">
-                                            <div className="flex items-center gap-4">
-                                                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-sm transition-all shadow-sm ${selectedUser?._id === user._id ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-indigo-100 group-hover:text-indigo-600'}`}>
+                                        <td className="px-10 py-6">
+                                            <div className="flex items-center gap-5">
+                                                <div className={`w-14 h-14 rounded-[20px] flex items-center justify-center font-black text-lg transition-all shadow-lg ${selectedUser?._id === user._id ? 'bg-indigo-600 text-white shadow-indigo-200' : 'bg-white border-2 border-slate-100 text-slate-400 group-hover:border-indigo-200 group-hover:text-indigo-600'}`}>
                                                     {(user.firstName || user.email).charAt(0).toUpperCase()}
                                                 </div>
-                                                <div>
-                                                    <p className="text-sm font-bold text-slate-800">{user.firstName} {user.lastName}</p>
-                                                    <p className="text-xs font-medium text-slate-400">{user.email}</p>
+                                                <div className="space-y-0.5">
+                                                    <p className="text-base font-black text-slate-800 tracking-tight">{user.firstName} {user.lastName}</p>
+                                                    <p className="text-xs font-bold text-slate-400 opacity-80">{user.email}</p>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-5 text-center">
-                                            <div 
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    navigator.clipboard.writeText(user._id);
-                                                    toast.success('Node ID copied to clipboard');
-                                                }}
-                                                className="px-3 py-1 bg-slate-50 text-slate-400 text-[10px] font-black rounded-lg border border-slate-100 uppercase tracking-widest hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all cursor-copy inline-block"
-                                                title={`Full ID: ${user._id}`}
-                                            >
+                                        <td className="px-6 py-6 text-center">
+                                            <code className="px-3 py-1.5 bg-slate-900 text-slate-400 text-[10px] font-black rounded-lg border border-slate-800 uppercase tracking-widest group-hover:text-indigo-400 transition-colors">
                                                 #{user._id.slice(-6).toUpperCase()}
-                                            </div>
+                                            </code>
                                         </td>
-                                        <td className="px-6 py-5">
-                                            <div className="flex flex-col gap-2">
+                                        <td className="px-6 py-6">
+                                            <div className="flex flex-col gap-2.5">
                                                 <div className="flex items-center gap-2">
-                                                    <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-tight ${user.role === 'admin' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-indigo-50 text-indigo-600 border border-indigo-100'}`}>
+                                                    <span className={`px-3 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest border shadow-sm ${user.role === 'admin' ? 'bg-amber-500 text-white border-amber-400' : 'bg-indigo-600 text-white border-indigo-500'}`}>
                                                         {user.role}
                                                     </span>
                                                     {user.specificRole && (
-                                                        <span className="px-2 py-0.5 bg-slate-100 text-slate-500 border border-slate-200 text-[9px] font-black rounded-lg uppercase tracking-tight flex items-center gap-1.5 shadow-sm group/role relative overflow-hidden">
-                                                            <Shield size={10} className="text-indigo-400" />
-                                                            <span className="truncate max-w-[80px]">{user.specificRole}</span>
-                                                            <button 
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleClearAuthorityNode(user);
-                                                                }}
-                                                                className="ml-1 p-0.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded transition-all opacity-0 group-hover/role:opacity-100"
-                                                                title="Clear Authority Node"
-                                                            >
-                                                                <Trash2 size={9} />
-                                                            </button>
+                                                        <span className="px-3 py-1 bg-white text-slate-600 border-2 border-slate-100 text-[9px] font-black rounded-xl uppercase tracking-widest flex items-center gap-2 shadow-sm group/role transition-all hover:border-indigo-200">
+                                                            <Shield size={10} className="text-indigo-500" />
+                                                            <span className="truncate max-w-[100px]">{user.specificRole}</span>
                                                         </span>
                                                     )}
                                                 </div>
-                                                
-                                                {/* Permissions Strip */}
-                                                <div className="flex flex-wrap gap-1.5 pt-1">
-                                                    {user.role === 'admin' ? (
-                                                        <span className="text-[8px] font-black text-amber-500 uppercase tracking-widest opacity-60">Full Matrix Access</span>
-                                                    ) : (user as any).permissions?.length > 0 ? (
-                                                        <>
-                                                            {/* Group icons by category found in permissions */}
-                                                            {Array.from(new Set((user as any).permissions.map((p: string) => p.split('.')[0]))).map((cat: any) => (
-                                                                <div key={cat} className="p-1 px-1.5 bg-slate-50 border border-slate-100 rounded-md flex items-center gap-1 opacity-70 hover:opacity-100 transition-opacity" title={`${cat} Authority Active`}>
-                                                                    {getPermIcon(cat)}
-                                                                    <span className="text-[7px] font-black text-slate-400 uppercase">{cat}</span>
-                                                                </div>
-                                                            ))}
-                                                        </>
-                                                    ) : (
-                                                        <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest italic">Zero Authority Perimeter</span>
-                                                    )}
-                                                </div>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-5">
-                                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${user.isActive ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
-                                                <span className={`w-1 h-1 rounded-full ${user.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></span>
-                                                {user.isActive ? 'Active' : 'Suspended'}
-                                            </span>
+                                        <td className="px-6 py-6">
+                                            <div className={`inline-flex items-center gap-3 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-[0.1em] border shadow-sm transition-all ${user.isActive ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
+                                                <div className={`w-2 h-2 rounded-full ${user.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></div>
+                                                {user.isActive ? 'Operational' : 'Restricted'}
+                                            </div>
                                         </td>
-                                        <td className="px-8 py-5">
-                                            <div className="flex items-center justify-end gap-3">
+                                        <td className="px-10 py-6">
+                                            <div className="flex items-center justify-end gap-4">
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         handleEdit(user);
                                                     }}
-                                                    className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                                                    title="Edit User"
+                                                    className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-white hover:shadow-xl hover:shadow-indigo-100 rounded-2xl transition-all border border-transparent hover:border-indigo-100"
                                                 >
                                                     <Edit3 size={18} />
                                                 </button>
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleEdit(user);
-                                                    }}
-                                                    className="px-3 py-1.5 bg-indigo-50/50 text-indigo-600 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all border border-indigo-100/50"
-                                                >
-                                                    Custom
-                                                </button>
-                                                <ChevronRight size={18} className={`text-slate-300 transition-transform ${selectedUser?._id === user._id ? 'translate-x-1 text-indigo-600' : ''}`} />
+                                                <div className="w-10 h-10 flex items-center justify-center rounded-2xl bg-slate-50 text-slate-300 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm group-hover:shadow-indigo-200">
+                                                    <ChevronRight size={20} />
+                                                </div>
                                             </div>
                                         </td>
-                                    </tr>
+                                    </motion.tr>
                                 ))}
                             </tbody>
                         </table>
@@ -491,98 +489,114 @@ export default function UserManagementPage() {
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
                                 onClick={() => setSelectedUser(null)}
-                                className="absolute inset-0 bg-slate-900/60 backdrop-blur-lg"
+                                className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
                             />
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.9, y: 20 }}
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                                className="bg-white rounded-[40px] shadow-2xl w-full max-w-2xl relative z-10 overflow-hidden border border-white/20 flex flex-col max-h-[90vh]"
+                                className="bg-white rounded-[48px] shadow-2xl w-full max-w-2xl relative z-10 overflow-hidden border border-slate-100 flex flex-col max-h-[90vh]"
                             >
-                                <div className="p-8 flex-grow overflow-y-auto custom-scrollbar">
-                                    <div className="flex justify-between items-start mb-10">
-                                        <div className="bg-indigo-600 w-24 h-24 rounded-[32px] flex items-center justify-center text-white shadow-xl shadow-indigo-100 shrink-0">
-                                            <User size={40} />
-                                        </div>
-                                        <button
+                                {/* Header with gradient */}
+                                <div className="h-40 bg-gradient-to-br from-indigo-600 via-indigo-500 to-violet-600 relative overflow-hidden shrink-0">
+                                    <div className="absolute top-0 right-0 p-8">
+                                         <button
                                             onClick={() => setSelectedUser(null)}
-                                            className="p-3 bg-slate-50 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-2xl transition-all"
+                                            className="p-3 bg-white/20 text-white hover:bg-white/30 rounded-2xl transition-all backdrop-blur-md border border-white/10"
                                         >
                                             <X size={20} />
                                         </button>
                                     </div>
-
-                                    <div className="space-y-2 mb-10">
-                                        <h2 className="text-3xl font-black text-slate-800 tracking-tight leading-none uppercase">{selectedUser.firstName} {selectedUser.lastName}</h2>
-                                        <p className="text-xs font-bold text-indigo-500 uppercase tracking-[0.2em]">{selectedUser.role} Agent Proxy</p>
-                                        <p className="text-sm font-medium text-slate-500 leading-relaxed mt-4">
-                                            This entity represents an active node in the organizational lattice, authorized for specific operations within the current domain.
-                                        </p>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                        <div className="p-6 bg-slate-50 rounded-[28px] space-y-4">
-                                            <InspectorInfo label="Connectivity" icon={<Mail size={16} />} value={selectedUser.email} />
-                                            <InspectorInfo label="Assignment Domain" icon={<Briefcase size={16} />} value={selectedUser.domainId?.name || selectedUser.domain || 'Global'} />
-                                            <InspectorInfo 
-                                                label="Authority Node" 
-                                                icon={<Shield size={16} />} 
-                                                action={selectedUser.specificRole ? (
-                                                    <button 
-                                                        onClick={() => handleClearAuthorityNode(selectedUser)}
-                                                        className="p-1 text-slate-300 hover:text-rose-500 transition-all"
-                                                        title="Fragment Authority Node"
-                                                    >
-                                                        <Trash2 size={12} />
-                                                    </button>
-                                                ) : null}
-                                            >
-                                                {selectedUser.specificRole ? (
-                                                    <div className="bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
-                                                        <span className="text-sm font-black text-slate-700 tracking-tight">{selectedUser.specificRole}</span>
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-sm font-bold text-slate-300 italic">Standard Node</span>
-                                                )}
-                                            </InspectorInfo>
-                                        </div>
-                                        <div className="p-6 bg-slate-50 rounded-[28px] space-y-4">
-                                            <InspectorInfo label="Assignment Module" icon={<Layers size={16} />} value={selectedUser.moduleId?.name || 'Full Module Access'} />
-                                            <InspectorInfo label="Node Integrity" icon={<Activity size={16} />}>
-                                                <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border shadow-sm ${selectedUser.isActive ? 'bg-white text-emerald-600 border-emerald-100' : 'bg-white text-rose-600 border-rose-100'}`}>
-                                                    {selectedUser.isActive ? 'Operational' : 'Access Locked'}
-                                                </span>
-                                            </InspectorInfo>
-                                            <InspectorInfo label="Authorization Tier" icon={<Shield size={16} />} value={selectedUser.role} />
-                                        </div>
+                                    <div className="absolute inset-0 opacity-20 pointer-events-none">
+                                         <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-white rounded-full blur-[120px]" />
                                     </div>
                                 </div>
 
-                                <div className="p-8 bg-slate-50 border-t border-slate-100 space-y-4">
-                                    <div className="flex gap-4">
-                                        <button
-                                            onClick={() => handleToggleStatus(selectedUser)}
-                                            className={`flex-[2] py-5 rounded-[24px] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 transition-all active:scale-95 shadow-xl ${selectedUser.isActive ? 'bg-amber-100 text-amber-600 shadow-amber-100 hover:bg-amber-200' : 'bg-emerald-600 text-white shadow-emerald-200 hover:bg-emerald-700'}`}
-                                        >
-                                            {selectedUser.isActive ? <Lock size={18} /> : <CheckCircle2 size={18} />}
-                                            {selectedUser.isActive ? 'Suspend Authorization' : 'Restore Connection'}
-                                        </button>
+                                <div className="px-10 -mt-16 relative z-10 flex-grow overflow-y-auto custom-scrollbar pb-10">
+                                    <div className="flex items-end gap-8 mb-10">
+                                        <div className="w-32 h-32 bg-white p-2.5 rounded-[42px] shadow-2xl shadow-indigo-200/50 shrink-0">
+                                            <div className="w-full h-full bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-[34px] flex items-center justify-center text-white text-4xl font-black uppercase">
+                                                {(selectedUser.firstName || selectedUser.email).charAt(0)}
+                                            </div>
+                                        </div>
+                                        <div className="pb-6 space-y-2">
+                                            <h2 className="text-4xl font-black text-slate-800 tracking-tight leading-none uppercase">{selectedUser.firstName} {selectedUser.lastName}</h2>
+                                            <div className="flex items-center gap-3">
+                                                 <span className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] border shadow-sm ${selectedUser.isActive ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
+                                                    {selectedUser.isActive ? 'Operational' : 'Suspended'}
+                                                </span>
+                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em] border border-slate-100 px-3 py-1 rounded-xl bg-slate-50/50">
+                                                    #{selectedUser._id.slice(-6).toUpperCase()} Node
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="flex gap-4">
-                                        <button
-                                            onClick={() => handleEdit(selectedUser)}
-                                            className="flex-1 py-4 bg-white border border-slate-200 text-slate-600 rounded-[20px] font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-50 transition-all"
-                                        >
-                                            <Edit3 size={16} />
-                                            Refine Profile
-                                        </button>
-                                        <button
-                                            disabled={!!currentUser && ((currentUser as any).email === selectedUser.email || (currentUser as any)._id === selectedUser._id || (currentUser as any).id === selectedUser._id)}
-                                            onClick={() => handleDelete(selectedUser._id)}
-                                            className={`px-6 py-4 rounded-[20px] transition-all border flex items-center justify-center ${!!currentUser && ((currentUser as any).email === selectedUser.email || (currentUser as any)._id === selectedUser._id || (currentUser as any).id === selectedUser._id) ? 'bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed opacity-60' : 'bg-rose-50 text-rose-600 hover:bg-rose-500 hover:text-white border-rose-100'}`}
-                                        >
-                                            <Trash2 size={20} />
-                                        </button>
+
+                                    <div className="space-y-8">
+                                        <div>
+                                            <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6 px-1">Network Presence & Identity</h3>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div className="p-8 bg-slate-50/50 rounded-[32px] border border-slate-100/50 space-y-6">
+                                                    <InspectorInfo label="Connectivity" icon={<Mail size={18} />} value={selectedUser.email} />
+                                                    <InspectorInfo label="Primary Domain" icon={<Briefcase size={18} />} value={selectedUser.domainId?.name || selectedUser.domain || 'Global Lattice'} />
+                                                    <InspectorInfo label="System Tier" icon={<Shield size={18} />} value={selectedUser.role.toUpperCase()} />
+                                                </div>
+                                                <div className="p-8 bg-slate-50/50 rounded-[32px] border border-slate-100/50 space-y-6">
+                                                    <InspectorInfo label="Authority Node" icon={<Shield size={18} />} action={selectedUser.specificRole ? (
+                                                        <button 
+                                                            onClick={() => handleClearAuthorityNode(selectedUser)}
+                                                            className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
+                                                            title="Clear Authority Node"
+                                                        >
+                                                            <Trash2 size={12} />
+                                                        </button>
+                                                    ) : null}>
+                                                        {selectedUser.specificRole ? (
+                                                            <span className="text-xs font-black text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg border border-indigo-100">
+                                                                {selectedUser.specificRole}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-xs font-bold text-slate-300 italic">None Assigned</span>
+                                                        )}
+                                                    </InspectorInfo>
+                                                    <InspectorInfo label="Module Scope" icon={<Layers size={18} />} value={selectedUser.moduleId?.name || 'Unrestricted Matrix'} />
+                                                    <InspectorInfo label="Integrity Status" icon={<Activity size={18} />}>
+                                                        <div className={`flex items-center gap-2 text-xs font-bold ${selectedUser.isActive ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                                            <div className={`w-2 h-2 rounded-full ${selectedUser.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                                                            {selectedUser.isActive ? 'Sync Validated' : 'Access Restricted'}
+                                                        </div>
+                                                    </InspectorInfo>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="pt-2">
+                                            <div className="flex flex-col md:flex-row gap-4">
+                                                <button
+                                                    onClick={() => handleToggleStatus(selectedUser)}
+                                                    className={`flex-[1.5] py-6 rounded-[28px] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-4 transition-all active:scale-95 shadow-xl ${selectedUser.isActive ? 'bg-white border-2 border-amber-100 text-amber-600 hover:bg-amber-50 shadow-amber-100/20' : 'bg-emerald-600 text-white shadow-emerald-200/50 hover:bg-emerald-700'}`}
+                                                >
+                                                    {selectedUser.isActive ? <Lock size={20} /> : <CheckCircle2 size={20} />}
+                                                    {selectedUser.isActive ? 'Suspend Authorization' : 'Restore Connection'}
+                                                </button>
+                                                <div className="flex flex-[1.2] gap-4">
+                                                    <button
+                                                        onClick={() => handleEdit(selectedUser)}
+                                                        className="flex-1 py-6 bg-slate-900 text-white rounded-[28px] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-slate-800 transition-all active:scale-95 shadow-xl shadow-slate-200/50"
+                                                    >
+                                                        <Edit3 size={18} />
+                                                        Refine
+                                                    </button>
+                                                    <button
+                                                        disabled={!!currentUser && ((currentUser as any).email === selectedUser.email || (currentUser as any)._id === selectedUser._id || (currentUser as any).id === selectedUser._id)}
+                                                        onClick={() => handleDelete(selectedUser._id)}
+                                                        className={`px-8 py-6 rounded-[28px] transition-all border-2 flex items-center justify-center shadow-lg active:scale-95 ${!!currentUser && ((currentUser as any).email === selectedUser.email || (currentUser as any)._id === selectedUser._id || (currentUser as any).id === selectedUser._id) ? 'bg-slate-50 text-slate-200 border-slate-100 cursor-not-allowed opacity-40' : 'bg-rose-50 text-rose-600 hover:bg-rose-500 hover:text-white border-rose-100 shadow-rose-100/50'}`}
+                                                    >
+                                                        <Trash2 size={22} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </motion.div>
@@ -857,6 +871,26 @@ export default function UserManagementPage() {
     );
 }
 
+function StatCard({ label, value, icon, color, trend }: { label: string; value: number; icon: React.ReactNode; color: string; trend?: string }) {
+    return (
+        <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-xl shadow-slate-200/40 relative overflow-hidden group hover:scale-[1.02] transition-all duration-300">
+            <div className={`absolute -right-4 -top-4 w-24 h-24 bg-gradient-to-br ${color} opacity-[0.03] rounded-full group-hover:scale-150 transition-transform duration-700`} />
+            <div className="flex items-center gap-6 relative z-10">
+                <div className={`w-16 h-16 rounded-3xl bg-gradient-to-br ${color} flex items-center justify-center text-white shadow-lg`}>
+                    {icon}
+                </div>
+                <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">{label}</p>
+                    <div className="flex items-baseline gap-2">
+                        <h4 className="text-3xl font-black text-slate-800 tracking-tighter">{value}</h4>
+                        {trend && <span className="text-[10px] font-bold text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-md">{trend}</span>}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function getPermIcon(category: string) {
     switch (category.toUpperCase()) {
         case 'DOMAIN': return <Globe size={10} className="text-indigo-500" />;
@@ -871,17 +905,16 @@ function getPermIcon(category: string) {
 }
 
 function InspectorInfo({ label, icon, value, children, action }: { label: string; icon: React.ReactNode; value?: string; children?: React.ReactNode; action?: React.ReactNode }) {
-
     return (
         <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 text-slate-400">
-                <div className="p-2 bg-slate-50 rounded-lg">{icon}</div>
-                <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-widest leading-none">{label}</span>
+            <div className="flex items-center gap-4 text-slate-400">
+                <div className="w-10 h-10 bg-white border border-slate-100 rounded-xl flex items-center justify-center shadow-sm text-indigo-500">{icon}</div>
+                <div className="flex flex-col gap-0.5">
+                    <span className="text-[9px] font-black uppercase tracking-[0.2em] opacity-60 leading-none">{label}</span>
                     {action}
                 </div>
             </div>
-            {value ? <span className="text-sm font-bold text-slate-700">{value}</span> : children}
+            {value ? <span className="text-sm font-black text-slate-700 tracking-tight">{value}</span> : children}
         </div>
     );
 }

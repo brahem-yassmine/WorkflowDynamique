@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import { X, CheckCircle2, XCircle, Clock, AlertCircle, ListChecks, ArrowRight, ShieldCheck, Users, ClipboardList, LayoutGrid, ExternalLink, FilePlus, Plus, Send, Save, CheckSquare, Image as ImageIcon, ClipboardType, Trash2 } from 'lucide-react';
+import { X, CheckCircle2, XCircle, Clock, Activity, AlertCircle, ListChecks, ArrowRight, ShieldCheck, Users, ClipboardList, LayoutGrid, ExternalLink, FilePlus, Plus, Send, Save, CheckSquare, Image as ImageIcon, ClipboardType, Trash2, Link as Link2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { apiService } from '@/service/api.service';
@@ -21,7 +21,7 @@ interface TaskExecutionPanelProps {
 
 const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: TaskExecutionPanelProps) => {
     const router = useRouter();
-    const { can } = usePermissions();
+    const { can, isFullAccess } = usePermissions();
     const searchParams = useSearchParams();
     const [comment, setComment] = useState('');
     const [loading, setLoading] = useState(false);
@@ -143,6 +143,23 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
             return `${baseUrl}/${url}`;
         }
         return url;
+    };
+
+    const handleOpenResource = (e?: React.MouseEvent) => {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        const url = getTaskUrl();
+        if (!url) {
+            toast.error('No linked resource found for this stage');
+            return;
+        }
+
+        if (!data.taskType?.includes('form')) setIsExecuted(true);
+        router.push(url);
+        handleClose();
     };
 
     const getTaskUrl = () => {
@@ -395,64 +412,50 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                             </div>
                         )}
 
-                        <div className="p-10 pb-6 relative shrink-0">
-                        <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 rounded-full -mr-40 -mt-40 blur-[100px]" />
-                        <div className="relative z-10 text-left">
-                            <div className={`p-4 rounded-[24px] shadow-lg mb-6 w-fit ${isActive ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
-                                {isExecuted ? <CheckCircle2 size={32} /> : 
-                                    node.type === 'start' ? <ArrowRight size={32} strokeWidth={3} /> :
-                                    (userAction === 'Fill Form' || taskType === 'form') ? <ClipboardList size={32} /> :
-                                        (String(userAction).includes('Image') || taskType === 'upload') ? <ImageIcon size={32} /> :
-                                            (String(userAction).includes('File') || taskType === 'upload') ? <FilePlus size={32} /> :
-                                                (userAction === 'Approve / Reject' || taskType === 'validation') ? <ShieldCheck size={32} /> :
-                                                    <AlertCircle size={32} strokeWidth={3} />}
-                            </div>
-
-                            <div className="space-y-2">
-                                <div className="flex items-center gap-3">
-                                    <div className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-indigo-100/50 flex items-center gap-2">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-                                        {getActionLabel()}
+                        <div className="px-10 py-8 relative shrink-0">
+                            <div className="relative z-10 flex items-start justify-between">
+                                <div className="space-y-4 max-w-[80%]">
+                                    <div className="flex items-center gap-2">
+                                        <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.1em] flex items-center gap-2 ${isActive ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                                            <div className="w-1.5 h-1.5 rounded-full bg-white/40 animate-pulse" />
+                                            {getActionLabel()}
+                                        </div>
+                                        {priority && (
+                                            <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.1em] border flex items-center gap-1.5 ${priority === 'critical' ? 'bg-red-50 text-red-600 border-red-100' : priority === 'high' ? 'bg-rose-50 text-rose-600 border-rose-100' : 'bg-slate-50 text-slate-600 border-slate-100'}`}>
+                                                <div className={`w-1.5 h-1.5 rounded-full ${priority === 'critical' ? 'bg-red-600' : priority === 'high' ? 'bg-rose-500' : 'bg-slate-400'}`} />
+                                                {priority}
+                                            </div>
+                                        )}
                                     </div>
-                                    {isActive && !isLocked && <div className="flex gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span></div>}
+                                    <h2 className="text-3xl font-black text-slate-900 leading-tight tracking-tight uppercase">
+                                        {data.label || 'Workflow Stage'}
+                                    </h2>
+                                    
+                                    <div className="flex items-center gap-6 pt-2">
+                                        {deadline && (
+                                            <div className="flex items-center gap-2 text-rose-600">
+                                                <Clock size={12} strokeWidth={3} />
+                                                <span className="text-[10px] font-black uppercase tracking-widest">Échéance: {new Date(deadline).toLocaleDateString()}</span>
+                                            </div>
+                                        )}
+                                        {estimatedDuration && (
+                                            <div className="flex items-center gap-2 text-slate-400">
+                                                <Activity size={12} />
+                                                <span className="text-[10px] font-black uppercase tracking-widest">{estimatedDuration}</span>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                                <h2 className="text-4xl font-black text-slate-900 leading-[1.1] tracking-tight">
-                                    {data.label || 'Workflow Stage'}
-                                </h2>
-                            </div>
-
-                            {/* METADATA STRIP */}
-                            <div className="flex flex-wrap gap-6 mt-8">
-                                {priority && (
-                                    <div className="flex flex-col">
-                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Priorité</span>
-                                        <div className="flex items-center gap-2">
-                                            <div className={`w-2 h-2 rounded-full ${priority === 'critical' ? 'bg-red-600' : priority === 'high' ? 'bg-rose-500' : priority === 'medium' ? 'bg-amber-500' : 'bg-emerald-500'}`} />
-                                            <span className="text-[11px] font-black text-slate-700 uppercase">{priority}</span>
-                                        </div>
-                                    </div>
-                                )}
-                                {estimatedDuration && (
-                                    <div className="flex flex-col border-l border-slate-100 pl-6">
-                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Estimation</span>
-                                        <div className="flex items-center gap-2">
-                                            <Clock size={12} className="text-slate-400" />
-                                            <span className="text-[11px] font-black text-slate-700 uppercase">{estimatedDuration}</span>
-                                        </div>
-                                    </div>
-                                )}
-                                {deadline && (
-                                    <div className="flex flex-col border-l border-slate-100 pl-6">
-                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Échéance</span>
-                                        <div className="flex items-center gap-2 text-rose-600">
-                                            <Clock size={12} />
-                                            <span className="text-[11px] font-black uppercase">{new Date(deadline).toLocaleDateString()}</span>
-                                        </div>
-                                    </div>
-                                )}
+                                
+                                <div className={`p-4 rounded-3xl shadow-sm ${isActive ? 'bg-slate-50 text-indigo-600 border border-slate-100' : 'bg-slate-50 text-slate-300'}`}>
+                                    {isExecuted ? <CheckCircle2 size={24} /> : 
+                                        node.type === 'start' ? <ArrowRight size={24} /> :
+                                        (userAction === 'Fill Form' || taskType === 'form') ? <ClipboardList size={24} /> :
+                                            (String(userAction).includes('Image') || taskType === 'upload') ? <ImageIcon size={24} /> :
+                                                <AlertCircle size={24} />}
+                                </div>
                             </div>
                         </div>
-                    </div>
 
                     {/* POOL ASSIGNMENT ALERT (If applicable) */}
                     {isActive && isAnyAssignment && (
@@ -487,151 +490,47 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                         {/* 1. EXECUTION / DYNAMIC ASSETS SECTION */}
                         {data.linkedObjectId && (
                             <div className="space-y-4">
-                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500/80 flex items-center gap-2">
-                                    <LayoutGrid size={14} /> Required Process Resource
-                                </p>
-
-                                <div 
-                                    role="button"
-                                    onClick={() => {
-                                        const url = getTaskUrl();
-                                        if (!url) return;
-
-                                        const isChecklist = (data.taskType === 'checklist' || String(userAction || '').toLowerCase().includes('checklist'));
-                                        const isForm = (data.taskType === 'form' || !!data.formId || String(userAction || '').toLowerCase().includes('form'));
-                                        
-                                        // Permission checks
-                                        if (isChecklist && !can('CHECKLIST_VIEW')) return;
-                                        if (isForm && !can('FORM_VIEW')) return;
-
-                                        if (!data.taskType?.includes('form')) setIsExecuted(true);
-                                        router.push(url);
-                                        handleClose();
-                                    }}
-                                    className={`cursor-pointer p-8 border rounded-[32px] transition-all duration-500 ${isExecuted ? 'bg-emerald-50/30 border-emerald-200' : 'bg-slate-50 border-slate-100 hover:border-indigo-200'}`}
+                                <button 
+                                    onClick={(e) => handleOpenResource(e)}
+                                    className={`w-full p-8 border rounded-[32px] transition-all duration-300 flex items-center justify-between group overflow-hidden relative shadow-xl ${
+                                        isExecuted 
+                                            ? 'bg-emerald-50 border-emerald-100 hover:border-emerald-300' 
+                                            : 'bg-indigo-600 border-transparent hover:bg-indigo-700 shadow-indigo-200'
+                                    }`}
                                 >
-                                    <div className="flex items-center justify-between mb-8">
-                                        <div className="flex items-center gap-5">
-                                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm transition-transform duration-500 ${isExecuted || (Boolean(String(userAction).match(/file|image/i)) && localAttachments.length > 0) ? 'bg-emerald-500 text-white' : 'bg-white text-slate-400'}`}>
-                                                {data.taskType === 'form' ? <ClipboardList size={26} /> : <ListChecks size={26} />}
-                                            </div>
-                                            <div>
-                                                <h4 className={`text-lg font-black ${isExecuted || (Boolean(String(userAction).match(/file|image/i)) && localAttachments.length > 0) ? 'text-emerald-900' : 'text-slate-800'}`}>
-                                                    {getActionLabel()}: {data.label || 'Workflow Task'}
-                                                </h4>
-                                                <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">
-                                                    {isExecuted || (Boolean(String(userAction).match(/file|image/i)) && localAttachments.length > 0) ? 'Condition remplie' : 'Cliquez ici pour compléter cette étape'}
-                                                </p>
-                                            </div>
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:scale-150 transition-transform duration-700" />
+                                    
+                                    <div className="flex items-center gap-6 relative z-10 text-left">
+                                        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all ${isExecuted ? 'bg-emerald-500 text-white' : 'bg-white/20 text-white'}`}>
+                                            {data.taskType === 'form' || String(userAction || '').toLowerCase().includes('form') ? <ClipboardList size={28} /> : <ListChecks size={28} />}
                                         </div>
-                                        <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${(isExecuted || (Boolean(String(userAction).match(/file|image/i)) && localAttachments.length > 0)) ? 'bg-emerald-500 text-white' : 'bg-rose-50 text-rose-600'}`}>
-                                            {(isExecuted || (Boolean(String(userAction).match(/file|image/i)) && localAttachments.length > 0)) ? 'Validé' : 'Obligatoire'}
+                                        <div>
+                                            <h4 className={`text-xl font-black uppercase tracking-tight ${isExecuted ? 'text-emerald-900' : 'text-white'}`}>
+                                                {isExecuted ? 'Modifier la saisie' : 'Remplir le formulaire'}
+                                            </h4>
+                                            <p className={`text-xs font-bold uppercase tracking-widest ${isExecuted ? 'text-emerald-600' : 'text-indigo-100'}`}>
+                                                {isExecuted ? 'Action déjà validée' : 'Cliquez pour ouvrir maintenant'}
+                                            </p>
                                         </div>
                                     </div>
 
-                                    {(data.taskType === 'form' || data.taskType === 'checklist' || data.taskType === 'kanban' || data.formId || 
-                                      String(userAction || '').toLowerCase().includes('form') || 
-                                      String(userAction || '').toLowerCase().includes('checklist') || 
-                                      String(userAction || '').toLowerCase().includes('kanban') ||
-                                      String(taskContent || '').toLowerCase().includes('form') ||
-                                      String(taskContent || '').toLowerCase().includes('checklist') ||
-                                      String(taskContent || '').toLowerCase().includes('kanban')) ? (
-                                        <div className="flex flex-col gap-3">
-                                            <button
-                                                onClick={() => {
-                                                    const url = getTaskUrl();
-                                                    if (!url) return;
-
-                                                    const isChecklist = (data.taskType === 'checklist' || String(userAction || '').toLowerCase().includes('checklist'));
-                                                    const isForm = (data.taskType === 'form' || !!data.formId || String(userAction || '').toLowerCase().includes('form'));
-                                                    
-                                                    // Permission checks
-                                                    if (isChecklist && !can('CHECKLIST_VIEW')) return;
-                                                    if (isForm && !can('FORM_VIEW')) return;
-
-                                                    if (!data.taskType?.includes('form')) setIsExecuted(true);
-                                                    router.push(url);
-                                                    handleClose();
-                                                }}
-                                                disabled={
-                                                    ((data.taskType === 'checklist' || String(userAction || '').toLowerCase().includes('checklist')) && !can('CHECKLIST_VIEW')) ||
-                                                    ((data.taskType === 'form' || !!data.formId || String(userAction || '').toLowerCase().includes('form')) && !can('FORM_VIEW'))
-                                                }
-                                                className={`w-full h-14 rounded-[22px] flex items-center justify-center gap-3 text-sm font-black uppercase tracking-[0.15em] transition-all shadow-xl hover:scale-[1.02] active:scale-95 ${
-                                                    ((data.taskType === 'checklist' || String(userAction || '').toLowerCase().includes('checklist')) && !can('CHECKLIST_VIEW')) ||
-                                                    ((data.taskType === 'form' || !!data.formId || String(userAction || '').toLowerCase().includes('form')) && !can('FORM_VIEW'))
-                                                    ? 'bg-slate-100 text-slate-300 grayscale opacity-30 cursor-not-allowed border border-slate-200 shadow-none' 
-                                                    : isExecuted || isValidator
-                                                        ? 'bg-indigo-900 text-white hover:bg-slate-800'
-                                                        : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100'
-                                                }`}
-                                            >
-                                                {isValidator ? 'Ouvrir pour consultation' : isExecuted ? 'Modifier ma saisie' : `Ouvrir : ${data.label || 'Action'}`} 
-                                                <ExternalLink size={20} />
-                                            </button>
-
-                                            <button
-                                                onClick={handleCopyLink}
-                                                className="w-full h-10 rounded-[18px] border border-slate-200 bg-white text-slate-400 flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all"
-                                                title="Copy direct link"
-                                            >
-                                                <ClipboardType size={14} />
-                                                Copier le lien direct
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        null
-                                    )}
-                                </div>
+                                    <div className={`relative z-10 p-4 rounded-2xl transition-all ${isExecuted ? 'bg-emerald-500 text-white' : 'bg-white text-indigo-600 group-hover:translate-x-2 shadow-lg shadow-black/5'}`}>
+                                        <ExternalLink size={24} />
+                                    </div>
+                                </button>
                             </div>
                         )}
 
-                        {/* 2. DESCRIPTION & INSTRUCTIONS */}
-                        <div className="space-y-4">
-                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Context & Instructions</p>
-                            <div className="p-8 bg-white border border-slate-100 rounded-[32px] shadow-sm">
-                                <p className="text-sm font-medium text-slate-600 leading-relaxed">
-                                    {data.description || "Active operations cycle. Please follow the defined protocols for this workflow node."}
-                                </p>
-
-                                {data.attachments && data.attachments.length > 0 && (
-                                    <div className="mt-8 pt-8 border-t border-slate-50 space-y-4">
-                                        <p className="text-[9px] font-black uppercase tracking-widest text-indigo-500 mb-4">Referential Assets Supplied by Admin</p>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                            {data.attachments.map((att: any, idx: number) => (
-                                                <div key={idx} className="group relative overflow-hidden rounded-[24px] border border-slate-100 bg-slate-50/50 p-2 hover:bg-white transition-all">
-                                                    {att.url?.includes('data:image/') || att.url?.includes('uploads/') || (typeof att.url === 'string' && /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(att.url)) ? (
-                                                        <div className="space-y-3">
-                                                            <div className="aspect-video w-full overflow-hidden rounded-2xl border border-slate-100">
-                                                                <img src={getFullUrl(att.url)} alt={att.filename} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
-                                                            </div>
-                                                            <div className="flex items-center justify-between px-2">
-                                                                <span className="text-[10px] font-bold text-slate-600 truncate max-w-[150px]">{att.filename}</span>
-                                                                <a href={getFullUrl(att.url)} download={att.filename} className="p-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all">
-                                                                    <ImageIcon size={14} />
-                                                                </a>
-                                                            </div>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex items-center justify-between p-3">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="p-2.5 bg-indigo-100 text-indigo-600 rounded-xl">
-                                                                    <FilePlus size={16} />
-                                                                </div>
-                                                                <span className="text-[10px] font-bold text-slate-600 truncate max-w-[140px] font-mono">{att.filename}</span>
-                                                            </div>
-                                                            <a href={getFullUrl(att.url)} target="_blank" rel="noopener noreferrer" className="p-2.5 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 rounded-xl transition-all">
-                                                                <ExternalLink size={16} />
-                                                            </a>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
+                        {data.description && (
+                            <div className="space-y-3">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Description</p>
+                                <div className="p-6 bg-slate-50 border border-slate-100 rounded-2xl">
+                                    <p className="text-sm font-medium text-slate-600 leading-relaxed">
+                                        {data.description}
+                                    </p>
+                                </div>
                             </div>
-                        </div>
+                        )}
 
                         {/* 3. UPLOAD SECTIONS (If applicable) */}
                         {(String(userAction).includes('File') || String(userAction).includes('Image')) && (
@@ -876,29 +775,14 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                 </div>
                             ) : (
                                 <Button
-                                onClick={handleApprove}
-                                disabled={
-                                    loading || 
-                                    !canPerform || 
-                                    !can('TASK_EDIT') ||
-                                    !!(data.linkedObjectId && !isExecuted && !String(userAction).match(/file|image/i)) || 
-                                    (Boolean(String(userAction).match(/file|image/i)) && localAttachments.length === 0) ||
-                                    (Boolean(String(userAction).match(/report|text|writing/i)) && comment.trim().length < 10)
-                                }
-                                title={!can('TASK_EDIT') ? "Matrix Restricted: Task Edit authority required" : isExecuted ? "Update submission" : "Complete Task"}
-                                className={`h-16 w-full ${(!can('TASK_EDIT'))
-                                    ? 'bg-slate-100 text-slate-300 grayscale opacity-40 blur-[1.2px] cursor-not-allowed border border-slate-200'
-                                    : (
-                                        loading || 
-                                        !canPerform || 
-                                        !!(data.linkedObjectId && !isExecuted && !String(userAction).match(/file|image/i)) || 
-                                        (Boolean(String(userAction).match(/file|image/i)) && localAttachments.length === 0) ||
-                                        (Boolean(String(userAction).match(/report|text|writing/i)) && comment.trim().length < 10)
-                                    ) 
-                                        ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-70' 
+                                    onClick={handleApprove}
+                                    disabled={loading}
+                                    title={isExecuted ? "Update submission" : "Complete Task"}
+                                    className={`h-16 w-full ${loading
+                                        ? 'bg-slate-100 text-slate-300 animate-pulse cursor-wait'
                                         : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xl shadow-indigo-100 transition-transform active:scale-95'
-                                } rounded-[24px] font-black uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-3`}
-                            >
+                                    } rounded-[24px] font-black uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-3`}
+                                >
                                 {loading ? <Clock size={20} className="animate-spin" /> : isExecuted ? <CheckCircle2 size={20} /> : <Send size={18} />}
                                 {userAction === 'Fill Form' ? (isExecuted ? 'Update & Finalize' : 'Submit & Continue') :
                                  userAction === 'Approve / Reject' ? 'Authorize Progression' :

@@ -39,6 +39,11 @@ export const usePermissions = () => {
     return can(permission) ? "" : "opacity-50 grayscale cursor-not-allowed pointer-events-none shadow-none";
   };
 
+  const rawRole = user?.role;
+  const userRole = typeof rawRole === 'object' ? (rawRole as any)?.name || (rawRole as any)?.label || (rawRole as any)?.slug : rawRole;
+  const roleString = String(userRole || '').toLowerCase();
+  const isFullAccess = roleString.includes('admin') || user?.permissions?.includes('all');
+
   return { 
     can, 
     hasAny,
@@ -47,6 +52,6 @@ export const usePermissions = () => {
     permissionDisabledClass, 
     btnDisabledClass,
     handleRestrictedClick,
-    isFullAccess: user?.role?.toLowerCase() === 'super_admin' || user?.role?.toLowerCase() === 'admin' || user?.permissions?.includes('all')
+    isFullAccess
   };
 };

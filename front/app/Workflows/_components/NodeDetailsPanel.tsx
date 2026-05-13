@@ -105,6 +105,14 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
     const [messageTemplate, setMessageTemplate] = useState<string>('');
     const [titleTemplate, setTitleTemplate] = useState<string>('');
 
+    // --- Searchable Pickers State ---
+    const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+    const [userSearchTerm, setUserSearchTerm] = useState('');
+    const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
+    const [roleSearchTerm, setRoleSearchTerm] = useState('');
+    const [isDomainDropdownOpen, setIsDomainDropdownOpen] = useState(false);
+    const [domainSearchTerm, setDomainSearchTerm] = useState('');
+
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -618,17 +626,61 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                                                 </div>
 
                                                 {domainScope === 'specific' && (
-                                                    <div className="animate-in fade-in slide-in-from-top-4 space-y-3">
+                                                    <div className="relative animate-in fade-in slide-in-from-top-4 space-y-3">
                                                         <Label className="text-[11px] font-black text-slate-500 uppercase tracking-widest block">Select Target Domain</Label>
-                                                        <select
-                                                            className="w-full h-14 px-4 bg-slate-50 rounded-2xl font-bold text-slate-700 border border-slate-100 outline-none focus:ring-4 focus:ring-indigo-100/30 transition-all appearance-none cursor-pointer"
-                                                            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236366f1' stroke-width='3' %3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7' /%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1.5rem center', backgroundSize: '1.2rem' }}
-                                                            value={restrictedDomain}
-                                                            onChange={(e) => setRestrictedDomain(e.target.value)}
+                                                        
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setIsDomainDropdownOpen(!isDomainDropdownOpen)}
+                                                            className="w-full h-14 px-4 bg-slate-50 rounded-2xl font-bold text-slate-700 border border-slate-100 flex items-center justify-between hover:bg-slate-100 transition-all outline-none"
                                                         >
-                                                            <option value="">-- Choose Domain --</option>
-                                                            {domains.map(d => <option key={d._id || d.id} value={d.name}>{d.name}</option>)}
-                                                        </select>
+                                                            <div className="flex items-center gap-3">
+                                                                <div className={`w-3 h-3 rounded-full ${restrictedDomain ? 'bg-indigo-500' : 'bg-slate-300'}`} />
+                                                                <span>{restrictedDomain || '-- Choose Domain --'}</span>
+                                                            </div>
+                                                            <motion.div
+                                                                animate={{ rotate: isDomainDropdownOpen ? 180 : 0 }}
+                                                            >
+                                                                <Plus size={16} className="text-indigo-400" />
+                                                            </motion.div>
+                                                        </button>
+
+                                                        <AnimatePresence>
+                                                            {isDomainDropdownOpen && (
+                                                                <motion.div
+                                                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                                    className="absolute z-50 mt-2 w-full bg-white rounded-[24px] shadow-2xl border border-slate-100 overflow-hidden"
+                                                                >
+                                                                    <div className="p-3 bg-slate-50/50 border-b border-slate-100">
+                                                                        <input
+                                                                            autoFocus
+                                                                            placeholder="Search domains..."
+                                                                            value={domainSearchTerm}
+                                                                            onChange={(e) => setDomainSearchTerm(e.target.value)}
+                                                                            className="w-full bg-white h-10 px-4 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-indigo-500 font-medium text-xs"
+                                                                        />
+                                                                    </div>
+                                                                    <div className="max-h-[250px] overflow-y-auto custom-scrollbar p-2">
+                                                                        {domains.filter(d => d.name?.toLowerCase().includes(domainSearchTerm.toLowerCase())).map(d => (
+                                                                            <button
+                                                                                key={d._id || d.id}
+                                                                                onClick={() => {
+                                                                                    setRestrictedDomain(d.name);
+                                                                                    setIsDomainDropdownOpen(false);
+                                                                                    toast.success(`Domain restriction updated: ${d.name}`);
+                                                                                }}
+                                                                                className={`w-full p-3 flex items-center justify-between rounded-xl transition-all ${restrictedDomain === d.name ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50 text-slate-600'}`}
+                                                                            >
+                                                                                <span className="text-sm font-bold">{d.name}</span>
+                                                                                {restrictedDomain === d.name && <Check size={14} />}
+                                                                            </button>
+                                                                        ))}
+                                                                    </div>
+                                                                </motion.div>
+                                                            )}
+                                                        </AnimatePresence>
                                                     </div>
                                                 )}
                                             </div>
@@ -685,49 +737,168 @@ const NodeDetailsPanel = ({ selectedNode, allNodes, workflowId, initialTab, onCl
                                                                     </button>
                                                                 </div>
 
-                                                                {assigneeSelectionType === 'role' ? (
-                                                                    <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
-                                                                        <select
-                                                                            className="w-full h-16 px-6 bg-slate-50 rounded-[22px] font-bold text-slate-700 border border-slate-100 outline-none focus:ring-4 focus:ring-indigo-500/10 appearance-none cursor-pointer"
-                                                                            value={responsibleDomain}
-                                                                            onChange={(e) => {
-                                                                                const selectedValue = e.target.value;
-                                                                                setResponsibleDomain(selectedValue);
-                                                                                // Also set assignedTo to the role ID for backend compatibility
-                                                                                const role = roles.find(r => r.name === selectedValue || r._id === selectedValue);
-                                                                                if (role) {
-                                                                                    setAssignedTo(role._id);
-                                                                                    toast.success(`Strategy synchronized: Assigned to Role '${role.name}'`);
-                                                                                }
-                                                                            }}
+                                                                 {assigneeSelectionType === 'role' ? (
+                                                                    <div className="relative animate-in fade-in slide-in-from-top-2">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
+                                                                            className="w-full h-16 px-6 bg-slate-50 rounded-[22px] font-bold text-slate-700 border border-slate-100 flex items-center justify-between hover:bg-slate-100 transition-all outline-none"
                                                                         >
-                                                                            <option value="">-- Select Specific Role --</option>
+                                                                            <div className="flex items-center gap-3">
+                                                                                <ShieldAlert size={18} className="text-indigo-500" />
+                                                                                <span>{responsibleDomain || '-- Select Specific Role --'}</span>
+                                                                            </div>
+                                                                            <motion.div
+                                                                                animate={{ rotate: isRoleDropdownOpen ? 180 : 0 }}
+                                                                            >
+                                                                                <Plus size={18} className="text-indigo-400" />
+                                                                            </motion.div>
+                                                                        </button>
 
-                                                                            {roles.map(r => <option key={r._id} value={r.name}>{r.name}</option>)}
-                                                                        </select>
-                                                                        <p className="text-[9px] font-bold text-slate-400 italic px-2">Tasks will be visible to all users assigned this specific role or enterprise scope.</p>
+                                                                        <AnimatePresence>
+                                                                            {isRoleDropdownOpen && (
+                                                                                <motion.div
+                                                                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                                                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                                                    className="absolute z-50 mt-2 w-full bg-white rounded-[24px] shadow-2xl border border-slate-100 overflow-hidden"
+                                                                                >
+                                                                                    <div className="p-4 bg-slate-50/50 border-b border-slate-100">
+                                                                                        <input
+                                                                                            autoFocus
+                                                                                            placeholder="Search roles..."
+                                                                                            value={roleSearchTerm}
+                                                                                            onChange={(e) => setRoleSearchTerm(e.target.value)}
+                                                                                            className="w-full bg-white h-10 px-4 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-indigo-500 font-medium text-sm"
+                                                                                        />
+                                                                                    </div>
+                                                                                    <div className="max-h-[300px] overflow-y-auto custom-scrollbar p-2">
+                                                                                        <button
+                                                                                            onClick={() => {
+                                                                                                setResponsibleDomain('');
+                                                                                                setAssignedTo('');
+                                                                                                setIsRoleDropdownOpen(false);
+                                                                                            }}
+                                                                                            className="w-full p-3 text-left rounded-xl hover:bg-slate-50 text-[11px] font-bold text-slate-400 uppercase tracking-widest"
+                                                                                        >
+                                                                                            -- No Role --
+                                                                                        </button>
+                                                                                        {roles.filter(r => r.name?.toLowerCase().includes(roleSearchTerm.toLowerCase())).map(r => (
+                                                                                            <button
+                                                                                                key={r._id}
+                                                                                                onClick={() => {
+                                                                                                    setResponsibleDomain(r.name);
+                                                                                                    setAssignedTo(r._id);
+                                                                                                    setIsRoleDropdownOpen(false);
+                                                                                                    toast.success(`Strategy linked to role: ${r.name}`);
+                                                                                                }}
+                                                                                                className={`w-full p-3 flex items-center justify-between rounded-xl transition-all ${responsibleDomain === r.name ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50 text-slate-600'}`}
+                                                                                            >
+                                                                                                <span className="font-bold">{r.name}</span>
+                                                                                                {responsibleDomain === r.name && <Check size={16} />}
+                                                                                            </button>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                </motion.div>
+                                                                            )}
+                                                                        </AnimatePresence>
+                                                                        <p className="mt-3 text-[9px] font-bold text-slate-400 italic px-2">Tasks will be visible to all users assigned this specific role or enterprise scope.</p>
                                                                     </div>
                                                                 ) : (
-                                                                    <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
-                                                                        <select
-                                                                            className="w-full h-16 px-6 bg-slate-50 rounded-[22px] font-bold text-slate-700 border border-slate-100 outline-none focus:ring-4 focus:ring-indigo-500/10 appearance-none cursor-pointer"
-                                                                            value={assignedTo}
-                                                                            onChange={(e) => {
-                                                                                const userId = e.target.value;
-                                                                                setAssignedTo(userId);
-                                                                                const selectedUser = users.find(u => (u._id || u.id) === userId);
-                                                                                if (selectedUser) {
-                                                                                    toast.success(`Identity linked: ${selectedUser.firstName} ${selectedUser.lastName} selected`, {
-                                                                                        description: 'Lattice assignment updated locally.',
-                                                                                    });
-                                                                                }
-                                                                            }}
+                                                                    <div className="relative animate-in fade-in slide-in-from-top-2">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
+                                                                            className="w-full h-16 px-6 bg-slate-50 rounded-[22px] font-bold text-slate-700 border border-slate-100 flex items-center justify-between hover:bg-slate-100 transition-all outline-none"
                                                                         >
-                                                                            <option value="">-- Select Specific Member --</option>
-                                                                            {users.map((u, idx) => (
-                                                                                <option key={u._id || idx} value={u._id}>{u.firstName} {u.lastName} ({u.email})</option>
-                                                                            ))}
-                                                                        </select>
+                                                                            <div className="flex items-center gap-3">
+                                                                                <Users size={18} className="text-indigo-500" />
+                                                                                <span>
+                                                                                    {assignedTo ? (
+                                                                                        users.find(u => (u._id || u.id) === assignedTo)
+                                                                                            ? `${users.find(u => (u._id || u.id) === assignedTo).firstName} ${users.find(u => (u._id || u.id) === assignedTo).lastName}`
+                                                                                            : '-- Select Specific Member --'
+                                                                                    ) : '-- Select Specific Member --'}
+                                                                                </span>
+                                                                            </div>
+                                                                            <motion.div
+                                                                                animate={{ rotate: isUserDropdownOpen ? 180 : 0 }}
+                                                                            >
+                                                                                <Plus size={18} className="text-indigo-400" />
+                                                                            </motion.div>
+                                                                        </button>
+
+                                                                        <AnimatePresence>
+                                                                            {isUserDropdownOpen && (
+                                                                                <motion.div
+                                                                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                                                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                                                    className="absolute z-50 mt-2 w-full bg-white rounded-[24px] shadow-2xl border border-slate-100 overflow-hidden"
+                                                                                >
+                                                                                    <div className="p-4 bg-slate-50/50 border-b border-slate-100">
+                                                                                        <div className="relative">
+                                                                                            <Input
+                                                                                                autoFocus
+                                                                                                placeholder="Search by name or email..."
+                                                                                                value={userSearchTerm}
+                                                                                                onChange={(e) => setUserSearchTerm(e.target.value)}
+                                                                                                className="w-full bg-white h-12 px-10 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-indigo-500 font-medium"
+                                                                                            />
+                                                                                            <LayoutGrid size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    <div className="max-h-[350px] overflow-y-auto custom-scrollbar p-2 space-y-1">
+                                                                                        <button
+                                                                                            onClick={() => {
+                                                                                                setAssignedTo('');
+                                                                                                setIsUserDropdownOpen(false);
+                                                                                            }}
+                                                                                            className="w-full p-3 text-left rounded-xl hover:bg-slate-50 text-[11px] font-bold text-slate-400 uppercase tracking-widest"
+                                                                                        >
+                                                                                            -- Unassigned --
+                                                                                        </button>
+                                                                                        {users.filter(u =>
+                                                                                            `${u.firstName} ${u.lastName} ${u.email}`.toLowerCase().includes(userSearchTerm.toLowerCase())
+                                                                                        ).map((u, idx) => {
+                                                                                            const isSelected = (u._id || u.id) === assignedTo;
+                                                                                            const initials = `${u.firstName?.[0] || ''}${u.lastName?.[0] || u.email?.[0] || ''}`.toUpperCase();
+                                                                                            const colors = ['bg-indigo-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500', 'bg-violet-500', 'bg-cyan-500'];
+                                                                                            const colorClass = colors[(u.email || '').length % colors.length];
+
+                                                                                            return (
+                                                                                                <button
+                                                                                                    key={u._id || idx}
+                                                                                                    onClick={() => {
+                                                                                                        setAssignedTo(u._id || u.id);
+                                                                                                        setIsUserDropdownOpen(false);
+                                                                                                        toast.success(`Identity linked: ${u.firstName} ${u.lastName}`);
+                                                                                                    }}
+                                                                                                    className={`w-full p-3 flex items-center gap-4 rounded-2xl transition-all ${isSelected ? 'bg-indigo-50 border border-indigo-100 shadow-sm' : 'hover:bg-slate-50 border border-transparent'}`}
+                                                                                                >
+                                                                                                    <div className={`w-10 h-10 rounded-full ${colorClass} flex items-center justify-center text-white font-black text-xs shrink-0 shadow-sm border-2 border-white`}>
+                                                                                                        {initials}
+                                                                                                    </div>
+                                                                                                    <div className="flex-1 text-left">
+                                                                                                        <p className={`font-bold text-sm ${isSelected ? 'text-indigo-900' : 'text-slate-700'}`}>
+                                                                                                            {u.firstName} {u.lastName}
+                                                                                                        </p>
+                                                                                                        <p className="text-[10px] text-slate-400 font-medium truncate max-w-[200px]">
+                                                                                                            {u.email}
+                                                                                                        </p>
+                                                                                                    </div>
+                                                                                                    {isSelected && (
+                                                                                                        <div className="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center text-white">
+                                                                                                            <Check size={14} />
+                                                                                                        </div>
+                                                                                                    )}
+                                                                                                </button>
+                                                                                            );
+                                                                                        })}
+                                                                                    </div>
+                                                                                </motion.div>
+                                                                            )}
+                                                                        </AnimatePresence>
                                                                     </div>
                                                                 )}
                                                             </div>

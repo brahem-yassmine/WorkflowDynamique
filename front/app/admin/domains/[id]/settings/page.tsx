@@ -60,8 +60,8 @@ export default function DomainSettingsPage() {
 
     const handleUpdate = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!name || !description) {
-            toast.error('Please fill in all required fields');
+        if (!name) {
+            toast.error('Please fill in required fields');
             return;
         }
 
@@ -130,7 +130,6 @@ export default function DomainSettingsPage() {
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Operational Directive (Description)</label>
                                 <textarea 
-                                    required 
                                     value={description} 
                                     onChange={(e) => setDescription(e.target.value)}
                                     rows={5}

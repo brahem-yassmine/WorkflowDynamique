@@ -307,6 +307,11 @@ class ApiService {
     return this.request('/forms');
   }
 
+  getFormById(id: string) {
+    if (!this.isValidId(id)) return Promise.resolve({ success: false, message: 'Invalid ID format' });
+    return this.request(`/forms/${id}`);
+  }
+
   updateForm(id: string, data: any) {
     return this.request(`/forms/${id}`, {
       method: 'PATCH',

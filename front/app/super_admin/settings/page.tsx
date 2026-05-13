@@ -160,6 +160,7 @@ export default function PlatformSettingsPage() {
       features: { maxWorkflows: 30 }, 
       interval: "month",
       isActive: false,
+      expiryDate: null,
       isDirty: true,
       isNew: true
     };
@@ -228,6 +229,7 @@ export default function PlatformSettingsPage() {
             interval: plan.interval || 'month',
             currency: plan.currency || 'D',
             isActive: plan.isActive !== undefined ? plan.isActive : plan.active,
+            expiryDate: plan.expiryDate,
             features: {
               maxWorkflows: plan.features?.maxWorkflows || plan.maxWorkflows || 1,
             }
@@ -514,11 +516,12 @@ export default function PlatformSettingsPage() {
                 plans.map((p) => {
                   const id = p._id || p.localId;
                   const isActive = p.isActive !== undefined ? p.isActive : p.active;
+                  const isExpired = p.expiryDate && new Date(p.expiryDate) < new Date();
                   const maxU = p.features?.maxUsers || p.maxUsers || 1;
                   const maxW = p.features?.maxWorkflows || p.maxWorkflows || 1;
                   
                   return (
-                    <div key={id} className="p-6 bg-slate-50 border border-slate-100 rounded-2xl group hover:border-indigo-100 transition-all">
+                    <div key={id} className={`p-6 bg-slate-50 border rounded-2xl group hover:border-indigo-100 transition-all ${isExpired ? 'border-rose-200 bg-rose-50/30' : 'border-slate-100'}`}>
                       <div className="flex flex-col gap-6">
                         {/* Top Row: Name and Actions */}
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -545,9 +548,15 @@ export default function PlatformSettingsPage() {
                           </div>
                           
                           <div className="flex items-center gap-3 bg-white p-2 rounded-2xl border border-slate-100 self-end sm:self-center">
-                            <Badge className={isActive ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-100 text-slate-400'}>
-                              {isActive ? 'Live' : 'Hidden'}
-                            </Badge>
+                            {isExpired ? (
+                              <Badge className="bg-rose-100 text-rose-600 border-rose-200 uppercase tracking-widest font-black">
+                                Expiré
+                              </Badge>
+                            ) : (
+                              <Badge className={isActive ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-100 text-slate-400'}>
+                                {isActive ? 'Live' : 'Hidden'}
+                              </Badge>
+                            )}
                             <Switch checked={isActive} onCheckedChange={(v) => handlePlanChange(id, "isActive", v)} />
                             <div className="w-[1px] h-4 bg-slate-100 mx-1" />
                             <button 
@@ -561,12 +570,12 @@ export default function PlatformSettingsPage() {
                         </div>
 
                         {/* Bottom Row: Numerical Metrics (Maximized Width) */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-6 border-t border-slate-100 border-dashed">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-6 border-t border-slate-100 border-dashed">
                           <div className="space-y-3">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block text-center">Service Price (DT)</label>
                             <Input 
                               type="number" 
-                              className="h-20 text-3xl font-black bg-white border-slate-200 rounded-2xl text-center focus:ring-2 focus:ring-indigo-600 transition-all shadow-sm" 
+                              className="h-20 text-2xl font-black bg-white border-slate-200 rounded-2xl text-center focus:ring-2 focus:ring-indigo-600 transition-all shadow-sm" 
                               value={p.price} 
                               onChange={(e) => handlePlanChange(id, "price", Number(e.target.value))} 
                             />
@@ -575,10 +584,21 @@ export default function PlatformSettingsPage() {
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block text-center">Workflow Threads</label>
                             <Input 
                               type="number" 
-                              className="h-20 text-3xl font-black bg-white border-slate-200 rounded-2xl text-center focus:ring-2 focus:ring-indigo-600 transition-all shadow-sm" 
+                              className="h-20 text-2xl font-black bg-white border-slate-200 rounded-2xl text-center focus:ring-2 focus:ring-indigo-600 transition-all shadow-sm" 
                               value={maxW} 
                               onChange={(e) => handlePlanChange(id, "features", { ...p.features, maxWorkflows: Number(e.target.value) })} 
                             />
+                          </div>
+                          <div className="space-y-3">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block text-center">Expiry Date</label>
+                            <div className="relative">
+                              <Input 
+                                type="date" 
+                                className="h-20 text-sm font-bold bg-white border-slate-200 rounded-2xl text-center focus:ring-2 focus:ring-indigo-600 transition-all shadow-sm" 
+                                value={p.expiryDate ? new Date(p.expiryDate).toISOString().split('T')[0] : ''} 
+                                onChange={(e) => handlePlanChange(id, "expiryDate", e.target.value)} 
+                              />
+                            </div>
                           </div>
                         </div>
                       </div>

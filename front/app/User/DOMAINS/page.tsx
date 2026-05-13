@@ -93,8 +93,8 @@ function DomainsPageContent() {
     const handleSubmit = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
 
-        if (!name || !description) {
-            toast.error('Sector designation and narrative required.');
+        if (!name) {
+            toast.error('Sector designation required.');
             return;
         }
 
@@ -331,7 +331,6 @@ function DomainsPageContent() {
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">Mission Narrative</label>
                                     <textarea
-                                        required
                                         value={description}
                                         onChange={(e) => setDescription(e.target.value)}
                                         rows={4}

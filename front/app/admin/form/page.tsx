@@ -223,6 +223,7 @@ const FormBuilderContent = () => {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [formId, setFormId] = useState<string | null>(null);
+  const [showSaveModal, setShowSaveModal] = useState(false);
   
   const [formName, setFormName] = useState('New Form');
   const [formDescription, setFormDescription] = useState('');
@@ -318,7 +319,7 @@ const FormBuilderContent = () => {
     }
   };
 
-  const handleSave = async (shouldNavigate: boolean = false) => {
+  const handleSave = async () => {
     setIsSaving(true);
     try {
       const payload = {
@@ -340,18 +341,17 @@ const FormBuilderContent = () => {
       });
 
       if (res.success) {
-        toast.success(formId ? "Architecture updated!" : "Architecture saved!");
-        const newId = formId || res.data?._id;
+        toast.success(formId ? "Form updated!" : "Form saved successfully!");
         
-        if (!formId && res.data?._id) {
-          setFormId(res.data._id);
-        }
-
-        if (shouldNavigate && newId) {
-          router.push(`/form/form3?id=${newId}${designerWorkflowId ? `&designerWorkflowId=${designerWorkflowId}` : ''}`);
-        } else if (!formId && res.data?._id) {
-          router.push(`/admin/form?id=${res.data._id}${designerWorkflowId ? `&designerWorkflowId=${designerWorkflowId}` : ''}`, { scroll: false });
-        }
+        setTimeout(() => {
+          if (designerWorkflowId) {
+            // If they came from a workflow designer, you might want to return there
+            // But the instruction says "automatiquement vers la page AllForms"
+            router.push('/admin/AllForms');
+          } else {
+            router.push('/admin/AllForms');
+          }
+        }, 800);
       }
     } catch (error: any) {
       toast.error("Failed to save: " + error.message);
@@ -440,13 +440,7 @@ const FormBuilderContent = () => {
               </button>
             )}
             <button 
-              onClick={() => handleSave(true)} 
-              className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-indigo-500 text-white rounded-lg font-semibold text-sm hover:bg-indigo-400 transition-all shadow-sm whitespace-nowrap"
-            >
-              Next <ArrowRight className="w-4 h-4" />
-            </button>
-            <button 
-              onClick={() => handleSave(false)} 
+              onClick={() => setShowSaveModal(true)} 
               disabled={isSaving} 
               className={`flex items-center gap-2 px-3 sm:px-4 py-2 bg-white text-indigo-600 rounded-lg font-semibold text-sm hover:bg-indigo-50 whitespace-nowrap ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
             >
@@ -568,6 +562,68 @@ const FormBuilderContent = () => {
           </DragOverlay>
         </DndContext>
       </div>
+
+      <AnimatePresence>
+        {showSaveModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+            >
+              <div className="p-6 border-b border-gray-100">
+                <h3 className="text-lg font-bold text-gray-900">Save Form</h3>
+                <p className="text-sm text-gray-500 mt-1">Choose a name and description for your form.</p>
+              </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-2">Form Name</label>
+                  <input
+                    type="text"
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
+                    className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                    placeholder="Enter form name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-2">Description</label>
+                  <textarea
+                    value={formDescription}
+                    onChange={(e) => setFormDescription(e.target.value)}
+                    className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+                    rows={3}
+                    placeholder="Enter form description"
+                  />
+                </div>
+              </div>
+              <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowSaveModal(false)}
+                  className="px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setShowSaveModal(false);
+                    handleSave();
+                  }}
+                  disabled={isSaving}
+                  className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-500 transition-colors flex items-center gap-2 disabled:opacity-70"
+                >
+                  {isSaving ? <Clock className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  Submit
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

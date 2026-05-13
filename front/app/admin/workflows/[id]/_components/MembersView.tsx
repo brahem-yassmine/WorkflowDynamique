@@ -130,20 +130,37 @@ export default function MembersView({ workflowId }: { workflowId: string }) {
     
     try {
       setSavingAdd(true);
+      
+      const isRole = roles.find(r => r._id === addForm.userId);
+      const isDomain = domains.find(d => d._id === addForm.userId);
+
       // Clone the nodes to modify
       const updatedNodes = workflowDoc.nodes.map((node: any) => {
         if (node.id === addForm.nodeId) {
           const currentAssignees = Array.isArray(node.data?.assigneeIds) ? [...node.data.assigneeIds] : [];
-          if (!currentAssignees.includes(addForm.userId)) {
-            currentAssignees.push(addForm.userId);
+          
+          let assigneeSelectionType = 'user';
+          let assignedTo = addForm.userId;
+
+          if (isRole) {
+             assigneeSelectionType = 'role';
+             assignedTo = isRole.name;
+          } else if (isDomain) {
+             assigneeSelectionType = 'domain';
+             assignedTo = isDomain.name;
+          } else {
+             if (!currentAssignees.includes(addForm.userId)) {
+               currentAssignees.push(addForm.userId);
+             }
           }
+
           return {
             ...node,
             data: {
               ...node.data,
-              assigneeIds: currentAssignees,
-              assignedTo: addForm.userId, // Update assignedTo so it displays in NodeDetailsPanel
-              assigneeSelectionType: 'user', // Also force the UI toggle in NodeDetailsPanel
+              assigneeIds: (isRole || isDomain) ? [] : currentAssignees,
+              assignedTo: assignedTo,
+              assigneeSelectionType: assigneeSelectionType,
               assigneeType: 'specific' 
             }
           };
@@ -154,14 +171,20 @@ export default function MembersView({ workflowId }: { workflowId: string }) {
       const updatedWorkflow = { ...workflowDoc, nodes: updatedNodes };
       await apiService.updateWorkflow(workflowId, updatedWorkflow);
       
-      const selectedUserName = users.find((u: any) => (u._id || u.id) === addForm.userId);
-      const userNameStr = selectedUserName ? `${selectedUserName.firstName} ${selectedUserName.lastName}` : 'the operator';
+      let operatorName = 'the operator';
+      if (isRole) operatorName = `Role: ${isRole.name}`;
+      else if (isDomain) operatorName = `Domain: ${isDomain.name}`;
+      else {
+        const selectedUser = users.find((u: any) => (u._id || u.id) === addForm.userId);
+        if (selectedUser) operatorName = `${selectedUser.firstName} ${selectedUser.lastName}`;
+      }
+
       const selectedNodeObj = workflowDoc.nodes.find((n: any) => n.id === addForm.nodeId);
       const nodeLabelStr = selectedNodeObj?.data?.label || 'Action Sequence';
 
-      toast.success(`Logic Unit '${nodeLabelStr}' successfully assigned to ${userNameStr}`, {
+      toast.success(`Logic Unit '${nodeLabelStr}' successfully assigned to ${operatorName}`, {
         description: 'New assignment metadata has been synchronized.',
-        icon: <Users className="w-5 h-5 text-emerald-500" />
+        icon: <CheckCircle2 className="w-5 h-5 text-emerald-500" />
       });
 
       setShowAddModal(false);
@@ -210,14 +233,24 @@ export default function MembersView({ workflowId }: { workflowId: string }) {
           >
             <div className="flex items-center gap-6">
                <div className="relative">
-                  <div className="w-16 h-16 bg-gradient-to-br from-indigo-100 to-indigo-50 rounded-[20px] flex items-center justify-center text-indigo-600 text-xl font-black uppercase shadow-[inset_0_2px_10px_rgba(0,0,0,0.02)] border border-indigo-200 overflow-hidden rotate-0 group-hover:rotate-3 transition-transform duration-300">
-                     {member.avatar ? <img src={member.avatar} className="w-full h-full object-cover" /> : (member.name?.charAt(0) || '?')}
-                  </div>
-                  <div className={`absolute -bottom-1 -right-1 w-6 h-6 border-4 border-white rounded-lg flex items-center justify-center ${
-                    member.isActiveMember ? 'bg-emerald-500' : 'bg-slate-300'
+                  <div className={`w-16 h-16 rounded-[20px] flex items-center justify-center text-xl font-black uppercase shadow-[inset_0_2px_10px_rgba(0,0,0,0.02)] border rotate-0 group-hover:rotate-3 transition-transform duration-300 overflow-hidden ${
+                    member.isGroup 
+                      ? (member.type === 'role' ? 'bg-indigo-600 text-white border-indigo-400' : 'bg-emerald-600 text-white border-emerald-400')
+                      : 'bg-gradient-to-br from-indigo-100 to-indigo-50 text-indigo-600 border-indigo-200'
                   }`}>
-                    <Activity size={10} className="text-white" />
+                     {member.isGroup ? (
+                       member.type === 'role' ? <Shield size={24} /> : <Briefcase size={24} />
+                     ) : (
+                       member.avatar ? <img src={member.avatar} className="w-full h-full object-cover" /> : (member.name?.charAt(0) || '?')
+                     )}
                   </div>
+                  {!member.isGroup && (
+                    <div className={`absolute -bottom-1 -right-1 w-6 h-6 border-4 border-white rounded-lg flex items-center justify-center ${
+                      member.isActiveMember ? 'bg-emerald-500' : 'bg-slate-300'
+                    }`}>
+                      <Activity size={10} className="text-white" />
+                    </div>
+                  )}
                </div>
                
                <div className="space-y-1">
@@ -456,17 +489,29 @@ export default function MembersView({ workflowId }: { workflowId: string }) {
 
               <form onSubmit={handleAddMember} className="p-8 space-y-6">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Select User</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Select Operator (User, Role, or Domain)</label>
                   <select
                     required
                     value={addForm.userId}
                     onChange={(e) => setAddForm(prev => ({ ...prev, userId: e.target.value }))}
                     className="w-full h-12 bg-slate-50 rounded-xl px-4 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500 border-none appearance-none"
                   >
-                    <option value="">-- Choose User --</option>
-                    {users.map(u => (
-                      <option key={u._id} value={u._id}>{u.firstName} {u.lastName} ({u.email})</option>
-                    ))}
+                    <option value="">-- Choose Operator --</option>
+                    <optgroup label="Direct Users">
+                      {users.map(u => (
+                        <option key={u._id} value={u._id}>{u.firstName} {u.lastName} ({u.email})</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="System Roles">
+                      {roles.map(r => (
+                        <option key={r._id} value={r._id}>ROLE: {r.name}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Enterprise Domains">
+                      {domains.map(d => (
+                        <option key={d._id} value={d._id}>DOMAIN: {d.name}</option>
+                      ))}
+                    </optgroup>
                   </select>
                 </div>
 

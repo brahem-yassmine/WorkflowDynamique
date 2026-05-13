@@ -173,7 +173,17 @@ export default function SignupPage() {
   };
 
   const handlePaymentChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
+    const { name: rawName, value } = e.target;
+    
+    // Map obfuscated names back to state keys
+    const nameMap: Record<string, string> = {
+      "cc_num": "cardNumber",
+      "cc_hold": "cardHolder",
+      "cc_exp": "expiryDate",
+      "cc_sec": "cvv"
+    };
+    
+    const name = nameMap[rawName] || rawName;
 
     // Format card number with spaces
     if (name === "cardNumber") {
@@ -449,13 +459,16 @@ export default function SignupPage() {
                     <div className="relative">
                       <input
                         type="text"
-                        name="cardNumber"
+                        name="cc_num"
                         value={paymentDetails.cardNumber}
                         onChange={handlePaymentChange}
                         placeholder="1234 5678 9012 3456"
                         className="w-full pr-4 pl-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
                         maxLength={19}
                         required
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck="false"
                       />
                       <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
                     </div>
@@ -468,12 +481,15 @@ export default function SignupPage() {
                     <div className="relative">
                       <input
                         type="text"
-                        name="cardHolder"
+                        name="cc_hold"
                         value={paymentDetails.cardHolder}
                         onChange={handlePaymentChange}
                         placeholder="John Doe"
                         className="w-full pr-4 pl-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
                         required
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck="false"
                       />
                       <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
                     </div>
@@ -487,13 +503,16 @@ export default function SignupPage() {
                       <div className="relative">
                         <input
                           type="text"
-                          name="expiryDate"
+                          name="cc_exp"
                           value={paymentDetails.expiryDate}
                           onChange={handlePaymentChange}
                           placeholder="MM/YY"
                           className="w-full pr-4 pl-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
                           maxLength={5}
                           required
+                          autoComplete="off"
+                          autoCorrect="off"
+                          spellCheck="false"
                         />
                         <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
                       </div>
@@ -506,13 +525,16 @@ export default function SignupPage() {
                       <div className="relative">
                         <input
                           type="text"
-                          name="cvv"
+                          name="cc_sec"
                           value={paymentDetails.cvv}
                           onChange={handlePaymentChange}
                           placeholder="123"
                           className="w-full pr-4 pl-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
                           maxLength={4}
                           required
+                          autoComplete="off"
+                          autoCorrect="off"
+                          spellCheck="false"
                         />
                         <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
                       </div>

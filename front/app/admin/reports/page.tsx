@@ -40,21 +40,18 @@ export default function ReportsPage() {
     priority: 'medium'
   });
 
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+
   useEffect(() => {
     fetchReports();
   }, []);
 
   const fetchReports = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/reports/my-reports', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      const data = await response.json();
-      if (data.success) {
-        setReports(data.data);
+      const response = await api.get('/api/reports/my-reports');
+      if (response.data.success) {
+        setReports(response.data.data);
       }
     } catch (error) {
       console.error('Error fetching reports:', error);
@@ -254,7 +251,14 @@ export default function ReportsPage() {
               </div>
             ) : (
               reports.map((report) => (
-                <div key={report._id} className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all">
+                <div 
+                  key={report._id} 
+                  onClick={() => {
+                    setSelectedReport(report);
+                    setIsDetailModalOpen(true);
+                  }}
+                  className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all cursor-pointer group"
+                >
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
                     <div className="flex items-center gap-4">
                       <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${getPriorityColor(report.priority)}`}>
@@ -313,6 +317,112 @@ export default function ReportsPage() {
         )}
       </AnimatePresence>
       <Toaster position="top-right" richColors />
+
+      {/* Detail Modal */}
+      <AnimatePresence>
+        {isDetailModalOpen && selectedReport && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsDetailModalOpen(false)}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              {/* Modal Header */}
+              <div className="p-8 pb-4 flex items-start justify-between">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${getPriorityColor(selectedReport.priority)}`}>
+                      {selectedReport.priority} Priority
+                    </div>
+                    <span className="text-xs font-bold text-slate-400">
+                      {new Date(selectedReport.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    </span>
+                  </div>
+                  <h2 className="text-2xl font-black text-slate-900">{selectedReport.subject}</h2>
+                </div>
+                <button 
+                  onClick={() => setIsDetailModalOpen(false)}
+                  className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors"
+                >
+                  <AlertCircle size={20} className="rotate-45" />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-8 pt-4 overflow-y-auto custom-scrollbar space-y-8">
+                <div className="space-y-4">
+                  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <MessageSquare size={14} />
+                    Issue Description
+                  </h3>
+                  <div className="bg-slate-50 rounded-[2rem] p-6 border border-slate-100 text-slate-700 leading-relaxed font-medium">
+                    {selectedReport.description}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-slate-50 rounded-3xl p-6 border border-slate-100">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Current Status</span>
+                    <div className="flex items-center gap-3">
+                      {getStatusIcon(selectedReport.status)}
+                      <span className="font-black text-slate-800 uppercase tracking-tight">
+                        {selectedReport.status.replace('_', ' ')}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="bg-slate-50 rounded-3xl p-6 border border-slate-100">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Issue Type</span>
+                    <div className="flex items-center gap-3">
+                      <div className="w-4 h-4 rounded-full bg-indigo-500" />
+                      <span className="font-black text-slate-800 uppercase tracking-tight">
+                        {selectedReport.type.replace('_', ' ')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {selectedReport.response && (
+                  <div className="space-y-4">
+                    <h3 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">
+                      <CheckCircle2 size={14} />
+                      Administrator Response
+                    </h3>
+                    <div className="bg-indigo-50 rounded-[2rem] p-6 border border-indigo-100 text-slate-700 leading-relaxed font-medium italic relative">
+                      <div className="absolute -top-3 right-6 bg-white px-4 py-1 rounded-full border border-indigo-100 text-[9px] font-bold text-indigo-400 uppercase tracking-widest">
+                        Reply from Super Admin
+                      </div>
+                      "{selectedReport.response}"
+                      {selectedReport.respondedAt && (
+                        <div className="mt-4 pt-4 border-t border-indigo-100 text-[10px] font-bold text-indigo-300">
+                          Responded on {new Date(selectedReport.respondedAt).toLocaleDateString()}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-8 pt-0 mt-auto">
+                <button 
+                  onClick={() => setIsDetailModalOpen(false)}
+                  className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black shadow-lg shadow-slate-300 hover:bg-slate-800 transition-all"
+                >
+                  Close View
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

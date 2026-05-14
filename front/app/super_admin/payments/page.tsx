@@ -266,8 +266,8 @@ export default function SubscriptionPaymentPage() {
         <div className="lg:col-span-2 bg-white rounded-3xl p-10 shadow-sm border border-slate-100 flex flex-col">
           <div className="flex justify-between items-center mb-10">
             <div>
-              <h3 className="text-xl font-black text-slate-800 tracking-tight">Yield Breakdown</h3>
-              <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Monthly Revenue per Service Tier</p>
+              <h3 className="text-xl font-black text-slate-800 tracking-tight">Service Tier Adoption</h3>
+              <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Number of organizations per plan</p>
             </div>
             <ArrowUpRight className="text-indigo-500" />
           </div>
@@ -278,7 +278,7 @@ export default function SubscriptionPaymentPage() {
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 700, fill: '#94a3b8' }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 700, fill: '#94a3b8' }} />
                 <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
-                <Bar dataKey="revenue" fill="#4f46e5" radius={[6, 6, 0, 0]} barSize={50}>
+                <Bar dataKey="subscribers" fill="#4f46e5" radius={[6, 6, 0, 0]} barSize={50}>
                   {revenueBreakdown?.map((entry: any, index: number) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
@@ -352,7 +352,7 @@ export default function SubscriptionPaymentPage() {
                 </div>
                 <div className="space-y-4 mb-8">
                   <TierMetric label="User Capacity" value={(plan.features?.maxUsers || 0) >= 999999 ? 'Unlimited' : (plan.features?.maxUsers || 0)} icon={<Users size={14} />} />
-                  <TierMetric label="Flow Nodes" value={(plan.features?.maxNodes || 0) >= 999999 ? 'Unlimited' : (plan.features?.maxNodes || 0)} icon={<Zap size={14} />} />
+                  <TierMetric label="Workflows Allowed" value={(plan.features?.maxWorkflows || 0) >= 999999 ? 'Unlimited' : (plan.features?.maxWorkflows || 0)} icon={<Zap size={14} />} />
                   <TierMetric label="Cloud Lattice" value={plan.interval === 'month' ? 'Monthly' : 'Yearly'} icon={<CreditCard size={14} />} />
                 </div>
                 <div className="pt-6 border-t border-slate-50 flex justify-between items-center">
@@ -421,13 +421,13 @@ export default function SubscriptionPaymentPage() {
                   </div>
                 </div>
                 <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 group hover:border-amber-500 transition-colors">
-                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Node Limit</p>
+                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Workflow Limit</p>
                   <div className="flex items-center gap-2">
                     <div className="p-1.5 bg-amber-50 rounded-lg text-amber-500">
                       <Zap size={16} />
                     </div>
                     <span className="text-2xl font-black text-slate-800">
-                      {(selectedPlanDetails?.features?.maxNodes || 0) >= 999999 ? 'Unlimited' : (selectedPlanDetails?.features?.maxNodes || 0)}
+                      {(selectedPlanDetails?.features?.maxWorkflows || 0) >= 999999 ? 'Unlimited' : (selectedPlanDetails?.features?.maxWorkflows || 0)}
                     </span>
                   </div>
                 </div>
@@ -461,17 +461,17 @@ export default function SubscriptionPaymentPage() {
                         <tr>
                           <th className="px-6 py-4">Organization Name</th>
                           <th className="px-6 py-4 text-center">User Load</th>
-                          <th className="px-6 py-4 text-center">Node Usage</th>
+                          <th className="px-6 py-4 text-center">Workflows Usage</th>
                           <th className="px-6 py-4 text-right">Domain Access</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {subscribers.map((sub) => {
                           const isUserUnlimited = (selectedPlanDetails?.features?.maxUsers || 0) >= 999999;
-                          const isNodeUnlimited = (selectedPlanDetails?.features?.maxNodes || 0) >= 999999;
+                          const isWorkflowUnlimited = (selectedPlanDetails?.features?.maxWorkflows || 0) >= 999999;
                           const userPercent = isUserUnlimited ? 0 : (sub.consumption?.users / (selectedPlanDetails?.features?.maxUsers || 1)) * 100;
-                          const nodePercent = isNodeUnlimited ? 0 : (sub.consumption?.nodes / (selectedPlanDetails?.features?.maxNodes || 1)) * 100;
-                          const isHighUsage = !isUserUnlimited && (userPercent > 80 || nodePercent > 80);
+                          const workflowPercent = isWorkflowUnlimited ? 0 : (sub.consumption?.workflows / (selectedPlanDetails?.features?.maxWorkflows || 1)) * 100;
+                          const isHighUsage = !isUserUnlimited && (userPercent > 80 || workflowPercent > 80);
 
                           return (
                             <tr key={sub.id} className="hover:bg-slate-50/50 transition-colors group">
@@ -510,12 +510,12 @@ export default function SubscriptionPaymentPage() {
                                 <div className="flex flex-col items-center gap-1">
                                   <div className="w-20 h-1 bg-slate-100 rounded-full overflow-hidden">
                                     <div 
-                                      className={`h-full transition-all duration-500 ${nodePercent > 90 ? 'bg-rose-500' : 'bg-emerald-500'}`}
-                                      style={{ width: `${Math.min(nodePercent, 100)}%` }}
+                                      className={`h-full transition-all duration-500 ${workflowPercent > 90 ? 'bg-rose-500' : 'bg-emerald-500'}`}
+                                      style={{ width: `${Math.min(workflowPercent, 100)}%` }}
                                     />
                                   </div>
                                   <span className="text-[9px] font-bold text-slate-500">
-                                    {sub.consumption?.nodes || 0}/{isNodeUnlimited ? '∞' : selectedPlanDetails?.features?.maxNodes}
+                                    {sub.consumption?.workflows || 0}/{isWorkflowUnlimited ? '∞' : selectedPlanDetails?.features?.maxWorkflows}
                                   </span>
                                 </div>
                               </td>

@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { showAlert, showConfirm } from '@/lib/alerts';
+import { api } from '../../services/api';
 
 type ReportStatus = 'pending' | 'in_review' | 'resolved' | 'closed' | 'deleted';
 
@@ -63,15 +64,9 @@ export default function FeedbackPage() {
     const fetchReports = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch('http://localhost:5000/api/reports/all', {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            const data = await res.json();
-            if (data.success) {
-                setReports(data.data);
+            const res = await api.get('/api/reports/all');
+            if (res.data.success) {
+                setReports(res.data.data);
             }
         } catch (error) {
             console.error("Error fetching reports", error);
@@ -271,13 +266,8 @@ export default function FeedbackPage() {
     const handleDelete = async () => {
         if (!selectedReport) return;
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`http://localhost:5000/api/reports/${selectedReport._id}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await res.json();
-            if (data.success) {
+            const res = await api.delete(`/api/reports/${selectedReport._id}`);
+            if (res.data.success) {
                 setReports(prev => prev.map(r => r._id === selectedReport._id ? { ...r, status: 'deleted', respondedAt: new Date().toISOString() } : r));
                 setSelectedReport(null);
                 setDecision(null);
@@ -285,11 +275,11 @@ export default function FeedbackPage() {
                 setResponse("");
                 await showAlert('Archived', 'The report has been moved to History.', 'success');
             } else {
-                await showAlert('Deletion Error', 'Failed to delete report: ' + data.message, 'error');
+                await showAlert('Deletion Error', 'Failed to delete report: ' + res.data.message, 'error');
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error deleting report:', error);
-            await showAlert('Connection Error', 'Failed to connect to the server.', 'error');
+            await showAlert('Deletion Error', error.response?.data?.message || 'Failed to connect to the server.', 'error');
         }
     };
 
@@ -304,21 +294,12 @@ export default function FeedbackPage() {
         if (!decision && isResponding) newStatus = 'in_review';
         
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`http://localhost:5000/api/reports/${selectedReport._id}/status`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    status: newStatus,
-                    response: isResponding ? response.trim() : undefined
-                })
+            const res = await api.patch(`/api/reports/${selectedReport._id}/status`, {
+                status: newStatus,
+                response: isResponding ? response.trim() : undefined
             });
 
-            const data = await res.json();
-            if (data.success) {
+            if (res.data.success) {
                 // Update local state and show alert
                 setReports(prev => prev.map(r => 
                     r._id === selectedReport._id ? { ...r, status: newStatus, response: isResponding ? response.trim() : r.response } : r
@@ -331,11 +312,11 @@ export default function FeedbackPage() {
                 setIsResponding(false);
                 setResponse("");
             } else {
-                await showAlert('Update Error', 'Error updating report: ' + data.message, 'error');
+                await showAlert('Update Error', 'Error updating report: ' + res.data.message, 'error');
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error submitting response:', error);
-            await showAlert('Connection Error', 'Failed to connect to the server.', 'error');
+            await showAlert('Update Error', error.response?.data?.message || 'Failed to connect to the server.', 'error');
         }
     };
 

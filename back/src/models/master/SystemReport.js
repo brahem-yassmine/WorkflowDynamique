@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-module.exports = function(masterConn) {
+module.exports = function (masterConn) {
   const systemReportSchema = new mongoose.Schema({
     tenantId: {
       type: mongoose.Schema.Types.ObjectId,

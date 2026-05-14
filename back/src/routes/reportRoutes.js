@@ -96,10 +96,10 @@ router.patch('/:id/status', auth, requireRole('super_admin'), async (req, res) =
 
     const report = await SystemReport.findByIdAndUpdate(
       req.params.id,
-      { 
-        status, 
-        response, 
-        respondedAt: response ? new Date() : undefined 
+      {
+        status,
+        response,
+        respondedAt: response ? new Date() : undefined
       },
       { new: true }
     );

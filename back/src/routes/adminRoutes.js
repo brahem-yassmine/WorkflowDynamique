@@ -603,9 +603,6 @@ router.get('/stats', async (req, res) => {
       planCounts[p.name] = 0;
       planRevenueMapping[p.name] = 0;
     });
-    // Ensure "No plan" is also represented
-    planCounts['No plan'] = 0;
-    planRevenueMapping['No plan'] = 0;
 
     let totalMonthlyRevenue = 0;
     let lastMonthRevenue = 0;
@@ -649,11 +646,23 @@ router.get('/stats', async (req, res) => {
 
       sectorCounts[sector] = (sectorCounts[sector] || 0) + 1;
 
-      const planName = tenant.selectedPlan?.name || tenant.planDetails?.name || 'No plan';
-      const planPrice = tenant.selectedPlan?.price || 0;
+      const tenantPlanName = (tenant.selectedPlan?.name || tenant.planDetails?.name || '').toLowerCase();
+      const tenantPlanCode = (tenant.selectedPlan?.code || tenant.planDetails?.code || '').toLowerCase();
 
-      planCounts[planName] = (planCounts[planName] || 0) + 1;
-      planRevenueMapping[planName] = (planRevenueMapping[planName] || 0) + planPrice;
+      // Find matching plan from our master list
+      const matchedPlan = allAvailablePlans.find(p => 
+        p.name.toLowerCase() === tenantPlanName || 
+        p.code.toLowerCase() === tenantPlanCode ||
+        p.name.toLowerCase().includes(tenantPlanName) && tenantPlanName.length > 2
+      );
+
+      const planPrice = matchedPlan ? matchedPlan.price : (tenant.planDetails?.price || 0);
+
+      if (matchedPlan) {
+        planCounts[matchedPlan.name]++;
+        planRevenueMapping[matchedPlan.name] += planPrice;
+      }
+      
       totalMonthlyRevenue += planPrice;
 
       // Calculate last month revenue (approximate based on creation date)
@@ -792,8 +801,8 @@ router.get('/stats', async (req, res) => {
       totalWorkflows: totalWorkflows,
       totalExecutions: totalExecutions,
 
-      trialCompanies: planCounts['Demo Plan'] || planCounts['DEMO'] || 0,
-      paidCompanies: (planCounts['Starter Plan'] || 0) + (planCounts['Pro Plan'] || 0),
+      trialCompanies: allAvailablePlans.filter(p => p.price === 0).reduce((acc, p) => acc + (planCounts[p.name] || 0), 0),
+      paidCompanies: allAvailablePlans.filter(p => p.price > 0).reduce((acc, p) => acc + (planCounts[p.name] || 0), 0),
 
       // Trends (Evolution Today vs 7 Days Ago)
       companiesTrend: companiesTrend,
@@ -925,19 +934,35 @@ router.get('/plans/:id/subscribers', async (req, res) => {
 
     const plan = await Plan.findById(id);
     if (!plan) {
+      console.log(`❌ Plan not found for ID: ${id}`);
       return res.status(404).json({ success: false, message: 'Plan not found' });
     }
 
-    // Query by ID OR by Plan Code (more robust for sync-ed plans)
-    const tenants = await Tenant.find({
-      $or: [
-        { selectedPlan: id },
-        { 'planDetails.code': plan.code }
-      ]
+    console.log(`🔍 Fetching subscribers for plan: ${plan.name} (${plan.code}) ID: ${id}`);
+
+    // To ensure perfect consistency with the dashboard stats, 
+    // we fetch all tenants and use the same fuzzy matching logic
+    const allTenants = await Tenant.find().populate('selectedPlan');
+    const allAvailablePlans = await Plan.find({ isActive: true });
+
+    const filteredTenants = allTenants.filter(tenant => {
+      const tenantPlanName = (tenant.selectedPlan?.name || tenant.planDetails?.name || '').toLowerCase();
+      const tenantPlanCode = (tenant.selectedPlan?.code || tenant.planDetails?.code || '').toLowerCase();
+
+      // Check if this tenant matches the requested plan
+      const matchesById = tenant.selectedPlan?._id?.toString() === id || tenant.selectedPlan?.toString() === id;
+      const matchesByCode = tenantPlanCode === plan.code.toLowerCase();
+      const matchesByName = tenantPlanName === plan.name.toLowerCase() || 
+                            (tenantPlanName.includes(plan.name.toLowerCase()) && plan.name.length > 2);
+
+      return matchesById || matchesByCode || matchesByName;
     });
 
-    const enrichedSubscribers = await Promise.all(tenants.map(async (tenant) => {
+    console.log(`✅ Filtered ${filteredTenants.length} tenants using fuzzy matching (Dashboard Sync)`);
+
+    const enrichedSubscribers = await Promise.all(filteredTenants.map(async (tenant) => {
       let userCount = 0;
+      let workflowCount = 0;
       let nodeCount = 0;
 
       try {
@@ -953,10 +978,11 @@ router.get('/plans/:id/subscribers', async (req, res) => {
           const User = tenantConn.model('User', new mongoose.Schema({ role: String }));
           userCount = await User.countDocuments({ role: { $nin: ['admin', 'super_admin'] } });
 
-          // Count Total Nodes
+          // Count Total Nodes & Workflows
           const Workflow = tenantConn.model('Workflow', new mongoose.Schema({ nodes: Array }));
           const workflows = await Workflow.find({}, 'nodes');
           nodeCount = workflows.reduce((acc, wf) => acc + (wf.nodes?.length || 0), 0);
+          workflowCount = workflows.length;
 
           await tenantConn.close();
         }
@@ -971,7 +997,8 @@ router.get('/plans/:id/subscribers', async (req, res) => {
         status: tenant.status,
         consumption: {
           users: userCount,
-          nodes: nodeCount
+          nodes: nodeCount,
+          workflows: workflowCount
         }
       };
     }));

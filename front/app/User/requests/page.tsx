@@ -21,7 +21,9 @@ import {
   LifeBuoy,
   History,
   Send,
-  Plus
+  Plus,
+  Trash2,
+  Users
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
@@ -33,8 +35,10 @@ export default function UserRequestsPage() {
   const [loading, setLoading] = useState(true);
   const [loadingMyReports, setLoadingMyReports] = useState(false);
   const [selectedReport, setSelectedReport] = useState<any>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [reportToDelete, setReportToDelete] = useState<string | null>(null);
   const [response, setResponse] = useState('');
-  const [activeTab, setActiveTab] = useState<'incoming' | 'my_reports'>('incoming');
+  const [activeTab, setActiveTab] = useState<'incoming' | 'submit' | 'history'>('incoming');
   
   const [formData, setFormData] = useState({
     subject: '',
@@ -53,9 +57,21 @@ export default function UserRequestsPage() {
     try {
       setLoading(true);
       const res = await apiService.getTaskReports(false); // Only mine
+      const supportRes = await api.get('/api/reports/my-reports');
+      
+      let combinedReports = [];
       if (res.success) {
-        setReports(res.data);
+        combinedReports = [...res.data.map((r: any) => ({ ...r, isTaskReport: true }))];
       }
+      if (supportRes.data.success) {
+        // Only include support reports that have a response (meaning admin replied)
+        const respondedSupport = supportRes.data.data.filter((r: any) => r.response && r.status !== 'deleted');
+        combinedReports = [...combinedReports, ...respondedSupport.map((r: any) => ({ ...r, isSupportReport: true }))];
+      }
+      
+      // Sort by date
+      combinedReports.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setReports(combinedReports);
     } catch (err) {
       console.error('Error fetching reports:', err);
     } finally {
@@ -115,22 +131,44 @@ export default function UserRequestsPage() {
     }
   };
 
+  const handleDeleteReport = async (id: string) => {
+    setReportToDelete(id);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!reportToDelete) return;
+    try {
+      const res = await api.delete(`/api/reports/${reportToDelete}`);
+      if (res.data.success) {
+        toast.success('Report intel purged successfully.');
+        setSelectedReport(null);
+        setShowDeleteConfirm(false);
+        setReportToDelete(null);
+        fetchMyReports();
+      }
+    } catch (err) {
+      toast.error('Failed to purge report intel.');
+    }
+  };
+
   if (loading && activeTab === 'incoming') return <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4"><Activity className="animate-spin text-indigo-500" /><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Syncing Request Center...</p></div>;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-10 pb-20 animate-in fade-in duration-700">
+    <>
+    <div className="max-w-6xl mx-auto space-y-10 pb-20">
       <div className="bg-white p-10 rounded-[40px] border border-slate-100 shadow-xl shadow-slate-100/50 relative overflow-hidden">
-         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full -mr-20 -mt-20"></div>
+         <div className="absolute top-0 right-0 w-64 h-64 bg-rose-500/5 rounded-full -mr-20 -mt-20"></div>
          <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 relative z-10">
             <div className="space-y-3">
                <div className="flex items-center gap-4">
-                  <div className="p-4 bg-indigo-600 text-white rounded-3xl shadow-2xl shadow-indigo-100">
+                  <div className="p-4 bg-rose-600 text-white rounded-3xl shadow-2xl shadow-rose-100">
                      <ShieldAlert size={32} />
                   </div>
                   <div>
                      <h1 className="text-4xl font-black text-slate-800 tracking-tight leading-none uppercase">Request Center</h1>
                      <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mt-2 flex items-center gap-2">
-                        <Activity size={12} className="text-indigo-500" /> Administrative Communication Hub
+                        <Activity size={12} className="text-rose-500" /> Administrative Communication Hub
                      </p>
                   </div>
                </div>
@@ -142,14 +180,21 @@ export default function UserRequestsPage() {
                 className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'incoming' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
               >
                 <ShieldAlert size={16} />
-                Action Requests ({reports.filter(r => r.status === 'pending').length})
+                Action Requests ({reports.length})
               </button>
               <button 
-                onClick={() => setActiveTab('my_reports')}
-                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'my_reports' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                onClick={() => setActiveTab('submit')}
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'submit' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
               >
                 <LifeBuoy size={16} />
                 My Support Hub
+              </button>
+              <button 
+                onClick={() => setActiveTab('history')}
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'history' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+              >
+                <History size={16} />
+                History ({myReports.length})
               </button>
             </div>
          </div>
@@ -188,11 +233,15 @@ export default function UserRequestsPage() {
                          {report.status === 'pending' ? <AlertCircle size={28} /> : <CheckCircle2 size={28} />}
                       </div>
                       <div className="space-y-2">
-                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Instance: {report.instanceId?.title || 'System Process'}</p>
-                         <h3 className="text-xl font-black text-slate-800 tracking-tight leading-none uppercase max-w-[400px] truncate">{report.message}</h3>
+                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                           {report.isSupportReport ? 'Support Response' : `Instance: ${report.instanceId?.title || 'System Process'}`}
+                         </p>
+                         <h3 className="text-xl font-black text-slate-800 tracking-tight leading-none uppercase max-w-[400px] truncate">
+                           {report.isSupportReport ? report.subject : report.message}
+                         </h3>
                          <div className="flex items-center gap-3">
                             <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${report.status === 'pending' ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}`}>
-                               {report.status}
+                               {report.isSupportReport ? 'RESOLVED' : report.status}
                             </span>
                             <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
                                <Clock size={10} /> {new Date(report.createdAt).toLocaleDateString()}
@@ -202,8 +251,25 @@ export default function UserRequestsPage() {
                    </div>
 
                    <div className="flex items-center gap-4 shrink-0">
-                      <Link href={`/Workflows/instances/${report.instanceId?._id}`}>
-                         <button className="p-4 bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-2xl border border-transparent hover:border-slate-100 transition-all shadow-sm">
+                      {report.isSupportReport && (
+                        <button 
+                          onClick={() => handleDeleteReport(report._id)}
+                          className="p-4 bg-rose-50 text-rose-400 hover:text-rose-600 hover:bg-white rounded-2xl border border-transparent hover:border-rose-100 transition-all shadow-sm"
+                          title="Purge Resolution"
+                        >
+                          <Trash2 size={20} />
+                        </button>
+                      )}
+                      <Link href={report.isSupportReport ? '#' : `/Workflows/instances/${report.instanceId?._id}`}>
+                         <button 
+                           onClick={(e) => {
+                             if (report.isSupportReport) {
+                               e.preventDefault();
+                               setSelectedReport(report);
+                             }
+                           }}
+                           className="p-4 bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-2xl border border-transparent hover:border-slate-100 transition-all shadow-sm"
+                         >
                             <ExternalLink size={20} />
                          </button>
                       </Link>
@@ -213,17 +279,17 @@ export default function UserRequestsPage() {
                           report.status === 'pending' ? 'bg-rose-600 text-white shadow-xl shadow-rose-100' : 'bg-slate-900 text-white'
                         }`}
                       >
-                         {report.status === 'pending' ? <MessageCircle size={18} /> : <Eye size={18} />}
-                         {report.status === 'pending' ? 'Respond to Feedback' : 'View Resolution'}
+                         {report.isSupportReport ? <Eye size={18} /> : (report.status === 'pending' ? <MessageCircle size={18} /> : <Eye size={18} />)}
+                         {report.isSupportReport ? 'View Support Resolution' : (report.status === 'pending' ? 'Respond to Feedback' : 'View Resolution')}
                       </button>
                    </div>
                 </motion.div>
               ))
             )}
           </motion.div>
-        ) : (
+        ) : activeTab === 'submit' ? (
           <motion.div
-            key="my-reports-section"
+            key="submit-section"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
@@ -315,132 +381,204 @@ export default function UserRequestsPage() {
                 </div>
               </form>
             </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="history-section"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="space-y-6"
+          >
+            <div className="flex items-center gap-3 px-4">
+              <History size={16} className="text-slate-400" />
+              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Support Submission History</h3>
+              <div className="h-px bg-slate-100 flex-1 ml-4 opacity-50" />
+            </div>
 
-            <div className="space-y-6">
-              <div className="flex items-center gap-3 px-4">
-                <History size={16} className="text-slate-400" />
-                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Support Submission History</h3>
-                <div className="h-px bg-slate-100 flex-1 ml-4 opacity-50" />
+            {loadingMyReports ? (
+              <div className="p-12 text-center text-slate-300 font-black text-[10px] uppercase tracking-widest">Accessing historical data...</div>
+            ) : myReports.length === 0 ? (
+              <div className="bg-white rounded-[32px] p-12 text-center border border-dashed border-slate-200">
+                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">No previous submissions recorded.</p>
               </div>
-
-              {loadingMyReports ? (
-                <div className="p-12 text-center text-slate-300 font-black text-[10px] uppercase tracking-widest">Accessing historical data...</div>
-              ) : myReports.length === 0 ? (
-                <div className="bg-white rounded-[32px] p-12 text-center border border-dashed border-slate-200">
-                  <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">No previous submissions recorded.</p>
-                </div>
-              ) : (
-                myReports.map((report) => (
-                  <div 
-                    key={report._id}
-                    onClick={() => setSelectedReport({...report, isUserReport: true})}
-                    className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl transition-all cursor-pointer group flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-6">
-                      <div className={`p-3 rounded-xl ${report.status === 'resolved' ? 'bg-emerald-50 text-emerald-500' : 'bg-slate-50 text-slate-400'}`}>
-                        {report.status === 'resolved' ? <CheckCircle2 size={20} /> : <Clock size={20} />}
-                      </div>
-                      <div className="space-y-1">
-                        <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">{report.subject}</h4>
-                        <div className="flex items-center gap-3">
-                          <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${
-                            report.priority === 'urgent' ? 'bg-rose-500 text-white' : 'bg-slate-100 text-slate-500'
-                          }`}>{report.priority}</span>
-                          <span className="text-[10px] font-bold text-slate-400 tracking-tight">{new Date(report.createdAt).toLocaleDateString()}</span>
-                        </div>
+            ) : (
+              myReports.map((report) => (
+                <div 
+                  key={report._id}
+                  onClick={() => setSelectedReport({...report, isUserReport: true})}
+                  className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl transition-all cursor-pointer group flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-6">
+                    <div className={`p-3 rounded-xl ${report.status === 'resolved' ? 'bg-emerald-50 text-emerald-500' : 'bg-slate-50 text-slate-400'}`}>
+                      {report.status === 'resolved' ? <CheckCircle2 size={20} /> : <Clock size={20} />}
+                    </div>
+                    <div className="space-y-1">
+                      <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">{report.subject}</h4>
+                      <div className="flex items-center gap-3">
+                        <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${
+                          report.priority === 'urgent' ? 'bg-rose-500 text-white' : 'bg-slate-100 text-slate-500'
+                        }`}>{report.priority}</span>
+                        <span className="text-[10px] font-bold text-slate-400 tracking-tight">{new Date(report.createdAt).toLocaleDateString()}</span>
                       </div>
                     </div>
-                    <ChevronRight size={18} className="text-slate-300 group-hover:text-indigo-600 transition-all group-hover:translate-x-1" />
                   </div>
-                ))
-              )}
-            </div>
+                  <ChevronRight size={18} className="text-slate-300 group-hover:text-indigo-600 transition-all group-hover:translate-x-1" />
+                </div>
+              ))
+            )}
           </motion.div>
         )}
       </AnimatePresence>
-
-      <AnimatePresence>
-        {selectedReport && (
-          <div className="fixed inset-0 z-[500] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedReport(null)} className="absolute inset-0 bg-slate-900/40" />
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              className="bg-white rounded-[40px] shadow-2xl w-full max-w-2xl relative z-10 overflow-hidden flex flex-col"
-            >
-               <div className={`p-10 text-white relative ${selectedReport.status === 'pending' ? 'bg-rose-600' : 'bg-emerald-600'}`}>
-                  <button onClick={() => setSelectedReport(null)} className="absolute top-8 right-8 p-3 hover:bg-white/10 rounded-xl transition-all"><X size={20} /></button>
-                  <p className="text-[10px] font-black uppercase tracking-[0.4em] opacity-80 mb-2">
-                    {selectedReport.isUserReport ? 'Outgoing Support Intel' : 'Protocol Anomaly Investigation'}
-                  </p>
-                  <h2 className="text-3xl font-black uppercase tracking-tight">
-                    {selectedReport.isUserReport ? 'Report Detail' : 'Modification Request'}
-                  </h2>
-               </div>
-
-               <div className="p-10 space-y-8 overflow-y-auto max-h-[60vh] custom-scrollbar">
-                  <div className="space-y-4">
-                     <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest flex items-center gap-2">
-                        <ShieldAlert size={16} /> {selectedReport.isUserReport ? 'Your Description' : 'Admin Message'}
-                     </p>
-                     <div className="p-8 bg-rose-50 text-rose-900 font-bold rounded-[32px] border border-rose-100 italic leading-relaxed text-lg">
-                        "{selectedReport.isUserReport ? selectedReport.description : selectedReport.message}"
-                     </div>
-                  </div>
-
-                  {selectedReport.submissionData && !selectedReport.isUserReport && (
-                      <div className="space-y-4">
-                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                            <FileText size={16} /> Referenced Data Payload
-                         </p>
-                         <div className="grid grid-cols-2 gap-3">
-                            {Object.entries(selectedReport.submissionData).map(([k, v]: any) => (
-                               <div key={k} className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{k}</p>
-                                  <p className="text-xs font-black text-slate-700">{String(v)}</p>
-                               </div>
-                            ))}
-                         </div>
-                      </div>
-                   )}
-
-                  {selectedReport.status === 'pending' ? (
-                     !selectedReport.isUserReport && (
-                       <div className="space-y-4 pt-6 border-t border-slate-100">
-                          <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest flex items-center gap-2">
-                             <MessageCircle size={16} /> Resolution Logic
-                          </p>
-                          <textarea 
-                            value={response}
-                            onChange={(e) => setResponse(e.target.value)}
-                            placeholder="Explain your corrective actions here..."
-                            className="w-full h-32 p-6 bg-slate-50 border-none rounded-3xl focus:ring-4 focus:ring-indigo-50 outline-none text-sm font-bold text-slate-800 placeholder:text-slate-400 transition-all shadow-inner"
-                          />
-                          <button 
-                            onClick={() => handleResolve(selectedReport._id)}
-                            className="w-full py-5 bg-indigo-600 text-white rounded-3xl font-black text-xs uppercase tracking-[0.3em] shadow-xl shadow-indigo-100 flex items-center justify-center gap-4"
-                          >
-                             <CheckCircle2 size={18} /> Submit Fix
-                          </button>
-                       </div>
-                     )
-                   ) : (
-                     <div className="space-y-4 pt-6 border-t border-slate-100">
-                        <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-2">
-                           <CheckCircle2 size={16} /> Provided Resolution
-                        </p>
-                        <div className="p-8 bg-emerald-50 text-emerald-900 font-bold rounded-[32px] border border-emerald-100 italic leading-relaxed">
-                           "{selectedReport.response}"
-                        </div>
-                     </div>
-                   )}
-               </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-      <Toaster position="top-right" richColors />
     </div>
+
+    <AnimatePresence>
+      {selectedReport && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            onClick={() => setSelectedReport(null)} 
+            className="absolute inset-0 bg-slate-900/80 backdrop-blur-xl" 
+          />
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 20 }}
+            className="bg-white rounded-[40px] shadow-2xl w-full max-w-2xl relative z-10 overflow-hidden flex flex-col"
+          >
+             <div className={`p-10 text-white relative ${selectedReport.status === 'pending' ? 'bg-rose-600' : 'bg-emerald-600'}`}>
+                <div className="absolute top-8 right-8 flex items-center gap-2">
+                  {selectedReport.isUserReport && (
+                     <button 
+                       onClick={() => handleDeleteReport(selectedReport._id)}
+                       className="p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-all text-white/80 hover:text-white"
+                       title="Purge Intelligence"
+                     >
+                       <Trash2 size={20} />
+                     </button>
+                  )}
+                  <button onClick={() => setSelectedReport(null)} className="p-3 hover:bg-white/10 rounded-xl transition-all"><X size={20} /></button>
+                </div>
+                <p className="text-[10px] font-black uppercase tracking-[0.4em] opacity-80 mb-2">
+                  {selectedReport.isUserReport ? 'Outgoing Support Intel' : 'Protocol Anomaly Investigation'}
+                </p>
+                <h2 className="text-3xl font-black uppercase tracking-tight">
+                  {selectedReport.isUserReport ? 'Report Detail' : 'Modification Request'}
+                </h2>
+                {selectedReport.isUserReport && (
+                   <div className="mt-4 flex items-center gap-2 px-3 py-1 bg-white/10 w-fit rounded-lg border border-white/10">
+                     <Users size={12} className="text-white/60" />
+                     <span className="text-[9px] font-black uppercase tracking-widest text-white/80">Recipient: Tenant Administrator</span>
+                   </div>
+                )}
+             </div>
+
+             <div className="p-10 space-y-8 overflow-y-auto max-h-[60vh] custom-scrollbar">
+                <div className="space-y-4">
+                   <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest flex items-center gap-2">
+                      <ShieldAlert size={16} /> {selectedReport.isUserReport ? 'Your Description' : 'Admin Message'}
+                   </p>
+                   <div className="p-8 bg-rose-50 text-rose-900 font-bold rounded-[32px] border border-rose-100 italic leading-relaxed text-lg">
+                      "{selectedReport.isUserReport ? selectedReport.description : selectedReport.message}"
+                   </div>
+                </div>
+
+                {selectedReport.submissionData && !selectedReport.isUserReport && (
+                    <div className="space-y-4">
+                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                          <FileText size={16} /> Referenced Data Payload
+                       </p>
+                       <div className="grid grid-cols-2 gap-3">
+                          {Object.entries(selectedReport.submissionData).map(([k, v]: any) => (
+                             <div key={k} className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{k}</p>
+                                <p className="text-xs font-black text-slate-700">{String(v)}</p>
+                             </div>
+                          ))}
+                       </div>
+                    </div>
+                 )}
+
+                {selectedReport.status === 'pending' ? (
+                   !selectedReport.isUserReport && (
+                     <div className="space-y-4 pt-6 border-t border-slate-100">
+                        <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest flex items-center gap-2">
+                           <MessageCircle size={16} /> Resolution Logic
+                        </p>
+                        <textarea 
+                          value={response}
+                          onChange={(e) => setResponse(e.target.value)}
+                          placeholder="Explain your corrective actions here..."
+                          className="w-full h-32 p-6 bg-slate-50 border-none rounded-3xl focus:ring-4 focus:ring-indigo-50 outline-none text-sm font-bold text-slate-800 placeholder:text-slate-400 transition-all shadow-inner"
+                        />
+                        <button 
+                          onClick={() => handleResolve(selectedReport._id)}
+                          className="w-full py-5 bg-indigo-600 text-white rounded-3xl font-black text-xs uppercase tracking-[0.3em] shadow-xl shadow-indigo-100 flex items-center justify-center gap-4"
+                        >
+                           <CheckCircle2 size={18} /> Submit Fix
+                        </button>
+                     </div>
+                   )
+                 ) : (
+                   <div className="space-y-4 pt-6 border-t border-slate-100">
+                      <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-2">
+                         <CheckCircle2 size={16} /> Provided Resolution
+                      </p>
+                      <div className="p-8 bg-emerald-50 text-emerald-900 font-bold rounded-[32px] border border-emerald-100 italic leading-relaxed">
+                         "{selectedReport.response}"
+                      </div>
+                   </div>
+                 )}
+             </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+    <AnimatePresence>
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            onClick={() => setShowDeleteConfirm(false)} 
+            className="absolute inset-0 bg-slate-900/90 backdrop-blur-2xl" 
+          />
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            className="bg-white rounded-[32px] p-10 max-w-md w-full relative z-10 shadow-2xl text-center border border-rose-100"
+          >
+            <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-6 border border-rose-100">
+              <Trash2 size={32} />
+            </div>
+            <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight mb-4">Confirm Purge</h3>
+            <p className="text-slate-500 font-medium leading-relaxed mb-8">
+              Are you sure you want to permanently delete this report intelligence? This protocol is irreversible.
+            </p>
+            <div className="flex flex-col gap-3">
+              <button 
+                onClick={confirmDelete}
+                className="w-full py-4 bg-rose-600 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-rose-100 hover:bg-rose-700 transition-all"
+              >
+                Confirm Deletion
+              </button>
+              <button 
+                onClick={() => setShowDeleteConfirm(false)}
+                className="w-full py-4 bg-slate-100 text-slate-500 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-slate-200 transition-all"
+              >
+                Abort Protocol
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+
+    <Toaster position="top-right" richColors />
+    </>
   );
 }

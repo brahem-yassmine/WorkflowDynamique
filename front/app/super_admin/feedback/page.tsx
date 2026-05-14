@@ -515,7 +515,7 @@ export default function FeedbackPage() {
                                         <div className="flex justify-between items-start">
                                             <div className="flex flex-col">
                                                 <span className={`text-lg font-black tracking-tight transition-colors ${selectedReport?._id === report._id ? 'text-indigo-600' : 'text-slate-800 group-hover:text-indigo-500'}`}>
-                                                    {report.adminEmail.split('@')[0]}
+                                                    {report.senderName || (report.adminEmail ? report.adminEmail.split('@')[0] : (report.senderEmail?.split('@')[0] || 'Unknown'))}
                                                 </span>
                                                 {selectedCompanyId === "ALL" && (
                                                     <span className="text-xs font-black text-slate-400 uppercase tracking-widest -mt-0.5">

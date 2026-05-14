@@ -118,7 +118,7 @@ export default function SigninPage() {
       console.log(' Login attempt for:', formData.email);
 
       // Call backend API
-      const response = await axios.post<LoginResponse>('http://localhost:5000/api/auth/login', {
+      const response = await axios.post<LoginResponse>(`${API_URL}/auth/login`, {
         email: formData.email,
         password: formData.password
       }, {
@@ -178,7 +178,7 @@ export default function SigninPage() {
         } else if (tenantId && user.role === 'admin') {
           // Fetch tenant info separately since login response doesn't include it
           try {
-            const tenantRes = await axios.get('http://localhost:5000/api/tenants/info', {
+            const tenantRes = await axios.get(`${API_URL}/tenants/info`, {
               headers: { Authorization: `Bearer ${token}` }
             });
             if (tenantRes.data.success) {
@@ -207,52 +207,47 @@ export default function SigninPage() {
       const axiosError = err as AxiosError<ApiErrorResponse>;
 
       if (axiosError.response) {
-        console.error('❌ Login Error Detail (Server Response):', {
-          status: axiosError.response.status,
-          statusText: axiosError.response.statusText,
-          data: axiosError.response.data,
-          message: axiosError.message,
-          url: axiosError.config?.url
-        });
-      } else if (axiosError.request) {
-        console.error('❌ Login Network Error (No Response):', {
-          message: axiosError.message,
-          code: axiosError.code,
-          url: axiosError.config?.url
-        });
-      } else {
-        console.error('❌ Login Request Setup Error:', axiosError.message);
-      }
-
-      // Log the full error object separately for deep inspection
-      console.dir(axiosError);
-
-      if (axiosError.response) {
-        switch (axiosError.response.status) {
+        const status = axiosError.response.status;
+        const data = axiosError.response.data;
+        console.error(`❌ Login Error [${status}]`, data);
+        console.error(`❌ Login Error RAW DATA:`, JSON.stringify(data));
+        
+        const serverMessage = data?.message || data?.error;
+        let finalMessage = '';
+        
+        switch (status) {
           case 400:
-            setError('Invalid data');
+            finalMessage = serverMessage || 'Invalid data protocol.';
             break;
           case 401:
-            setError('Invalid email or password');
+            finalMessage = serverMessage || 'Invalid credentials. Access denied.';
             break;
           case 403:
-            setError('Account not authorized or deactivated');
+            finalMessage = serverMessage || 'Account restricted or deactivated.';
             break;
           case 404:
-            setError('User not found');
+            finalMessage = serverMessage || 'Identity not found in the matrix.';
             break;
           case 500:
-            setError('Server error. Please try again later');
+            finalMessage = serverMessage || 'Master node synchronization failure.';
+            break;
+          case 503:
+            finalMessage = serverMessage || 'Service temporarily unavailable.';
             break;
           default:
-            setError(axiosError.response.data?.message || 'Login error');
+            finalMessage = serverMessage || 'Lattice connectivity error.';
         }
+        
+        setError(finalMessage);
+        toast.error(finalMessage);
       } else if (axiosError.code === 'ECONNREFUSED' || axiosError.message === 'Network Error') {
-        setError('Cannot connect to server. Please check if backend is running on port 5000');
-      } else if (axiosError.request) {
-        setError('Unable to reach server. Check your connection');
+        const msg = 'Cannot reach the master node. Ensure the backend is running on port 5000.';
+        setError(msg);
+        toast.error(msg);
       } else {
-        setError(axiosError.message || 'An error occurred');
+        const msg = axiosError.message || 'An unexpected protocol anomaly occurred.';
+        setError(msg);
+        toast.error(msg);
       }
     } finally {
       setLoading(false);

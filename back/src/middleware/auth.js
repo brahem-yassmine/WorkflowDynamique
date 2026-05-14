@@ -1,6 +1,13 @@
-// back/src/middleware/auth.js
 const jwt = require('jsonwebtoken');
 const { normalizePermission } = require('../utils/permission.utils');
+
+/**
+ * Helper to robustly extract role string from user object or string
+ */
+const extractRole = (role) => {
+  const userRole = typeof role === 'object' ? role?.name || role?.label || role?.slug : role;
+  return String(userRole || '').toLowerCase();
+};
 
 const auth = async (req, res, next) => {
   try {
@@ -16,14 +23,28 @@ const auth = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
     req.user = decoded;
 
-    const requestedTenantId = req.headers['x-tenant-id'] || req.query.tenantId;
+    // NORMALIZE ROLE: Ensure it's always a string for the rest of the app
+    req.user.role = extractRole(req.user.role);
 
-    if (requestedTenantId && req.user.role !== 'super_admin') {
-      if (req.user.tenantId && req.user.tenantId !== requestedTenantId) {
-        console.warn(`🛑 Inter-tenant access attempt blocked: User(${req.user.email}) -> Tenant(${requestedTenantId})`);
+    let requestedTenantId = req.headers['x-tenant-id'] || req.query.tenantId;
+    
+    // Safety check for common frontend storage issues
+    if (requestedTenantId === 'undefined' || requestedTenantId === 'null') {
+      requestedTenantId = null;
+    }
+
+    const isSuperAdmin = req.user.role === 'super_admin';
+
+    // Domain isolation bypass for Super Admins
+    if (requestedTenantId && !isSuperAdmin) {
+      const userTenantId = req.user.tenantId?.toString();
+      const targetTenantId = requestedTenantId?.toString();
+
+      if (userTenantId && userTenantId !== targetTenantId) {
+        console.warn(`🛑 [AuthIsolation] Blocked: User(${req.user.email}) [Tenant: ${userTenantId}] -> Requested Tenant(${targetTenantId})`);
         return res.status(403).json({
           success: false,
-          message: 'Access denied: Domain isolation enabled.'
+          message: `Access denied: Domain isolation enabled. User belongs to ${userTenantId} but requested ${targetTenantId}.`
         });
       }
     }
@@ -43,22 +64,38 @@ const requireRole = (role) => {
       return res.status(401).json({ success: false, message: 'Non authentifié' });
     }
 
-    const rawRole = req.user.role;
-    const userRole = typeof rawRole === 'object' ? rawRole?.name || rawRole?.label || rawRole?.slug : rawRole;
-    const roleString = String(userRole || '').toLowerCase();
+    const roleString = extractRole(req.user.role);
+    const requiredRole = String(role || '').toLowerCase();
 
-    // Aggressive Admin detection
+    // Super Admin always passes everything
+    const isSuperAdmin = roleString === 'super_admin';
+    if (isSuperAdmin) return next();
+
+    // Aggressive Admin detection (but only if requested role is 'admin' or matches exactly)
     const isAdmin = 
       roleString === 'admin' || 
-      roleString === 'super_admin' || 
       roleString.includes('admin') || 
-      roleString.includes('super') || 
       roleString.includes('owner') ||
       req.user.permissions?.includes('all');
 
-    if (isAdmin || roleString === role.toLowerCase()) {
+    // If super_admin is required, ONLY super_admin (handled above) can pass
+    if (requiredRole === 'super_admin') {
+        console.warn(`🛑 [Access Denied] User: ${req.user.email} (Role: ${roleString}) attempted to access super_admin only route.`);
+        return res.status(403).json({
+            success: false,
+            message: "Forbidden: This action requires the super_admin role."
+        });
+    }
+
+    if (isAdmin && (requiredRole === 'admin' || roleString === requiredRole)) {
       return next();
     }
+
+    if (roleString === requiredRole) {
+      return next();
+    }
+
+    console.warn(`🛑 [Access Denied] User: ${req.user.email} (Role: ${roleString}) | Required: ${requiredRole}`);
 
     return res.status(403).json({
       success: false,

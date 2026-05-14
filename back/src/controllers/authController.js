@@ -123,11 +123,14 @@ const login = async (req, res) => {
     console.log('🔑 Login attempt:', email);
 
     if (!email || !password) {
+      console.warn('⚠️ Login failed: Missing email or password');
       return res.status(400).json({
         success: false,
         message: 'Email and password required'
       });
     }
+
+    console.log(`🔐 [Login] Processing credentials for: ${email}`);
 
     // 1. Search in super_admin first
     const SuperAdmin = getSuperAdminModel(req);
@@ -179,6 +182,7 @@ const login = async (req, res) => {
     }
 
     if (!user) {
+      console.warn(`🛑 [Login] Identity not found: ${email}`);
       await logService.logLoginFailed(email, req, 'Incorrect email or password');
       return res.status(401).json({
         success: false,
@@ -189,6 +193,7 @@ const login = async (req, res) => {
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
+      console.warn(`🛑 [Login] Invalid password for: ${email}`);
       await logService.logLoginFailed(email, req, 'Incorrect email or password');
       return res.status(401).json({
         success: false,

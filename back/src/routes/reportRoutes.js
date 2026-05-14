@@ -175,7 +175,12 @@ router.delete('/:id', auth, async (req, res) => {
     }
 
     // Verify ownership or super_admin role
-    if (req.user.role !== 'super_admin' && req.user.tenantId?.toString() !== report.tenantId?.toString()) {
+    const userRole = req.user.role; // Already normalized by auth middleware
+    const userTenantId = req.user.tenantId?.toString();
+    const reportTenantId = report.tenantId?.toString();
+
+    if (userRole !== 'super_admin' && userTenantId !== reportTenantId) {
+      console.warn(`🛑 [ReportDeleteDenied] User(${req.user.email}) Role: ${userRole} | UserTenant: ${userTenantId} | ReportTenant: ${reportTenantId}`);
       return res.status(403).json({ success: false, message: 'Not authorized to delete this report' });
     }
 

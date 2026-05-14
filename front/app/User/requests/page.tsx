@@ -146,9 +146,15 @@ export default function UserRequestsPage() {
         setShowDeleteConfirm(false);
         setReportToDelete(null);
         fetchMyReports();
+        fetchReports();
       }
-    } catch (err) {
-      toast.error('Failed to purge report intel.');
+    } catch (err: any) {
+      console.error('❌ [ConfirmDelete] Critical Failure:', {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message
+      });
+      toast.error(err.response?.data?.message || 'Failed to purge report intel.');
     }
   };
 
@@ -253,7 +259,10 @@ export default function UserRequestsPage() {
                    <div className="flex items-center gap-4 shrink-0">
                       {report.isSupportReport && (
                         <button 
-                          onClick={() => handleDeleteReport(report._id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteReport(report._id);
+                          }}
                           className="p-4 bg-rose-50 text-rose-400 hover:text-rose-600 hover:bg-white rounded-2xl border border-transparent hover:border-rose-100 transition-all shadow-sm"
                           title="Purge Resolution"
                         >
@@ -423,7 +432,19 @@ export default function UserRequestsPage() {
                       </div>
                     </div>
                   </div>
-                  <ChevronRight size={18} className="text-slate-300 group-hover:text-indigo-600 transition-all group-hover:translate-x-1" />
+                  <div className="flex items-center gap-3">
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteReport(report._id);
+                      }}
+                      className="p-3 bg-rose-50 text-rose-400 hover:text-rose-600 hover:bg-rose-100 rounded-xl transition-all"
+                      title="Purge Intel"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                    <ChevronRight size={18} className="text-slate-300 group-hover:text-indigo-600 transition-all group-hover:translate-x-1" />
+                  </div>
                 </div>
               ))
             )}
@@ -440,7 +461,7 @@ export default function UserRequestsPage() {
             animate={{ opacity: 1 }} 
             exit={{ opacity: 0 }} 
             onClick={() => setSelectedReport(null)} 
-            className="absolute inset-0 bg-slate-900/80 backdrop-blur-xl" 
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-md" 
           />
           <motion.div
             initial={{ scale: 0.95, opacity: 0, y: 20 }}
@@ -544,7 +565,7 @@ export default function UserRequestsPage() {
             animate={{ opacity: 1 }} 
             exit={{ opacity: 0 }} 
             onClick={() => setShowDeleteConfirm(false)} 
-            className="absolute inset-0 bg-slate-900/90 backdrop-blur-2xl" 
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-md" 
           />
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}

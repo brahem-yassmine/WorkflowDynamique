@@ -29,6 +29,11 @@ interface Report {
   response?: string;
   respondedAt?: string;
   createdAt: string;
+  senderRole?: string;
+  senderName?: string;
+  senderEmail?: string;
+  senderId?: any;
+  adminId?: string;
 }
 
 export default function ReportsPage() {
@@ -350,10 +355,10 @@ export default function ReportsPage() {
                          report.type === 'comment' ? 'Comment' : report.type}
                       </div>
                       <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold border uppercase tracking-tight ${
-                        report.senderRole === 'user' ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'bg-indigo-50 text-indigo-600 border-indigo-100'
+                        (report.senderRole === 'admin' || report.senderRole === 'super_admin' || report.adminId) ? 'bg-violet-50 text-violet-600 border-violet-100' : 'bg-indigo-50 text-indigo-600 border-indigo-100'
                       }`}>
-                        <Send size={10} />
-                        {report.senderRole === 'user' ? 'Sent to: User' : 'Sent to: Super Admin'}
+                        {(report.senderRole === 'admin' || report.senderRole === 'super_admin' || report.adminId) ? <Send size={10} /> : <Users size={10} />}
+                        {(report.senderRole === 'admin' || report.senderRole === 'super_admin' || report.adminId) ? 'Sent to: Super Admin' : 'Received from: User'}
                       </div>
                     </div>
                     <div className="text-xs font-bold text-slate-400">
@@ -426,8 +431,14 @@ export default function ReportsPage() {
                       <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${getPriorityColor(report.priority)}`}>
                         {report.priority}
                       </span>
+                      <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tight ${
+                        (report.senderRole === 'admin' || report.senderRole === 'super_admin' || report.adminId) ? 'bg-violet-50 text-violet-600 border-violet-100' : 'bg-indigo-50 text-indigo-600 border-indigo-100'
+                      }`}>
+                        {(report.senderRole === 'admin' || report.senderRole === 'super_admin' || report.adminId) ? <Send size={10} /> : <Users size={10} />}
+                        {(report.senderRole === 'admin' || report.senderRole === 'super_admin' || report.adminId) ? 'Sent to: Super Admin' : 'Received from: User'}
+                      </div>
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                        From: <span className="text-slate-900">{report.senderId?.name || 'Anonymous User'}</span>
+                        From: <span className="text-slate-900">{report.senderName || 'Anonymous User'}</span>
                       </span>
                     </div>
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
@@ -463,18 +474,17 @@ export default function ReportsPage() {
           </motion.div>
         )}
       </AnimatePresence>
-      <Toaster position="top-right" richColors />
 
       {/* Detail Modal */}
       <AnimatePresence>
         {isDetailModalOpen && selectedReport && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsDetailModalOpen(false)}
-              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-md"
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -553,7 +563,7 @@ export default function ReportsPage() {
                     </h3>
                     <div className="bg-indigo-50 rounded-[2rem] p-6 border border-indigo-100 text-slate-700 leading-relaxed font-medium italic relative">
                       <div className="absolute -top-3 right-6 bg-white px-4 py-1 rounded-full border border-indigo-100 text-[9px] font-bold text-indigo-400 uppercase tracking-widest">
-                        Reply from {selectedReport.senderRole === 'user' ? 'Administration' : 'Super Admin'}
+                        Reply from {(selectedReport.senderRole === 'admin' || selectedReport.senderRole === 'super_admin' || selectedReport.adminId) ? 'Super Admin' : 'Administration'}
                       </div>
                       "{selectedReport.response}"
                       {selectedReport.respondedAt && (
@@ -616,7 +626,7 @@ export default function ReportsPage() {
               animate={{ opacity: 1 }} 
               exit={{ opacity: 0 }} 
               onClick={() => setShowDeleteConfirm(false)} 
-              className="absolute inset-0 bg-slate-900/90 backdrop-blur-2xl" 
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-md" 
             />
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}

@@ -190,7 +190,7 @@ export default function FeedbackPage() {
                 description: (
                     <div className="flex flex-col gap-1.5 mt-1">
                         <span className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">
-                            Submitted by <span className="text-indigo-600">{report.adminEmail.split('@')[0]}</span>
+                            Submitted by <span className="text-indigo-600">{(report.adminEmail || report.senderEmail || 'unknown')?.split('@')[0]}</span>
                         </span>
                         <span className="text-sm font-medium text-slate-600 line-clamp-2 leading-relaxed">
                             "{report.description}"
@@ -230,7 +230,7 @@ export default function FeedbackPage() {
                     description: (
                         <div className="flex flex-col gap-1.5 mt-1">
                             <span className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">
-                                Evaluated by <span className="text-emerald-600">Super Admin</span> • Report from <span className="text-indigo-600">{report.adminEmail.split('@')[0]}</span>
+                                Evaluated by <span className="text-emerald-600">Super Admin</span> • Report from <span className="text-indigo-600">{(report.adminEmail || report.senderEmail || 'unknown')?.split('@')[0]}</span>
                             </span>
                             <span className={`text-sm font-medium text-slate-600 italic leading-relaxed ${!report.response && 'opacity-60'}`}>
                                 {report.response ? `"${report.response}"` : 'No resolution narrative provided.'}
@@ -589,8 +589,8 @@ export default function FeedbackPage() {
                                         <div>
                                             <div className="flex items-center gap-3 mb-2">
                                                 <h3 className="text-3xl font-black text-slate-900 tracking-tighter flex items-center gap-2">
-                                                    {selectedReport.adminEmail.split('@')[0]}
-                                                    <span className="text-base font-medium text-slate-400">({selectedReport.adminEmail})</span>
+                                                    {(selectedReport.adminEmail || selectedReport.senderEmail || 'unknown')?.split('@')[0]}
+                                                    <span className="text-base font-medium text-slate-400">({selectedReport.adminEmail || selectedReport.senderEmail})</span>
                                                 </h3>
                                             </div>
                                             <div className="flex gap-2 mb-2 items-center flex-wrap">

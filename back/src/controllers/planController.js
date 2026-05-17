@@ -45,7 +45,10 @@ exports.getPlans = async (req, res) => {
     }
 
     // Perform query
-    const plans = await Plan.find({ isActive: true })
+    const now = new Date();
+    const plans = await Plan.find({ 
+      isActive: true
+    })
       .sort({ price: 1 })
       .lean();
 

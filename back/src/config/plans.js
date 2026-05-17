@@ -24,7 +24,7 @@ module.exports = {
         code: 'STARTER',
         price: 79,
         features: {
-          maxUsers: 10,
+          maxUsers: 50,
           maxWorkflows: 50,
           maxNodes: 999999,
           maxStaff: 10,

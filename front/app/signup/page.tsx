@@ -50,7 +50,6 @@ interface Plan {
   features: {
     maxUsers: number;
     maxWorkflows: number;
-    maxWorkflowsPerUser: number;
     reports: boolean;
     aiSupport: boolean;
     customSupport: boolean;
@@ -174,20 +173,30 @@ export default function SignupPage() {
   };
 
   const handlePaymentChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
+    const { name: rawName, value } = e.target;
+    
+    // Map obfuscated/neutral names back to state keys
+    const fieldMap: Record<string, string> = {
+      "cn": "cardNumber",
+      "ch": "cardHolder",
+      "ed": "expiryDate",
+      "cv": "cvv",
+    };
+    
+    const targetName = fieldMap[rawName] || rawName;
 
     // Format card number with spaces
-    if (name === "cardNumber") {
+    if (targetName === "cardNumber") {
       const cleaned = value.replace(/\s/g, "");
       if (cleaned.length <= 16) {
         const formatted = cleaned.match(/.{1,4}/g)?.join(" ") || cleaned;
-        setPaymentDetails(prev => ({ ...prev, [name]: formatted }));
+        setPaymentDetails(prev => ({ ...prev, [targetName]: formatted }));
       }
       return;
     }
 
     // Format expiry date (MM/YY)
-    if (name === "expiryDate") {
+    if (targetName === "expiryDate") {
       const cleaned = value.replace(/\D/g, "");
       if (cleaned.length <= 4) {
         const isDeleting = value.length < paymentDetails.expiryDate.length;
@@ -197,31 +206,31 @@ export default function SignupPage() {
           const validMonthStr = month > 12 ? '12' : monthStr;
 
           if (cleaned.length > 2) {
-            setPaymentDetails(prev => ({ ...prev, [name]: `${validMonthStr}/${cleaned.slice(2)}` }));
+            setPaymentDetails(prev => ({ ...prev, [targetName]: `${validMonthStr}/${cleaned.slice(2)}` }));
           } else if (cleaned.length === 2) {
             if (isDeleting) {
-              setPaymentDetails(prev => ({ ...prev, [name]: validMonthStr }));
+              setPaymentDetails(prev => ({ ...prev, [targetName]: validMonthStr }));
             } else {
-              setPaymentDetails(prev => ({ ...prev, [name]: `${validMonthStr}/` }));
+              setPaymentDetails(prev => ({ ...prev, [targetName]: `${validMonthStr}/` }));
             }
           }
         } else {
-          setPaymentDetails(prev => ({ ...prev, [name]: cleaned }));
+          setPaymentDetails(prev => ({ ...prev, [targetName]: cleaned }));
         }
       }
       return;
     }
 
     // Limit CVV to 3-4 digits
-    if (name === "cvv") {
+    if (targetName === "cvv") {
       const cleaned = value.replace(/\D/g, "");
       if (cleaned.length <= 4) {
-        setPaymentDetails(prev => ({ ...prev, [name]: cleaned }));
+        setPaymentDetails(prev => ({ ...prev, [targetName]: cleaned }));
       }
       return;
     }
 
-    setPaymentDetails(prev => ({ ...prev, [name]: value }));
+    setPaymentDetails(prev => ({ ...prev, [targetName]: value }));
   };
 
   const handlePlanSelection = (planId: string) => {
@@ -440,7 +449,7 @@ export default function SignupPage() {
                 </div>
               </div>
 
-              <form onSubmit={(e) => { e.preventDefault(); handlePaymentSubmit(); }}>
+              <form onSubmit={(e) => { e.preventDefault(); handlePaymentSubmit(); }} autoComplete="off">
                 <div className="space-y-4">
                   {/* Card Number */}
                   <div>
@@ -450,13 +459,16 @@ export default function SignupPage() {
                     <div className="relative">
                       <input
                         type="text"
-                        name="cardNumber"
+                        name="cn"
                         value={paymentDetails.cardNumber}
                         onChange={handlePaymentChange}
                         placeholder="1234 5678 9012 3456"
                         className="w-full pr-4 pl-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
                         maxLength={19}
                         required
+                        autoComplete="new-password"
+                        autoCorrect="off"
+                        spellCheck="false"
                       />
                       <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
                     </div>
@@ -469,12 +481,15 @@ export default function SignupPage() {
                     <div className="relative">
                       <input
                         type="text"
-                        name="cardHolder"
+                        name="ch"
                         value={paymentDetails.cardHolder}
                         onChange={handlePaymentChange}
                         placeholder="John Doe"
                         className="w-full pr-4 pl-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
                         required
+                        autoComplete="new-password"
+                        autoCorrect="off"
+                        spellCheck="false"
                       />
                       <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
                     </div>
@@ -488,13 +503,16 @@ export default function SignupPage() {
                       <div className="relative">
                         <input
                           type="text"
-                          name="expiryDate"
+                          name="ed"
                           value={paymentDetails.expiryDate}
                           onChange={handlePaymentChange}
                           placeholder="MM/YY"
                           className="w-full pr-4 pl-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
                           maxLength={5}
                           required
+                          autoComplete="new-password"
+                          autoCorrect="off"
+                          spellCheck="false"
                         />
                         <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
                       </div>
@@ -507,13 +525,16 @@ export default function SignupPage() {
                       <div className="relative">
                         <input
                           type="text"
-                          name="cvv"
+                          name="cv"
                           value={paymentDetails.cvv}
                           onChange={handlePaymentChange}
                           placeholder="123"
                           className="w-full pr-4 pl-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
                           maxLength={4}
                           required
+                          autoComplete="new-password"
+                          autoCorrect="off"
+                          spellCheck="false"
                         />
                         <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
                       </div>
@@ -742,7 +763,7 @@ export default function SignupPage() {
                               {plan.price === 0 ? 'FREE' : `${plan.price}${plan.currency || 'D'}`}
                             </p>
                             <p className={`text-[8px] font-bold mt-1 uppercase tracking-tight ${formData.planId === plan._id ? 'text-indigo-600/70' : 'text-slate-400'}`}>
-                              {plan.features?.maxWorkflowsPerUser === 999999 ? 'Unlimited' : `${plan.features?.maxWorkflowsPerUser}`} Workflows/User
+                              {plan.features?.maxWorkflows === 999999 ? 'Unlimited' : `${plan.features?.maxWorkflows}`} Workflows
                             </p>
                           </label>
                         ))}

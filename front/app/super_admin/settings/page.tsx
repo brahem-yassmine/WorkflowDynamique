@@ -61,6 +61,10 @@ export default function PlatformSettingsPage() {
     location: 'Global / Distributed'
   });
 
+  // Delete Confirmation Modal State
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [planIdToDelete, setPlanIdToDelete] = useState<string | null>(null);
+
   useEffect(() => { 
     fetchData();
     const savedImg = localStorage.getItem('superAdminProfileImage');
@@ -160,6 +164,7 @@ export default function PlatformSettingsPage() {
       features: { maxWorkflows: 30 }, 
       interval: "month",
       isActive: false,
+
       isDirty: true,
       isNew: true
     };
@@ -171,24 +176,32 @@ export default function PlatformSettingsPage() {
       setPlans(plans.filter(p => p.localId !== id));
       return;
     }
+    setPlanIdToDelete(id);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeletePlan = async () => {
+    if (!planIdToDelete) return;
     
-    if (window.confirm("Are you sure you want to permanently delete this service tier?")) {
-      const toastId = toast.loading("Deleting plan...");
-      try {
-        const token = localStorage.getItem('auth_token');
-        const res = await fetch(`http://localhost:5000/api/admin/plans/${id}`, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.ok) {
-          setPlans(plans.filter(p => p._id !== id));
-          toast.success("Plan deleted successfully.", { id: toastId });
-        } else {
-          toast.error("Failed to delete plan", { id: toastId });
-        }
-      } catch (err) {
-        toast.error("Network error during deletion", { id: toastId });
+    const id = planIdToDelete;
+    setShowDeleteModal(false);
+    setPlanIdToDelete(null);
+
+    const toastId = toast.loading("Deleting plan...");
+    try {
+      const token = localStorage.getItem('auth_token');
+      const res = await fetch(`http://localhost:5000/api/admin/plans/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setPlans(plans.filter(p => p._id !== id));
+        toast.success("Plan deleted successfully.", { id: toastId });
+      } else {
+        toast.error("Failed to delete plan", { id: toastId });
       }
+    } catch (err) {
+      toast.error("Network error during deletion", { id: toastId });
     }
   };
 
@@ -228,6 +241,7 @@ export default function PlatformSettingsPage() {
             interval: plan.interval || 'month',
             currency: plan.currency || 'D',
             isActive: plan.isActive !== undefined ? plan.isActive : plan.active,
+
             features: {
               maxWorkflows: plan.features?.maxWorkflows || plan.maxWorkflows || 1,
             }
@@ -406,7 +420,7 @@ export default function PlatformSettingsPage() {
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Full Name</label>
                     <Input 
                       className="h-12 bg-slate-50 border-slate-100 rounded-xl font-bold"
-                      value={user?.firstName || user?.name || user?.email?.split('@')[0] || 'Super Admin'}
+                      value={user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : (user?.name || user?.email?.split('@')[0] || 'Axia')}
                       readOnly
                     />
                   </div>
@@ -518,7 +532,7 @@ export default function PlatformSettingsPage() {
                   const maxW = p.features?.maxWorkflows || p.maxWorkflows || 1;
                   
                   return (
-                    <div key={id} className="p-6 bg-slate-50 border border-slate-100 rounded-2xl group hover:border-indigo-100 transition-all">
+                    <div key={id} className={`p-6 bg-slate-50 border rounded-2xl group hover:border-indigo-100 transition-all border-slate-100`}>
                       <div className="flex flex-col gap-6">
                         {/* Top Row: Name and Actions */}
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -545,9 +559,9 @@ export default function PlatformSettingsPage() {
                           </div>
                           
                           <div className="flex items-center gap-3 bg-white p-2 rounded-2xl border border-slate-100 self-end sm:self-center">
-                            <Badge className={isActive ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-100 text-slate-400'}>
-                              {isActive ? 'Live' : 'Hidden'}
-                            </Badge>
+                              <Badge className={isActive ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-100 text-slate-400'}>
+                                {isActive ? 'Live' : 'Hidden'}
+                              </Badge>
                             <Switch checked={isActive} onCheckedChange={(v) => handlePlanChange(id, "isActive", v)} />
                             <div className="w-[1px] h-4 bg-slate-100 mx-1" />
                             <button 
@@ -566,7 +580,7 @@ export default function PlatformSettingsPage() {
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block text-center">Service Price (DT)</label>
                             <Input 
                               type="number" 
-                              className="h-20 text-3xl font-black bg-white border-slate-200 rounded-2xl text-center focus:ring-2 focus:ring-indigo-600 transition-all shadow-sm" 
+                              className="h-20 text-2xl font-black bg-white border-slate-200 rounded-2xl text-center focus:ring-2 focus:ring-indigo-600 transition-all shadow-sm" 
                               value={p.price} 
                               onChange={(e) => handlePlanChange(id, "price", Number(e.target.value))} 
                             />
@@ -575,7 +589,7 @@ export default function PlatformSettingsPage() {
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block text-center">Workflow Threads</label>
                             <Input 
                               type="number" 
-                              className="h-20 text-3xl font-black bg-white border-slate-200 rounded-2xl text-center focus:ring-2 focus:ring-indigo-600 transition-all shadow-sm" 
+                              className="h-20 text-2xl font-black bg-white border-slate-200 rounded-2xl text-center focus:ring-2 focus:ring-indigo-600 transition-all shadow-sm" 
                               value={maxW} 
                               onChange={(e) => handlePlanChange(id, "features", { ...p.features, maxWorkflows: Number(e.target.value) })} 
                             />
@@ -663,6 +677,45 @@ export default function PlatformSettingsPage() {
       </div>
 
       <AnimatePresence>
+        {showDeleteModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/20 p-10 text-center"
+            >
+              <div className="w-20 h-20 bg-rose-50 rounded-3xl flex items-center justify-center text-rose-500 mx-auto mb-6">
+                <Trash2 size={40} />
+              </div>
+              <h3 className="text-2xl font-black text-slate-800 tracking-tight mb-2">Delete Service Tier?</h3>
+              <p className="text-sm font-medium text-slate-500 leading-relaxed mb-10">
+                This action is irreversible. All organizations assigned to this plan will be transitioned to a suspended state.
+              </p>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <button 
+                  onClick={() => setShowDeleteModal(false)}
+                  className="px-6 py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-xs uppercase tracking-widest rounded-2xl transition-all active:scale-95"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={confirmDeletePlan}
+                  className="px-6 py-4 bg-rose-600 hover:bg-rose-700 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-lg shadow-rose-200 transition-all active:scale-95"
+                >
+                  Delete Plan
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
         {showLocModal && (
           <motion.div 
             key="localization-modal"

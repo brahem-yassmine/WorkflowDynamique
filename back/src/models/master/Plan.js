@@ -20,6 +20,7 @@ const planSchema = new mongoose.Schema({
     customSupport: { type: Boolean, default: false }
   },
   description: { type: String },
+
   isActive: { type: Boolean, default: true }
 }, {
   timestamps: true,

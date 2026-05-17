@@ -9,7 +9,11 @@ import {
   CheckCircle2, 
   AlertTriangle,
   History,
-  LifeBuoy
+  LifeBuoy,
+  Users,
+  ArrowRight,
+  Trash2,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
@@ -25,13 +29,21 @@ interface Report {
   response?: string;
   respondedAt?: string;
   createdAt: string;
+  senderRole?: string;
+  senderName?: string;
+  senderEmail?: string;
+  senderId?: any;
+  adminId?: string;
 }
 
 export default function ReportsPage() {
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState<'new' | 'history'>('new');
+  const [activeTab, setActiveTab] = useState<'new' | 'history' | 'users'>('new');
+  const [userReports, setUserReports] = useState<Report[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [resolutionText, setResolutionText] = useState('');
   
   const [formData, setFormData] = useState({
     subject: '',
@@ -40,26 +52,86 @@ export default function ReportsPage() {
     priority: 'medium'
   });
 
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [reportToDelete, setReportToDelete] = useState<string | null>(null);
+
   useEffect(() => {
     fetchReports();
+    fetchUserReports();
   }, []);
 
   const fetchReports = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/reports/my-reports', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      const data = await response.json();
-      if (data.success) {
-        setReports(data.data);
+      setLoading(true);
+      const response = await api.get('/api/reports/my-reports');
+      if (response.data.success) {
+        setReports(response.data.data);
       }
     } catch (error) {
       console.error('Error fetching reports:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUserReports = async () => {
+    try {
+      setLoadingUsers(true);
+      const response = await api.get('/api/reports/tenant-reports');
+      if (response.data.success) {
+        setUserReports(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching user reports:', error);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const handleDeleteReport = async (id: string) => {
+    setReportToDelete(id);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!reportToDelete) return;
+    try {
+      const response = await api.delete(`/api/reports/${reportToDelete}`);
+      if (response.data.success) {
+        toast.success("Intelligence record purged.");
+        setIsDetailModalOpen(false);
+        setShowDeleteConfirm(false);
+        setReportToDelete(null);
+        fetchReports();
+        fetchUserReports();
+      }
+    } catch (error) {
+      console.error('Error deleting report:', error);
+      toast.error("Failed to purge intelligence.");
+    }
+  };
+
+  const handleResolveUserReport = async (id: string, status: string) => {
+    if (!resolutionText.trim()) {
+      toast.error("Please provide a resolution message.");
+      return;
+    }
+    try {
+      const response = await api.patch(`/api/reports/${id}/status`, {
+        status: status,
+        response: resolutionText
+      });
+      if (response.data.success) {
+        toast.success(`Ticket ${status} successfully.`);
+        setResolutionText('');
+        setIsDetailModalOpen(false);
+        fetchUserReports();
+        fetchReports();
+      }
+    } catch (error) {
+      toast.error("Failed to update status.");
     }
   };
 
@@ -146,6 +218,13 @@ export default function ReportsPage() {
           >
             <History size={18} />
             History ({reports.length})
+          </button>
+          <button 
+            onClick={() => setActiveTab('users')}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'users' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+          >
+            <Users size={18} />
+            User Support Flux ({userReports.length})
           </button>
         </div>
       </div>
@@ -234,7 +313,7 @@ export default function ReportsPage() {
               </div>
             </form>
           </motion.div>
-        ) : (
+        ) : activeTab === 'history' ? (
           <motion.div
             key="history-list"
             initial={{ opacity: 0, y: 20 }}
@@ -254,7 +333,14 @@ export default function ReportsPage() {
               </div>
             ) : (
               reports.map((report) => (
-                <div key={report._id} className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all">
+                <div 
+                  key={report._id} 
+                  onClick={() => {
+                    setSelectedReport(report);
+                    setIsDetailModalOpen(true);
+                  }}
+                  className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all cursor-pointer group"
+                >
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
                     <div className="flex items-center gap-4">
                       <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${getPriorityColor(report.priority)}`}>
@@ -268,9 +354,11 @@ export default function ReportsPage() {
                          report.type === 'question' ? 'Inquiry' :
                          report.type === 'comment' ? 'Comment' : report.type}
                       </div>
-                      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-bold border border-indigo-100 uppercase tracking-tight">
-                        <Send size={10} />
-                        Sent to: Super Admin
+                      <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold border uppercase tracking-tight ${
+                        (report.senderRole === 'admin' || report.senderRole === 'super_admin' || report.adminId) ? 'bg-violet-50 text-violet-600 border-violet-100' : 'bg-indigo-50 text-indigo-600 border-indigo-100'
+                      }`}>
+                        {(report.senderRole === 'admin' || report.senderRole === 'super_admin' || report.adminId) ? <Send size={10} /> : <Users size={10} />}
+                        {(report.senderRole === 'admin' || report.senderRole === 'super_admin' || report.adminId) ? 'Sent to: Super Admin' : 'Received from: User'}
                       </div>
                     </div>
                     <div className="text-xs font-bold text-slate-400">
@@ -310,6 +398,265 @@ export default function ReportsPage() {
               ))
             )}
           </motion.div>
+        ) : (
+          <motion.div
+            key="user-reports"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="space-y-4"
+          >
+            {loadingUsers ? (
+              <div className="p-12 text-center text-slate-400 font-bold">Accessing user feedback stream...</div>
+            ) : userReports.length === 0 ? (
+              <div className="bg-white rounded-[2.5rem] p-20 text-center border border-dashed border-slate-300">
+                <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Users className="text-emerald-300" size={32} />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900">All clear!</h3>
+                <p className="text-slate-500 mt-2">No pending issues reported by your users at this time.</p>
+              </div>
+            ) : (
+              userReports.map((report) => (
+                <div 
+                  key={report._id} 
+                  onClick={() => {
+                    setSelectedReport(report);
+                    setIsDetailModalOpen(true);
+                  }}
+                  className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm hover:shadow-md hover:border-emerald-300 transition-all cursor-pointer group border-l-4 border-l-emerald-500"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${getPriorityColor(report.priority)}`}>
+                        {report.priority}
+                      </span>
+                      <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tight ${
+                        (report.senderRole === 'admin' || report.senderRole === 'super_admin' || report.adminId) ? 'bg-violet-50 text-violet-600 border-violet-100' : 'bg-indigo-50 text-indigo-600 border-indigo-100'
+                      }`}>
+                        {(report.senderRole === 'admin' || report.senderRole === 'super_admin' || report.adminId) ? <Send size={10} /> : <Users size={10} />}
+                        {(report.senderRole === 'admin' || report.senderRole === 'super_admin' || report.adminId) ? 'Sent to: Super Admin' : 'Received from: User'}
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                        From: <span className="text-slate-900">{report.senderName || 'Anonymous User'}</span>
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                      {new Date(report.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight mb-2">{report.subject}</h3>
+                  <p className="text-slate-500 text-sm line-clamp-2">{report.description}</p>
+                  
+                  <div className="mt-4 pt-4 border-t border-slate-50 flex items-center justify-between">
+                    <span className={`text-[9px] font-black uppercase tracking-[0.2em] px-2 py-1 rounded ${report.status === 'pending' ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                      Status: {report.status}
+                    </span>
+                    <div className="flex items-center gap-3">
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteReport(report._id);
+                        }}
+                        className="p-2 bg-rose-50 text-rose-400 hover:text-rose-600 hover:bg-rose-100 rounded-lg transition-all"
+                        title="Purge Intel"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                      <button className="flex items-center gap-2 text-[10px] font-black text-indigo-600 uppercase tracking-widest group-hover:translate-x-1 transition-transform">
+                        Analyze Intel <ArrowRight size={12} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Detail Modal */}
+      <AnimatePresence>
+        {isDetailModalOpen && selectedReport && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsDetailModalOpen(false)}
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              {/* Modal Header */}
+              <div className="p-8 pb-4 flex items-start justify-between">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${getPriorityColor(selectedReport.priority)}`}>
+                      {selectedReport.priority} Priority
+                    </div>
+                    <span className="text-xs font-bold text-slate-400">
+                      {new Date(selectedReport.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    </span>
+                  </div>
+                  <h2 className="text-2xl font-black text-slate-900">{selectedReport.subject}</h2>
+                </div>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => handleDeleteReport(selectedReport._id)}
+                    className="w-10 h-10 bg-rose-50 rounded-full flex items-center justify-center text-rose-500 hover:bg-rose-100 transition-colors"
+                    title="Purge Intelligence"
+                  >
+                    <Trash2 size={20} />
+                  </button>
+                  <button 
+                    onClick={() => setIsDetailModalOpen(false)}
+                    className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-8 pt-4 overflow-y-auto custom-scrollbar space-y-8">
+                <div className="space-y-4">
+                  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <MessageSquare size={14} />
+                    Issue Description
+                  </h3>
+                  <div className="bg-slate-50 rounded-[2rem] p-6 border border-slate-100 text-slate-700 leading-relaxed font-medium">
+                    {selectedReport.description}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-slate-50 rounded-3xl p-6 border border-slate-100">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Current Status</span>
+                    <div className="flex items-center gap-3">
+                      {getStatusIcon(selectedReport.status)}
+                      <span className="font-black text-slate-800 uppercase tracking-tight">
+                        {selectedReport.status.replace('_', ' ')}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="bg-slate-50 rounded-3xl p-6 border border-slate-100">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Issue Type</span>
+                    <div className="flex items-center gap-3">
+                      <div className="w-4 h-4 rounded-full bg-indigo-500" />
+                      <span className="font-black text-slate-800 uppercase tracking-tight">
+                        {selectedReport.type.replace('_', ' ')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {selectedReport.response ? (
+                  <div className="space-y-4">
+                    <h3 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">
+                      <CheckCircle2 size={14} />
+                      Administrator Response
+                    </h3>
+                    <div className="bg-indigo-50 rounded-[2rem] p-6 border border-indigo-100 text-slate-700 leading-relaxed font-medium italic relative">
+                      <div className="absolute -top-3 right-6 bg-white px-4 py-1 rounded-full border border-indigo-100 text-[9px] font-bold text-indigo-400 uppercase tracking-widest">
+                        Reply from {(selectedReport.senderRole === 'admin' || selectedReport.senderRole === 'super_admin' || selectedReport.adminId) ? 'Super Admin' : 'Administration'}
+                      </div>
+                      "{selectedReport.response}"
+                      {selectedReport.respondedAt && (
+                        <div className="mt-4 pt-4 border-t border-indigo-100 text-[10px] font-bold text-indigo-300">
+                          Responded on {new Date(selectedReport.respondedAt).toLocaleDateString()}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  selectedReport.senderRole === 'user' && (
+                    <div className="space-y-4 border-t border-slate-100 pt-8">
+                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                        <Send size={14} />
+                        Resolve Intelligence
+                      </h3>
+                      <textarea
+                        value={resolutionText}
+                        onChange={(e) => setResolutionText(e.target.value)}
+                        placeholder="Enter resolution protocol or rejection reason..."
+                        className="w-full bg-slate-50 border border-slate-200 rounded-3xl p-6 text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none min-h-[150px] resize-none"
+                      />
+                      <div className="grid grid-cols-2 gap-4">
+                        <button
+                          onClick={() => handleResolveUserReport(selectedReport._id, 'rejected')}
+                          className="py-4 bg-rose-50 text-rose-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-rose-100 transition-all border border-rose-100"
+                        >
+                          Reject Intelligence
+                        </button>
+                        <button
+                          onClick={() => handleResolveUserReport(selectedReport._id, 'resolved')}
+                          className="py-4 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100"
+                        >
+                          Finalize Resolution
+                        </button>
+                      </div>
+                    </div>
+                  )
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-8 pt-0 mt-auto">
+                <button 
+                  onClick={() => setIsDetailModalOpen(false)}
+                  className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black shadow-lg shadow-slate-300 hover:bg-slate-800 transition-all"
+                >
+                  Close View
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              onClick={() => setShowDeleteConfirm(false)} 
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-md" 
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-[32px] p-10 max-w-md w-full relative z-10 shadow-2xl text-center border border-rose-100"
+            >
+              <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-6 border border-rose-100">
+                <Trash2 size={32} />
+              </div>
+              <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight mb-4">Confirm Purge</h3>
+              <p className="text-slate-500 font-medium leading-relaxed mb-8">
+                Are you sure you want to permanently delete this intelligence record? This protocol is irreversible.
+              </p>
+              <div className="flex flex-col gap-3">
+                <button 
+                  onClick={confirmDelete}
+                  className="w-full py-4 bg-rose-600 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-rose-100 hover:bg-rose-700 transition-all"
+                >
+                  Confirm Deletion
+                </button>
+                <button 
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="w-full py-4 bg-slate-100 text-slate-500 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-slate-200 transition-all"
+                >
+                  Abort Protocol
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
       <Toaster position="top-right" richColors />

@@ -1,19 +1,31 @@
 const mongoose = require('mongoose');
 
-module.exports = function(masterConn) {
+module.exports = function (masterConn) {
   const systemReportSchema = new mongoose.Schema({
     tenantId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Tenant',
-      required: true
+      ref: 'Tenant'
+    },
+    senderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      refPath: 'senderRole'
+    },
+    senderRole: {
+      type: String,
+      enum: ['user', 'admin', 'super_admin'],
+      default: 'admin'
+    },
+    senderName: {
+      type: String
+    },
+    senderEmail: {
+      type: String
     },
     adminId: {
-      type: String, // Or ObjectId if admins are in a collection, but here it's likely the admin profile info
-      required: true
+      type: String
     },
     adminEmail: {
-      type: String,
-      required: true
+      type: String
     },
     subject: {
       type: String,

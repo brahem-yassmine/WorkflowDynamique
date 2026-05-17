@@ -101,17 +101,13 @@ exports.changePlan = async (req, res) => {
 
     // 0️⃣ PREVENT DEMO RE-USE
     if (plan.code.toLowerCase().includes('demo')) {
-      const hasUsedDemo = await Subscription.findOne({
-        planCode: { $regex: /demo/i },
-        status: { $ne: 'trial' } // Only check if they actually transitioned or if they are switching BACK to it
-      });
-
-      // If they already have any subscription record for demo, block it (except if it's their current one, though frontend handles that)
-      const anyDemoRecord = await Subscription.findOne({ planCode: { $regex: /demo/i } });
-      if (anyDemoRecord) {
+      const demoRecordsCount = await Subscription.countDocuments({ planCode: { $regex: /demo/i } });
+      
+      // If they already have 2 or more subscription records for demo, block it
+      if (demoRecordsCount >= 2) {
         return res.status(403).json({
           success: false,
-          message: 'The Demo Protocol has already been utilized for this matrix. Uplink to a paid plan is required.'
+          message: 'The Demo Protocol has already been utilized the maximum allowed times (2). Uplink to a paid plan is required.'
         });
       }
     }

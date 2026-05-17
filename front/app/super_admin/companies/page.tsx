@@ -630,7 +630,7 @@ export default function CompanyManagement() {
           </div>
           
           <div className="px-10 pb-8 text-center space-y-3">
-            <h3 className="text-3xl font-black text-slate-900 tracking-tighter leading-tight">{confirmModal.title}</h3>
+            <DialogTitle className="text-3xl font-black text-slate-900 tracking-tighter leading-tight">{confirmModal.title}</DialogTitle>
             <p className="text-base font-medium text-slate-500 leading-relaxed italic opacity-80">"{confirmModal.text}"</p>
           </div>
 

@@ -200,8 +200,8 @@ function Sidebar({ isExpired = false }: { isExpired?: boolean }) {
                                     description: "Please renew your matrix access in the Fiscal center.",
                                   });
                                 } else {
-                                  toast.error("Accès Refusé", {
-                                    description: `La permission ${item.perm} est requise.`,
+                                  toast.error("Access Denied", {
+                                    description: `The permission ${item.perm} is required.`,
                                   });
                                 }
                               }

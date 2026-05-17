@@ -69,14 +69,10 @@ exports.createForm = async (req, res) => {
             name: form.name
         });
 
-        res.status(201).json({
-            success: true,
-            message: 'Form created successfully',
-            data: form
-        });
+        res.status(201).json({ success: true, message: 'Form created successfully', data: form });
     } catch (error) {
         console.error('❌ Erreur createForm:', error);
-        res.status(500).json({ success: false, message: 'Erreur serveur', error: error.message });
+        res.status(500).json({ success: false, message: error.message || 'Erreur serveur', error: error.message });
     }
 };
 
@@ -198,10 +194,6 @@ exports.submitForm = async (req, res) => {
 
         await response.save();
 
-        // Sync the parent form's name and description if provided
-        if (name) form.name = name;
-        if (description) form.description = description;
-
         // Increment submission count
         form.submissionCount = (form.submissionCount || 0) + 1;
         await form.save();
@@ -236,7 +228,7 @@ exports.submitForm = async (req, res) => {
         });
     } catch (error) {
         console.error('❌ Erreur submitForm:', error);
-        res.status(500).json({ success: false, message: 'Erreur serveur' });
+        res.status(500).json({ success: false, message: error.message || 'Erreur serveur', error: error.message });
     }
 };
 // 8. Cloner un formulaire

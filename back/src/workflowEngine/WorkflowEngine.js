@@ -79,13 +79,14 @@ class WorkflowEngine {
 
     // 2. Update context if provided
     if (result.contextUpdate) {
-      instance.context = { ...instance.context, ...result.contextUpdate };
+      instance.context = this._deepMerge(instance.context || {}, result.contextUpdate);
       instance.markModified('context');
     }
 
     // 3. Record history
     instance.history.push({
       stepId,
+      nodeId: stepId, // Sync for compatibility
       performedBy: userId,
       action: result.action || action,
       data: data,
@@ -102,75 +103,220 @@ class WorkflowEngine {
     }
 
     // 6. Optimistic concurrency check (Lock verification before saving)
-    const lockCheck = await this.WorkflowInstance.findOne({ _id: instance._id, version: currentVersion }).select('_id');
-    if (!lockCheck) {
+    instance.version = currentVersion + 1;
+    
+    const updateResult = await this.WorkflowInstance.updateOne(
+        { _id: instance._id, version: currentVersion },
+        {
+           $set: { 
+               state: instance.state,
+               history: instance.history,
+               context: instance.context,
+               status: instance.status,
+               timeCompleted: instance.timeCompleted,
+               version: instance.version
+           }
+        }
+    );
+    
+    if (updateResult.modifiedCount === 0) {
       throw new Error('Concurrency conflict: Workflow instance was updated simultaneously by another process. Please retry.');
     }
-
-    // Force version increment in case pre-save misses it for some states
-    instance.version = currentVersion + 1;
-    await instance.save();
-    return instance;
+    
+    return await this.WorkflowInstance.findById(instance._id);
   }
 
   /**
    * Internal recursive helper to evaluate transitions and activate new steps.
    */
-  async _activateNextSteps(instance, workflow, sourceStepId, lastAction) {
+  async _activateNextSteps(instance, workflow, sourceStepId, lastAction, depth = 0) {
+    if (depth > 50) throw new Error("Infinite loop detected in workflow execution.");
+
+    console.log(`[Engine] EVALUATING transitions from: ${sourceStepId} | Action: ${lastAction}`);
+
     const transitions = workflow.edges.filter(e => e.source === sourceStepId);
     const nodesToActivate = [];
+    const nodesToSkip = [];
+    let matchedAny = false;
 
-    for (const edge of transitions) {
-      const matches = SecureEvaluator.evaluateCondition(edge.condition, instance.context, lastAction);
+    // 1. Sort transitions for deterministic evaluation (Prioritize edges with rules)
+    const sortedTransitions = [...transitions].sort((a, b) => {
+      if (a.condition && !b.condition) return -1;
+      if (!a.condition && b.condition) return 1;
+      return 0;
+    });
+
+    const sourceNode = workflow.nodes.find(n => n.id === sourceStepId);
+    const nodeType = String(sourceNode?.type || '').toUpperCase();
+    
+    // Exclusive branching logic (Condition/Approval nodes)
+    const exclusiveActions = ['APPROVED', 'REJECTED', 'STEP_APPROVED', 'STEP_REJECTED', 'VALIDATED', 'COMPLETED', 'SUBMITTED', 'SUBMIT', 'VALIDATE', 'APPROVE', 'REJECT'];
+    const isExclusiveAction = exclusiveActions.includes(String(lastAction || '').toUpperCase());
+    const isExclusiveNode = isExclusiveAction || ['CONDITION', 'APPROVAL', 'AUTO', 'NOTIFICATION', 'START', 'START_NODE'].includes(nodeType);
+
+    for (const edge of sortedTransitions) {
+      let matches = false;
+      
+      // Implicit matching for Approval outcomes if no DSL condition provided
+      if (!edge.condition && (isExclusiveAction || nodeType === 'APPROVAL')) {
+          const actionLower = String(lastAction || '').toLowerCase();
+          const edgeRef = String(edge.label || edge.sourceHandle || '').toLowerCase();
+          
+          if (actionLower.includes('approve') || actionLower === 'validated' || actionLower === 'completed' || actionLower === 'submit') {
+              matches = !edgeRef.includes('reject') && !edgeRef.includes('refus') && !edgeRef.includes('non');
+          } else if (actionLower.includes('reject') || actionLower.includes('refus')) {
+              matches = edgeRef.includes('reject') || edgeRef.includes('refus') || edgeRef.includes('non');
+          } else {
+              matches = true; 
+          }
+          console.log(`[Engine] Implicit match check: Action=${actionLower} | Edge=${edgeRef} | Matches=${matches}`);
+      } else {
+          matches = SecureEvaluator.evaluateCondition(edge.condition, instance.context, lastAction);
+          console.log(`[Engine] DSL match check: Condition=${JSON.stringify(edge.condition)} | Matches=${matches}`);
+      }
+
       if (matches) {
         const targetNode = workflow.nodes.find(n => n.id === edge.target);
-        if (targetNode) nodesToActivate.push(targetNode);
+        if (targetNode) {
+          if (!nodesToActivate.some(n => n.id === targetNode.id)) {
+             console.log(`[Engine] --> MATCHED path to: ${targetNode.id} (${targetNode.type})`);
+             nodesToActivate.push(targetNode);
+             matchedAny = true;
+          }
+          
+          // For exclusive nodes, once we find a match, all other branches are SKIPPED
+          if (isExclusiveNode) {
+             console.log(`[Engine] Exclusive node detected (${nodeType}). Breaking after first match.`);
+             const remaining = sortedTransitions.slice(sortedTransitions.indexOf(edge) + 1);
+             for (const rEdge of remaining) {
+                const skipNode = workflow.nodes.find(n => n.id === rEdge.target);
+                if (skipNode && !nodesToSkip.some(n => n.id === skipNode.id)) nodesToSkip.push(skipNode);
+             }
+             break;
+          }
+        }
+      } else if (isExclusiveNode) {
+        const targetNode = workflow.nodes.find(n => n.id === edge.target);
+        if (targetNode && !nodesToSkip.some(n => n.id === targetNode.id)) {
+           nodesToSkip.push(targetNode);
+        }
       }
     }
 
+    // 2. Handle SKIPPED branches
+    if (nodesToSkip.length > 0) {
+      await this._processSkippedNodes(instance, workflow, nodesToSkip);
+    }
+
+    // 3. Logic for dead-ends
+    if (!matchedAny && (lastAction === 'REJECTED' || lastAction === 'REJECT')) {
+      console.log(`[Engine] Workflow REJECTED at step ${sourceStepId}`);
+      instance.status = 'rejected';
+      instance.timeCompleted = new Date();
+      return;
+    }
+
+    // 4. Activate Matched Nodes
     for (const node of nodesToActivate) {
-      // Handle END node
+      // End node detection
       if ((node.type || '').toUpperCase() === 'END') {
-        if (instance.state.filter(s => s.status === 'IN_PROGRESS').length === 0) {
+        if (instance.state.filter(s => s.status === 'IN_PROGRESS' || s.status === 'ACTIVE').length === 0) {
           instance.status = 'completed';
           instance.timeCompleted = new Date();
+          console.log(`[Engine] Workflow REACHED END node.`);
         }
         continue;
       }
 
-      // Check if already active (for join scenarios, might need more refind logic)
-      if (instance.state.some(s => s.stepId === node.id && s.status === 'IN_PROGRESS')) continue;
+      // Avoid re-activating if already active
+      if (instance.state.some(s => s.stepId === node.id && (s.status === 'IN_PROGRESS' || s.status === 'ACTIVE'))) {
+        continue;
+      }
 
-      // Resolve assignment
       const assignees = await this._resolveAssignment(node.assignment, instance);
+      const isAutoType = ['NOTIFICATION', 'AUTO', 'AUTO_TASK', 'SEND_NOTIFICATION'].includes(node.type.toUpperCase());
 
       const newState = {
         stepId: node.id,
-        status: 'IN_PROGRESS',
+        status: isAutoType ? 'COMPLETED' : 'IN_PROGRESS',
         startedAt: new Date(),
-        assignees: assignees
+        assignees: assignees,
+        completedAt: isAutoType ? new Date() : null
       };
 
       instance.state.push(newState);
       instance.markModified('state');
 
-      // Auto-execution for active nodes
-      const handler = StepHandlerFactory.getHandler(node, instance);
-      const activationResult = await handler.onActivate();
+      console.log(`[Engine] ACTIVATING: ${node.id} | Type: ${node.type} | Mode: ${isAutoType ? 'AUTO' : 'MANUAL'}`);
 
-      if (activationResult.autoProgress) {
+      const handler = StepHandlerFactory.getHandler(node, instance);
+      console.log(`[Engine] Activating step: ${node.id} (${node.type}) via handler: ${handler.constructor.name}`);
+      const activationResult = await handler.onActivate();
+      console.log(`[Engine] Activation result for ${node.id}:`, JSON.stringify(activationResult));
+
+      if (activationResult.autoProgress || isAutoType) {
         newState.status = 'COMPLETED';
         newState.completedAt = new Date();
+        instance.markModified('state');
         
         if (activationResult.contextUpdate) {
-            instance.context = { ...instance.context, ...activationResult.contextUpdate };
+            instance.context = this._deepMerge(instance.context || {}, activationResult.contextUpdate);
             instance.markModified('context');
         }
 
-        // Recursive call for next steps
-        await this._activateNextSteps(instance, workflow, node.id, activationResult.nextAction);
+        // Deterministic recursion
+        await this._activateNextSteps(instance, workflow, node.id, activationResult.nextAction || 'COMPLETED', depth + 1);
       }
     }
+  }
+
+  async _processSkippedNodes(instance, workflow, nodesToSkip) {
+    for (const node of nodesToSkip) {
+      // Check if this node is reachable via other non-skipped paths (Join logic)
+      const incomingEdges = workflow.edges.filter(e => e.target === node.id);
+      const isStillReachable = incomingEdges.length > 1; // Simplified, in a full graph we would check all paths
+      
+      if (!isStillReachable && !instance.state.some(s => s.stepId === node.id)) {
+        console.log(`[Engine] SKIPPING: ${node.id} (Unselected Branch)`);
+        instance.state.push({
+          stepId: node.id,
+          status: 'SKIPPED',
+          startedAt: new Date(),
+          completedAt: new Date(),
+          assignees: []
+        });
+      }
+    }
+    instance.markModified('state');
+  }
+
+  _deepMerge(target, source) {
+    if (!source || typeof source !== 'object') return source;
+    if (!target || typeof target !== 'object') return source;
+    
+    for (const key of Object.keys(source)) {
+      if (source[key] instanceof Date) {
+        target[key] = new Date(source[key]);
+      } else if (Array.isArray(source[key])) {
+        target[key] = [...source[key]];
+      } else if (typeof source[key] === 'object' && source[key] !== null) {
+        target[key] = this._deepMerge(target[key] || {}, source[key]);
+      } else {
+        target[key] = source[key];
+      }
+    }
+    return target;
+  }
+
+  _canReach(workflow, fromNodeId, toNodeId, visited = new Set()) {
+      if (fromNodeId === toNodeId) return true;
+      if (visited.has(fromNodeId)) return false;
+      visited.add(fromNodeId);
+      const outgoing = workflow.edges.filter(e => e.source === fromNodeId);
+      for (const edge of outgoing) {
+          if (this._canReach(workflow, edge.target, toNodeId, visited)) return true;
+      }
+      return false;
   }
 
   async _resolveAssignment(assignment, instance) {
@@ -179,7 +325,7 @@ class WorkflowEngine {
     const UserModel = this.tenantConn.model('User');
     
     if (assignment.type === 'USER') {
-      return assignment.values; // Expected to be User IDs
+      return assignment.values; 
     }
 
     if (assignment.type === 'ROLE') {

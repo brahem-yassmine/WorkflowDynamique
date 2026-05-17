@@ -33,7 +33,7 @@ interface WorkflowTask {
     instanceTitle: string;
     projectName: string;
     type: 'workflow' | 'kanban';
-    taskType: 'Formulaire' | 'Tâche' | 'validation' | 'upload' | 'informative' | 'form' | 'normal' | string;
+    taskType: 'Form' | 'Task' | 'validation' | 'upload' | 'informative' | 'form' | 'normal' | string;
     status: 'pending' | 'completed';
     isEditable?: boolean;
     priority: string;
@@ -80,7 +80,7 @@ export default function UserTasksPage() {
     console.log('🔍 FULL RESPONSE:', JSON.stringify(res, null, 2));
     
     if (res?.success) {
-      // Essaie différentes structures
+      // Try different structures
       const possibleData = res.data?.data || res.data || res;
       console.log('📦 Data to set:', possibleData);
       

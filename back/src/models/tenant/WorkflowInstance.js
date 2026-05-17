@@ -54,8 +54,8 @@ const workflowInstanceSchema = new mongoose.Schema({
     stepId: String,
     status: {
       type: String,
-      enum: ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'FAILED', 'REJECTED'],
-      default: 'IN_PROGRESS'
+      enum: ['PENDING', 'ACTIVE', 'IN_PROGRESS', 'COMPLETED', 'FAILED', 'REJECTED', 'SKIPPED'],
+      default: 'PENDING'
     },
     startedAt: { type: Date, default: Date.now },
     completedAt: Date,

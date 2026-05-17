@@ -370,7 +370,7 @@ function FormBuilderContent() {
       });
 
       if (res.success) {
-        toast.success(formId ? "Form updated!" : "Form saved successfully!");
+        toast.success(formId ? "Formulaire mis à jour !" : "Formulaire enregistré avec succès !");
         
         setTimeout(() => {
           if (from === 'admin') {
@@ -382,9 +382,11 @@ function FormBuilderContent() {
             router.push('/admin/AllForms');
           }
         }, 800);
+      } else {
+        toast.error("Échec de l'enregistrement: " + (res.message || "Erreur inconnue"));
       }
     } catch (error: any) {
-      toast.error("Failed to save: " + error.message);
+      toast.error("Échec de l'enregistrement: " + error.message);
     } finally {
       setIsSaving(false);
     }

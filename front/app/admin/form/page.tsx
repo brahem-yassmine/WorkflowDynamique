@@ -327,6 +327,7 @@ const FormBuilderContent = () => {
         description: formDescription,
         steps: steps.map((s, i) => ({
           ...s,
+          title: s.title || `Étape ${i + 1}`,
           order: i,
           fields: s.fields.map((f, fi) => ({ ...f, order: fi }))
         }))
@@ -341,20 +342,20 @@ const FormBuilderContent = () => {
       });
 
       if (res.success) {
-        toast.success(formId ? "Form updated!" : "Form saved successfully!");
+        toast.success(formId ? "Formulaire mis à jour !" : "Formulaire enregistré avec succès !");
         
         setTimeout(() => {
           if (designerWorkflowId) {
-            // If they came from a workflow designer, you might want to return there
-            // But the instruction says "automatiquement vers la page AllForms"
-            router.push('/admin/AllForms');
+            router.push(`/admin/Create_workflows?id=${designerWorkflowId}`);
           } else {
-            router.push('/admin/AllForms');
+            router.push(from === 'user' ? "/User/Allforms" : "/admin/AllForms");
           }
         }, 800);
+      } else {
+        toast.error("Échec de l'enregistrement: " + (res.message || "Erreur inconnue"));
       }
     } catch (error: any) {
-      toast.error("Failed to save: " + error.message);
+      toast.error("Échec de l'enregistrement: " + error.message);
     } finally {
       setIsSaving(false);
     }

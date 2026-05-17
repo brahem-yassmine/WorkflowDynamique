@@ -10,15 +10,7 @@ class ApprovalStepHandler extends BaseStepHandler {
 
     const actionUpper = (action || 'APPROVED').toUpperCase();
 
-    // 1. Handle Rejection
-    if (actionUpper === 'REJECTED') {
-      if (!config.allowRejection) {
-        throw new Error('Rejection is not allowed for this step');
-      }
-      return { completed: true, action: 'REJECTED' };
-    }
-
-    // 2. Register Approval
+    // 1. Register Approval Action
     if (!stepState.data) stepState.data = {};
     if (!stepState.data.approvals) stepState.data.approvals = [];
     
@@ -26,15 +18,26 @@ class ApprovalStepHandler extends BaseStepHandler {
     if (existingIdx === -1) {
       stepState.data.approvals.push({
         userId: performer._id,
-        action: 'APPROVED',
+        action: actionUpper,
+        comments: data?.comments || '',
         timestamp: new Date()
       });
     }
 
+    // 2. Handle Rejection
+    if (actionUpper === 'REJECTED') {
+      if (!config.allowRejection) {
+        throw new Error('Rejection is not allowed for this step');
+      }
+      return { completed: true, action: 'REJECTED' };
+    }
+
+
+
     // 3. Strategy Logic
     const strategy = config.strategy || 'ANY';
     const requiredCount = config.requiredCount || 1;
-    const approvalCount = stepState.data.approvals.length;
+    const approvalCount = stepState.data.approvals.filter(a => a.action === 'APPROVED').length;
 
     if (strategy === 'ANY') {
       if (approvalCount >= requiredCount) {
@@ -42,7 +45,10 @@ class ApprovalStepHandler extends BaseStepHandler {
       }
     } else if (strategy === 'ALL') {
       // In a real environment, we'd compare against the resolved list of assignees
-      const totalAssigneesNeeded = stepState.assignees.length;
+      const totalAssigneesNeeded = stepState.assignees ? stepState.assignees.length : 0;
+      if (totalAssigneesNeeded === 0) {
+        return { completed: true, action: 'APPROVED' };
+      }
       if (approvalCount >= totalAssigneesNeeded && approvalCount >= (config.minApprovals || 1)) {
         return { completed: true, action: 'APPROVED' };
       }

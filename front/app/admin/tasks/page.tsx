@@ -61,11 +61,17 @@ export default function GlobalTasksPage() {
 
   const getUserName = (userId: string, task?: any) => {
     if (!userId) {
-      if (task?.nodeData?.assigneeIds && task.nodeData.assigneeIds.length > 0) {
-        const firstId = task.nodeData.assigneeIds[0];
+      // Check both assignees and validators
+      const potentialIds = [
+        ...(task?.nodeData?.assigneeIds || []),
+        ...(task?.nodeData?.validatorIds || [])
+      ];
+
+      if (potentialIds.length > 0) {
+        const firstId = potentialIds[0];
         const user = users.find(u => u._id === firstId || u.id === firstId);
         if (user) return `${user.firstName} ${user.lastName}`;
-        return task.nodeData.responsibleDomain || 'Multiple Assignees';
+        return task.nodeData.responsibleDomain || task.nodeData.domain || 'Multiple Assignees';
       }
       return 'Unassigned';
     }
@@ -74,13 +80,20 @@ export default function GlobalTasksPage() {
   };
 
   const getUserRole = (userId: string, task?: any) => {
-    if (!userId && task?.nodeData?.assigneeIds?.length > 0) {
-      const firstId = task.nodeData.assigneeIds[0];
-      const user = users.find(u => u._id === firstId || u.id === firstId);
-      return user?.role || task.nodeData.responsibleDomain || 'User';
+    if (!userId) {
+      const potentialIds = [
+        ...(task?.nodeData?.assigneeIds || []),
+        ...(task?.nodeData?.validatorIds || [])
+      ];
+      if (potentialIds.length > 0) {
+        const firstId = potentialIds[0];
+        const user = users.find(u => u._id === firstId || u.id === firstId);
+        return user?.role || task.nodeData.responsibleDomain || task.nodeData.domain || 'User';
+      }
+      return 'User';
     }
     const user = users.find(u => u._id === userId || u.id === userId);
-    return user?.role || 'User';
+    return user ? (user.role || 'User') : 'User';
   };
 
   const fetchData = async () => {
@@ -135,7 +148,7 @@ export default function GlobalTasksPage() {
           inst.executionPath?.forEach((path: any) => {
             const nodeDef = workflow.nodes?.find((n: any) => n.id === path.nodeId);
             if (!nodeDef || isLogicBlock(nodeDef.type)) return;
-            if (path.action === 'worker_submitted' || path.action === 'worker_rejected' || path.action === 'start') return;
+            if (path.action === 'start') return;
             
             aggregatedTasks.push({
               id: `${inst._id}-${path.nodeId}-${path.timestamp}`,
@@ -521,14 +534,20 @@ export default function GlobalTasksPage() {
               onClick={() => setSelectedTask(null)}
               className="absolute inset-0 bg-slate-900/80 backdrop-blur-xl"
             />
-            <motion.div
-              layoutId={selectedTask.id}
-              initial={{ scale: 0.9, opacity: 0, y: 30 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 30 }}
-              className="bg-white rounded-[48px] shadow-[0_32px_80px_-16px_rgba(0,0,0,0.5)] w-full max-w-4xl relative z-10 overflow-hidden border border-white/20 flex flex-col max-h-[90vh]"
-            >
-              <div className="bg-indigo-600 p-12 text-white relative overflow-hidden shrink-0">
+             <motion.div
+               layoutId={selectedTask.id}
+               initial={{ scale: 0.9, opacity: 0, y: 30 }}
+               animate={{ scale: 1, opacity: 1, y: 0 }}
+               exit={{ scale: 0.9, opacity: 0, y: 30 }}
+               className="bg-white rounded-[48px] shadow-[0_32px_80px_-16px_rgba(0,0,0,0.5)] w-full max-w-4xl relative z-10 overflow-hidden border border-white/20 flex flex-col max-h-[90vh]"
+             >
+               <button 
+                 onClick={() => setSelectedTask(null)}
+                 className="absolute top-8 right-8 p-2 text-white/50 hover:text-white transition-colors z-[20]"
+               >
+                 <X size={24} />
+               </button>
+               <div className="bg-indigo-600 p-12 text-white relative overflow-hidden shrink-0">
                 <div className="absolute -right-20 -top-20 w-80 h-80 bg-white/10 rounded-full blur-3xl opacity-50"></div>
                 <div className="flex items-center gap-6 mb-4 relative z-10">
                    <div className="w-16 h-16 bg-white/20 rounded-3xl flex items-center justify-center backdrop-blur-md shadow-2xl border border-white/10">
@@ -543,11 +562,23 @@ export default function GlobalTasksPage() {
 
               <div className="p-12 overflow-y-auto custom-scrollbar flex-grow bg-slate-50/30 space-y-12">
                 
-                <div className="grid grid-cols-2 gap-10 pt-6 border-t border-slate-100">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-10 pt-6 border-t border-slate-100">
                   <div className="space-y-2">
                     <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] underline decoration-indigo-200 underline-offset-4">Active Operator</p>
                     <p className="text-2xl font-black text-slate-800 tracking-tight">{getUserName(selectedTask.performedBy, selectedTask)}</p>
                     <p className="text-[10px] font-black text-indigo-400 tracking-widest uppercase opacity-70">{getUserRole(selectedTask.performedBy, selectedTask)} Protocol Role</p>
+                  </div>
+                  <div className="space-y-2 text-center">
+                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] underline decoration-indigo-200 underline-offset-4">Task Outcome</p>
+                    <div className={`mt-2 inline-flex items-center gap-2 px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${
+                        selectedTask.status?.includes('REJECT') ? 'bg-rose-50 text-rose-600 border-rose-100' : 
+                        (selectedTask.status?.includes('APPROV') || selectedTask.status === 'COMPLETED' || selectedTask.status === 'VALIDATED') ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 
+                        'bg-slate-50 text-slate-600 border-slate-100'
+                    }`}>
+                        {selectedTask.status?.includes('REJECT') ? <XCircle size={12} /> : <CheckCircle2 size={12} />}
+                        {selectedTask.status?.includes('REJECT') ? 'REJECTED' : 
+                         (selectedTask.status?.includes('APPROV') || selectedTask.status === 'COMPLETED') ? 'VALIDATED' : selectedTask.status}
+                    </div>
                   </div>
                   <div className="space-y-2 text-right">
                     <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] underline decoration-indigo-200 underline-offset-4">Execution Timestamp</p>
@@ -557,14 +588,6 @@ export default function GlobalTasksPage() {
                 </div>
 
                 <div className="space-y-12">
-                   <div className="flex items-center gap-4">
-                      <div className="h-px flex-1 bg-slate-200"></div>
-                      <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-3">
-                         <Activity size={18} className="text-indigo-500" /> Evidence Analysis
-                      </span>
-                      <div className="h-px flex-1 bg-slate-200"></div>
-                   </div>
-
                    {selectedTask.comments && (
                       <div className="space-y-4">
                          <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
@@ -617,9 +640,13 @@ export default function GlobalTasksPage() {
 
                    {selectedTask.outputData && Object.keys(selectedTask.outputData).length > 0 ? (
                     <div className="space-y-6">
-                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">Data Payload Extraction</p>
                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {Object.entries(selectedTask.outputData).map(([key, value]: [string, any]) => {
+                          {Object.entries(selectedTask.outputData).filter(([_, v]) => {
+                             if (v === null || v === undefined || v === '') return false;
+                             if (Array.isArray(v) && v.length === 0) return false;
+                             if (typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0) return false;
+                             return true;
+                           }).map(([key, value]: [string, any]) => {
                             const isImageUrl = (url: string) => {
                               if (typeof url !== 'string') return false;
                               return /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(url) || url.includes('uploads/');
@@ -741,6 +768,12 @@ export default function GlobalTasksPage() {
           <div className="fixed inset-0 z-[600] flex items-center justify-center p-4">
              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowReportModal(false)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-md" />
              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white rounded-[40px] p-10 w-full max-w-lg relative z-10 shadow-2xl border border-rose-100">
+                <button 
+                  onClick={() => setShowReportModal(false)}
+                  className="absolute top-8 right-8 p-2 text-slate-300 hover:text-rose-500 transition-colors"
+                >
+                  <X size={24} />
+                </button>
                 <div className="flex items-center gap-4 mb-8 text-rose-600">
                    <div className="p-3 bg-rose-50 rounded-2xl">
                       <ShieldAlert size={24} />

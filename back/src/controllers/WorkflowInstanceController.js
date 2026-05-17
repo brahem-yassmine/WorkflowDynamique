@@ -8,7 +8,7 @@ const syncCompatibilityFields = (instance) => {
   if (!instance.state) return;
   
   instance.currentNodes = instance.state
-    .filter(s => s.status === 'IN_PROGRESS')
+    .filter(s => s.status === 'IN_PROGRESS' || s.status === 'ACTIVE')
     .map(s => ({
       nodeId: s.stepId,
       status: 'in_progress',
@@ -25,7 +25,9 @@ const syncCompatibilityFields = (instance) => {
       action: h.action?.toLowerCase(),
       performedBy: h.performedBy,
       timestamp: h.timestamp,
-      comments: h.comments
+      comments: h.comments,
+      data: h.data,
+      outputData: h.outputData || h.data
     }));
   }
 };
@@ -40,6 +42,22 @@ const sendStepNotifications = async (req, instance) => {
     const UserModel = req.tenantConn.model('User');
     const recentTime = new Date(Date.now() - 10000); // 10 seconds grace
 
+    // 1. Notify Admins
+    const admins = await UserModel.find({ 
+      role: { $in: ['admin', 'super_admin'] } 
+    });
+
+    for (const admin of admins) {
+      await notificationController.createInternalNotification(req.tenantConn, {
+        recipient: admin._id,
+        title: 'Workflow Activity',
+        message: `Instance "${instance.title}" has been updated.`,
+        type: 'workflow_update',
+        link: `/Workflows/instances/${instance._id}`
+      });
+    }
+
+    // 2. Notify Assignees of new active steps
     for (const step of instance.state) {
       if (step.status !== 'IN_PROGRESS' || step.startedAt < recentTime) continue;
 
@@ -161,13 +179,19 @@ exports.getInstances = async (req, res) => {
       console.log(`📄 [InstancesCtrl] Sample Instance WorkflowId: ${instances[0].workflowId?._id || instances[0].workflowId}`);
     }
 
+    const instancesWithCompat = instances.map(inst => {
+      const plain = inst.toObject();
+      syncCompatibilityFields(plain);
+      return plain;
+    });
+
     res.json({
       success: true,
-      count: instances.length,
+      count: instancesWithCompat.length,
       total,
       page: parseInt(page),
       pages: Math.ceil(total / parseInt(limit)),
-      data: instances
+      data: instancesWithCompat
     });
   } catch (error) {
     console.error('❌ getInstances Error:', error);

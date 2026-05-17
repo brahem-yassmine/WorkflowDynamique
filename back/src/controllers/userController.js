@@ -462,7 +462,7 @@ exports.getUserTasks = async (req, res) => {
 
           // Check definition (for live updates)
           const nodeData = nodeDef.data || {};
-          const defAssignees = (nodeData.assigneeIds || nodeData.validatorIds || []).map(a => a.toString());
+          const defAssignees = [...(nodeData.assigneeIds || []), ...(nodeData.validatorIds || [])].map(a => a.toString());
           const isDefAssigneeMatch = defAssignees.some(aStr => 
               matchingIds.some(mid => mid.toString() === aStr) || 
               domainsToMatch.some(d => d.toLowerCase() === aStr.toLowerCase())
@@ -526,7 +526,8 @@ exports.getUserTasks = async (req, res) => {
       const actions = (instance.history || []).filter(p => p.performedBy?.toString() === userId.toString());
 
       actions.forEach(action => {
-        const nodeDef = nodesData.find(n => n.id === action.nodeId);
+        const actionNodeId = action.nodeId || action.stepId;
+        const nodeDef = nodesData.find(n => n.id === actionNodeId);
         if (!nodeDef || systemNodeTypes.includes((nodeDef.type || '').toLowerCase())) return;
 
         // Recursive search for next manual nodes (skip logic blocks)
@@ -564,9 +565,9 @@ exports.getUserTasks = async (req, res) => {
         const isEditable = (instance.status === 'in_progress' && (isAwaitingValidation || isActiveNext));
 
         workflowTasks.push({
-          _id: `${instance._id}_${action.nodeId}_${new Date(action.timestamp).getTime()}`,
+          _id: `${instance._id}_${actionNodeId}_${new Date(action.timestamp).getTime()}`,
           instanceId: instance._id,
-          nodeId: action.nodeId,
+          nodeId: actionNodeId,
           title: nodeDef.data?.label || nodeDef.type || 'Done',
           workflowName: workflowData.name || 'Workflow',
           instanceTitle: instance.title,

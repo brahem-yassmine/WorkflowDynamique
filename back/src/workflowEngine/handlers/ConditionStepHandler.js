@@ -14,7 +14,7 @@ class ConditionStepHandler extends BaseStepHandler {
     // evaluating the outgoing edges from this node.
     return { 
       autoProgress: true, 
-      action: 'EVALUATE' 
+      nextAction: 'EVALUATE' 
     };
   }
 

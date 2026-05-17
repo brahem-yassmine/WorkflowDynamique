@@ -77,8 +77,27 @@ function Form2PageContent() {
 
           // Check for existing data in variables
           if (nodeId) {
-            const existingData = inst.variables?.[nodeId] || inst.variables?.[`${nodeId}_data`];
+            let existingData = inst.variables?.[nodeId] || inst.variables?.[`${nodeId}_data`];
             const nodeStatus = node?.status || inst.nodeStates?.[nodeId]?.status;
+
+            // If consulting and no direct data, check history for most recent submission from this node or predecessors
+            if (!existingData && isConsult) {
+              const nodes = inst.workflowId?.nodes || inst.nodes || [];
+              const nodesWithSameForm = nodes.filter((n: any) => 
+                n.data?.formId === formId || n.data?.linkedObjectId === formId
+              ).map((n: any) => n.id);
+
+              const lastSubmission = [...(inst.history || [])]
+                .reverse()
+                .find((h: any) => 
+                  (h.nodeId === nodeId || nodesWithSameForm.includes(h.nodeId)) && 
+                  ((h.outputData && Object.keys(h.outputData).length > 0) || (h.data && Object.keys(h.data).length > 0))
+                );
+              
+              if (lastSubmission) {
+                existingData = lastSubmission.outputData || lastSubmission.data;
+              }
+            }
             
             if (existingData) {
               setFormData(existingData);
@@ -166,10 +185,27 @@ function Form2PageContent() {
       });
 
       if (res.success) {
-        toast.success(isExecuted ? "Submission updated successfully!" : "Form submitted successfully!");
+        toast.success(isExecuted ? "Soumission mise à jour avec succès !" : "Formulaire soumis avec succès !");
+        
+        // 2. If we're in a workflow context, finalize the step automatically
+        if (instanceId && instanceId !== 'new' && nodeId) {
+          try {
+             toast.loading("Avancement du workflow...", { id: 'workflow-adv' });
+             const advRes = await apiService.approveNode(instanceId, nodeId, "Finalisation automatique via la soumission du formulaire", formData);
+             if (advRes.success) {
+               toast.success("Étape du workflow avancée automatiquement", { id: 'workflow-adv' });
+             } else {
+               toast.error("Formulaire enregistré, mais l'avancement automatique du workflow a échoué. Veuillez finaliser manuellement.", { id: 'workflow-adv' });
+             }
+          } catch (advError: any) {
+             console.error("Failed to auto-advance workflow:", advError);
+             toast.error("Formulaire enregistré, mais erreur de connexion lors de l'avancement automatique.", { id: 'workflow-adv' });
+          }
+        }
+
         setIsSubmitModalOpen(false);
         
-        // Dynamic redirection
+        // 3. Dynamic redirection
         const isPath = from?.startsWith('/');
         if (designerWorkflowId || fromWorkflow) {
           router.push(`/create-workflow${designerWorkflowId ? `?id=${designerWorkflowId}` : ''}${designerNodeId ? (designerWorkflowId ? `&designerNodeId=${designerNodeId}` : `?designerNodeId=${designerNodeId}`) : ''}${designerTab ? `&designerTab=${designerTab}` : ''}`);
@@ -184,9 +220,11 @@ function Form2PageContent() {
         } else {
           router.push(from === 'user' ? '/User/Allforms' : '/admin/AllForms');
         }
+      } else {
+        toast.error("Échec de la soumission: " + (res.message || "Erreur inconnue"));
       }
     } catch (error: any) {
-      toast.error("Submission failed: " + error.message);
+      toast.error("Échec de la soumission: " + error.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -355,7 +393,7 @@ function Form2PageContent() {
                 className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-xs sm:text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 disabled:opacity-70 whitespace-nowrap"
               >
                 {isSubmitting ? <Clock className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                {isSubmitting ? 'Submitting...' : (isExecuted ? 'Update Data' : 'Submit Form')}
+                {isSubmitting ? 'Submitting...' : (isExecuted ? 'Send Data' : 'Submit Form')}
               </button>
             )}
           </div>

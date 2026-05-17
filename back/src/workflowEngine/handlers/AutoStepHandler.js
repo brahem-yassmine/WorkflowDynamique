@@ -13,6 +13,15 @@ class AutoStepHandler extends BaseStepHandler {
         };
     }
 
+    async onActivate() {
+        const result = await this.execute();
+        return {
+            autoProgress: true,
+            nextAction: result.status === 'ERROR' ? 'ERROR' : 'COMPLETED',
+            contextUpdate: result.data || {}
+        };
+    }
+
     async execute() {
         const config = this.step.config || this.step.data || {};
         const { actionType, actionParams } = config;
@@ -45,8 +54,7 @@ class AutoStepHandler extends BaseStepHandler {
             return {
                 status: 'COMPLETED',
                 reason: 'Auto action completed',
-                data: resultContextDelta || {},
-                nextSteps: this._resolveNextSteps() // From BaseStepHandler
+                data: resultContextDelta || {}
             };
         } catch (error) {
             console.error(`[AutoStepHandler] Error executing ${actionType}:`, error);
@@ -57,8 +65,7 @@ class AutoStepHandler extends BaseStepHandler {
             return {
                 status: 'ERROR',
                 reason: error.message,
-                data: { error: error.message },
-                nextSteps: errorNextStep
+                data: { error: error.message }
             };
         }
     }

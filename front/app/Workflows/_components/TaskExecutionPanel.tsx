@@ -64,10 +64,16 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                        )) ||
                        (currentUser?.role?.toLowerCase() === 'admin' || currentUser?.role?.toLowerCase() === 'super_admin');
 
-    // Get work submitted by node operator
+    // Get work submitted by node operator or predecessors (for validation)
+    const incomingEdges = (instance?.workflowId?.edges || []).filter((e: any) => e.target === node.id);
+    const sourceNodeIds = incomingEdges.map((e: any) => e.source);
+
     const lastWorkerSubmission = [...(instance?.history || [])]
         .reverse()
-        .find((h: any) => h.nodeId === node.id && (h.action === 'step_submitted_for_validation' || h.action === 'step_rejected_for_validation' || h.action === 'worker_submitted' || h.action === 'worker_rejected'));
+        .find((h: any) => 
+            (h.nodeId === node.id || sourceNodeIds.includes(h.nodeId)) && 
+            (h.action === 'step_submitted_for_validation' || h.action === 'step_rejected_for_validation' || h.action === 'worker_submitted' || h.action === 'worker_rejected' || h.action === 'APPROVED' || h.action === 'COMPLETED' || h.action === 'step_approved')
+        );
 
     const data = node?.data || {};
     const {
@@ -103,12 +109,14 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
 
             if (deadlineDay.getTime() === today.getTime()) {
                 toast.warning('⚠️ LAST DAY: This task must be completed today!', {
+                    id: `deadline-alert-${node.id}`,
                     icon: <Clock size={20} className="text-amber-500" />,
                     duration: 8000
                 });
                 setToastShown(deadline);
             } else if (deadlineDay < today) {
                 toast.error('🚨 OVERDUE: This task has passed its deadline!', {
+                    id: `deadline-alert-${node.id}`,
                     icon: <AlertCircle size={20} className="text-rose-500" />,
                     duration: 10000
                 });
@@ -131,8 +139,9 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
     
     // Only allow performance if it's an active node (in currentNodes) and not already submitted by worker (unless validator)
     const isValidActiveNode = !instance ? (node.type === 'start') : (!isHistoryNode);
+    const isValidationTask = taskType === 'validation' || taskType === 'approval' || node?.type === 'APPROVAL' || node?.type === 'VALIDATION' || data?.validationType === 'simple' || data?.validationType === 'multi' || String(data?.label || '').toLowerCase().includes('validation') || String(userAction || '').toLowerCase().includes('approve');
     const canPerform = isActive && isValidActiveNode && (!isWorkerCompleted || isValidator);
-    const canValidate = canPerform && isInstanceActive && isWorkerCompleted && isValidator;
+    const canValidate = canPerform && isInstanceActive && (isWorkerCompleted || isValidationTask) && isValidator;
     const showButtons = canPerform || canValidate;
 
     const getFullUrl = (url: string) => {
@@ -163,23 +172,31 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
     };
 
     const getTaskUrl = () => {
-        if (!data.linkedObjectId) return null;
+        return getTaskUrlForNode(node.id);
+    };
+
+    const getTaskUrlForNode = (targetNodeId: string) => {
+        const targetNode = targetNodeId === node.id ? node : instance?.workflowId?.nodes?.find((n: any) => n.id === targetNodeId);
+        if (!targetNode) return null;
+        const nodeData = targetNode.data || {};
         
-        const isChecklist = (data.taskType === 'checklist' || String(userAction || '').toLowerCase().includes('checklist'));
-        const isForm = (data.taskType === 'form' || !!data.formId || String(userAction || '').toLowerCase().includes('form'));
-        const isKanban = (data.taskType === 'kanban' || String(userAction || '').toLowerCase().includes('kanban'));
+        const isChecklist = (nodeData.taskType === 'checklist' || String(nodeData.userAction || '').toLowerCase().includes('checklist'));
+        const isForm = (nodeData.taskType === 'form' || !!nodeData.formId || String(nodeData.userAction || '').toLowerCase().includes('form'));
+        const isKanban = (nodeData.taskType === 'kanban' || String(nodeData.userAction || '').toLowerCase().includes('kanban'));
+
+        const baseParams = `instanceId=${instance?._id || ''}&nodeId=${targetNodeId}&workflowId=${workflowId || ''}&from=${typeof window !== 'undefined' ? window.location.pathname : ''}${isValidator ? '&consult=true' : ''}`;
 
         if (isForm) {
-            return `/form/form2?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}${data.linkedObjectId ? `&formId=${data.linkedObjectId}` : ''}&from=${typeof window !== 'undefined' ? window.location.pathname : ''}${isValidator ? '&consult=true' : ''}`;
+            return `/form/form2?${baseParams}${nodeData.linkedObjectId ? `&formId=${nodeData.linkedObjectId}` : ''}`;
         }
         if (isChecklist) {
-            return `/checklist/designer?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}${data.linkedObjectId ? `&id=${data.linkedObjectId}` : ''}&from=${typeof window !== 'undefined' ? window.location.pathname : ''}${isValidator ? '&consult=true' : ''}`;
+            return `/checklist/designer?${baseParams}${nodeData.linkedObjectId ? `&id=${nodeData.linkedObjectId}` : ''}`;
         }
         if (isKanban) {
-            return `/kanban?boardId=${data.linkedObjectId}&instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}&from=${typeof window !== 'undefined' ? window.location.pathname : ''}${isValidator ? '&consult=true' : ''}`;
+            return `/kanban?boardId=${nodeData.linkedObjectId}&${baseParams}`;
         }
         
-        return `/${data.taskType || 'task'}/${data.linkedObjectId}?instanceId=${instance?._id || ''}&nodeId=${node.id}&workflowId=${workflowId || ''}&from=${typeof window !== 'undefined' ? window.location.pathname : ''}${isValidator ? '&consult=true' : ''}`;
+        return `/${nodeData.taskType || 'task'}/${nodeData.linkedObjectId}?${baseParams}`;
     };
 
     const getActionLabel = () => {
@@ -294,7 +311,7 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
         
         // Safety check if execution is required (bypass if it's purely an upload task and files are provided)
         if (validLinkedObjectId && !isExecuted && !(isUploadTask && hasUploadedItems)) {
-            toast.warning('⚠️ Action requise : Vous devez d\'abord compléter le formulaire affilié ou l\'action obligatoire de cette étape avant de finaliser.');
+            toast.warning('⚠️ Action required: You must first complete the affiliated form or the mandatory action of this step before finalizing.');
             return;
         }
 
@@ -435,7 +452,7 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                         {deadline && (
                                             <div className="flex items-center gap-2 text-rose-600">
                                                 <Clock size={12} strokeWidth={3} />
-                                                <span className="text-[10px] font-black uppercase tracking-widest">Échéance: {new Date(deadline).toLocaleDateString()}</span>
+                                                <span className="text-[10px] font-black uppercase tracking-widest">Due Date: {new Date(deadline).toLocaleDateString()}</span>
                                             </div>
                                         )}
                                         {estimatedDuration && (
@@ -506,10 +523,10 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                         </div>
                                         <div>
                                             <h4 className={`text-xl font-black uppercase tracking-tight ${isExecuted ? 'text-emerald-900' : 'text-white'}`}>
-                                                {isExecuted ? 'Modifier la saisie' : 'Remplir le formulaire'}
+                                                {isExecuted ? 'Modify entry' : 'Fill the form'}
                                             </h4>
                                             <p className={`text-xs font-bold uppercase tracking-widest ${isExecuted ? 'text-emerald-600' : 'text-indigo-100'}`}>
-                                                {isExecuted ? 'Action déjà validée' : 'Cliquez pour ouvrir maintenant'}
+                                                {isExecuted ? 'Action already validated' : 'Click to open now'}
                                             </p>
                                         </div>
                                     </div>
@@ -602,7 +619,7 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                                                 ? 'text-rose-500 hover:bg-rose-50 opacity-0 group-hover/att:opacity-100'
                                                                 : 'text-slate-200 grayscale opacity-30 blur-[0.6px] cursor-not-allowed'
                                                             }`}
-                                                            title={!can('TASK_EDIT') ? "Matrix Restricted" : "Supprimer"}
+                                                            title={!can('TASK_EDIT') ? "Matrix Restricted" : "Delete"}
                                                         >
                                                             <Trash2 size={12} />
                                                         </button>
@@ -635,21 +652,37 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                     <ShieldCheck size={14} /> Operator Evidence & Submissions
                                 </p>
                                 <div className="p-8 bg-amber-50/30 border-2 border-amber-100 rounded-[32px] space-y-6">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 bg-amber-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-amber-100">
-                                            {lastWorkerSubmission.action.includes('rejected') ? <XCircle size={24} /> : <ClipboardList size={24} />}
+                                        <div className="flex items-center justify-between gap-4 w-full">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 bg-amber-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-amber-100">
+                                                    {lastWorkerSubmission.action.includes('rejected') ? <XCircle size={24} /> : <ClipboardList size={24} />}
+                                                </div>
+                                                <div>
+                                                    <h4 className="text-sm font-black text-amber-900 uppercase tracking-tight">Operator Report</h4>
+                                                    <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest italic">
+                                                        {lastWorkerSubmission.action.includes('rejected') ? 'Failure signal received' : 'Data submitted for validation'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <Button 
+                                                variant="outline" 
+                                                size="sm"
+                                                onClick={() => {
+                                                    const url = getTaskUrlForNode(lastWorkerSubmission.nodeId);
+                                                    if (url) {
+                                                        router.push(url);
+                                                        onClose();
+                                                    }
+                                                }}
+                                                className="border-amber-200 text-amber-600 hover:bg-amber-50 rounded-xl text-[10px] font-black uppercase tracking-widest px-4 h-10"
+                                            >
+                                                <ExternalLink size={14} className="mr-2" /> Open Form Response
+                                            </Button>
                                         </div>
-                                        <div>
-                                            <h4 className="text-sm font-black text-amber-900 uppercase tracking-tight">Operator Report</h4>
-                                            <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest italic">
-                                                {lastWorkerSubmission.action.includes('rejected') ? 'Signal d\'échec reçu' : 'Données soumises pour validation'}
-                                            </p>
-                                        </div>
-                                    </div>
                                     
                                     {lastWorkerSubmission.comments && (
                                         <div className="bg-white/80 p-6 rounded-2xl border border-amber-100 shadow-sm">
-                                            <p className="text-[11px] font-black uppercase text-amber-400 mb-2 tracking-widest">Observations de l'opérateur</p>
+                                            <p className="text-[11px] font-black uppercase text-amber-400 mb-2 tracking-widest">Operator Observations</p>
                                             <p className="text-sm font-medium text-slate-700 leading-relaxed italic">
                                                 "{lastWorkerSubmission.comments}"
                                             </p>
@@ -657,11 +690,11 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                     )}
 
                                     {/* RESPONSE DATA DISPLAY */}
-                                    {lastWorkerSubmission.outputData && Object.keys(lastWorkerSubmission.outputData).length > 0 && (
+                                    {(lastWorkerSubmission.outputData || lastWorkerSubmission.data) && Object.keys(lastWorkerSubmission.outputData || lastWorkerSubmission.data || {}).length > 0 && (
                                         <div className="bg-white/95 p-6 rounded-2xl border border-amber-100 shadow-sm">
-                                            <p className="text-[11px] font-black uppercase text-amber-400 mb-4 tracking-widest">Réponse Structurée</p>
+                                            <p className="text-[11px] font-black uppercase text-amber-400 mb-4 tracking-widest">Structured Response</p>
                                             <div className="grid grid-cols-1 gap-4">
-                                                {Object.entries(lastWorkerSubmission.outputData).map(([key, val]: [string, any]) => (
+                                                {Object.entries(lastWorkerSubmission.outputData || lastWorkerSubmission.data || {}).map(([key, val]: [string, any]) => (
                                                     <div key={key} className="flex flex-col gap-1 pb-3 border-b border-amber-50 last:border-0 last:pb-0">
                                                         <span className="text-[9px] font-black text-slate-400 uppercase">{key.replace(/_/g, ' ')}</span>
                                                         <span className="text-sm font-bold text-slate-800">
@@ -675,7 +708,7 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                     
                                     <div className="flex items-center gap-4 text-[10px] font-bold text-amber-600">
                                         <div className="px-3 py-1 bg-white rounded-full border border-amber-100">
-                                             Par: Utilisateur (ID: {lastWorkerSubmission.performedBy ? String(lastWorkerSubmission.performedBy).slice(-6) : 'N/A'})
+                                             By: User (ID: {lastWorkerSubmission.performedBy ? String(lastWorkerSubmission.performedBy).slice(-6) : 'N/A'})
                                         </div>
                                         <div className="px-3 py-1 bg-white rounded-full border border-amber-100">
                                              {new Date(lastWorkerSubmission.timestamp || instance.updatedAt).toLocaleString()}
@@ -697,7 +730,7 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                 <Textarea
                                     value={comment}
                                     onChange={(e) => setComment(e.target.value)}
-                                    placeholder={isValidator && isWorkerCompleted ? "Ajoutez une note ou un motif de refus (optionnel)..." : "Please provide a detailed report of the activities or findings..."}
+                                    placeholder={isValidator && isWorkerCompleted ? "Add a note or rejection reason (optional)..." : "Please provide a detailed report of the activities or findings..."}
                                     className="min-h-[220px] rounded-[32px] bg-slate-50 border-slate-100 p-8 text-sm placeholder:text-slate-300 focus:ring-4 focus:ring-indigo-100 transition-all shadow-inner border-2 focus:bg-white"
                                 />
                                 {(!isValidator || !isWorkerCompleted) && (
@@ -714,50 +747,21 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                 <div className="p-8 bg-white border-t border-slate-100 shadow-[0_-12px_48px_rgba(0,0,0,0.06)] shrink-0 z-20">
                     <div className="flex gap-4">
                         {isValidator && (
-                            <div className="flex flex-col sm:flex-row gap-4 w-full">
+                            <div className="flex flex-col sm:flex-row gap-6 w-full">
                                 <Button
                                     variant="outline"
                                     onClick={handleReject}
                                     disabled={loading}
-                                    className="h-16 flex-1 border-2 border-rose-100 rounded-[24px] font-black uppercase text-[10px] tracking-[0.10em] text-rose-500 hover:bg-rose-50 hover:border-rose-200 transition-all"
+                                    className="h-16 flex-1 border-2 border-rose-100 rounded-[24px] font-black uppercase text-[10px] tracking-[0.15em] text-rose-500 hover:bg-rose-500 hover:text-white hover:border-rose-500 transition-all shadow-sm"
                                 >
-                                    <XCircle size={18} className="mr-2" /> Exit Protocol
+                                    <XCircle size={18} className="mr-2" /> Reject Step
                                 </Button>
                                 
                                 <Button
-                                    variant="outline"
-                                    onClick={async () => {
-                                        const msg = prompt("Enter alert message for the worker:");
-                                        if (msg) {
-                                            setLoading(true);
-                                            try {
-                                                await apiService.createNotification({
-                                                    recipient: lastWorkerSubmission?.performedBy,
-                                                    title: "Action Required / Alert",
-                                                    message: `Admin Alert for "${node.data?.label}": ${msg}`,
-                                                    type: "alert",
-                                                    link: `/Workflows/instances/${instance._id}`
-                                                });
-                                                toast.success("Alert sent to worker");
-                                            } catch (err) {
-                                                toast.error("Failed to send alert");
-                                            } finally {
-                                                setLoading(false);
-                                            }
-                                        }
-                                    }}
-                                    disabled={loading}
-                                    className="h-16 flex-1 border-2 border-amber-100 rounded-[24px] font-black uppercase text-[10px] tracking-[0.10em] text-amber-600 hover:bg-amber-50 hover:border-amber-200 transition-all"
-                                >
-                                    <AlertCircle size={18} className="mr-2" /> Envoiyer Alerte
-                                </Button>
-
-                                <Button
                                     onClick={handleApprove}
-                                    disabled={loading || !canValidate || !can('CHECKLIST_MANAGE_STATUS')}
-                                    title={!can('CHECKLIST_MANAGE_STATUS') ? "Matrix Restricted: Checklist Manage Status authority required" : "Finalize Process Stage"}
-                                    className={`h-16 flex-[1.5] shadow-xl rounded-[24px] font-black uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-3 transition-all active:scale-95 ${
-                                        !can('CHECKLIST_MANAGE_STATUS')
+                                    disabled={loading || !canValidate}
+                                    className={`h-16 flex-[2] shadow-xl rounded-[24px] font-black uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-3 transition-all active:scale-95 ${
+                                        !canValidate
                                         ? 'bg-slate-100 text-slate-300 grayscale opacity-30 blur-[1px] cursor-not-allowed border border-slate-200 shadow-none'
                                         : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-100'
                                     }`}
@@ -787,7 +791,7 @@ const TaskExecutionPanel = ({ instance, node, workflowId, onClose, onRefresh }: 
                                 {userAction === 'Fill Form' ? (isExecuted ? 'Update & Finalize' : 'Submit & Continue') :
                                  userAction === 'Approve / Reject' ? 'Authorize Progression' :
                                  (String(userAction).includes('File') || String(userAction).includes('Image')) ? (isHistoryNode ? 'Update Assets' : 'Upload & Finalize') : 
-                                 isHistoryNode ? 'Update Data' : 'Finalize Stage'}
+                                 isHistoryNode ? 'Send Data' : 'Finalize Stage'}
                             </Button>
                             )}
                             </>

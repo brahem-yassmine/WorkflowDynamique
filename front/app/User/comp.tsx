@@ -122,7 +122,7 @@ function UserSidebar() {
                       : 'text-indigo-100 hover:bg-white/10 hover:text-white font-bold'}
                     ${permClass}
                   `}
-                  title={item.permission && !can(item.permission) ? "Accès Restreint" : ""}
+                  title={item.permission && !can(item.permission) ? "Access Restricted" : ""}
                 >
                   <item.icon className={`h-4.5 w-4.5 transition-transform group-hover:scale-110 ${isActive ? 'text-indigo-600' : (item.color || 'text-indigo-300') + ' group-hover:text-white'}`} />
                   <span className="text-xs tracking-tight flex-1">{item.label}</span>

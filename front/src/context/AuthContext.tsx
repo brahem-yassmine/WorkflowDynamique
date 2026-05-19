@@ -73,7 +73,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       // If unauthorized (401), the token is likely expired or invalid
       if (error.response?.status === 401) {
-        console.warn('🔐 [AuthContext] Session expired or invalid. Logging out.');
+        console.warn('🔐 [AuthContext] Session expired or invalid. Attempting token refresh...');
+        try {
+          const refreshRes = await axios.post(`${API_URL}/auth/refresh`, {}, {
+            withCredentials: true
+          });
+          
+          if (refreshRes.data.success && refreshRes.data.data?.token) {
+            const newToken = refreshRes.data.data.token;
+            
+            // Update token in storage
+            localStorage.setItem('auth_token', newToken);
+            localStorage.setItem('token', newToken);
+            
+            // Retry profile fetch with new token
+            const profileRes = await axios.get(`${API_URL}/auth/profile`, {
+              headers: { Authorization: `Bearer ${newToken}` }
+            });
+            
+            if (profileRes.data.success) {
+              const userData = profileRes.data.data;
+              console.log('✅ [AuthContext] Profile refreshed successfully after token renewal.');
+              setUser(userData);
+              localStorage.setItem('user', JSON.stringify(userData));
+              
+              setLoading(false);
+              return; // Successfully recovered
+            }
+          }
+        } catch (refreshErr) {
+          console.warn('❌ [AuthContext] Token refresh failed. Proceeding to logout.');
+        }
+        
         logout();
       }
     } finally {

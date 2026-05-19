@@ -392,7 +392,17 @@ export default function AllChecklistsPage() {
                         {checklist.status !== 'active' && (
                           <button onClick={(e) => { e.stopPropagation(); router.push(checklist.instanceId ? `/Workflows/instances/${checklist.instanceId}` : `/checklist/designer?id=${checklist._id}&source=allchecks&role=admin`); }} className="p-2.5 text-slate-300 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Edit3 size={18} /></button>
                         )}
-                        <button onClick={(e) => { e.stopPropagation(); handleDelete(checklist._id); }} className="p-2.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"><Trash2 size={18} /></button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setChecklistToDelete(checklist);
+                            setIsDeleteModalOpen(true);
+                          }}
+                          className={`p-2.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all ${btnDisabledClass('CHECKLIST_DELETE')}`}
+                          title="Delete Checklist"
+                        >
+                          <Trash2 size={18} />
+                        </button>
                       </div>
                       <button
                         onClick={(e) => {

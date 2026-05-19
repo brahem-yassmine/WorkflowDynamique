@@ -209,33 +209,31 @@ export default function SigninPage() {
       if (axiosError.response) {
         const status = axiosError.response.status;
         const data = axiosError.response.data;
-        console.error(`❌ Login Error [${status}]`, data);
-        console.error(`❌ Login Error RAW DATA:`, JSON.stringify(data));
         
-        const serverMessage = data?.message || data?.error;
+        const serverMessage = typeof data === 'string' ? data : (data?.message || data?.error);
         let finalMessage = '';
         
         switch (status) {
           case 400:
-            finalMessage = serverMessage || 'Invalid data protocol.';
+            finalMessage = serverMessage || 'Données invalides.';
             break;
           case 401:
-            finalMessage = serverMessage || 'Invalid credentials. Access denied.';
+            finalMessage = serverMessage || 'Email ou mot de passe incorrect.';
             break;
           case 403:
-            finalMessage = serverMessage || 'Account restricted or deactivated.';
+            finalMessage = serverMessage || 'Compte restreint ou désactivé.';
             break;
           case 404:
-            finalMessage = serverMessage || 'Identity not found in the matrix.';
+            finalMessage = serverMessage || 'Utilisateur introuvable.';
             break;
           case 500:
-            finalMessage = serverMessage || 'Master node synchronization failure.';
+            finalMessage = serverMessage || 'Erreur interne du serveur.';
             break;
           case 503:
-            finalMessage = serverMessage || 'Service temporarily unavailable.';
+            finalMessage = serverMessage || 'Service temporairement indisponible.';
             break;
           default:
-            finalMessage = serverMessage || 'Lattice connectivity error.';
+            finalMessage = serverMessage || 'Erreur de connexion.';
         }
         
         setError(finalMessage);
